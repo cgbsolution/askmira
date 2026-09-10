@@ -1,0 +1,320 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AskMira design tokens — FRD 5.13.
+
+   Deep Teal grounding, Marigold accent, on Cream Paper. The peacock/turmeric
+   direction, distinct from HiBob's coral/wine and from default-AI indigo.
+
+   Components reference these tokens and never a raw hex value, so a reskin is
+   a change to this file alone.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  /* ── shadcn semantic tokens ─────────────────────────────────────────── */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 10px);
+
+  /* ── Typography ─────────────────────────────────────────────────────────
+     Inter for data-dense screens (payroll, tables, forms) where legibility at
+     small sizes is the whole requirement. Fraunces for dashboard headlines and
+     the culture feed, separating "transactional" from "human" surfaces
+     without switching layout systems. */
+  --font-*: initial;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
+
+  /* ── Brand ramp — Deep Teal #14595C ─────────────────────────────────── */
+  --color-brand-25: #f2f8f8;
+  --color-brand-50: #e6f2f1;
+  --color-brand-100: #c7e2e0;
+  --color-brand-200: #9dcbc9;
+  --color-brand-300: #6fb0ae;
+  --color-brand-400: #46908f;
+  --color-brand-500: #14595c;
+  --color-brand-600: #114b4e;
+  --color-brand-700: #0e3d3f;
+  --color-brand-800: #0b3032;
+  --color-brand-900: #082527;
+  --color-brand-950: #041617;
+
+  /* ── Accent ramp — Warm Mustard #EFC259 ─────────────────────────────── */
+  --color-mustard-25: #fffdf5;
+  --color-mustard-50: #fef9e8;
+  --color-mustard-100: #fdf2c8;
+  --color-mustard-200: #fbe7a1;
+  --color-mustard-300: #f6d97b;
+  --color-mustard-400: #f2cd68;
+  --color-mustard-500: #efc259;
+  --color-mustard-600: #d9a63c;
+  --color-mustard-700: #b5852c;
+  --color-mustard-800: #8f6724;
+  --color-mustard-900: #6d4e1f;
+  --color-mustard-950: #3d2a0f;
+
+  /* ── Secondary ramp — Sage Mint #BFE0D4 ─────────────────────────────── */
+  --color-mint-25: #f6fbf9;
+  --color-mint-50: #edf7f2;
+  --color-mint-100: #dcefe6;
+  --color-mint-200: #cde7dd;
+  --color-mint-300: #bfe0d4;
+  --color-mint-400: #9dcbbb;
+  --color-mint-500: #7bb5a1;
+  --color-mint-600: #5c9683;
+  --color-mint-700: #467568;
+  --color-mint-800: #345850;
+  --color-mint-900: #26403b;
+  --color-mint-950: #142421;
+
+  /* ── Background ramp — Cream Paper #F8F4EA ──────────────────────────── */
+  --color-cream-25: #fdfcf8;
+  --color-cream-50: #f8f4ea;
+  --color-cream-100: #f2ece0;
+  --color-cream-200: #e8e0cf;
+  --color-cream-300: #dbd0ba;
+  --color-cream-400: #c4b699;
+  --color-cream-500: #a89877;
+  --color-cream-600: #8a7a5d;
+  --color-cream-700: #6d604a;
+  --color-cream-800: #524839;
+  --color-cream-900: #3a3228;
+  --color-cream-950: #1f1b15;
+
+  /* ── Text ramp — Ink #1E2430 ────────────────────────────────────────── */
+  --color-ink-25: #f6f7f9;
+  --color-ink-50: #eceef2;
+  --color-ink-100: #d9dde4;
+  --color-ink-200: #b7bfcb;
+  --color-ink-300: #909bad;
+  --color-ink-400: #6b788d;
+  --color-ink-500: #4f5c70;
+  --color-ink-600: #3c4759;
+  --color-ink-700: #2e3745;
+  --color-ink-800: #262e3c;
+  --color-ink-900: #1e2430;
+  --color-ink-950: #12161d;
+
+  --breakpoint-xs: 480px;
+  --breakpoint-3xl: 1800px;
+}
+
+/* ── Light theme ─────────────────────────────────────────────────────────── */
+:root {
+  --radius: 0.625rem;
+
+  --background: #f8f4ea; /* Cream Paper */
+  --foreground: #1e2430; /* Ink */
+
+  --card: #ffffff;
+  --card-foreground: #1e2430;
+  --popover: #ffffff;
+  --popover-foreground: #1e2430;
+
+  --primary: #14595c; /* Deep Teal */
+  --primary-foreground: #ffffff;
+
+  --secondary: #dcefe6; /* Sage Mint, panel weight */
+  --secondary-foreground: #0e3d3f;
+
+  --muted: #f2ece0;
+  --muted-foreground: #6b788d;
+
+  --accent: #efc259; /* Warm Mustard — CTAs, active pills */
+  --accent-foreground: #1e2430;
+
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+  --success: #2e7d5b;
+  --warning: #b5852c;
+
+  --border: #e8e0cf;
+  --input: #e8e0cf;
+  --ring: #46908f;
+
+  /* The nav rail is solid teal in both themes — it is the product's
+     signature surface, not a neutral chrome that inverts. */
+  --sidebar: #14595c;
+  --sidebar-foreground: #ffffff;
+  --sidebar-muted: #9dcbc9;
+  --sidebar-accent: #efc259;
+  --sidebar-accent-foreground: #12161d;
+  --sidebar-border: #114b4e;
+
+  --chart-1: #14595c;
+  --chart-2: #efc259;
+  --chart-3: #7bb5a1;
+  --chart-4: #b5852c;
+  --chart-5: #46908f;
+}
+
+/* ── Dark theme ──────────────────────────────────────────────────────────── */
+.dark {
+  --background: #12161d;
+  --foreground: #eceef2;
+
+  --card: #1e2430;
+  --card-foreground: #eceef2;
+  --popover: #1e2430;
+  --popover-foreground: #eceef2;
+
+  /* Lifted off the base teal: #14595C on a near-black ground is too dark to
+     read as the brand colour. */
+  --primary: #6fb0ae;
+  --primary-foreground: #041617;
+
+  --secondary: #26403b;
+  --secondary-foreground: #dcefe6;
+
+  --muted: #262e3c;
+  --muted-foreground: #909bad;
+
+  --accent: #f2cd68;
+  --accent-foreground: #12161d;
+
+  --destructive: #e5645a;
+  --destructive-foreground: #12161d;
+  --success: #5cb98d;
+  --warning: #f2cd68;
+
+  --border: #2e3745;
+  --input: #2e3745;
+  --ring: #46908f;
+
+  --sidebar: #0b3032;
+  --sidebar-foreground: #eceef2;
+  --sidebar-muted: #6fb0ae;
+  --sidebar-accent: #efc259;
+  --sidebar-accent-foreground: #12161d;
+  --sidebar-border: #0e3d3f;
+
+  --chart-1: #6fb0ae;
+  --chart-2: #efc259;
+  --chart-3: #9dcbbb;
+  --chart-4: #f2cd68;
+  --chart-5: #46908f;
+}
+
+@layer base {
+  /* Tailwind v4 defaults the border colour to currentColor; pin it to the
+     token so an unstyled border does not inherit the text colour. */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border);
+  }
+
+  * {
+    scrollbar-color: var(--color-cream-300) transparent;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* Keyboard focus has to stay visible on every surface — WCAG 2.1 AA is a
+     stated target for self-service screens (FRD 6). */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Screen tiering — FRD 5.13.
+
+   Tier 1: a mistake here costs money or triggers a statutory filing. Flat,
+   rectangular, hairline-bordered. Typography and data density carry it.
+
+   Tier 2: people connecting with people. Soft radius, mint fills, warmth.
+
+   The home dashboard mixes both by design: culture widgets Tier 2, payroll
+   widgets Tier 1, on the same screen.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@utility card-tier1 {
+  border-radius: var(--radius-md);
+  border-width: 1px;
+  border-color: var(--border);
+  background-color: var(--card);
+  box-shadow: 0 1px 2px 0 rgb(30 36 48 / 0.04);
+}
+
+@utility card-tier2 {
+  border-radius: var(--radius-2xl);
+  border-width: 1px;
+  border-color: color-mix(in srgb, var(--color-mint-300) 60%, transparent);
+  background-color: var(--card);
+  box-shadow: 0 2px 12px -4px rgb(20 89 92 / 0.10);
+}
+
+@utility panel-mint {
+  background-color: var(--color-mint-50);
+  border-radius: var(--radius-2xl);
+}
+
+/* The active nav pill. Marigold, not a lighter tint of the rail — the active
+   state has to read at a glance (FRD 5.13). */
+@utility nav-pill-active {
+  background-color: var(--sidebar-accent);
+  color: var(--sidebar-accent-foreground);
+}
+
+@utility no-scrollbar {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
