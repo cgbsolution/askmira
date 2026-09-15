@@ -1,7 +1,9 @@
 "use client";
 
-import { Bell, Menu, Moon, PanelLeftClose, PanelLeft, Search, Sun } from "lucide-react";
-import React from "react";
+import { Bell, Menu, Moon, PanelLeft, PanelLeftClose, Search, Sun } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,12 +11,17 @@ import { useSidebar } from "@/context/SidebarContext";
 import { useTheme } from "@/context/ThemeContext";
 
 /**
- * Top bar. Search, notifications and avatar sit top-right — standard SaaS
- * convention, and the reference screens follow it too (FRD 5.13).
+ * Top bar: people search, theme, notifications.
+ *
+ * Search goes to the directory with the term applied — the one search the
+ * product can answer truthfully today. The bell links to the inbox; the unread
+ * count is shown by the notifications work, not guessed here.
  */
 export function AppHeader() {
   const { isExpanded, toggleSidebar, toggleMobileSidebar } = useSidebar();
   const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
+  const [term, setTerm] = useState("");
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background/85 px-4 backdrop-blur-sm md:px-6">
@@ -38,15 +45,26 @@ export function AppHeader() {
         {isExpanded ? <PanelLeftClose /> : <PanelLeft />}
       </Button>
 
-      <div className="relative hidden max-w-md flex-1 sm:block">
+      <form
+        role="search"
+        className="relative hidden max-w-md flex-1 sm:block"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const query = term.trim();
+          router.push(query ? `/people?search=${encodeURIComponent(query)}` : "/people");
+        }}
+      >
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
-          placeholder="Search people, documents, requests…"
+          value={term}
+          maxLength={100}
+          onChange={(event) => setTerm(event.target.value)}
+          placeholder="Search people by name, code or email"
           className="pl-9"
-          aria-label="Search"
+          aria-label="Search people"
         />
-      </div>
+      </form>
 
       <div className="ml-auto flex items-center gap-1">
         <Button
@@ -58,10 +76,10 @@ export function AppHeader() {
           {theme === "light" ? <Moon /> : <Sun />}
         </Button>
 
-        <Button variant="ghost" size="icon" aria-label="Notifications" className="relative">
-          <Bell />
-          {/* Red-dot convention, reused directly — near-universal, not distinctive. */}
-          <span className="absolute right-2 top-2 size-2 rounded-full bg-destructive ring-2 ring-background" />
+        <Button variant="ghost" size="icon" aria-label="Notifications" asChild>
+          <Link href="/notifications">
+            <Bell />
+          </Link>
         </Button>
       </div>
     </header>

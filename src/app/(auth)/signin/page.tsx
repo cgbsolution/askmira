@@ -33,7 +33,8 @@ function SignInForm() {
     event.preventDefault();
     setIsSubmitting(true);
     try {
-      await login(email, password);
+      // `next` is checked by safeNextPath inside login: only a local path is followed.
+      await login(email, password, params.get("next"));
     } catch (error) {
       toast.error(error instanceof ApiError ? error.detail : "Could not sign you in.");
       setIsSubmitting(false);

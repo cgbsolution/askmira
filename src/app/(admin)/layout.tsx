@@ -1,25 +1,33 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect } from "react";
 
+import { AccessDenied } from "@/components/common/AccessDenied";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { Backdrop } from "@/components/layout/Backdrop";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { useSidebar } from "@/context/SidebarContext";
+import { decideAccess } from "@/lib/access";
+import { cn } from "@/lib/utils";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isExpanded, isHovered, isMobileOpen } = useSidebar();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, tenant, isAuthenticated, isLoading } = useAuth();
+  const pathname = usePathname();
   const router = useRouter();
 
   // Client-side gate. The backend rejects an unauthenticated request anyway —
-  // this exists so the user lands on sign-in rather than an empty shell.
+  // this exists so the user lands on sign-in rather than an empty shell, and
+  // comes back to the page they were trying to open.
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) router.replace("/signin");
-  }, [isLoading, isAuthenticated, router]);
+    if (!isLoading && !isAuthenticated) {
+      router.replace(`/signin?next=${encodeURIComponent(pathname)}`);
+    }
+  }, [isLoading, isAuthenticated, router, pathname]);
 
   const contentMargin = isMobileOpen
     ? "ml-0"
@@ -37,14 +45,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
+  // Presentation only: the page is not rendered, so it makes no API calls the
+  // person was never going to be allowed. The API refuses them regardless.
+  const decision = decideAccess(pathname, user, tenant);
+
   return (
-    <div className="min-h-screen">
-      <AppSidebar />
-      <Backdrop />
-      <div className={`flex min-h-screen flex-col transition-[margin] duration-200 ease-out ${contentMargin}`}>
-        <AppHeader />
-        <main className="mx-auto w-full max-w-[1600px] flex-1 p-4 md:p-6">{children}</main>
+    <TooltipProvider delayDuration={200}>
+      <div className="min-h-screen">
+        <AppSidebar />
+        <Backdrop />
+        <div
+          className={cn(
+            "flex min-h-screen flex-col transition-[margin] duration-200 ease-out",
+            contentMargin,
+          )}
+        >
+          <AppHeader />
+          <main className="mx-auto w-full max-w-[1600px] flex-1 p-4 md:p-6">
+            {decision === "allowed" ? children : <AccessDenied reason={decision} />}
+          </main>
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

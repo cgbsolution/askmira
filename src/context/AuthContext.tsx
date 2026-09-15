@@ -4,7 +4,7 @@ import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-import { clearTokens, post, setTokens, USER_KEY, getToken } from "@/lib/api";
+import { ApiError, get, post } from "@/lib/api";
 import type { AuthResponse, AuthUser, Tenant, UserRole } from "@/lib/types";
 
 interface AuthContextValue {
@@ -12,9 +12,11 @@ interface AuthContextValue {
   tenant: Tenant | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, next?: string | null) => Promise<void>;
   signup: (input: SignupInput) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  /** Re-read the signed-in user and workspace from the server. */
+  reloadSession: () => Promise<void>;
   /** True when the user holds any of the given roles. Platform admin passes always. */
   hasRole: (...roles: UserRole[]) => boolean;
   /** True when the workspace has this module switched on. */
@@ -29,6 +31,22 @@ export interface SignupInput {
   phone?: string;
 }
 
+/** Cookies from the earlier client, which kept tokens where scripts could read them. */
+const LEGACY_COOKIES = ["askmira_token", "askmira_refresh", "askmira_user"];
+
+/**
+ * Only same-origin, path-only destinations after sign-in.
+ *
+ * `?next=https://evil.example` or `//evil.example` would otherwise turn the
+ * sign-in page into an open redirect for phishing.
+ */
+export function safeNextPath(next: string | null | undefined): string {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
+    return "/";
+  }
+  return next;
+}
+
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -37,61 +55,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Rehydrate from the cookie on mount so a refresh does not bounce the user
-  // to sign-in while the first API call is still in flight.
-  useEffect(() => {
+  const reloadSession = useCallback(async () => {
     try {
-      const cached = Cookies.get(USER_KEY);
-      if (cached && getToken()) {
-        const parsed = JSON.parse(cached) as { user: AuthUser; tenant: Tenant };
-        setUser(parsed.user);
-        setTenant(parsed.tenant);
+      const session = await get<{ user: AuthUser; tenant: Tenant }>("/auth/session", {
+        skipAuthRedirect: true,
+      });
+      setUser(session.user);
+      setTenant(session.tenant);
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status === 401 || error.status === 403) {
+        setUser(null);
+        setTenant(null);
       }
-    } catch {
-      // Corrupt cookie — treat as signed out rather than crashing the shell.
-      clearTokens();
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
-  const persist = useCallback((response: AuthResponse) => {
-    setTokens(response.access_token, response.refresh_token, response.expires_in);
-    Cookies.set(USER_KEY, JSON.stringify({ user: response.user, tenant: response.tenant }), {
-      expires: 30,
-      sameSite: "lax",
-    });
+  // The session is whatever the server says it is — never a copy the page kept.
+  useEffect(() => {
+    LEGACY_COOKIES.forEach((name) => Cookies.remove(name));
+    void reloadSession().finally(() => setIsLoading(false));
+  }, [reloadSession]);
+
+  const accept = useCallback((response: AuthResponse) => {
     setUser(response.user);
     setTenant(response.tenant);
   }, []);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, next?: string | null) => {
       const response = await post<AuthResponse>(
         "/auth/login",
         { email, password },
-        { skipAuth: true },
+        { skipAuthRedirect: true },
       );
-      persist(response);
-      router.push("/");
+      accept(response);
+      router.push(safeNextPath(next));
     },
-    [persist, router],
+    [accept, router],
   );
 
   const signup = useCallback(
     async (input: SignupInput) => {
-      const response = await post<AuthResponse>("/auth/signup", input, { skipAuth: true });
-      persist(response);
+      const response = await post<AuthResponse>("/auth/signup", input, { skipAuthRedirect: true });
+      accept(response);
       router.push("/");
     },
-    [persist, router],
+    [accept, router],
   );
 
-  const logout = useCallback(() => {
-    // Fire-and-forget: the token is stateless, so a failed call here must not
-    // prevent the user from signing out locally.
-    void post("/auth/logout").catch(() => undefined);
-    clearTokens();
+  const logout = useCallback(async () => {
+    // The server clears the httpOnly cookies; the page cannot do that itself.
+    await post("/auth/logout", undefined, { skipAuthRedirect: true }).catch(() => undefined);
     setUser(null);
     setTenant(null);
     router.push("/signin");
@@ -117,10 +131,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       signup,
       logout,
+      reloadSession,
       hasRole,
       hasModule,
     }),
-    [user, tenant, isLoading, login, signup, logout, hasRole, hasModule],
+    [user, tenant, isLoading, login, signup, logout, reloadSession, hasRole, hasModule],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

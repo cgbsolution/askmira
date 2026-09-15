@@ -1,22 +1,6 @@
 "use client";
 
-import {
-  BarChart3,
-  Briefcase,
-  CalendarClock,
-  CircleDollarSign,
-  FileText,
-  Gift,
-  Heart,
-  LayoutDashboard,
-  ListChecks,
-  LogOut,
-  MoreVertical,
-  Settings,
-  Users,
-  UserCircle2,
-  type LucideIcon,
-} from "lucide-react";
+import { LogOut, MoreVertical, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useCallback, useMemo } from "react";
@@ -30,67 +14,53 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/AuthContext";
 import { useSidebar } from "@/context/SidebarContext";
+import { NAV, resolvePage, visiblePages } from "@/lib/access";
 import { cn, humanizeRole, initials } from "@/lib/utils";
 
-type NavItem = {
-  name: string;
-  icon: LucideIcon;
-  path: string;
-  /** Which workspace module gates this item. Undefined = always available. */
-  module?: string;
-  /** Roadmap phase. Anything past V1 renders disabled with a phase chip. */
-  phase?: "V1" | "V2" | "V3";
-  badge?: number;
+const GROUP_LABEL: Record<string, string> = {
+  me: "Me",
+  company: "Company",
+  operations: "Operations",
 };
 
 /**
- * The nav rail from FRD 5.13: fixed width, icon-over-label, solid Deep Teal,
- * Marigold pill on the active item.
+ * The nav rail from FRD 5.13: solid Deep Teal, Marigold pill on the active item.
  *
- * Items for unshipped phases stay visible but disabled, with a phase chip.
- * During pilots that makes the roadmap legible inside the product, which is
- * worth more than a tidy menu.
+ * Built from `lib/access.ts`, the same map the route guard reads. A section
+ * appears only when the workspace has its module and the person can open at
+ * least one of its pages; its link goes to the first such page.
  */
-const NAV_ITEMS: NavItem[] = [
-  { name: "Home", icon: LayoutDashboard, path: "/", phase: "V1" },
-  { name: "People", icon: Users, path: "/people", module: "core_hr", phase: "V1" },
-  { name: "Time", icon: CalendarClock, path: "/time", module: "leave", phase: "V1" },
-  { name: "Hiring", icon: Briefcase, path: "/hiring", module: "hiring", phase: "V1" },
-  { name: "Culture", icon: Heart, path: "/culture", module: "culture", phase: "V1" },
-  { name: "Payroll", icon: CircleDollarSign, path: "/payroll", module: "payroll", phase: "V1" },
-  { name: "Docs", icon: FileText, path: "/docs", module: "core_hr", phase: "V1" },
-  { name: "Tasks", icon: ListChecks, path: "/tasks", phase: "V2" },
-  { name: "Analytics", icon: BarChart3, path: "/analytics", module: "analytics", phase: "V2" },
-  { name: "Rewards", icon: Gift, path: "/rewards", module: "rewards", phase: "V2" },
-];
-
 export function AppSidebar() {
   const { isExpanded, isHovered, isMobileOpen, setIsHovered, toggleMobileSidebar } = useSidebar();
-  const { user, tenant, logout, hasModule } = useAuth();
+  const { user, tenant, logout } = useAuth();
   const pathname = usePathname();
 
   const open = isExpanded || isHovered || isMobileOpen;
+  const activeKey = resolvePage(pathname)?.section?.key;
 
-  const isActive = useCallback(
-    (path: string) =>
-      path === "/" ? pathname === "/" : pathname === path || pathname.startsWith(`${path}/`),
-    [pathname],
-  );
-
-  const items = useMemo(
+  const sections = useMemo(
     () =>
-      NAV_ITEMS.map((item) => ({
-        ...item,
-        // A V1 item is live once the workspace has its module on. Later phases
-        // stay disabled regardless — the module flag is not a ship date.
-        enabled: item.phase === "V1" && (!item.module || hasModule(item.module)),
-      })),
-    [hasModule],
+      NAV.map((section) => ({ section, pages: visiblePages(section, user, tenant) })).filter(
+        ({ pages }) => pages.length > 0,
+      ),
+    [user, tenant],
   );
 
   const closeOnMobile = useCallback(() => {
     if (isMobileOpen) toggleMobileSidebar();
   }, [isMobileOpen, toggleMobileSidebar]);
+
+  const groups = (["me", "company", "operations"] as const)
+    .map((group) => ({ group, items: sections.filter(({ section }) => section.group === group) }))
+    .filter(({ items }) => items.length > 0);
+  const settings = sections.find(({ section }) => section.group === "admin");
+
+  const itemClass = (active: boolean) =>
+    cn(
+      "group relative flex items-center rounded-xl transition-colors duration-150",
+      open ? "gap-2.5 px-2.5 py-2" : "mx-auto h-11 w-11 justify-center",
+      active ? "nav-pill-active font-semibold" : "text-white/85 hover:bg-white/10 hover:text-white",
+    );
 
   return (
     <aside
@@ -127,96 +97,61 @@ export function AppSidebar() {
       )}
 
       {/* ── Nav ────────────────────────────────────────────────────────── */}
-      <nav className="no-scrollbar flex-1 overflow-y-auto px-3 pb-4">
-        <p
-          className={cn(
-            "mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.15em] text-sidebar-muted",
-            !open && "lg:text-center",
-          )}
-        >
-          {open ? "Menu" : "•••"}
-        </p>
-
-        <ul className="flex flex-col gap-0.5">
-          {items.map((item) => {
-            const Icon = item.icon;
-            const active = item.enabled && isActive(item.path);
-            const content = (
-              <>
-                <span className="relative flex size-8 shrink-0 items-center justify-center">
-                  <Icon className="size-[18px]" />
-                  {item.badge ? (
-                    <span className="absolute -right-0.5 -top-0.5 flex size-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-white">
-                      {item.badge > 9 ? "9+" : item.badge}
-                    </span>
-                  ) : null}
-                </span>
-                {open && <span className="flex-1 truncate text-sm font-medium">{item.name}</span>}
-                {open && item.phase !== "V1" && (
-                  <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-sidebar-muted">
-                    {item.phase}
-                  </span>
-                )}
-              </>
-            );
-
-            const shared = cn(
-              "group relative flex items-center rounded-xl transition-colors duration-150",
-              open ? "gap-2.5 px-2.5 py-2" : "h-11 w-11 mx-auto justify-center",
-              active
-                ? "nav-pill-active font-semibold"
-                : item.enabled
-                  ? "text-white/85 hover:bg-white/10 hover:text-white"
-                  : "cursor-not-allowed text-white/35",
-            );
-
-            return (
-              <li key={item.path}>
-                {item.enabled ? (
-                  <Link
-                    href={item.path}
-                    onClick={closeOnMobile}
-                    aria-current={active ? "page" : undefined}
-                    title={!open ? item.name : undefined}
-                    className={shared}
-                  >
-                    {content}
-                  </Link>
-                ) : (
-                  <span
-                    aria-disabled
-                    title={
-                      !open
-                        ? `${item.name} — ${item.phase}`
-                        : `Ships in ${item.phase}`
-                    }
-                    className={shared}
-                  >
-                    {content}
-                  </span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+      <nav aria-label="Main" className="no-scrollbar flex-1 overflow-y-auto px-3 pb-4">
+        {groups.map(({ group, items }) => (
+          <div key={group} className="mb-3">
+            <p
+              className={cn(
+                "mb-1.5 px-2 text-[10px] font-bold uppercase tracking-[0.15em] text-sidebar-muted",
+                !open && "lg:text-center",
+              )}
+            >
+              {open ? GROUP_LABEL[group] : "•••"}
+            </p>
+            <ul className="flex flex-col gap-0.5">
+              {items.map(({ section, pages }) => {
+                const Icon = section.icon;
+                const active = section.key === activeKey;
+                return (
+                  <li key={section.key}>
+                    <Link
+                      href={pages[0].path}
+                      onClick={closeOnMobile}
+                      aria-current={active ? "page" : undefined}
+                      title={!open ? section.name : undefined}
+                      className={itemClass(active)}
+                    >
+                      <span className="flex size-8 shrink-0 items-center justify-center">
+                        <Icon className="size-[18px]" />
+                      </span>
+                      {open && (
+                        <span className="flex-1 truncate text-sm font-medium">{section.name}</span>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
       </nav>
 
       {/* ── Settings + account ─────────────────────────────────────────── */}
       <div className="shrink-0 border-t border-sidebar-border p-3">
-        <Link
-          href="/settings"
-          onClick={closeOnMobile}
-          title={!open ? "Settings" : undefined}
-          className={cn(
-            "mb-2 flex items-center rounded-xl text-white/85 transition-colors hover:bg-white/10 hover:text-white",
-            open ? "gap-2.5 px-2.5 py-2" : "mx-auto h-11 w-11 justify-center",
-          )}
-        >
-          <span className="flex size-8 shrink-0 items-center justify-center">
-            <Settings className="size-[18px]" />
-          </span>
-          {open && <span className="text-sm font-medium">Settings</span>}
-        </Link>
+        {settings && (
+          <Link
+            href={settings.pages[0].path}
+            onClick={closeOnMobile}
+            title={!open ? "Settings" : undefined}
+            aria-current={activeKey === "settings" ? "page" : undefined}
+            className={cn(itemClass(activeKey === "settings"), "mb-2")}
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center">
+              <settings.section.icon className="size-[18px]" />
+            </span>
+            {open && <span className="text-sm font-medium">Settings</span>}
+          </Link>
+        )}
 
         {user && (
           <DropdownMenu>
@@ -260,7 +195,7 @@ export function AppSidebar() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem variant="destructive" onClick={logout}>
+              <DropdownMenuItem variant="destructive" onClick={() => void logout()}>
                 <LogOut /> Sign out
               </DropdownMenuItem>
             </DropdownMenuContent>
