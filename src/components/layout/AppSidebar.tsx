@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useCallback, useMemo } from "react";
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -156,17 +158,20 @@ export function AppSidebar() {
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button
+              <Button
                 type="button"
+                variant="ghost"
                 aria-label="Account menu"
                 className={cn(
-                  "flex w-full items-center rounded-xl bg-white/8 transition-colors hover:bg-white/14",
-                  open ? "gap-2.5 p-2" : "mx-auto size-11 justify-center",
+                  "h-auto rounded-xl bg-white/8 font-normal text-sidebar-foreground hover:bg-white/14 hover:text-sidebar-foreground",
+                  open ? "w-full justify-start gap-2.5 p-2" : "mx-auto size-11 justify-center p-0",
                 )}
               >
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-[11px] font-bold text-sidebar-accent-foreground">
-                  {initials(user.full_name)}
-                </span>
+                <Avatar className="size-8">
+                  <AvatarFallback className="bg-sidebar-accent text-[11px] font-bold text-sidebar-accent-foreground">
+                    {initials(user.full_name)}
+                  </AvatarFallback>
+                </Avatar>
                 {open && (
                   <>
                     <span className="min-w-0 flex-1 text-left">
@@ -180,7 +185,7 @@ export function AppSidebar() {
                     <MoreVertical className="size-4 shrink-0 text-sidebar-muted" />
                   </>
                 )}
-              </button>
+              </Button>
             </DropdownMenuTrigger>
 
             <DropdownMenuContent align="end" side="top" className="w-52">

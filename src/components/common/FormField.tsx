@@ -1,0 +1,49 @@
+import React from "react";
+
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+
+/**
+ * One labelled form control, with an optional hint and error.
+ *
+ * Wraps any shadcn control (Input, Select, Textarea, Switch…). Pass the same
+ * `id` to the control that you pass here as `htmlFor`, so the label is clickable
+ * and screen readers announce it.
+ */
+export function FormField({
+  htmlFor,
+  label,
+  hint,
+  error,
+  optional = false,
+  className,
+  children,
+}: {
+  htmlFor: string;
+  label: React.ReactNode;
+  hint?: React.ReactNode;
+  error?: string | null;
+  optional?: boolean;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const describedBy = error ? `${htmlFor}-error` : hint ? `${htmlFor}-hint` : undefined;
+  return (
+    <div className={cn("grid gap-1.5", className)} aria-describedby={describedBy}>
+      <Label htmlFor={htmlFor}>
+        {label}
+        {optional && <span className="font-normal text-muted-foreground">(optional)</span>}
+      </Label>
+      {children}
+      {error ? (
+        <p id={`${htmlFor}-error`} role="alert" className="text-xs text-destructive">
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={`${htmlFor}-hint`} className="text-xs text-muted-foreground">
+          {hint}
+        </p>
+      ) : null}
+    </div>
+  );
+}

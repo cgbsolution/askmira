@@ -102,6 +102,27 @@ export function pluralDays(value: string | null | undefined): string {
   return `${shown} ${shown === "1" ? "day" : "days"}`;
 }
 
+/**
+ * A decimal money string grouped the Indian way: "1234567.5" → "₹12,34,567.5".
+ *
+ * String handling only — the amount is never converted to a Number.
+ */
+export function formatMoney(
+  value: string | null | undefined,
+  { currency = true }: { currency?: boolean } = {},
+): string {
+  if (value === null || value === undefined || value.trim() === "") return "—";
+  const trimmed = value.trim();
+  const negative = trimmed.startsWith("-");
+  const [whole, fraction] = (negative ? trimmed.slice(1) : trimmed).split(".");
+  if (!/^\d+$/.test(whole) || (fraction !== undefined && !/^\d*$/.test(fraction))) return "—";
+  const grouped =
+    whole.length <= 3
+      ? whole
+      : `${whole.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ",")},${whole.slice(-3)}`;
+  return `${negative ? "−" : ""}${currency ? "₹" : ""}${grouped}${fraction ? `.${fraction}` : ""}`;
+}
+
 /** "hr_ops" → "HR Ops". Role slugs are stored snake_case and shown title-case. */
 export function humanizeRole(role: string): string {
   return role
