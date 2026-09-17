@@ -1,21 +1,9 @@
-import { Construction } from "lucide-react";
+import React from "react";
 
-import { ModulePlaceholder } from "@/components/common/ModulePlaceholder";
-import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
+import { TemplatesView } from "@/components/docs/DocsViews";
 
-export const metadata = { title: "Templates" };
+export const metadata = { title: "Letter templates" };
 
 export default function Page() {
-  return (
-    <PageShell title="Templates" description="Letter templates and their merge fields.">
-      <SectionNav section="docs" />
-      <ModulePlaceholder
-        icon={Construction}
-        phase="V1"
-        summary="This screen is being built. It shows nothing until it reads real data from the API."
-        scope={[]}
-      />
-    </PageShell>
-  );
+  return <TemplatesView />;
 }

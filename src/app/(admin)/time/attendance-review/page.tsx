@@ -1,21 +1,17 @@
-import { Construction } from "lucide-react";
-
-import { ModulePlaceholder } from "@/components/common/ModulePlaceholder";
 import { PageShell } from "@/components/common/PageShell";
 import { SectionNav } from "@/components/common/SectionNav";
+import { AttendanceReview } from "@/components/attendance/AttendanceReview";
 
 export const metadata = { title: "Attendance review" };
 
 export default function Page() {
   return (
-    <PageShell title="Attendance review" description="Regularisations to decide and exceptions to resolve.">
+    <PageShell
+      title="Attendance review"
+      description="Regularisations to decide and exceptions to resolve."
+    >
       <SectionNav section="time" />
-      <ModulePlaceholder
-        icon={Construction}
-        phase="V1"
-        summary="This screen is being built. It shows nothing until it reads real data from the API."
-        scope={[]}
-      />
+      <AttendanceReview />
     </PageShell>
   );
 }

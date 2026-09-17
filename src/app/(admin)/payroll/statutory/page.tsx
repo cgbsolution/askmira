@@ -1,21 +1,45 @@
-import { Construction } from "lucide-react";
+"use client";
 
-import { ModulePlaceholder } from "@/components/common/ModulePlaceholder";
+import React from "react";
+
 import { PageShell } from "@/components/common/PageShell";
 import { SectionNav } from "@/components/common/SectionNav";
+import { BonusPanel } from "@/components/payroll/statutory/BonusPanel";
+import { EsiCoveragePanel } from "@/components/payroll/statutory/EsiCoveragePanel";
+import { PfElectionsPanel } from "@/components/payroll/statutory/PfElectionsPanel";
+import { RegistersPanel } from "@/components/payroll/statutory/RegistersPanel";
+import { WorkLocationsPanel } from "@/components/payroll/statutory/WorkLocationsPanel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-export const metadata = { title: "Statutory" };
-
-export default function Page() {
+/** PF, ESI, state postings, statutory bonus and the prescribed registers. */
+export default function StatutoryPage() {
   return (
-    <PageShell title="Statutory" description="PF, ESI, PT, LWF, bonus and statutory registers.">
+    <PageShell title="Statutory" description="PF elections, ESI coverage, work locations, statutory bonus and registers.">
       <SectionNav section="payroll" />
-      <ModulePlaceholder
-        icon={Construction}
-        phase="V1"
-        summary="This screen is being built. It shows nothing until it reads real data from the API."
-        scope={[]}
-      />
+      <Tabs defaultValue="pf">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="pf">PF elections</TabsTrigger>
+          <TabsTrigger value="esi">ESI coverage</TabsTrigger>
+          <TabsTrigger value="locations">Work locations</TabsTrigger>
+          <TabsTrigger value="bonus">Bonus</TabsTrigger>
+          <TabsTrigger value="registers">Registers</TabsTrigger>
+        </TabsList>
+        <TabsContent value="pf" className="mt-4">
+          <PfElectionsPanel />
+        </TabsContent>
+        <TabsContent value="esi" className="mt-4">
+          <EsiCoveragePanel />
+        </TabsContent>
+        <TabsContent value="locations" className="mt-4">
+          <WorkLocationsPanel />
+        </TabsContent>
+        <TabsContent value="bonus" className="mt-4">
+          <BonusPanel />
+        </TabsContent>
+        <TabsContent value="registers" className="mt-4">
+          <RegistersPanel />
+        </TabsContent>
+      </Tabs>
     </PageShell>
   );
 }

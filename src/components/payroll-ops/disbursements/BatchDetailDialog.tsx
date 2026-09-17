@@ -1,0 +1,722 @@
+"use client";
+
+import {
+  CheckCircle2,
+  FileUp,
+  Loader2,
+  RefreshCw,
+  Repeat,
+  Send,
+  ShieldCheck,
+  Wrench,
+} from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import { DetailField } from "@/components/payroll-ops/disbursements/common";
+import { Money } from "@/components/common/Money";
+import { FormField } from "@/components/common/FormField";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { EmptyState } from "@/components/common/EmptyState";
+import {
+  apiErrorMessage,
+  DownloadButton,
+  InlineProblem,
+  QueryBoundary,
+} from "@/components/payroll-ops/shared";
+import {
+  BatchStatusBadge,
+  formatTimestamp,
+  LineStatusBadge,
+} from "@/components/payroll-ops/disbursements/labels";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useAuth } from "@/context/AuthContext";
+import { useApiQuery } from "@/hooks/useApiQuery";
+import { post } from "@/lib/api";
+import type {
+  BatchPrepareInput,
+  DisbursementBatch,
+  DisbursementLine,
+  ReconcileOutcome,
+} from "@/lib/types/payroll-ops";
+import { formatDay, toISODate } from "@/lib/utils";
+
+const ADMIN = ["tenant_admin", "hr_admin"] as const;
+const HR = ["tenant_admin", "hr_admin", "hr_ops"] as const;
+
+/** One disbursement batch: its file, maker-checker, release, and reconciliation. */
+export function BatchDetailDialog({
+  batchId,
+  notice,
+  onClose,
+  onChanged,
+  onOpenBatch,
+  onFixAccount,
+  onPrepareAgain,
+}: {
+  batchId: string | null;
+  notice: string | null;
+  onClose: () => void;
+  onChanged: () => void;
+  onOpenBatch: (batchId: string) => void;
+  onFixAccount: (subject: string) => void;
+  onPrepareAgain: (input: Partial<BatchPrepareInput>) => void;
+}) {
+  const query = useApiQuery<DisbursementBatch>(
+    batchId ? `/disbursement/batches/${batchId}` : null,
+  );
+
+  return (
+    <Dialog open={batchId !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
+        <DialogHeader>
+          <DialogTitle>Salary file</DialogTitle>
+          <DialogDescription>
+            The person who prepares a batch cannot approve it, and regenerating a file voids its
+            approval.
+          </DialogDescription>
+        </DialogHeader>
+        {notice && <InlineProblem>{notice}</InlineProblem>}
+        <QueryBoundary query={query} skeletonRows={5}>
+          {(batch) => (
+            <BatchBody
+              key={`${batch.id}-${batch.status}-${batch.file_hash ?? ""}`}
+              batch={batch}
+              onUpdated={(updated) => {
+                if (updated.id === batch.id) {
+                  query.setData(updated);
+                } else {
+                  onOpenBatch(updated.id);
+                }
+                onChanged();
+              }}
+              onClose={onClose}
+              onFixAccount={onFixAccount}
+              onPrepareAgain={onPrepareAgain}
+            />
+          )}
+        </QueryBoundary>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function BatchBody({
+  batch,
+  onUpdated,
+  onClose,
+  onFixAccount,
+  onPrepareAgain,
+}: {
+  batch: DisbursementBatch;
+  onUpdated: (batch: DisbursementBatch) => void;
+  onClose: () => void;
+  onFixAccount: (subject: string) => void;
+  onPrepareAgain: (input: Partial<BatchPrepareInput>) => void;
+}) {
+  const { user, hasRole } = useAuth();
+  const isAdmin = hasRole(...ADMIN);
+  const isHr = hasRole(...HR);
+  const lines = useApiQuery<DisbursementLine[]>(
+    batch.status === "failed" && batch.validation_exceptions.length > 0
+      ? null
+      : `/disbursement/batches/${batch.id}/lines`,
+  );
+
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isReleasing, setIsReleasing] = useState(false);
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false);
+  const [confirmRelease, setConfirmRelease] = useState(false);
+
+  const preparedByMe = Boolean(user && batch.prepared_by_user_id === user.id);
+  const failedLines = (lines.data ?? []).filter((line) => line.status === "failed");
+
+  const approve = async () => {
+    if (!batch.file_hash) return;
+    setActionError(null);
+    setIsApproving(true);
+    try {
+      const updated = await post<DisbursementBatch>(`/disbursement/batches/${batch.id}/approve`, {
+        file_hash: batch.file_hash,
+      });
+      toast.success("File approved");
+      onUpdated(updated);
+    } catch (caught) {
+      setActionError(apiErrorMessage(caught, "The file could not be approved."));
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const regenerate = async () => {
+    setActionError(null);
+    try {
+      const updated = await post<DisbursementBatch>(`/disbursement/batches/${batch.id}/regenerate`);
+      toast.success("File regenerated. It needs approving again.");
+      onUpdated(updated);
+    } catch (caught) {
+      const message = apiErrorMessage(caught, "The file could not be regenerated.");
+      setActionError(message);
+      toast.error(message);
+      throw caught;
+    }
+  };
+
+  const release = async () => {
+    setActionError(null);
+    setIsReleasing(true);
+    try {
+      const updated = await post<DisbursementBatch>(`/disbursement/batches/${batch.id}/release`);
+      toast.success("Marked as released to the bank");
+      onUpdated(updated);
+    } catch (caught) {
+      const message = apiErrorMessage(caught, "The batch could not be released.");
+      setActionError(message);
+      toast.error(message);
+      throw caught;
+    } finally {
+      setIsReleasing(false);
+    }
+  };
+
+  return (
+    <div className="grid gap-5">
+      <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+        <DetailField label="Status">
+          <BatchStatusBadge status={batch.status} />
+        </DetailField>
+        <DetailField label="Total">
+          <Money value={batch.total_amount} className="font-semibold" />
+        </DetailField>
+        <DetailField label="Employees">
+          <span className="tabular-nums">{batch.employee_count}</span>
+        </DetailField>
+        <DetailField label="Value date">
+          {batch.value_date ? formatDay(batch.value_date, true) : "—"}
+        </DetailField>
+        <DetailField label="Prepared">
+          {batch.prepared_by_name ?? "—"}
+          <span className="block text-xs text-muted-foreground">
+            {formatTimestamp(batch.prepared_at)}
+          </span>
+        </DetailField>
+        <DetailField label="Approved">
+          {batch.approved_by_name ?? "Not yet"}
+          {batch.approved_at && (
+            <span className="block text-xs text-muted-foreground">
+              {formatTimestamp(batch.approved_at)}
+            </span>
+          )}
+        </DetailField>
+        <DetailField label="Released">{formatTimestamp(batch.released_at)}</DetailField>
+        <DetailField label="File">{batch.file_name ?? "No file"}</DetailField>
+        <div className="sm:col-span-4">
+          <dt className="text-xs text-muted-foreground">File hash (what an approval signs)</dt>
+          <dd className="mt-0.5 break-all text-xs text-foreground tabular-nums">
+            {batch.file_hash ?? "—"}
+          </dd>
+        </div>
+        {batch.supplements_batch_id && (
+          <div className="sm:col-span-4">
+            <dt className="text-xs text-muted-foreground">Supplementary batch</dt>
+            <dd className="mt-0.5 text-foreground">
+              Reissues failed credits from an earlier batch.
+            </dd>
+          </div>
+        )}
+        {batch.notes && (
+          <div className="sm:col-span-4">
+            <dt className="text-xs text-muted-foreground">Notes</dt>
+            <dd className="mt-0.5 whitespace-pre-wrap text-foreground">{batch.notes}</dd>
+          </div>
+        )}
+      </dl>
+
+      {/* ── Actions ─────────────────────────────────────────────────────── */}
+      <div className="grid gap-3">
+        {batch.status === "pending_approval" && isAdmin && (
+          <div className="rounded-md border border-border p-4">
+            {preparedByMe ? (
+              <p className="text-sm text-muted-foreground">
+                You prepared this file, so you cannot approve it. Another HR admin must check and
+                approve it.
+              </p>
+            ) : !batch.file_hash ? (
+              <p className="text-sm text-muted-foreground">
+                This batch has no file to approve yet.
+              </p>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-foreground">
+                  Approving signs off the file with hash{" "}
+                  <span className="break-all text-xs tabular-nums">{batch.file_hash}</span>. If it
+                  is regenerated, this approval is voided.
+                </p>
+                <Button onClick={() => void approve()} disabled={isApproving}>
+                  {isApproving ? <Loader2 className="animate-spin" /> : <ShieldCheck />}
+                  Approve file
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          {isHr && (batch.status === "pending_approval" || batch.status === "approved") && (
+            <Button size="sm" variant="outline" onClick={() => setConfirmRegenerate(true)}>
+              <RefreshCw /> Regenerate file
+            </Button>
+          )}
+          {isAdmin && batch.status === "approved" && (
+            <>
+              <DownloadButton
+                path={`/disbursement/batches/${batch.id}/file`}
+                fallbackName={batch.file_name ?? `salary-file-${batch.id}.txt`}
+                label="Download bank file"
+              />
+              <Button
+                size="sm"
+                onClick={() => setConfirmRelease(true)}
+                disabled={isReleasing}
+              >
+                <Send /> Mark released to bank
+              </Button>
+            </>
+          )}
+          {isAdmin && batch.status === "released" && (
+            <DownloadButton
+              path={`/disbursement/batches/${batch.id}/file`}
+              fallbackName={batch.file_name ?? `salary-file-${batch.id}.txt`}
+              label="Download bank file"
+            />
+          )}
+        </div>
+        {isAdmin && (batch.status === "approved" || batch.status === "released") && (
+          <p className="text-xs text-muted-foreground">
+            The bank file can be downloaded only after approval and within 24 hours of it. After
+            that, regenerate and approve again.
+          </p>
+        )}
+        {actionError && <InlineProblem>{actionError}</InlineProblem>}
+      </div>
+
+      {/* ── Blocked worklist ────────────────────────────────────────────── */}
+      {batch.status === "failed" && batch.validation_exceptions.length > 0 && (
+        <div className="grid gap-3">
+          <Separator />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                Fix these before preparing again{" "}
+                <span className="text-muted-foreground tabular-nums">
+                  ({batch.validation_exceptions.length})
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                No file was built. Correct each problem at its source, then prepare the file again.
+              </p>
+            </div>
+            {isHr && (
+              <Button
+                size="sm"
+                onClick={() =>
+                  onPrepareAgain({
+                    payroll_run_id: batch.payroll_run_id,
+                    bank_profile_id: batch.bank_profile_id,
+                    value_date: batch.value_date ?? undefined,
+                  })
+                }
+              >
+                <Repeat /> Prepare again
+              </Button>
+            )}
+          </div>
+          <div className="overflow-hidden rounded-md border border-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Field</TableHead>
+                  <TableHead>Problem</TableHead>
+                  <TableHead className="w-44" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {batch.validation_exceptions.map((item, index) => {
+                  const isAccountProblem = /account|ifsc|bank|beneficiary/i.test(
+                    `${item.field} ${item.code}`,
+                  );
+                  return (
+                    <TableRow key={`${item.subject}-${item.code}-${index}`}>
+                      <TableCell className="font-medium text-foreground">{item.subject}</TableCell>
+                      <TableCell className="text-muted-foreground">{item.field}</TableCell>
+                      <TableCell className="whitespace-normal">
+                        {item.message}
+                        <span className="block text-xs text-muted-foreground">{item.code}</span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isAccountProblem && isHr && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              onClose();
+                              onFixAccount(item.subject);
+                            }}
+                          >
+                            <Wrench /> Fix bank account
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reconciliation ──────────────────────────────────────────────── */}
+      {isHr && (batch.status === "released" || batch.status === "acknowledged") && (
+        <>
+          <Separator />
+          <ReconcilePanel
+            batch={batch}
+            lines={lines.data ?? []}
+            onImported={() => {
+              lines.reload();
+            }}
+            onBatchChanged={onUpdated}
+            failedCount={failedLines.length}
+          />
+        </>
+      )}
+
+      {/* ── Lines ───────────────────────────────────────────────────────── */}
+      {!(batch.status === "failed" && batch.validation_exceptions.length > 0) && (
+        <>
+          <Separator />
+          <div>
+            <p className="mb-2 text-sm font-medium text-foreground">Credits in this file</p>
+            <div className="overflow-hidden rounded-md border border-border">
+              <QueryBoundary query={lines} skeletonRows={4}>
+                {(rows) =>
+                  rows.length === 0 ? (
+                    <EmptyState
+                      icon={CheckCircle2}
+                      title="No credit lines"
+                      description="This batch has no lines to pay."
+                    />
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Employee</TableHead>
+                          <TableHead>Beneficiary</TableHead>
+                          <TableHead>IFSC</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="hidden lg:table-cell">Bank reference</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {rows.map((line) => (
+                          <TableRow key={line.id}>
+                            <TableCell>
+                              <span className="font-medium text-foreground">
+                                {line.employee_name ?? "—"}
+                              </span>
+                              <span className="block text-xs text-muted-foreground">
+                                {line.employee_code ?? ""}
+                              </span>
+                            </TableCell>
+                            <TableCell>{line.beneficiary_name}</TableCell>
+                            <TableCell className="tabular-nums">{line.ifsc}</TableCell>
+                            <TableCell className="text-right">
+                              <Money value={line.amount} />
+                            </TableCell>
+                            <TableCell>
+                              <LineStatusBadge status={line.status} />
+                              {line.failure_reason && (
+                                <span className="block max-w-56 truncate text-xs text-destructive">
+                                  {line.failure_reason}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="hidden text-muted-foreground lg:table-cell">
+                              {line.bank_reference ?? "—"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )
+                }
+              </QueryBoundary>
+            </div>
+          </div>
+        </>
+      )}
+
+      <ConfirmDialog
+        open={confirmRegenerate}
+        onOpenChange={setConfirmRegenerate}
+        title="Regenerate this file?"
+        description="The file is rebuilt from the current bank accounts and payroll. Any approval is voided, and the new file needs approving again before it can be downloaded."
+        confirmLabel="Regenerate"
+        destructive
+        onConfirm={regenerate}
+      />
+      <ConfirmDialog
+        open={confirmRelease}
+        onOpenChange={setConfirmRelease}
+        title="Mark this file as released to the bank?"
+        description="Do this once the file has been uploaded to the bank. The batch then waits for the bank's response file to reconcile credits."
+        confirmLabel="Mark released"
+        onConfirm={release}
+      />
+    </div>
+  );
+}
+
+function ReconcilePanel({
+  batch,
+  lines,
+  onImported,
+  onBatchChanged,
+  failedCount,
+}: {
+  batch: DisbursementBatch;
+  lines: DisbursementLine[];
+  onImported: () => void;
+  onBatchChanged: (batch: DisbursementBatch) => void;
+  failedCount: number;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [inputKey, setInputKey] = useState(0);
+  const [outcome, setOutcome] = useState<ReconcileOutcome | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [valueDate, setValueDate] = useState("");
+  const [supplementError, setSupplementError] = useState<string | null>(null);
+  const [isSupplementing, setIsSupplementing] = useState(false);
+
+  const nameOf = useMemo(() => {
+    const byEmployee = new Map(lines.map((line) => [line.employee_id, line]));
+    return (employeeId: string) => {
+      const line = byEmployee.get(employeeId);
+      return line?.employee_name
+        ? `${line.employee_name}${line.employee_code ? ` (${line.employee_code})` : ""}`
+        : employeeId;
+    };
+  }, [lines]);
+
+  const importFile = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    if (!file) {
+      setError("Choose the bank's response file.");
+      return;
+    }
+    if (!/\.csv$/i.test(file.name)) {
+      setError("The response file must be a CSV.");
+      return;
+    }
+    const form = new FormData();
+    form.append("file", file);
+    setIsImporting(true);
+    try {
+      const result = await post<ReconcileOutcome>(
+        `/disbursement/batches/${batch.id}/reconcile/import`,
+        form,
+      );
+      setOutcome(result);
+      setFile(null);
+      setInputKey((current) => current + 1);
+      toast.success(`${result.credited} ${result.credited === 1 ? "credit" : "credits"} confirmed`);
+      onImported();
+    } catch (caught) {
+      setError(apiErrorMessage(caught, "The response file could not be imported."));
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const supplement = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSupplementError(null);
+    if (!valueDate) {
+      setSupplementError("Choose the value date for the reissued credits.");
+      return;
+    }
+    setIsSupplementing(true);
+    try {
+      const created = await post<DisbursementBatch>(
+        `/disbursement/batches/${batch.id}/supplementary`,
+        { value_date: valueDate },
+      );
+      toast.success("Supplementary batch prepared for the failed credits");
+      onBatchChanged(created);
+    } catch (caught) {
+      setSupplementError(apiErrorMessage(caught, "The supplementary batch could not be prepared."));
+    } finally {
+      setIsSupplementing(false);
+    }
+  };
+
+  const showSupplement = failedCount > 0 || (outcome?.failed.length ?? 0) > 0;
+
+  return (
+    <div className="grid gap-4">
+      <div>
+        <p className="text-sm font-medium text-foreground">Reconcile with the bank&apos;s response</p>
+        <p className="text-xs text-muted-foreground">
+          Upload the bank&apos;s response as a CSV with the header{" "}
+          <span className="tabular-nums">account_number,status,reason,reference</span>.
+        </p>
+      </div>
+      <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void importFile(event)} noValidate>
+        <FormField htmlFor="reconcile-file" label="Response file">
+          <Input
+            key={inputKey}
+            id="reconcile-file"
+            type="file"
+            accept=".csv,text/csv"
+            required
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            className="max-w-xs"
+          />
+        </FormField>
+        <Button type="submit" size="sm" disabled={isImporting}>
+          {isImporting ? <Loader2 className="animate-spin" /> : <FileUp />}
+          Import
+        </Button>
+      </form>
+      {error && <InlineProblem>{error}</InlineProblem>}
+
+      {outcome && (
+        <div className="grid gap-3 rounded-md border border-border p-4 text-sm">
+          <div className="flex flex-wrap gap-x-6 gap-y-1">
+            <p>
+              Credited: <span className="font-semibold tabular-nums">{outcome.credited}</span>
+            </p>
+            <p>
+              Failed: <span className="font-semibold tabular-nums">{outcome.failed.length}</span>
+            </p>
+            <p>
+              Unmatched rows:{" "}
+              <span className="font-semibold tabular-nums">{outcome.unmatched.length}</span>
+            </p>
+            <p>
+              Unreadable rows:{" "}
+              <span className="font-semibold tabular-nums">{outcome.parse_errors.length}</span>
+            </p>
+          </div>
+          <p className="text-muted-foreground">
+            {outcome.failed.length === 0
+              ? "No failed credits, so nobody needed notifying."
+              : outcome.notified > 0
+                ? `${outcome.notified} HR Ops ${outcome.notified === 1 ? "user was" : "users were"} notified about the failed credits.`
+                : "No HR Ops user was notified about the failed credits. Tell the team directly."}
+          </p>
+          {outcome.failed.length > 0 && (
+            <div className="overflow-hidden rounded-md border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Employee</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Bank&apos;s reason</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {outcome.failed.map((item) => (
+                    <TableRow key={item.line_id}>
+                      <TableCell>{nameOf(item.employee_id)}</TableCell>
+                      <TableCell className="text-right">
+                        <Money value={item.amount} />
+                      </TableCell>
+                      <TableCell className="whitespace-normal">{item.reason}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          {outcome.unmatched.length > 0 && (
+            <div>
+              <p className="font-medium text-foreground">Rows that matched no line in this batch</p>
+              <ul className="mt-1 list-disc pl-5 text-muted-foreground">
+                {outcome.unmatched.map((item, index) => (
+                  <li key={`${item}-${index}`}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {outcome.parse_errors.length > 0 && (
+            <div>
+              <p className="font-medium text-foreground">Rows that could not be read</p>
+              <ul className="mt-1 list-disc pl-5 text-destructive">
+                {outcome.parse_errors.map((item, index) => (
+                  <li key={`${item}-${index}`}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showSupplement && (
+        <form
+          className="grid gap-3 rounded-md border border-border p-4"
+          onSubmit={(event) => void supplement(event)}
+          noValidate
+        >
+          <div>
+            <p className="text-sm font-medium text-foreground">Reissue failed credits</p>
+            <p className="text-xs text-muted-foreground">
+              Prepares a supplementary batch containing only the failed credits. Fix those
+              employees&apos; bank accounts first. The new batch needs its own approval.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-end gap-3">
+            <FormField htmlFor="supplement-value-date" label="Value date">
+              <Input
+                id="supplement-value-date"
+                type="date"
+                required
+                min={toISODate(new Date())}
+                value={valueDate}
+                onChange={(event) => setValueDate(event.target.value)}
+              />
+            </FormField>
+            <Button type="submit" size="sm" disabled={isSupplementing}>
+              {isSupplementing ? <Loader2 className="animate-spin" /> : <Repeat />}
+              Prepare supplementary batch
+            </Button>
+          </div>
+          {supplementError && <InlineProblem>{supplementError}</InlineProblem>}
+        </form>
+      )}
+    </div>
+  );
+}

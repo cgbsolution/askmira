@@ -1,345 +1,288 @@
 "use client";
 
-import { AlertTriangle, Calculator, CheckCircle2, Loader2 } from "lucide-react";
-import React, { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { Calculator, Loader2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
+import { DataPanel } from "@/components/common/DataPanel";
+import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
+import { SectionNav } from "@/components/common/SectionNav";
+import { BreakdownTable } from "@/components/payroll/BreakdownTable";
+import { apiMessage, COMPONENT_TYPE_LABEL, isAmount } from "@/components/payroll/labels";
+import { NewComponentDialog } from "@/components/payroll/NewComponentDialog";
+import { NewStructureDialog } from "@/components/payroll/NewStructureDialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
   TableCell,
-  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ApiError, get } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useApiQuery } from "@/hooks/useApiQuery";
+import { get } from "@/lib/api";
+import type {
+  SalaryBreakdown,
+  SalaryComponent,
+  SalaryStructure,
+  SalaryStructureDetail,
+} from "@/lib/types/payroll";
+import { cn, formatDay } from "@/lib/utils";
 
 /**
  * The CTC builder — Tier 1 throughout.
  *
- * Amounts arrive from the API as strings and are rendered as strings. Parsing
- * them into JavaScript numbers would reintroduce exactly the float error the
- * backend goes to some length to avoid: `0.1 + 0.2 !== 0.3` is as true here as
- * it is in Python, and a payroll figure that drifts in the browser is still a
- * payroll figure that drifts.
+ * Amounts arrive as strings and are rendered as strings; a CTC is sent as a
+ * string too. A figure that passed through a JavaScript number could drift.
  */
-
-interface SalaryStructure {
-  id: string;
-  name: string;
-  description: string | null;
-  effective_from: string;
-  effective_to: string | null;
-  rounding_mode: string;
-  rounding_precision: number;
-  active: boolean;
-}
-
-interface ResolvedComponent {
-  code: string;
-  name: string;
-  component_type: "earning" | "deduction" | "employer_contribution" | "reimbursement";
-  annual_amount: string;
-  monthly_amount: string;
-  taxable: boolean;
-  part_of_ctc: boolean;
-  counts_toward_pf: boolean;
-  counts_toward_esi: boolean;
-  display_order: number;
-}
-
-interface SalaryBreakdown {
-  structure_id: string;
-  structure_name: string;
-  ctc_annual: string;
-  annual_total_in_ctc: string;
-  monthly_total_in_ctc: string;
-  components: ResolvedComponent[];
-}
-
-const TYPE_LABEL: Record<ResolvedComponent["component_type"], string> = {
-  earning: "Earning",
-  deduction: "Deduction",
-  employer_contribution: "Employer",
-  reimbursement: "Reimbursement",
-};
-
-/** Group Indian-style (12,34,567) without converting to a Number. */
-function groupIndian(amount: string): string {
-  const [whole, fraction] = amount.split(".");
-  const negative = whole.startsWith("-");
-  const digits = negative ? whole.slice(1) : whole;
-
-  let grouped: string;
-  if (digits.length <= 3) {
-    grouped = digits;
-  } else {
-    const last3 = digits.slice(-3);
-    const rest = digits.slice(0, -3);
-    grouped = `${rest.replace(/\B(?=(\d{2})+(?!\d))/g, ",")},${last3}`;
-  }
-  return `${negative ? "-" : ""}${grouped}${fraction ? `.${fraction}` : ""}`;
-}
-
 export default function SalaryStructuresPage() {
-  const [structures, setStructures] = useState<SalaryStructure[]>([]);
+  const structures = useApiQuery<SalaryStructure[]>("/salary-structures");
+  const components = useApiQuery<SalaryComponent[]>("/salary-components");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [ctc, setCtc] = useState("1200000");
+  const detail = useApiQuery<SalaryStructureDetail>(
+    selectedId ? `/salary-structures/${selectedId}` : null,
+  );
+  const [ctc, setCtc] = useState("");
   const [breakdown, setBreakdown] = useState<SalaryBreakdown | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isPreviewing, setIsPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+
+  const list = structures.data ?? [];
 
   useEffect(() => {
-    get<SalaryStructure[]>("/salary-structures")
-      .then((rows) => {
-        setStructures(rows);
-        if (rows.length > 0) setSelectedId(rows[0].id);
-      })
-      .catch((error) => {
-        toast.error(
-          error instanceof ApiError ? error.detail : "Could not load salary structures.",
-        );
-      })
-      .finally(() => setIsLoading(false));
-  }, []);
+    if (!selectedId && list.length > 0) setSelectedId(list[0].id);
+  }, [list, selectedId]);
 
-  const runPreview = useCallback(async () => {
-    if (!selectedId) return;
-    setIsPreviewing(true);
+  useEffect(() => {
+    setBreakdown(null);
     setPreviewError(null);
-    try {
-      // `ctc` goes over the wire as a string, never as a number.
-      const result = await get<SalaryBreakdown>(
-        `/salary-structures/${selectedId}/preview?ctc=${encodeURIComponent(ctc.trim())}`,
-      );
-      setBreakdown(result);
-    } catch (error) {
-      // A 422 here is a real configuration message from the engine — it names
-      // the offending component or the cycle. Show it verbatim.
-      setBreakdown(null);
-      setPreviewError(
-        error instanceof ApiError ? error.detail : "Could not resolve this CTC.",
-      );
-    } finally {
-      setIsPreviewing(false);
-    }
-  }, [selectedId, ctc]);
-
-  useEffect(() => {
-    if (selectedId) void runPreview();
-    // Re-run when the structure changes; the CTC is applied on submit.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
-  const reconciles =
-    breakdown !== null && breakdown.annual_total_in_ctc === breakdown.ctc_annual;
+  const preview = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedId) return;
+    if (!isAmount(ctc)) return setPreviewError("Enter an annual CTC, e.g. 1200000.");
+    setPreviewing(true);
+    setPreviewError(null);
+    try {
+      setBreakdown(
+        await get<SalaryBreakdown>(
+          `/salary-structures/${selectedId}/preview?ctc=${encodeURIComponent(ctc.trim())}`,
+        ),
+      );
+    } catch (caught) {
+      setBreakdown(null);
+      setPreviewError(apiMessage(caught, "Could not resolve this CTC."));
+    } finally {
+      setPreviewing(false);
+    }
+  };
 
   return (
     <PageShell
       title="Salary structures"
-      description="Configure a CTC template, then preview how any CTC resolves against it."
+      description="Define components, build a CTC template from them, and preview how any CTC resolves."
+      actions={
+        <>
+          <NewComponentDialog onCreated={components.reload} />
+          <NewStructureDialog
+            components={components.data ?? []}
+            onCreated={(structure) => {
+              structures.reload();
+              setSelectedId(structure.id);
+            }}
+          />
+        </>
+      }
     >
-      {isLoading ? (
-        <Skeleton className="h-64 w-full" />
-      ) : structures.length === 0 ? (
-        <Card tier="tier1">
-          <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-            <span className="flex size-12 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-              <Calculator className="size-6" />
-            </span>
-            <div>
-              <p className="font-medium text-foreground">No salary structures yet</p>
-              <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                A structure defines how a CTC splits into Basic, HRA, allowances and employer
-                contributions. Every payroll capability reads from it, so this is the first
-                thing to configure.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-          {/* ── Structure picker ─────────────────────────────────────── */}
-          <Card tier="tier1" className="h-fit">
-            <CardHeader>
-              <CardTitle className="text-base">Structures</CardTitle>
-              <CardDescription>Effective-dated templates.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-1.5">
-              {structures.map((structure) => (
-                <button
-                  key={structure.id}
-                  type="button"
-                  onClick={() => setSelectedId(structure.id)}
-                  className={cn(
-                    "w-full rounded-md border px-3 py-2 text-left transition-colors",
-                    selectedId === structure.id
-                      ? "border-brand-300 bg-mint-50 dark:bg-mint-900/20"
-                      : "border-border hover:bg-muted",
-                  )}
+      <SectionNav section="payroll" />
+      <Tabs defaultValue="structures">
+        <TabsList>
+          <TabsTrigger value="structures">Structures</TabsTrigger>
+          <TabsTrigger value="components">Components</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="structures" className="mt-4">
+          <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+            <DataPanel
+              title="Structures"
+              isLoading={structures.isLoading && !structures.data}
+              error={structures.error?.detail}
+              onRetry={structures.reload}
+              isEmpty={list.length === 0}
+              empty={{
+                icon: Calculator,
+                title: "No salary structures yet",
+                description:
+                  "Create the components first, then a structure from them. Every payroll figure reads from a structure.",
+              }}
+            >
+              <ul className="space-y-1 p-3">
+                {list.map((structure) => (
+                  <li key={structure.id}>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "h-auto w-full flex-col items-start gap-0.5 px-3 py-2 text-left",
+                        selectedId === structure.id && "bg-secondary",
+                      )}
+                      onClick={() => setSelectedId(structure.id)}
+                    >
+                      <span className="w-full truncate text-sm font-medium">{structure.name}</span>
+                      <span className="text-xs font-normal text-muted-foreground">
+                        From {formatDay(structure.effective_from, true)}
+                        {structure.rounding_precision === 0 ? " · whole rupees" : " · paise"}
+                      </span>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </DataPanel>
+
+            <div className="flex min-w-0 flex-col gap-4">
+              {selectedId && (
+                <DataPanel
+                  title={detail.data?.name ?? "Structure"}
+                  description="Components and per-structure overrides."
+                  isLoading={detail.isLoading && !detail.data}
+                  error={detail.error?.detail}
+                  onRetry={detail.reload}
                 >
-                  <p className="truncate text-sm font-medium text-foreground">{structure.name}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    From {structure.effective_from}
-                    {structure.rounding_precision === 0 ? " · whole rupees" : " · paise"}
-                  </p>
-                </button>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* ── Preview ──────────────────────────────────────────────── */}
-          <div className="flex flex-col gap-4">
-            <Card tier="tier1">
-              <CardContent>
-                <form
-                  className="flex flex-wrap items-end gap-3"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void runPreview();
-                  }}
-                >
-                  <div className="space-y-1.5">
-                    <Label htmlFor="ctc">Annual CTC (₹)</Label>
-                    <Input
-                      id="ctc"
-                      value={ctc}
-                      onChange={(event) => setCtc(event.target.value)}
-                      inputMode="decimal"
-                      className="w-48 font-mono"
-                    />
-                  </div>
-                  <Button type="submit" disabled={isPreviewing}>
-                    {isPreviewing ? <Loader2 className="animate-spin" /> : <Calculator />}
-                    Resolve
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-
-            {previewError && (
-              <Card tier="tier1" className="border-destructive/40">
-                <CardContent className="flex items-start gap-3">
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
-                  <div>
-                    <p className="text-sm font-medium text-destructive">
-                      This CTC does not resolve
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">{previewError}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {breakdown && (
-              <Card tier="tier1" className="gap-0 py-0">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">
-                      {breakdown.structure_name}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Resolved breakdown for ₹{groupIndian(breakdown.ctc_annual)} per year
-                    </p>
-                  </div>
-                  {/* The guarantee the endpoint makes, shown rather than assumed. */}
-                  <Badge variant={reconciles ? "success" : "destructive"}>
-                    {reconciles ? (
-                      <>
-                        <CheckCircle2 /> Sums exactly to CTC
-                      </>
-                    ) : (
-                      <>
-                        <AlertTriangle /> Does not reconcile
-                      </>
-                    )}
-                  </Badge>
-                </div>
-
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Component</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="text-right">Monthly</TableHead>
-                        <TableHead className="text-right">Annual</TableHead>
-                        <TableHead>Statutory</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {breakdown.components.map((component) => (
-                        <TableRow key={component.code}>
-                          <TableCell>
-                            <p className="font-medium text-foreground">{component.name}</p>
-                            <p className="font-mono text-xs text-muted-foreground">
-                              {component.code}
-                            </p>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="muted">
-                              {TYPE_LABEL[component.component_type]}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {groupIndian(component.monthly_amount)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {groupIndian(component.annual_amount)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
-                              {component.counts_toward_pf && (
-                                <Badge variant="outline" title="Counts toward the PF wage base">
-                                  PF
-                                </Badge>
-                              )}
-                              {component.counts_toward_esi && (
-                                <Badge variant="outline" title="Counts toward the ESI wage base">
-                                  ESI
-                                </Badge>
-                              )}
-                              {!component.part_of_ctc && (
-                                <Badge variant="warning" title="Sits outside the CTC">
-                                  Outside CTC
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Component</TableHead>
+                          <TableHead>Calculated as</TableHead>
+                          <TableHead>Value</TableHead>
+                          <TableHead>Statutory</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow>
-                        <TableCell colSpan={2} className="font-semibold">
-                          Total in CTC
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-semibold">
-                          {groupIndian(breakdown.monthly_total_in_ctc)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono font-semibold">
-                          {groupIndian(breakdown.annual_total_in_ctc)}
-                        </TableCell>
-                        <TableCell />
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
+                      </TableHeader>
+                      <TableBody>
+                        {(detail.data?.components ?? []).map((item) => (
+                          <TableRow key={item.component_code}>
+                            <TableCell>
+                              <p className="font-medium text-foreground">{item.component_name}</p>
+                              <p className="text-xs text-muted-foreground">{item.component_code}</p>
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {item.calculation_type.replace("_", " ")}
+                              {item.base_component_code ? ` ${item.override_base_component_code ?? item.base_component_code}` : ""}
+                            </TableCell>
+                            <TableCell className="text-sm tabular-nums">
+                              {item.override_value ?? item.value ?? item.override_formula ?? item.formula ?? "—"}
+                              {item.override_value && <Badge variant="outline" className="ml-1">override</Badge>}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                {item.counts_toward_pf && <Badge variant="outline">PF</Badge>}
+                                {item.counts_toward_esi && <Badge variant="outline">ESI</Badge>}
+                                {!item.part_of_ctc && <Badge variant="warning">Outside CTC</Badge>}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </DataPanel>
+              )}
+
+              {selectedId && (
+                <Card tier="tier1">
+                  <CardContent className="space-y-4">
+                    <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void preview(event)}>
+                      <FormField htmlFor="ctc" label="Annual CTC (₹)">
+                        <Input
+                          id="ctc"
+                          value={ctc}
+                          onChange={(event) => setCtc(event.target.value)}
+                          inputMode="decimal"
+                          className="w-48 tabular-nums"
+                          placeholder="1200000"
+                        />
+                      </FormField>
+                      <Button type="submit" disabled={previewing}>
+                        {previewing ? <Loader2 className="animate-spin" /> : <Calculator />}
+                        Resolve
+                      </Button>
+                    </form>
+                    {previewError && (
+                      <Alert variant="destructive">
+                        <AlertTitle>This CTC does not resolve</AlertTitle>
+                        <AlertDescription>{previewError}</AlertDescription>
+                      </Alert>
+                    )}
+                    {breakdown && <BreakdownTable breakdown={breakdown} />}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        </TabsContent>
+
+        <TabsContent value="components" className="mt-4">
+          <DataPanel
+            title="Components"
+            isLoading={components.isLoading && !components.data}
+            error={components.error?.detail}
+            onRetry={components.reload}
+            isEmpty={(components.data ?? []).length === 0}
+            empty={{
+              icon: Calculator,
+              title: "No components yet",
+              description: "Basic, HRA, allowances and employer contributions are defined here.",
+            }}
+          >
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Component</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Calculated as</TableHead>
+                    <TableHead>Flags</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(components.data ?? []).map((component) => (
+                    <TableRow key={component.id}>
+                      <TableCell>
+                        <p className="font-medium text-foreground">{component.name}</p>
+                        <p className="text-xs text-muted-foreground">{component.code}</p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="muted">{COMPONENT_TYPE_LABEL[component.component_type]}</Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {component.calculation_type.replace("_", " ")}
+                        {component.base_component_code ? ` ${component.base_component_code}` : ""}
+                        {component.value ? ` · ${component.value}` : ""}
+                        {component.formula ? ` · ${component.formula}` : ""}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {component.taxable ? <Badge variant="outline">Taxable</Badge> : <Badge variant="outline">Exempt</Badge>}
+                          {component.counts_toward_pf && <Badge variant="outline">PF</Badge>}
+                          {component.counts_toward_esi && <Badge variant="outline">ESI</Badge>}
+                          {component.pro_rate_on_lop && <Badge variant="outline">LOP</Badge>}
+                          {!component.part_of_ctc && <Badge variant="warning">Outside CTC</Badge>}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </DataPanel>
+        </TabsContent>
+      </Tabs>
     </PageShell>
   );
 }

@@ -1,21 +1,17 @@
-import { Construction } from "lucide-react";
-
-import { ModulePlaceholder } from "@/components/common/ModulePlaceholder";
 import { PageShell } from "@/components/common/PageShell";
 import { SectionNav } from "@/components/common/SectionNav";
+import { LoansAdmin } from "@/components/payroll-ops/loans/LoansAdmin";
 
-export const metadata = { title: "Loans" };
+export const metadata = { title: "Loans & reimbursements" };
 
 export default function Page() {
   return (
-    <PageShell title="Loans" description="Loan schemes, approvals and recoveries.">
+    <PageShell
+      title="Loans & reimbursements"
+      description="Loan schemes, applications, disbursal and recovery — and reimbursement claims against bills."
+    >
       <SectionNav section="payroll" />
-      <ModulePlaceholder
-        icon={Construction}
-        phase="V1"
-        summary="This screen is being built. It shows nothing until it reads real data from the API."
-        scope={[]}
-      />
+      <LoansAdmin />
     </PageShell>
   );
 }

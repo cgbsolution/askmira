@@ -1,0 +1,165 @@
+/** Document vault and letter types. Mirror backend/app/schemas/{documents,letters}.py. */
+
+export type DocumentCategory =
+  | "id_proof"
+  | "address_proof"
+  | "education"
+  | "experience"
+  | "contract"
+  | "offer_letter"
+  | "policy_ack"
+  | "payslip"
+  | "tax"
+  | "medical"
+  | "other";
+
+export interface DocumentCategoryOption {
+  value: DocumentCategory;
+  label: string;
+}
+
+export interface VaultDocument {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  employee_code: string;
+  category: string;
+  title: string;
+  mime_type: string | null;
+  file_size_bytes: number | null;
+  valid_until: string | null;
+  is_expired: boolean;
+  is_employee_visible: boolean;
+  uploaded_by_user_id: string | null;
+  created_at: string;
+}
+
+export type LetterCategory =
+  | "offer"
+  | "appointment"
+  | "confirmation"
+  | "transfer"
+  | "promotion"
+  | "relieving"
+  | "experience"
+  | "salary_certificate"
+  | "warning"
+  | "pip"
+  | "custom";
+
+export type LetterStatus = "draft" | "pending_approval" | "approved" | "sent" | "signed" | "revoked";
+
+export type FieldSource = "employee" | "salary" | "tenant" | "manual" | "computed";
+
+export interface TemplateField {
+  token: string;
+  label: string;
+  source: FieldSource;
+  required: boolean;
+}
+
+export interface LetterTemplate {
+  id: string;
+  code: string;
+  name: string;
+  category: LetterCategory;
+  version: number;
+  active: boolean;
+  requires_approval: boolean;
+  requires_signature: boolean;
+  is_seed: boolean;
+  fields: TemplateField[];
+}
+
+export interface LetterTemplateDetail extends LetterTemplate {
+  body_html: string;
+  header_html: string | null;
+  footer_html: string | null;
+  approver_roles: string[];
+  signatory_role: string | null;
+  created_at: string;
+}
+
+export interface TemplateVersion {
+  id: string;
+  version: number;
+  name: string;
+  active: boolean;
+  created_at: string;
+}
+
+export interface TemplateContentInput {
+  name: string;
+  category: LetterCategory;
+  body_html: string;
+  header_html: string | null;
+  footer_html: string | null;
+  requires_approval: boolean;
+  approver_roles: string[];
+  requires_signature: boolean;
+  signatory_role: string | null;
+  fields: (TemplateField & { source_path?: string | null })[];
+}
+
+export interface MergeFields {
+  sources: Record<string, string[]>;
+  computed: string[];
+  manual_note: string;
+}
+
+export interface LetterPreview {
+  html: string;
+  problems: string[];
+  is_sample: boolean;
+  employee_label: string | null;
+  as_of: string;
+}
+
+export interface IssuedLetter {
+  id: string;
+  employee_id: string | null;
+  candidate_id: string | null;
+  recipient_name: string;
+  template_id: string;
+  template_name: string;
+  template_version: number;
+  category: LetterCategory;
+  reference_number: string;
+  content_hash: string;
+  status: LetterStatus;
+  issued_at: string | null;
+  approved_at: string | null;
+  signed_at: string | null;
+  signature_provider: string | null;
+  has_pdf: boolean;
+  has_signed_pdf: boolean;
+  revoked_reason: string | null;
+}
+
+export interface LetterContent {
+  reference_number: string;
+  merged_html: string;
+  intact: boolean;
+}
+
+export interface LetterVerify {
+  reference_number: string;
+  content_hash: string;
+  intact: boolean;
+}
+
+export interface BulkLetterJob {
+  id: string;
+  template_id: string;
+  total: number;
+  succeeded: number;
+  failed: number;
+  status: string;
+  results: { employee_id: string; reference_number: string | null; error: string | null }[];
+}
+
+export interface SignatureProviderStatus {
+  provider: string;
+  connected: boolean;
+  detail: string;
+}

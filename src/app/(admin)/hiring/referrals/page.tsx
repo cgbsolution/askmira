@@ -1,21 +1,61 @@
-import { Construction } from "lucide-react";
+"use client";
 
-import { ModulePlaceholder } from "@/components/common/ModulePlaceholder";
+import React from "react";
+
 import { PageShell } from "@/components/common/PageShell";
 import { SectionNav } from "@/components/common/SectionNav";
+import {
+  ReferralAllTab,
+  ReferralMineTab,
+  ReferralOpenRolesTab,
+  ReferralProgrammesTab,
+} from "@/components/hiring/ReferralTabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/context/AuthContext";
+import { HR } from "@/lib/access";
 
-export const metadata = { title: "Refer a friend" };
+/**
+ * Refer a friend: open roles and the programme's terms for everyone, your own
+ * referrals, and — for HR — every referral and the programmes themselves.
+ * Each tab loads when it is opened, so switching back shows fresh figures.
+ */
+export default function ReferralsPage() {
+  const { hasRole } = useAuth();
+  const isHr = hasRole(...HR);
 
-export default function Page() {
   return (
-    <PageShell title="Refer a friend" description="Open roles and your referrals.">
+    <PageShell
+      tier="tier2"
+      title="Refer a friend"
+      description="Know someone for an open role? Refer them in your name, or share a link that carries it."
+    >
       <SectionNav section="hiring" />
-      <ModulePlaceholder
-        icon={Construction}
-        phase="V1"
-        summary="This screen is being built. It shows nothing until it reads real data from the API."
-        scope={[]}
-      />
+      <Tabs defaultValue="open">
+        <div className="no-scrollbar overflow-x-auto">
+          <TabsList>
+            <TabsTrigger value="open">Open roles</TabsTrigger>
+            <TabsTrigger value="mine">My referrals</TabsTrigger>
+            {isHr && <TabsTrigger value="all">All referrals</TabsTrigger>}
+            {isHr && <TabsTrigger value="programmes">Programmes</TabsTrigger>}
+          </TabsList>
+        </div>
+        <TabsContent value="open">
+          <ReferralOpenRolesTab />
+        </TabsContent>
+        <TabsContent value="mine">
+          <ReferralMineTab />
+        </TabsContent>
+        {isHr && (
+          <TabsContent value="all">
+            <ReferralAllTab />
+          </TabsContent>
+        )}
+        {isHr && (
+          <TabsContent value="programmes">
+            <ReferralProgrammesTab />
+          </TabsContent>
+        )}
+      </Tabs>
     </PageShell>
   );
 }
