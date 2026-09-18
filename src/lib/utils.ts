@@ -43,6 +43,20 @@ export function formatDate(value: string | Date | null | undefined): string {
   }).format(date);
 }
 
+/** A timestamp from the API as "18 Sept 2026, 09:05", in the viewer's zone. */
+export function formatDateTime(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 /**
  * A calendar date from the API ("2026-04-06") as a local Date.
  *

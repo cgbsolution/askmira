@@ -1,21 +1,7 @@
-import { Construction } from "lucide-react";
+import { NotificationSettingsScreen } from "@/components/settings/NotificationSettingsScreen";
 
-import { ModulePlaceholder } from "@/components/common/ModulePlaceholder";
-import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
-
-export const metadata = { title: "Notifications" };
+export const metadata = { title: "Notification settings" };
 
 export default function Page() {
-  return (
-    <PageShell title="Notifications" description="Templates, quiet hours and channel settings.">
-      <SectionNav section="settings" />
-      <ModulePlaceholder
-        icon={Construction}
-        phase="V1"
-        summary="This screen is being built. It shows nothing until it reads real data from the API."
-        scope={[]}
-      />
-    </PageShell>
-  );
+  return <NotificationSettingsScreen />;
 }
