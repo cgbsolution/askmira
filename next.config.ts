@@ -1,7 +1,27 @@
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
-const apiOrigin = new URL(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000").origin;
+
+/**
+ * Where `/api/v1/*` is forwarded. The browser never calls the API host itself.
+ *
+ * The session lives in `SameSite=Lax` cookies set by the API. When the portal
+ * (say `askmira-sand.vercel.app`) and the API (`hrms.epfassist.com`) are
+ * different sites, the browser does not send those cookies on the portal's
+ * requests — sign-in "succeeds", the next call arrives without a session, and
+ * the person is bounced back to sign-in. The page also could not read the CSRF
+ * cookie of another site. Proxying through this origin makes every cookie
+ * first-party, with no need to loosen `SameSite`.
+ *
+ * `API_PROXY_TARGET` is read at build time; the existing
+ * `NEXT_PUBLIC_API_BASE_URL` still works as the fallback.
+ */
+const apiTarget = (
+  process.env.API_PROXY_TARGET ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://localhost:8000"
+).replace(/\/+$/, "");
+const apiOrigin = new URL(apiTarget).origin;
 
 /**
  * Content-Security-Policy for the portal.
@@ -52,6 +72,9 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
+  },
+  async rewrites() {
+    return [{ source: "/api/v1/:path*", destination: `${apiTarget}/api/v1/:path*` }];
   },
 };
 

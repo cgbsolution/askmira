@@ -11,7 +11,13 @@
  * the database behind the API, not something the browser talks to.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+/**
+ * Same-origin on purpose: `/api/v1/*` on this site is forwarded to the API by
+ * the rewrite in `next.config.ts`. Calling the API host directly from the
+ * browser makes the session cookies third-party, and the browser then drops
+ * them — see the note there.
+ */
+const API_BASE = "";
 const API_V1 = "/api/v1";
 
 const CSRF_COOKIE = "askmira_csrf";
