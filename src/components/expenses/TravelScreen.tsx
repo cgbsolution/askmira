@@ -6,7 +6,6 @@ import React, { useCallback } from "react";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -160,7 +159,6 @@ export function TravelScreen() {
         ) : undefined
       }
     >
-      <SectionNav section="expenses" />
       {body()}
     </PageShell>
   );

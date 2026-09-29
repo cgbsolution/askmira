@@ -11,7 +11,6 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { DocumentsPanel } from "@/components/docs/DocumentsPanel";
 import { LettersPanel } from "@/components/docs/LettersPanel";
 import { CompensationPanel } from "@/components/people/CompensationPanel";
@@ -76,7 +75,6 @@ export function ProfileView() {
 
   const shell = (children: React.ReactNode) => (
     <PageShell title="Employee profile">
-      <SectionNav section="people" />
       {children}
     </PageShell>
   );
@@ -157,8 +155,6 @@ export function ProfileView() {
         </>
       }
     >
-      <SectionNav section="people" />
-
       <Card tier="tier1">
         <CardContent className="flex flex-wrap items-center justify-between gap-4">
           <PersonCell

@@ -6,16 +6,21 @@ import React, { useEffect } from "react";
 import { AccessDenied } from "@/components/common/AccessDenied";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { AppSidebar } from "@/components/layout/AppSidebar";
-import { Backdrop } from "@/components/layout/Backdrop";
+import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
-import { useSidebar } from "@/context/SidebarContext";
 import { decideAccess } from "@/lib/access";
-import { cn } from "@/lib/utils";
+
+/**
+ * Whether the rail was left expanded last time. Only called once the session
+ * has loaded, which never happens during server rendering.
+ */
+function sidebarWasOpen(): boolean {
+  return !document.cookie.split("; ").includes(`${SIDEBAR_COOKIE_NAME}=false`);
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { isExpanded, isHovered, isMobileOpen } = useSidebar();
   const { user, tenant, isAuthenticated, isLoading } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
@@ -28,12 +33,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       router.replace(`/signin?next=${encodeURIComponent(pathname)}`);
     }
   }, [isLoading, isAuthenticated, router, pathname]);
-
-  const contentMargin = isMobileOpen
-    ? "ml-0"
-    : isExpanded || isHovered
-      ? "lg:ml-[260px]"
-      : "lg:ml-[84px]";
 
   if (isLoading || !isAuthenticated) {
     return (
@@ -51,21 +50,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="min-h-screen">
+      <SidebarProvider defaultOpen={sidebarWasOpen()}>
         <AppSidebar />
-        <Backdrop />
-        <div
-          className={cn(
-            "flex min-h-screen flex-col transition-[margin] duration-200 ease-out",
-            contentMargin,
-          )}
-        >
+        <SidebarInset className="min-w-0">
           <AppHeader />
-          <main className="mx-auto w-full max-w-[1600px] flex-1 p-4 md:p-6">
+          <div className="mx-auto w-full max-w-(--breakpoint-2xl) flex-1 p-4 md:p-6">
             {decision === "allowed" ? children : <AccessDenied reason={decision} />}
-          </main>
-        </div>
-      </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
     </TooltipProvider>
   );
 }

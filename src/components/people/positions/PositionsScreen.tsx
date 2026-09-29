@@ -1,7 +1,6 @@
 "use client";
 
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { BudgetTab } from "./BudgetTab";
@@ -23,8 +22,6 @@ export function PositionsScreen() {
       title="Positions"
       description="Approved seats, who holds them, what is vacant, and what the budget allows."
     >
-      <SectionNav section="people" />
-
       <Tabs defaultValue="positions">
         <TabsList>
           <TabsTrigger value="positions">Positions</TabsTrigger>

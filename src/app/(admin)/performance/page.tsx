@@ -7,7 +7,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { PipPanel } from "@/components/performance/PipPanel";
 import { ReviewView } from "@/components/performance/ReviewView";
 import { StatusBadge } from "@/components/performance/shared";
@@ -42,8 +41,6 @@ export default function MyReviewsPage() {
 
   return (
     <PageShell title="My reviews" description="Your review, the score your goals contribute, and your history.">
-      <SectionNav section="performance" />
-
       {!hasEmployee ? (
         <Card tier="tier1">
           <EmptyState

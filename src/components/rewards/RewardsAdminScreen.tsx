@@ -9,7 +9,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -74,7 +73,6 @@ function detail(caught: unknown, fallback: string): string {
 export function RewardsAdminScreen() {
   return (
     <PageShell title="Rewards admin" description="The points liability, budgets, valuation, tax treatment and partner reconciliation.">
-      <SectionNav section="rewards" />
       <Tabs defaultValue="liability">
         <TabsList className="flex-wrap">
           <TabsTrigger value="liability">Liability</TabsTrigger>

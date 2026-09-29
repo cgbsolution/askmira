@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -106,7 +105,6 @@ function detail(caught: unknown, fallback: string): string {
 export function BiConnectorScreen() {
   return (
     <PageShell title="BI connector" description="What your BI tool may read, where it goes, and the record of every export.">
-      <SectionNav section="reports" />
       <Tabs defaultValue="connections">
         <TabsList>
           <TabsTrigger value="connections">Connections</TabsTrigger>

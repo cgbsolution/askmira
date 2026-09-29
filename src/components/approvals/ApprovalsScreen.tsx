@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,8 +70,6 @@ export function ApprovalsScreen() {
       title="Approvals"
       description="Everything waiting on you, oldest first. Each is decided on its own page, with its full context."
     >
-      <SectionNav section="approvals" />
-
       {unavailable.length > 0 && (
         <Alert variant="warning">
           <CircleSlash />

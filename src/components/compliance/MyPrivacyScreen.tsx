@@ -8,7 +8,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,7 +72,6 @@ const STATUS_BADGE: Record<string, { label: string; variant: "success" | "outlin
 export function MyPrivacyScreen() {
   return (
     <PageShell title="My privacy" description="What AskMira holds about you, why, what you agreed to, and your rights over it.">
-      <SectionNav section="compliance" />
       <Tabs defaultValue="choices">
         <TabsList>
           <TabsTrigger value="choices">My choices</TabsTrigger>

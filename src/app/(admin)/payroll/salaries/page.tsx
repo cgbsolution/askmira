@@ -7,7 +7,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { SalaryHistoryList } from "@/components/pay/SalaryHistoryList";
 import { AssignSalaryDialog } from "@/components/payroll/AssignSalaryDialog";
 import { Button } from "@/components/ui/button";
@@ -64,7 +63,6 @@ export default function SalariesPage() {
 
   return (
     <PageShell title="Salaries" description="Assign and revise salaries. Every revision is effective-dated and audited.">
-      <SectionNav section="payroll" />
       <DataPanel
         title="Employees"
         toolbar={

@@ -9,7 +9,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +64,6 @@ export function ReportsScreen() {
 
   return (
     <PageShell title="Reports" description="Ready-made questions, your saved reports, and a builder for your own.">
-      <SectionNav section="reports" />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="library">Library</TabsTrigger>

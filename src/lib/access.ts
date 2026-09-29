@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Bell,
   Briefcase,
   CalendarClock,
   CircleDollarSign,
@@ -12,6 +13,7 @@ import {
   Settings,
   ShieldCheck,
   Target,
+  UserCircle2,
   Users,
   Wallet,
   type LucideIcon,
@@ -42,6 +44,8 @@ export interface NavPage {
   roles: UserRole[];
   /** Guarded but not listed in the section navigation (a create form, say). */
   hidden?: boolean;
+  /** For a page outside any section, which has no section icon to borrow. */
+  icon?: LucideIcon;
 }
 
 export interface NavSection {
@@ -53,6 +57,13 @@ export interface NavSection {
   module?: string;
   pages: NavPage[];
 }
+
+export const GROUP_LABEL: Record<NavSection["group"], string> = {
+  me: "Me",
+  company: "Company",
+  operations: "Operations",
+  admin: "Admin",
+};
 
 export const NAV: NavSection[] = [
   {
@@ -254,8 +265,8 @@ export const NAV: NavSection[] = [
 
 /** Signed-in pages that belong to no section but still need a guard. */
 const STANDALONE: NavPage[] = [
-  { name: "My profile", path: "/profile", roles: EVERYONE },
-  { name: "Notifications", path: "/notifications", roles: EVERYONE },
+  { name: "My profile", path: "/profile", roles: EVERYONE, icon: UserCircle2 },
+  { name: "Notifications", path: "/notifications", roles: EVERYONE, icon: Bell },
 ];
 
 export function roleAllows(user: AuthUser | null, roles: UserRole[]): boolean {

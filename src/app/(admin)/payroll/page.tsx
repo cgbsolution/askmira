@@ -8,7 +8,6 @@ import React, { useState } from "react";
 import { DataPanel } from "@/components/common/DataPanel";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { CreateRunDialog } from "@/components/payroll/CreateRunDialog";
 import { periodLabel, RUN_TYPE } from "@/components/payroll/labels";
 import { RunStatusBadge } from "@/components/payroll/RunStatusBadge";
@@ -62,7 +61,6 @@ export default function PayrollRunsPage() {
       description="Compute, review, approve and publish a month's pay. Nothing moves without a second person's sign-off."
       actions={<CreateRunDialog onCreated={(run) => router.push(`/payroll/runs/${run.id}`)} />}
     >
-      <SectionNav section="payroll" />
       <DataPanel
         title="Runs"
         toolbar={

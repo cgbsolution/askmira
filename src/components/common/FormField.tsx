@@ -16,6 +16,7 @@ export function FormField({
   hint,
   error,
   optional = false,
+  required = false,
   className,
   children,
 }: {
@@ -24,6 +25,8 @@ export function FormField({
   hint?: React.ReactNode;
   error?: string | null;
   optional?: boolean;
+  /** Marks the label with an asterisk. The control still needs its own `required`. */
+  required?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -33,6 +36,11 @@ export function FormField({
       <Label htmlFor={htmlFor}>
         {label}
         {optional && <span className="font-normal text-muted-foreground">(optional)</span>}
+        {required && (
+          <span aria-hidden className="text-destructive">
+            *
+          </span>
+        )}
       </Label>
       {children}
       {error ? (

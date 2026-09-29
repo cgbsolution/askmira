@@ -1,14 +1,15 @@
 "use client";
 
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Loader2, Mail } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import React, { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { FormField } from "@/components/common/FormField";
+import { IconInput, PasswordInput } from "@/components/common/IconInput";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError } from "@/lib/api";
 
@@ -18,7 +19,7 @@ function SignInForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // `?expired=1` is set by the API client when a 401 forces a sign-out, so the
@@ -32,11 +33,12 @@ function SignInForm() {
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setIsSubmitting(true);
+    setError(null);
     try {
       // `next` is checked by safeNextPath inside login: only a local path is followed.
       await login(email, password, params.get("next"));
-    } catch (error) {
-      toast.error(error instanceof ApiError ? error.detail : "Could not sign you in.");
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.detail : "Could not sign you in.");
       setIsSubmitting(false);
     }
   }
@@ -44,52 +46,45 @@ function SignInForm() {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          Welcome back. Enter your work email to continue.
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Sign in</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Enter your work email and password to open your workspace.
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Work email</Label>
-          <Input
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <FormField htmlFor="email" label="Work email" required>
+          <IconInput
             id="email"
+            icon={Mail}
             type="email"
             autoComplete="email"
+            autoFocus
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="you@company.com"
           />
-        </div>
+        </FormField>
 
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
-          <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              required
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="pr-10"
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setShowPassword((previous) => !previous)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-1 top-1/2 size-7 -translate-y-1/2 text-muted-foreground"
-            >
-              {showPassword ? <EyeOff /> : <Eye />}
-            </Button>
-          </div>
-        </div>
+        <FormField htmlFor="password" label="Password" required>
+          <PasswordInput
+            id="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Enter your password"
+          />
+        </FormField>
 
-        <Button type="submit" className="w-full" size="lg" disabled={isSubmitting}>
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <Button type="submit" className="h-12 w-full font-semibold" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="animate-spin" />}
           {isSubmitting ? "Signing in…" : "Sign in"}
         </Button>

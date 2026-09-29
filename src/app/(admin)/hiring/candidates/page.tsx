@@ -7,7 +7,6 @@ import React, { Suspense, useEffect, useState } from "react";
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { RequireRole } from "@/components/common/RequireRole";
-import { SectionNav } from "@/components/common/SectionNav";
 import { CandidateFormDialog } from "@/components/hiring/CandidateFormDialog";
 import { PipelineBoard } from "@/components/hiring/PipelineBoard";
 import { PipelineList } from "@/components/hiring/PipelineList";
@@ -111,8 +110,6 @@ function CandidatesPipeline() {
         </RequireRole>
       }
     >
-      <SectionNav section="hiring" />
-
       <DataPanel
         title={selected ? `${selected.code} · ${selected.title}` : "All requisitions"}
         description={totalNote}

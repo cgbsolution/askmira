@@ -3,7 +3,6 @@ import { Fraunces, Inter } from "next/font/google";
 import { Toaster } from "sonner";
 
 import { AuthProvider } from "@/context/AuthContext";
-import { SidebarProvider } from "@/context/SidebarContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 
 import "./globals.css";
@@ -38,10 +37,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${inter.variable} ${fraunces.variable} antialiased`}>
         <AuthProvider>
           <ThemeProvider>
-            <SidebarProvider>
-              {children}
-              <Toaster richColors closeButton position="top-right" />
-            </SidebarProvider>
+            {children}
+            <Toaster richColors closeButton position="top-right" />
           </ThemeProvider>
         </AuthProvider>
       </body>

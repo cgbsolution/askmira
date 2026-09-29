@@ -6,7 +6,6 @@ import React, { useEffect, useState } from "react";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { BreakdownTable } from "@/components/payroll/BreakdownTable";
 import { apiMessage, COMPONENT_TYPE_LABEL, isAmount } from "@/components/payroll/labels";
 import { NewComponentDialog } from "@/components/payroll/NewComponentDialog";
@@ -101,7 +100,6 @@ export default function SalaryStructuresPage() {
         </>
       }
     >
-      <SectionNav section="payroll" />
       <Tabs defaultValue="structures">
         <TabsList>
           <TabsTrigger value="structures">Structures</TabsTrigger>

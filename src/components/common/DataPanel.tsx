@@ -58,7 +58,7 @@ export function DataPanel({
   let body: React.ReactNode;
   if (isLoading) {
     body = (
-      <div className="space-y-2 p-5">
+      <div className="space-y-2 p-6">
         {Array.from({ length: loadingRows }).map((_, index) => (
           <Skeleton key={index} className="h-10 w-full" />
         ))}
@@ -75,19 +75,19 @@ export function DataPanel({
   return (
     <Card tier={tier} className={cn("gap-0 py-0", className)}>
       {(title || actions) && (
-        <CardHeader className="border-b border-border py-4">
+        <CardHeader className="border-b border-border py-5">
           {title && <CardTitle>{title}</CardTitle>}
           {description && <CardDescription>{description}</CardDescription>}
           {actions && <CardAction className="flex flex-wrap gap-2">{actions}</CardAction>}
         </CardHeader>
       )}
       {toolbar && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3">
+        <div className="flex flex-wrap items-center gap-3 border-b border-border px-6 py-4">
           {toolbar}
         </div>
       )}
       <CardContent className="p-0">{body}</CardContent>
-      {footer && <div className="border-t border-border px-5 py-3">{footer}</div>}
+      {footer && <div className="border-t border-border px-6 py-4">{footer}</div>}
     </Card>
   );
 }

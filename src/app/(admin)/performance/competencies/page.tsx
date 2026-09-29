@@ -6,7 +6,6 @@ import React, { useState } from "react";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { humanize, useAction } from "@/components/performance/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,7 +53,6 @@ export default function CompetenciesPage() {
 
   return (
     <PageShell title="Competencies & scales" description="What people are rated against, and what each level looks like.">
-      <SectionNav section="performance" />
       <Tabs defaultValue="competencies">
         <TabsList>
           <TabsTrigger value="competencies">Competencies</TabsTrigger>

@@ -9,7 +9,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { FactTree } from "@/components/common/FactTree";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -129,7 +128,6 @@ interface Health {
 export function SecurityScreen() {
   return (
     <PageShell title="Security" description="Sessions, access policy, recovery drills, penetration testing and SIEM delivery.">
-      <SectionNav section="compliance" />
       <Tabs defaultValue="sessions">
         <TabsList className="flex-wrap">
           <TabsTrigger value="sessions">Sessions</TabsTrigger>

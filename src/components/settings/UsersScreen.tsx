@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -87,8 +86,6 @@ export function UsersScreen() {
         </Button>
       }
     >
-      <SectionNav section="settings" />
-
       <DataPanel
         title="Logins"
         description={

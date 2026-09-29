@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -63,8 +62,6 @@ export function OrganisationScreen() {
       title="Organisation"
       description="Legal entities, work locations and departments — the structures every other module resolves against."
     >
-      <SectionNav section="settings" />
-
       <Tabs defaultValue="entities">
         <TabsList>
           <TabsTrigger value="entities">Legal entities</TabsTrigger>

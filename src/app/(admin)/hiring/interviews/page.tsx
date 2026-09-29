@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { CalendarConnectionCard } from "@/components/hiring/CalendarConnectionCard";
 import { InterviewRoundsPanel } from "@/components/hiring/InterviewRoundsPanel";
 import { InterviewSheet } from "@/components/hiring/InterviewSheet";
@@ -53,7 +52,6 @@ function InterviewsView() {
       description="Panels, times, replies and feedback. Scores appear only with the evidence behind them."
       actions={isHr ? <RunRemindersButton /> : undefined}
     >
-      <SectionNav section="hiring" />
       <CalendarConnectionCard />
       <Tabs defaultValue="mine">
         <TabsList className="flex-wrap">

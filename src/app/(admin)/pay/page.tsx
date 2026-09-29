@@ -7,7 +7,6 @@ import React from "react";
 import { DataPanel } from "@/components/common/DataPanel";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { SalaryHistoryList } from "@/components/pay/SalaryHistoryList";
 import { periodLabel, RUN_TYPE } from "@/components/payroll/labels";
 import {
@@ -33,7 +32,6 @@ export default function MyPayPage() {
 
   return (
     <PageShell title="Payslips" description="Your payslips and salary history.">
-      <SectionNav section="pay" />
       <DataPanel
         title="Payslips"
         isLoading={payslips.isLoading && !payslips.data}

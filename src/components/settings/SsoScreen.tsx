@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,8 +47,6 @@ export function SsoScreen() {
       title="Sign-in & SSO"
       description="Identity providers, the break-glass account, and directory sync tokens."
     >
-      <SectionNav section="settings" />
-
       {serviceProvider.data && (
         <Alert>
           <TriangleAlert />

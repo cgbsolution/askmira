@@ -4,7 +4,6 @@ import React from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { CareersSiteForm } from "@/components/hiring/CareersSiteForm";
 import { CareersSiteRetention } from "@/components/hiring/CareersSiteRetention";
 import { Card } from "@/components/ui/card";
@@ -24,7 +23,6 @@ export default function CareersSitePage() {
       title="Careers site"
       description="The public page where candidates see open roles and apply."
     >
-      <SectionNav section="hiring" />
       {isLoading && !data ? (
         <div className="space-y-3">
           <Skeleton className="h-64 w-full" />

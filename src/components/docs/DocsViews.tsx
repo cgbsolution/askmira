@@ -5,7 +5,6 @@ import React from "react";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { DocumentsPanel } from "@/components/docs/DocumentsPanel";
 import { LettersPanel } from "@/components/docs/LettersPanel";
 import { TemplatesPanel } from "@/components/docs/TemplatesPanel";
@@ -40,7 +39,6 @@ export function MyDocumentsView() {
       title="Documents"
       description="ID proofs, contracts and letters — kept with the employee record."
     >
-      <SectionNav section="docs" />
       {isHr ? (
         <Tabs defaultValue="company">
           <TabsList>
@@ -71,7 +69,6 @@ export function LettersView() {
       title="Letters"
       description="Issue, approve, sign and verify employment letters. Every letter keeps a fixed, hash-checked copy."
     >
-      <SectionNav section="docs" />
       <LettersPanel manage title="Issued letters" />
     </PageShell>
   );
@@ -83,7 +80,6 @@ export function TemplatesView() {
       title="Letter templates"
       description="Templates with merge fields, approval and signature rules. Edits are versioned."
     >
-      <SectionNav section="docs" />
       <TemplatesPanel />
     </PageShell>
   );

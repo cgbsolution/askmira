@@ -4,7 +4,6 @@ import React, { useState } from "react";
 
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import {
   AnalyticsOfferOutcomesPanel,
   AnalyticsSourcesPanel,
@@ -69,8 +68,6 @@ export default function HiringAnalyticsPage() {
       title="Hiring analytics"
       description="Where candidates drop out, how long each step takes, what each source and hire costs — worked out from the hiring records."
     >
-      <SectionNav section="hiring" />
-
       <Card tier="tier1">
         <CardContent className="grid gap-4 sm:grid-cols-2 lg:max-w-3xl">
           <FormField htmlFor="analytics-group" label="Group the funnel">

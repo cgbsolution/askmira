@@ -8,7 +8,6 @@ import React, { useState } from "react";
 import { ErrorState } from "@/components/common/ErrorState";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { InputSourcesPanel } from "@/components/payroll/InputSourcesPanel";
 import { formatMoment, periodLabel, RUN_TYPE } from "@/components/payroll/labels";
 import { RegisterPanel } from "@/components/payroll/RegisterPanel";
@@ -57,7 +56,6 @@ export default function PayrollRunPage() {
   if (isLoading && !run) {
     return (
       <PageShell title="Payroll run">
-        <SectionNav section="payroll" />
         <Skeleton className="h-40 w-full" />
       </PageShell>
     );
@@ -65,7 +63,6 @@ export default function PayrollRunPage() {
   if (error || !run) {
     return (
       <PageShell title="Payroll run" actions={back}>
-        <SectionNav section="payroll" />
         <ErrorState message={error?.detail ?? "This run could not be found."} onRetry={reload} />
       </PageShell>
     );
@@ -77,8 +74,6 @@ export default function PayrollRunPage() {
       description={`${RUN_TYPE[run.run_type]} run · ${run.legal_entity_name ?? "legal entity"} · rules resolved as of ${formatDay(run.effective_date, true)}`}
       actions={back}
     >
-      <SectionNav section="payroll" />
-
       <Card tier="tier1">
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3">

@@ -9,7 +9,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,7 +111,6 @@ export function DataProtectionScreen() {
 
   return (
     <PageShell title="Data protection" description="Rights requests, breaches, consent and the record of processing, under the DPDP Act.">
-      <SectionNav section="compliance" />
       {config.data && !config.data.configured && (
         <Alert variant="warning">
           <Settings2 />

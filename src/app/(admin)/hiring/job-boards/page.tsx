@@ -4,7 +4,6 @@ import { AlertTriangle } from "lucide-react";
 import React, { useState } from "react";
 
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { BoardAttentionPanel } from "@/components/hiring/BoardAttentionPanel";
 import { BoardStatusPanel } from "@/components/hiring/BoardStatusPanel";
 import { PostingCreateDialog } from "@/components/hiring/PostingCreateDialog";
@@ -39,8 +38,6 @@ export default function JobBoardsPage() {
       title="Job boards"
       description="Post open requisitions to external boards and see where each posting stands."
     >
-      <SectionNav section="hiring" />
-
       {warning && (
         <Alert variant="warning">
           <AlertTriangle />

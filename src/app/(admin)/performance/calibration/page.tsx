@@ -10,7 +10,6 @@ import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
-import { SectionNav } from "@/components/common/SectionNav";
 import { EvidenceList, GoalScorePanel, PersonSelect, StatusBadge, humanize, useAction, usePeople } from "@/components/performance/shared";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -68,7 +67,6 @@ export default function CalibrationPage() {
   if (open) {
     return (
       <PageShell title="Calibration" description="A live session: ratings, the distribution against target, and the evidence behind each person.">
-        <SectionNav section="performance" />
         <div>
           <Button variant="ghost" onClick={() => { setOpen(null); sessions.reload(); }}>
             ← All sessions
@@ -91,7 +89,6 @@ export default function CalibrationPage() {
         </RequireRole>
       }
     >
-      <SectionNav section="performance" />
       <DataPanel
         title="Sessions"
         isLoading={sessions.isLoading}

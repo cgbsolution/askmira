@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -101,8 +100,6 @@ export function DevicesScreen() {
         ) : undefined
       }
     >
-      <SectionNav section="settings" />
-
       <SummaryTiles status={status.data} isLoading={status.isLoading} error={status.error?.detail ?? null} />
 
       {status.data && (!status.data.pull_ingestion_built || !status.data.silence_alerts_sent) && (

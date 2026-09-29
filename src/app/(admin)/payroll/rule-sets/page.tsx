@@ -8,7 +8,6 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { RequireRole } from "@/components/common/RequireRole";
-import { SectionNav } from "@/components/common/SectionNav";
 import { apiMessage, formatMoment, RULE_TYPE_LABEL } from "@/components/payroll/labels";
 import { NewRuleSetDialog } from "@/components/payroll/NewRuleSetDialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -67,8 +66,6 @@ export default function RuleSetsPage() {
         </RequireRole>
       }
     >
-      <SectionNav section="payroll" />
-
       <Alert variant="warning">
         <ShieldAlert />
         <AlertTitle>Rates come from your Compliance SME, not from AskMira</AlertTitle>

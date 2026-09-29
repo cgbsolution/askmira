@@ -1,7 +1,6 @@
 "use client";
 
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { BatchesTab } from "./BatchesTab";
@@ -21,7 +20,6 @@ export function LifecycleScreen() {
       title="Lifecycle events"
       description="Confirmations, transfers, promotions and other changes — previewed, approved, and applied on their effective date."
     >
-      <SectionNav section="people" />
       <Tabs defaultValue="events">
         <TabsList>
           <TabsTrigger value="events">Events</TabsTrigger>

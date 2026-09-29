@@ -6,7 +6,6 @@ import { useState } from "react";
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -54,8 +53,6 @@ export function AwardsScreen() {
       title="Awards"
       description="Nominate people for the work that deserves more than a thank-you, and see who won."
     >
-      <SectionNav section="culture" />
-
       <Tabs defaultValue="cycles">
         <TabsList>
           <TabsTrigger value="cycles">Award cycles</TabsTrigger>

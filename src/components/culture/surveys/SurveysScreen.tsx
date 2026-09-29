@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -87,8 +86,6 @@ export function SurveysScreen() {
       title="Surveys"
       description="Say how it really is. Your answers cannot be connected to you — not by your manager, and not by HR."
     >
-      <SectionNav section="culture" />
-
       <Tabs defaultValue="mine">
         <TabsList>
           <TabsTrigger value="mine">My surveys</TabsTrigger>

@@ -6,7 +6,6 @@ import React, { useState } from "react";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { PercentBar, PersonSelect, StatusBadge, humanize, useAction, usePeople } from "@/components/performance/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,7 +77,6 @@ export default function GoalsPage() {
         ) : undefined
       }
     >
-      <SectionNav section="performance" />
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           {user?.employee_id && <TabsTrigger value="mine">My goals</TabsTrigger>}

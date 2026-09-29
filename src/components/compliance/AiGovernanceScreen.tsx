@@ -8,7 +8,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { FactTree } from "@/components/common/FactTree";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -103,7 +102,6 @@ export function AiGovernanceScreen() {
 
   return (
     <PageShell title="AI governance" description="What Mira's agents may do on their own, what they proposed, and how they are tested.">
-      <SectionNav section="compliance" />
       {posture.data?.not_built && posture.data.not_built.length > 0 && (
         <Alert variant="warning">
           <CircleSlash />

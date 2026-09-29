@@ -4,12 +4,9 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * One cell of the home dashboard's pulse strip.
- *
- * Deliberately not a card of its own. The strip sits inside the greeting card
- * so the four numbers read as a single instrument panel rather than four
- * widgets competing for the same row; the hairlines between cells come from
- * the parent grid's 1px gap, not from a border here.
+ * One of the home dashboard's pulse numbers: a small card with the icon and
+ * label on top and the figure beneath. The figure is whatever the API said —
+ * an em-dash while it loads, never a placeholder number.
  */
 export function PulseStat({
   label,
@@ -25,26 +22,24 @@ export function PulseStat({
   emphasis?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 bg-card px-5 py-4">
-      <span
-        className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-xl",
-          emphasis
-            ? "bg-accent text-accent-foreground"
-            : "bg-mint-100 text-brand-600 dark:bg-mint-900/40 dark:text-mint-200",
-        )}
-      >
-        <Icon className="size-[18px]" />
-      </span>
-      <div className="min-w-0">
-        <p className="font-display text-[22px] font-semibold leading-none tracking-tight text-foreground">
-          {value}
-        </p>
-        <p className="mt-1.5 truncate text-[13px] text-muted-foreground">
-          {label}
-          {hint ? <span className="text-muted-foreground/70"> &middot; {hint}</span> : null}
-        </p>
+    <div className="card-tier1 flex h-full flex-col p-5">
+      <div className="flex items-center gap-2.5">
+        <span
+          className={cn(
+            "flex size-9 shrink-0 items-center justify-center rounded-xl",
+            emphasis
+              ? "bg-accent text-accent-foreground"
+              : "bg-mint-100 text-brand-600 dark:bg-mint-900/40 dark:text-mint-200",
+          )}
+        >
+          <Icon className="size-4" />
+        </span>
+        <p className="min-w-0 flex-1 truncate text-sm font-medium text-muted-foreground">{label}</p>
       </div>
+      <p className="mt-5 text-3xl leading-none font-bold tracking-tight text-foreground tabular-nums">
+        {value}
+      </p>
+      {hint && <p className="mt-2 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
 }

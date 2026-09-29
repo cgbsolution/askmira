@@ -9,7 +9,6 @@ import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
-import { SectionNav } from "@/components/common/SectionNav";
 import { ReviewView } from "@/components/performance/ReviewView";
 import { PercentBar, PersonSelect, StatusBadge, useAction, usePeople } from "@/components/performance/shared";
 import { Badge } from "@/components/ui/badge";
@@ -64,8 +63,6 @@ export default function TeamPage() {
 
   return (
     <PageShell title="My team" description="Reviews in your reporting line, who is holding each, and what is late.">
-      <SectionNav section="performance" />
-
       <div className="flex flex-wrap items-end gap-3">
         <FormField htmlFor="team-cycle" label="Cycle" className="w-72">
           <Select value={cycleId} onValueChange={setCycleId}>

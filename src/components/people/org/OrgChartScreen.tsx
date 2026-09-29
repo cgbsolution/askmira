@@ -7,7 +7,6 @@ import { useMemo, useState } from "react";
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -52,8 +51,6 @@ export function OrgChartScreen() {
       title="Org chart"
       description="Who reports to whom, and — for HR and managers — every approved seat, including the empty ones."
     >
-      <SectionNav section="people" />
-
       {canSeePositions ? (
         <Tabs defaultValue="people">
           <TabsList>

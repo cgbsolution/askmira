@@ -14,7 +14,6 @@ import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
-import { SectionNav } from "@/components/common/SectionNav";
 import { CandidateMoveMenu } from "@/components/hiring/CandidateMoveMenu";
 import { CandidatePortalLinkDialog } from "@/components/hiring/CandidatePortalLinkDialog";
 import {
@@ -62,7 +61,6 @@ export default function CandidateProfilePage() {
   if (isLoading && !data) {
     return (
       <PageShell title="Candidate">
-        <SectionNav section="hiring" />
         <div className="space-y-4">
           <Skeleton className="h-16 w-80" />
           <Skeleton className="h-10 w-full" />
@@ -75,7 +73,6 @@ export default function CandidateProfilePage() {
   if (error || !data) {
     return (
       <PageShell title="Candidate" actions={back}>
-        <SectionNav section="hiring" />
         <Card tier="tier1">
           <CardContent>
             {error?.status === 404 ? (
@@ -116,8 +113,6 @@ export default function CandidateProfilePage() {
 
   return (
     <PageShell title={c.full_name} description="Candidate profile" actions={back}>
-      <SectionNav section="hiring" />
-
       <Card tier="tier1">
         <CardContent className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-3">

@@ -6,7 +6,6 @@ import React, { useCallback, useState } from "react";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -137,7 +136,6 @@ export function ClaimsScreen() {
         ) : undefined
       }
     >
-      <SectionNav section="expenses" />
       {body()}
       <ClaimDetailSheet
         claim={current}

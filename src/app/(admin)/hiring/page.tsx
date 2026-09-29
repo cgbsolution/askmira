@@ -6,7 +6,6 @@ import React, { useState } from "react";
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { RequireRole } from "@/components/common/RequireRole";
-import { SectionNav } from "@/components/common/SectionNav";
 import { ApprovalQueue } from "@/components/hiring/ApprovalQueue";
 import { formatDateTime, humanize, REQUISITION_STATUS, StatusBadge } from "@/components/hiring/labels";
 import { RequisitionFormDialog } from "@/components/hiring/RequisitionFormDialog";
@@ -70,8 +69,6 @@ export default function RequisitionsPage() {
         </RequireRole>
       }
     >
-      <SectionNav section="hiring" />
-
       {isManager && <ApprovalQueue onDecided={reload} />}
 
       <DataPanel

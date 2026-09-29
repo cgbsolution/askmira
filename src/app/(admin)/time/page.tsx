@@ -4,7 +4,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { ApprovalsInbox } from "@/components/time/ApprovalsInbox";
 import { BalanceCards } from "@/components/time/BalanceCards";
 import { HolidayList } from "@/components/time/HolidayList";
@@ -77,8 +76,6 @@ export default function TimePage() {
           ) : undefined
         }
       >
-        <SectionNav section="time" />
-
         {user?.employee_id && <BalanceCards balances={balances} isLoading={balancesLoading} />}
 
         <Tabs defaultValue={canApprove && approvalCount > 0 ? "approvals" : "requests"}>

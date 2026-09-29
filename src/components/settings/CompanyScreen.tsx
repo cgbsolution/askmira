@@ -1,7 +1,6 @@
 "use client";
 
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { AuditTrailPanel } from "./AuditTrailPanel";
@@ -22,8 +21,6 @@ export function CompanyScreen() {
       title="Company"
       description="Workspace configuration, the permission matrix, the audit trail and the background jobs."
     >
-      <SectionNav section="settings" />
-
       <Tabs defaultValue="workspace">
         <TabsList>
           <TabsTrigger value="workspace">Workspace</TabsTrigger>

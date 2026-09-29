@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -68,8 +67,6 @@ export function ModulesScreen() {
       title="Modules"
       description="Which parts of AskMira this workspace has switched on."
     >
-      <SectionNav section="settings" />
-
       <Alert>
         <Info />
         <AlertTitle>A switched-off module is switched off everywhere</AlertTitle>

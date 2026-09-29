@@ -8,7 +8,6 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -112,7 +111,6 @@ function detail(caught: unknown, fallback: string): string {
 export function RetentionScreen() {
   return (
     <PageShell title="Retention" description="How long each kind of data is kept, what freezes it, and every deletion carried out.">
-      <SectionNav section="compliance" />
       <Tabs defaultValue="policies">
         <TabsList>
           <TabsTrigger value="policies">Policies</TabsTrigger>

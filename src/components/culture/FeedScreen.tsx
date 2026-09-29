@@ -10,7 +10,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -111,8 +110,6 @@ export function FeedScreen() {
       title="Feed"
       description="Recognition, awards and the moments people chose to share."
     >
-      <SectionNav section="culture" />
-
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="flex min-w-0 flex-col gap-4">
           {user?.employee_id ? (

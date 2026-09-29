@@ -8,7 +8,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { PolicyCard, RulesCard, StagesCard, StagesEditor, TemplateCard, stagesValid } from "@/components/performance/CycleSetup";
 import { StatusBadge, errorText, humanize, useAction } from "@/components/performance/shared";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -72,7 +71,6 @@ export default function CyclesPage() {
         </Button>
       }
     >
-      <SectionNav section="performance" />
       <Tabs defaultValue="cycles">
         <TabsList>
           <TabsTrigger value="cycles">Cycles</TabsTrigger>

@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,7 +69,6 @@ export function CultureAdminScreen() {
       title="Culture admin"
       description="Company values, whether they are lived, and whether survey feedback was acted on."
     >
-      <SectionNav section="culture" />
       <Tabs defaultValue="values">
         <TabsList>
           <TabsTrigger value="values">Values</TabsTrigger>

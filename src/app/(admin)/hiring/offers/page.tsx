@@ -9,7 +9,6 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { OFFER_STATUS, StatusBadge } from "@/components/hiring/labels";
 import { OfferFormDialog } from "@/components/hiring/OfferFormDialog";
 import { OfferSheet } from "@/components/hiring/OfferSheet";
@@ -97,7 +96,6 @@ function OffersView() {
         </>
       }
     >
-      <SectionNav section="hiring" />
       <DataPanel
         title="Offers"
         toolbar={

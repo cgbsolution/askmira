@@ -8,7 +8,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +57,6 @@ export function AnnouncementsScreen() {
 
   return (
     <PageShell tier="tier2" title="Announcements" description="What the company wants everyone to know.">
-      <SectionNav section="culture" />
       {isHr ? (
         <Tabs defaultValue="mine">
           <TabsList>

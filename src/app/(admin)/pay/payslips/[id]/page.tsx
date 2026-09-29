@@ -7,7 +7,6 @@ import React from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { PayslipTrace } from "@/components/payroll/PayslipTrace";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,7 +32,6 @@ export default function MyPayslipPage() {
         </Button>
       }
     >
-      <SectionNav section="pay" />
       {isLoading && !data ? (
         <Skeleton className="h-64 w-full" />
       ) : error || !data ? (

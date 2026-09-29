@@ -40,9 +40,12 @@
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
@@ -174,13 +177,18 @@
   --ring: #46908f;
 
   /* The nav rail is solid teal in both themes — it is the product's
-     signature surface, not a neutral chrome that inverts. */
+     signature surface, not a neutral chrome that inverts.
+     shadcn's naming: `primary` is the Marigold active pill, `accent` the hover
+     tint — the rail lifted by 10% white. */
   --sidebar: #14595c;
   --sidebar-foreground: #ffffff;
   --sidebar-muted: #9dcbc9;
-  --sidebar-accent: #efc259;
-  --sidebar-accent-foreground: #12161d;
-  --sidebar-border: #114b4e;
+  --sidebar-primary: #efc259;
+  --sidebar-primary-foreground: #12161d;
+  --sidebar-accent: #2c6a6c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1c6467;
+  --sidebar-ring: #9dcbc9;
 
   --chart-1: #14595c;
   --chart-2: #efc259;
@@ -225,9 +233,12 @@
   --sidebar: #0b3032;
   --sidebar-foreground: #eceef2;
   --sidebar-muted: #6fb0ae;
-  --sidebar-accent: #efc259;
-  --sidebar-accent-foreground: #12161d;
-  --sidebar-border: #0e3d3f;
+  --sidebar-primary: #efc259;
+  --sidebar-primary-foreground: #12161d;
+  --sidebar-accent: #234546;
+  --sidebar-accent-foreground: #eceef2;
+  --sidebar-border: #164446;
+  --sidebar-ring: #6fb0ae;
 
   --chart-1: #6fb0ae;
   --chart-2: #efc259;
@@ -284,7 +295,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @utility card-tier1 {
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xl);
   border-width: 1px;
   border-color: var(--border);
   background-color: var(--card);
@@ -299,16 +310,20 @@
   box-shadow: 0 2px 12px -4px rgb(20 89 92 / 0.10);
 }
 
+/* The auth brand panel's backdrop: a hairline grid that fades out towards the
+   edges, with the odd cell filled in. White at low alpha so it reads on the
+   rail teal in both themes. */
+@utility auth-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, white 9%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, white 9%, transparent) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: radial-gradient(ellipse 70% 55% at center, black 20%, transparent 75%);
+}
+
 @utility panel-mint {
   background-color: var(--color-mint-50);
   border-radius: var(--radius-2xl);
-}
-
-/* The active nav pill. Marigold, not a lighter tint of the rail — the active
-   state has to read at a glance (FRD 5.13). */
-@utility nav-pill-active {
-  background-color: var(--sidebar-accent);
-  color: var(--sidebar-accent-foreground);
 }
 
 @utility no-scrollbar {

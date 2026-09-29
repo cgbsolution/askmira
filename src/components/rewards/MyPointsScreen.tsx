@@ -8,7 +8,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -80,8 +79,6 @@ export function MyPointsScreen() {
         </>
       }
     >
-      <SectionNav section="rewards" />
-
       {!user?.employee_id ? (
         <Alert>
           <AlertTitle>Your login is not linked to an employee record</AlertTitle>

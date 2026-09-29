@@ -10,7 +10,6 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -112,8 +111,6 @@ export function ClubsScreen() {
         ) : undefined
       }
     >
-      <SectionNav section="culture" />
-
       <Tabs value={filter} onValueChange={(next) => setFilter(next as "all" | "mine")}>
         <TabsList>
           <TabsTrigger value="all">All clubs</TabsTrigger>

@@ -9,7 +9,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
-import { SectionNav } from "@/components/common/SectionNav";
 import { EMPLOYMENT_STATUS, NONE, fromSelect, personName } from "@/components/people/labels";
 import { EmploymentStatusBadge } from "@/components/people/StatusBadges";
 import { useOrgReference } from "@/components/people/useOrgReference";
@@ -112,7 +111,6 @@ export function DirectoryView() {
         </RequireRole>
       }
     >
-      <SectionNav section="people" />
       <DataPanel
         isLoading={isLoading && !data}
         error={error?.detail}

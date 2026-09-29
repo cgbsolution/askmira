@@ -3,7 +3,6 @@
 import React from "react";
 
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { BonusPanel } from "@/components/payroll/statutory/BonusPanel";
 import { EsiCoveragePanel } from "@/components/payroll/statutory/EsiCoveragePanel";
 import { PfElectionsPanel } from "@/components/payroll/statutory/PfElectionsPanel";
@@ -15,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 export default function StatutoryPage() {
   return (
     <PageShell title="Statutory" description="PF elections, ESI coverage, work locations, statutory bonus and registers.">
-      <SectionNav section="payroll" />
       <Tabs defaultValue="pf">
         <TabsList className="flex-wrap">
           <TabsTrigger value="pf">PF elections</TabsTrigger>

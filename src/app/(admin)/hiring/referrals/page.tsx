@@ -3,7 +3,6 @@
 import React from "react";
 
 import { PageShell } from "@/components/common/PageShell";
-import { SectionNav } from "@/components/common/SectionNav";
 import {
   ReferralAllTab,
   ReferralMineTab,
@@ -29,7 +28,6 @@ export default function ReferralsPage() {
       title="Refer a friend"
       description="Know someone for an open role? Refer them in your name, or share a link that carries it."
     >
-      <SectionNav section="hiring" />
       <Tabs defaultValue="open">
         <div className="no-scrollbar overflow-x-auto">
           <TabsList>

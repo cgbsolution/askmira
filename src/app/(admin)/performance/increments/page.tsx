@@ -11,7 +11,6 @@ import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
-import { SectionNav } from "@/components/common/SectionNav";
 import { StatusBadge, useAction } from "@/components/performance/shared";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -80,7 +79,6 @@ export default function IncrementsPage() {
         </RequireRole>
       }
     >
-      <SectionNav section="performance" />
       {cycles.isLoading && !cycles.data ? (
         <Skeleton className="h-40 w-full" />
       ) : cycles.error ? (

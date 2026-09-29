@@ -7,7 +7,6 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
-import { SectionNav } from "@/components/common/SectionNav";
 import { PipPanel } from "@/components/performance/PipPanel";
 import { PersonSelect, StatusBadge, useAction, usePeople } from "@/components/performance/shared";
 import { Button } from "@/components/ui/button";
@@ -52,7 +51,6 @@ export default function PipsPage() {
         </Button>
       }
     >
-      <SectionNav section="performance" />
       <DataPanel
         title="Plans"
         isLoading={isLoading}
