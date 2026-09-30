@@ -365,13 +365,25 @@ export function EmployeeForm({
               </SelectContent>
             </Select>
           </FormField>
-          <FormField htmlFor="emp-status" label="Status">
+          <FormField
+            htmlFor="emp-status"
+            label="Status"
+            hint={
+              record?.status === "exited"
+                ? undefined
+                : "Leaving is recorded under People → Exits, which runs clearance and the settlement."
+            }
+          >
             <Select value={values.status} onValueChange={(v) => set("status", v as EmploymentStatus)}>
               <SelectTrigger id="emp-status" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(EMPLOYMENT_STATUS) as EmploymentStatus[]).map((key) => (
+                {(Object.keys(EMPLOYMENT_STATUS) as EmploymentStatus[])
+                  // "Exited" is set by the exit workflow, never typed here —
+                  // unless the record already is exited and is only being shown.
+                  .filter((key) => key !== "exited" || record?.status === "exited")
+                  .map((key) => (
                   <SelectItem key={key} value={key}>
                     {EMPLOYMENT_STATUS[key].label}
                   </SelectItem>

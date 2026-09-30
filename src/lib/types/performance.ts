@@ -566,7 +566,7 @@ export type GoalLevel = "individual" | "team" | "company";
 export type GoalStatus = "draft" | "active" | "completed" | "cancelled";
 export type GoalVisibility = "self" | "manager_line" | "company";
 export type KeyResultKind = "number" | "percent" | "currency" | "milestone";
-export type CheckInConfidence = "on_track" | "at_risk" | "off_track";
+export type CheckInConfidence = "on_track" | "at_risk" | "off_track" | "done";
 
 export interface KeyResult {
   id: string;
@@ -600,6 +600,32 @@ export interface Goal {
   created_at: string;
   updated_at: string;
   can_edit: boolean;
+  latest_check_in: LatestCheckIn | null;
+}
+
+export interface LatestCheckIn {
+  confidence: CheckInConfidence | null;
+  note: string | null;
+  progress_after: string;
+  recorded_by_name: string | null;
+  recorded_at: string;
+}
+
+/** A review cycle a goal may count towards (`GET /goals/cycles`). */
+export interface GoalCycleOption {
+  id: string;
+  name: string;
+  cycle_type: CycleType;
+  status: CycleStatus;
+  period_start: string;
+  period_end: string;
+}
+
+export interface GoalCheckInComment {
+  id: string;
+  author_name: string | null;
+  body: string;
+  created_at: string;
 }
 
 export interface KeyResultInput {
@@ -622,6 +648,222 @@ export interface GoalCheckIn {
   note: string | null;
   recorded_by_name: string | null;
   recorded_at: string;
+  comments: GoalCheckInComment[];
+  can_comment: boolean;
+}
+
+// ── 1:1s ─────────────────────────────────────────────────────────────────────
+
+export type OneOnOneStatus = "scheduled" | "completed" | "cancelled";
+export type OneOnOneItemKind = "talking_point" | "action_item";
+
+export interface OneOnOneItem {
+  id: string;
+  one_on_one_id: string;
+  kind: OneOnOneItemKind;
+  body: string;
+  added_by_name: string | null;
+  is_mine: boolean;
+  owner_employee_id: string | null;
+  owner_name: string | null;
+  due_on: string | null;
+  done_at: string | null;
+  from_meeting_on: string | null;
+}
+
+export interface OneOnOne {
+  id: string;
+  manager_employee_id: string;
+  manager_name: string;
+  report_employee_id: string;
+  report_name: string;
+  with_employee_id: string;
+  with_name: string;
+  my_side: "manager" | "report";
+  scheduled_on: string;
+  start_time: string | null;
+  duration_minutes: number;
+  status: OneOnOneStatus;
+  summary: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
+  cancel_reason: string | null;
+  talking_points: number;
+  open_action_items: number;
+  created_at: string;
+}
+
+export interface OneOnOneDetail extends OneOnOne {
+  items: OneOnOneItem[];
+  carried_over: OneOnOneItem[];
+  my_note: string | null;
+  my_note_updated_at: string | null;
+}
+
+export interface OneOnOnePartner {
+  employee_id: string;
+  name: string;
+  employee_code: string;
+  designation: string | null;
+  /** The caller's own manager, or one of their direct reports. */
+  relation: "manager" | "report";
+}
+
+export interface ReportOneOnOneSummary {
+  employee_id: string;
+  name: string;
+  employee_code: string;
+  designation: string | null;
+  last_held_on: string | null;
+  next_scheduled_on: string | null;
+  next_one_on_one_id: string | null;
+  held_count: number;
+  open_action_items: number;
+}
+
+// ── 360 and private feedback ─────────────────────────────────────────────────
+
+export type FeedbackRequestStatus = "open" | "closed";
+export type FeedbackVisibility = "anonymised" | "named" | "manager_only";
+export type FeedbackReviewerStatus = "pending" | "submitted" | "declined";
+export type FeedbackViewerRole = "subject" | "manager" | "hr" | "requester";
+export type PrivateFeedbackKind = "appreciation" | "suggestion";
+
+export interface FeedbackQuestion {
+  competency_id: string;
+  code: string;
+  name: string;
+  description: string | null;
+}
+
+export interface FeedbackScale {
+  min: string;
+  max: string;
+  levels: { value: string; label: string }[];
+}
+
+export interface FeedbackRequestSummary {
+  id: string;
+  subject_employee_id: string;
+  subject_name: string;
+  requested_by_name: string | null;
+  appraisal_cycle_id: string | null;
+  cycle_name: string | null;
+  due_on: string;
+  status: FeedbackRequestStatus;
+  employee_visibility: FeedbackVisibility;
+  reviewers_total: number;
+  responses: number;
+  declined: number;
+  created_at: string;
+  my_role: FeedbackViewerRole;
+}
+
+export interface FeedbackReviewerStatusRow {
+  id: string;
+  reviewer_employee_id: string;
+  name: string;
+  status: FeedbackReviewerStatus;
+  submitted_at: string | null;
+  decline_reason: string | null;
+  last_reminded_at: string | null;
+  reminder_count: number;
+}
+
+export interface FeedbackCompetencyAnswer {
+  competency_id: string;
+  name: string;
+  rating: string | null;
+  comment: string | null;
+}
+
+export interface FeedbackResponse {
+  reviewer_name: string;
+  competency_ratings: FeedbackCompetencyAnswer[];
+  strengths: string | null;
+  improvements: string | null;
+  overall_rating: string | null;
+  submitted_at: string;
+}
+
+export interface FeedbackCompetencyAggregate {
+  competency_id: string;
+  name: string;
+  average: string | null;
+  responses: number;
+  comments: string[];
+}
+
+export interface FeedbackAggregate {
+  responses: number;
+  overall_average: string | null;
+  overall_count: number;
+  competencies: FeedbackCompetencyAggregate[];
+  strengths: string[];
+  improvements: string[];
+}
+
+export interface FeedbackRequestDetail extends FeedbackRequestSummary {
+  message: string | null;
+  questions: FeedbackQuestion[];
+  scale: FeedbackScale | null;
+  anonymity_threshold: number;
+  reviewers: FeedbackReviewerStatusRow[] | null;
+  responses_named: FeedbackResponse[] | null;
+  aggregate: FeedbackAggregate | null;
+  visibility_note: string;
+  can_manage: boolean;
+}
+
+export interface FeedbackInboxItem {
+  reviewer_id: string;
+  request_id: string;
+  subject_name: string;
+  requested_by_name: string | null;
+  cycle_name: string | null;
+  due_on: string;
+  status: FeedbackReviewerStatus;
+  request_status: FeedbackRequestStatus;
+  submitted_at: string | null;
+  created_at: string;
+}
+
+export interface FeedbackCompetencyAnswerInput {
+  competency_id: string;
+  rating: string | null;
+  comment: string | null;
+}
+
+export interface FeedbackForm {
+  reviewer_id: string;
+  request_id: string;
+  subject_name: string;
+  requested_by_name: string | null;
+  cycle_name: string | null;
+  message: string | null;
+  due_on: string;
+  questions: FeedbackQuestion[];
+  scale: FeedbackScale | null;
+  employee_visibility: FeedbackVisibility;
+  visibility_statement: string;
+  status: FeedbackReviewerStatus;
+  request_status: FeedbackRequestStatus;
+  competency_ratings: FeedbackCompetencyAnswerInput[];
+  strengths: string | null;
+  improvements: string | null;
+  overall_rating: string | null;
+  submitted_at: string | null;
+}
+
+export interface PrivateFeedback {
+  id: string;
+  from_employee_id: string;
+  from_name: string;
+  to_employee_id: string;
+  to_name: string;
+  kind: PrivateFeedbackKind;
+  body: string;
+  created_at: string;
 }
 
 // ── PIPs ─────────────────────────────────────────────────────────────────────

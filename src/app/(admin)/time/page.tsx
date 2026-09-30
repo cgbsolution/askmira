@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { PageShell } from "@/components/common/PageShell";
 import { ApprovalsInbox } from "@/components/time/ApprovalsInbox";
 import { BalanceCards } from "@/components/time/BalanceCards";
+import { BalancesPanel } from "@/components/time/BalancesPanel";
+import { CompOffPanel } from "@/components/time/CompOffPanel";
 import { HolidayList } from "@/components/time/HolidayList";
 import { LeaveSetup } from "@/components/time/LeaveSetup";
 import { RequestsTable } from "@/components/time/RequestsTable";
@@ -15,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError, get } from "@/lib/api";
-import type { LeaveBalance, LeaveType } from "@/lib/types";
+import type { CompOffClaim, LeaveBalance, LeaveRequest, LeaveType } from "@/lib/types";
 
 /**
  * Time off (FRD 5.1).
@@ -29,10 +31,18 @@ export default function TimePage() {
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [balancesLoading, setBalancesLoading] = useState(true);
-  const [approvalCount, setApprovalCount] = useState(0);
+  const [leaveApprovals, setLeaveApprovals] = useState(0);
+  const [compOffApprovals, setCompOffApprovals] = useState(0);
+  const [tab, setTab] = useState("requests");
+  // Once somebody picks a tab themselves, a count arriving late must not move them.
+  const tabChosen = useRef(false);
 
   const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
-  const canApprove = isHr || hasRole("manager");
+  const isManager = hasRole("manager");
+  const hasEmployee = Boolean(user?.employee_id);
+  const approvalCount = leaveApprovals + compOffApprovals;
+  // Anybody named as an approver sees the tab, whatever their login role.
+  const showApprovals = isHr || isManager || approvalCount > 0;
   const refresh = useCallback(() => setVersion((current) => current + 1), []);
 
   useEffect(() => {
@@ -57,13 +67,32 @@ export default function TimePage() {
       .finally(() => setBalancesLoading(false));
   }, [user?.employee_id, version]);
 
-  // The approvals count for the tab label, kept current without opening the tab.
+  // The approvals counts for the tab, kept current without opening it. Asked
+  // of everybody: a line manager may still sign in with the employee role.
   useEffect(() => {
-    if (!canApprove) return;
-    get<unknown[]>("/leave/approvals")
-      .then((rows) => setApprovalCount(rows.length))
-      .catch(() => undefined);
-  }, [canApprove, version]);
+    if (!user) return;
+    get<LeaveRequest[]>("/leave/approvals")
+      .then((rows) => setLeaveApprovals(rows.length))
+      .catch(() => setLeaveApprovals(0));
+    get<CompOffClaim[]>("/leave/comp-off/approvals")
+      .then((rows) => setCompOffApprovals(rows.length))
+      .catch(() => setCompOffApprovals(0));
+  }, [user, version]);
+
+  useEffect(() => {
+    if (!tabChosen.current && approvalCount > 0) setTab("approvals");
+  }, [approvalCount]);
+
+  // The last item decided by somebody who approves only occasionally: the tab
+  // goes away, so do not leave them looking at nothing.
+  useEffect(() => {
+    if (!showApprovals && tab === "approvals") setTab("requests");
+  }, [showApprovals, tab]);
+
+  const chooseTab = (next: string) => {
+    tabChosen.current = true;
+    setTab(next);
+  };
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -71,17 +100,22 @@ export default function TimePage() {
         title="Time off"
         description="Balances, requests and approvals — and who is out when."
         actions={
-          user?.employee_id ? (
-            <RequestTimeOffDialog leaveTypes={leaveTypes} onCreated={refresh} />
+          hasEmployee || isHr ? (
+            <RequestTimeOffDialog
+              leaveTypes={leaveTypes}
+              canActForOthers={isHr}
+              ownEmployeeId={user?.employee_id ?? null}
+              onCreated={refresh}
+            />
           ) : undefined
         }
       >
-        {user?.employee_id && <BalanceCards balances={balances} isLoading={balancesLoading} />}
+        {hasEmployee && <BalanceCards balances={balances} isLoading={balancesLoading} />}
 
-        <Tabs defaultValue={canApprove && approvalCount > 0 ? "approvals" : "requests"}>
-          <TabsList>
+        <Tabs value={tab} onValueChange={chooseTab}>
+          <TabsList className="flex-wrap">
             <TabsTrigger value="requests">Requests</TabsTrigger>
-            {canApprove && (
+            {showApprovals && (
               <TabsTrigger value="approvals">
                 Approvals
                 {approvalCount > 0 && (
@@ -91,33 +125,61 @@ export default function TimePage() {
                 )}
               </TabsTrigger>
             )}
+            <TabsTrigger value="comp-off">Comp-off</TabsTrigger>
             <TabsTrigger value="calendar">Who&apos;s out</TabsTrigger>
             <TabsTrigger value="holidays">Holidays</TabsTrigger>
+            {(hasEmployee || isHr) && <TabsTrigger value="balances">Balances</TabsTrigger>}
             {isHr && <TabsTrigger value="setup">Setup</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="requests" className="mt-4">
             <RequestsTable
               employeeId={user?.employee_id ?? null}
-              canSeeOthers={canApprove}
+              canSeeOthers={isHr || isManager}
               version={version}
               onChanged={refresh}
             />
           </TabsContent>
-          {canApprove && (
+          {showApprovals && (
             <TabsContent value="approvals" className="mt-4">
-              <ApprovalsInbox version={version} onChanged={refresh} onCount={setApprovalCount} />
+              <ApprovalsInbox
+                version={version}
+                onChanged={refresh}
+                onCounts={(leave, compOff) => {
+                  setLeaveApprovals(leave);
+                  setCompOffApprovals(compOff);
+                }}
+              />
             </TabsContent>
           )}
+          <TabsContent value="comp-off" className="mt-4">
+            <CompOffPanel
+              hasEmployee={hasEmployee}
+              canSeeOthers={isHr || isManager}
+              isHr={isHr}
+              version={version}
+              onChanged={refresh}
+            />
+          </TabsContent>
           <TabsContent value="calendar" className="mt-4">
-            <WhoIsOutCalendar version={version} />
+            <WhoIsOutCalendar version={version} isHr={isHr} />
           </TabsContent>
           <TabsContent value="holidays" className="mt-4">
-            <HolidayList version={version} />
+            <HolidayList version={version} isHr={isHr} hasEmployee={hasEmployee} />
           </TabsContent>
+          {(hasEmployee || isHr) && (
+            <TabsContent value="balances" className="mt-4">
+              <BalancesPanel
+                isHr={isHr}
+                ownEmployeeId={user?.employee_id ?? null}
+                version={version}
+                onChanged={refresh}
+              />
+            </TabsContent>
+          )}
           {isHr && (
             <TabsContent value="setup" className="mt-4">
-              <LeaveSetup leaveTypes={leaveTypes} onChanged={refresh} />
+              <LeaveSetup onChanged={refresh} version={version} />
             </TabsContent>
           )}
         </Tabs>

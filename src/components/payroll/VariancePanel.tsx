@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
-import { apiMessage, formatMoment } from "@/components/payroll/labels";
+import { apiMessage, formatMoment, isZero } from "@/components/payroll/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +29,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { post } from "@/lib/api";
 import type { PayrollRun, VarianceFlag } from "@/lib/types/payroll";
+import { formatDays } from "@/lib/utils";
 
 /**
  * Net pay that moved beyond the threshold since last month. Each needs a person
@@ -98,6 +99,11 @@ export function VariancePanel({
                   <TableCell>
                     <p className="font-medium text-foreground">{flag.employee_name ?? flag.employee_code}</p>
                     <p className="text-xs text-muted-foreground">{flag.employee_code}</p>
+                    {!isZero(flag.not_employed_days) && (
+                      <Badge variant="muted" className="mt-1">
+                        Not employed: {formatDays(flag.not_employed_days)} days
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <Money value={flag.previous_net} />

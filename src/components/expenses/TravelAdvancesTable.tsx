@@ -59,7 +59,12 @@ export function TravelAdvancesTable({
                     )}
                     {advance.payroll_recovery_ref && (
                       <p className="text-xs text-muted-foreground">
-                        Payroll recovery ref {advance.payroll_recovery_ref}
+                        Recovered through payroll
+                      </p>
+                    )}
+                    {advance.payroll_refund_ref && (
+                      <p className="text-xs text-muted-foreground">
+                        Balance paid to you through payroll
                       </p>
                     )}
                   </TableCell>
@@ -93,8 +98,9 @@ export function TravelAdvancesTable({
       <CardContent>
         <p className="flex items-start gap-2 text-xs text-muted-foreground">
           <Info className="mt-0.5 size-3.5 shrink-0" />
-          When an advance is settled and money is owed back, the recovery through payroll is recorded
-          here, but payroll does not pick it up yet.
+          When an advance is settled, money owed back is recovered in your next payroll, within your
+          net pay; money owed to you is paid in your next payroll. Each is marked here once a payroll
+          run has taken or paid it.
         </p>
       </CardContent>
     </Card>

@@ -8,6 +8,7 @@ import React from "react";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
 import { PayslipTrace } from "@/components/payroll/PayslipTrace";
+import { DownloadButton } from "@/components/payroll-ops/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -25,11 +26,20 @@ export default function MyPayslipPage() {
       title="Payslip"
       description="Every line on your payslip, and how it was worked out."
       actions={
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/pay">
-            <ArrowLeft /> All payslips
-          </Link>
-        </Button>
+        <>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/pay">
+              <ArrowLeft /> All payslips
+            </Link>
+          </Button>
+          {data && (
+            <DownloadButton
+              path={`/payroll/my-payslips/${params.id}/pdf`}
+              fallbackName={`payslip-${data.period_year}-${String(data.period_month).padStart(2, "0")}.pdf`}
+              label="Download PDF"
+            />
+          )}
+        </>
       }
     >
       {isLoading && !data ? (

@@ -1,7 +1,7 @@
 import React from "react";
 
 import { Badge } from "@/components/ui/badge";
-import type { LeaveRequest, LeaveRequestStatus } from "@/lib/types";
+import type { HalfDaySession, LeaveRequest, LeaveRequestStatus } from "@/lib/types";
 
 const VARIANT: Record<LeaveRequestStatus, "warning" | "success" | "destructive" | "muted"> = {
   draft: "muted",
@@ -18,6 +18,16 @@ const LABEL: Record<LeaveRequestStatus, string> = {
   rejected: "Declined",
   cancelled: "Cancelled",
 };
+
+export const SESSION_LABEL: Record<HalfDaySession, string> = {
+  first_half: "First half",
+  second_half: "Second half",
+};
+
+/** "half day", or which half when the request says. */
+export function halfDayLabel(session: HalfDaySession | null): string {
+  return session ? SESSION_LABEL[session].toLowerCase() : "half day";
+}
 
 export function LeaveStatusBadge({ status }: { status: LeaveRequestStatus }) {
   return <Badge variant={VARIANT[status]}>{LABEL[status]}</Badge>;

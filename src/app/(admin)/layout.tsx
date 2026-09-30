@@ -34,7 +34,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [isLoading, isAuthenticated, router, pathname]);
 
-  if (isLoading || !isAuthenticated) {
+  // A temporary password is replaced before anything else is opened.
+  const mustChangePassword = Boolean(user?.must_change_password);
+  useEffect(() => {
+    if (!isLoading && mustChangePassword) router.replace("/change-password");
+  }, [isLoading, mustChangePassword, router]);
+
+  if (isLoading || !isAuthenticated || mustChangePassword) {
     return (
       <div className="flex min-h-screen flex-col gap-4 p-8">
         <Skeleton className="h-10 w-64" />

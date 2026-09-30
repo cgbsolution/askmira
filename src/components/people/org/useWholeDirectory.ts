@@ -10,7 +10,9 @@ const PAGE_SIZE = 200;
 const MAX_PEOPLE = 5000;
 
 /**
- * Every active person in the directory, paged through 200 at a time.
+ * Everybody who has not left — active, on notice, on leave, about to join —
+ * paged through 200 at a time. `status=active` alone dropped everyone on notice
+ * or on leave, and their reports floated to the top of the chart.
  *
  * A reporting-line chart needs the whole set to find the roots — somebody's
  * manager may be on page nine — so it cannot be drawn from one page. The
@@ -35,7 +37,7 @@ export function useWholeDirectory() {
       let total = Infinity;
       while (all.length < total && all.length < MAX_PEOPLE) {
         const result = await get<Page<EmployeeSummary>>(
-          `/employees?status=active&page=${page}&page_size=${PAGE_SIZE}`,
+          `/employees?current=true&page=${page}&page_size=${PAGE_SIZE}`,
         );
         total = result.total;
         all.push(...result.items);

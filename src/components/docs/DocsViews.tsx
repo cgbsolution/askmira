@@ -43,11 +43,15 @@ export function MyDocumentsView() {
         <Tabs defaultValue="company">
           <TabsList>
             <TabsTrigger value="company">All employees</TabsTrigger>
+            <TabsTrigger value="verify">To verify</TabsTrigger>
             <TabsTrigger value="expiring">Expiring</TabsTrigger>
             <TabsTrigger value="mine">Mine</TabsTrigger>
           </TabsList>
           <TabsContent value="company" className="mt-4">
             <DocumentsPanel title="Employee vault" showEmployee />
+          </TabsContent>
+          <TabsContent value="verify" className="mt-4">
+            <DocumentsPanel title="Uploaded by employees" showEmployee verification="pending" />
           </TabsContent>
           <TabsContent value="expiring" className="mt-4">
             <DocumentsPanel title="Expiring documents" showEmployee expiringOnly />

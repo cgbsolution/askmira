@@ -23,6 +23,12 @@ export const REGULARISABLE_STATUSES: AttendanceStatus[] = ["present", "half_day"
 
 export type RegularisationStatus = "pending" | "approved" | "rejected" | "cancelled";
 
+/**
+ * What a request asks for. Missed punch applies the corrected in/out times;
+ * on duty and work from home count as present and may be asked ahead of time.
+ */
+export type RegularisationKind = "missed_punch" | "status_change" | "on_duty" | "work_from_home";
+
 export interface PunchInput {
   direction: PunchDirection;
   latitude?: number | null;
@@ -57,6 +63,7 @@ export interface AttendanceDay {
   last_out: string | null;
   late_by_minutes: number;
   early_by_minutes: number;
+  overtime_minutes: number;
   is_regularised: boolean;
   computation_note: string | null;
 }
@@ -83,16 +90,82 @@ export interface AttendanceSummaryResponse {
   employees: EmployeeAttendanceSummary[];
 }
 
+/** A shift as the person working it sees it. Times are "HH:MM:SS". */
+export interface ShiftBrief {
+  id: string;
+  code: string;
+  name: string;
+  start_time: string;
+  end_time: string;
+  break_minutes: number;
+  grace_in_minutes: number;
+  is_night_shift: boolean;
+  weekly_off_days: number[];
+}
+
+export interface CalendarHoliday {
+  holiday_date: string;
+  name: string;
+}
+
+export interface CalendarLeave {
+  leave_date: string;
+  leave_type: string;
+  is_half_day: boolean;
+  status: "approved" | "pending";
+}
+
 export interface MyAttendancePeriod {
   period_start: string;
   period_end: string;
   is_locked: boolean;
   summary: EmployeeAttendanceSummary;
   days: AttendanceDay[];
+  /** The workspace's local date. */
+  today: string;
+  date_of_joining: string | null;
+  shift_today: ShiftBrief | null;
+  shift_today_is_default: boolean;
+  has_no_shift: boolean;
+  shifts: ShiftBrief[];
+  holidays: CalendarHoliday[];
+  leaves: CalendarLeave[];
+}
+
+export type TeamMemberState =
+  | "in"
+  | "out"
+  | "not_in"
+  | "on_leave"
+  | "holiday"
+  | "week_off"
+  | "on_duty"
+  | "work_from_home";
+
+export interface TeamMemberToday {
+  employee_id: string;
+  employee_code: string;
+  employee_name: string;
+  designation: string | null;
+  state: TeamMemberState;
+  first_in: string | null;
+  last_punch_at: string | null;
+  last_direction: PunchDirection | null;
+  shift_name: string | null;
+  shift_start: string | null;
+  late_by_minutes: number;
+  detail: string | null;
+}
+
+export interface TeamToday {
+  today: string;
+  members: TeamMemberToday[];
+  counts: Partial<Record<TeamMemberState | "late", number>>;
 }
 
 export interface RegularisationInput {
   attendance_date: string;
+  kind: RegularisationKind;
   requested_status: AttendanceStatus;
   reason: string;
   requested_first_in?: string | null;
@@ -100,10 +173,19 @@ export interface RegularisationInput {
   employee_id?: string | null;
 }
 
+export interface RegularisationRangeInput {
+  kind: "on_duty" | "work_from_home";
+  start_date: string;
+  end_date: string;
+  reason: string;
+  employee_id?: string | null;
+}
+
 export interface Regularisation {
   id: string;
   employee_id: string;
   attendance_date: string;
+  kind: RegularisationKind;
   requested_status: AttendanceStatus;
   requested_first_in: string | null;
   requested_last_out: string | null;
@@ -202,6 +284,8 @@ export interface Shift extends ShiftInput {
   id: string;
   code: string;
   active: boolean;
+  /** Applies to anyone with no shift or roster assignment. */
+  is_default: boolean;
 }
 
 export interface RosterDay {

@@ -48,9 +48,29 @@ export function ShiftsTab() {
     "/attendance/shifts?include_inactive=true",
   );
   const [editing, setEditing] = useState<Shift | "new" | null>(null);
+  const [defaulting, setDefaulting] = useState<string | null>(null);
   const shifts = [...(data ?? [])].sort(
-    (a, b) => Number(b.active) - Number(a.active) || a.code.localeCompare(b.code),
+    (a, b) =>
+      Number(b.is_default) - Number(a.is_default) ||
+      Number(b.active) - Number(a.active) ||
+      a.code.localeCompare(b.code),
   );
+  const hasDefault = shifts.some((shift) => shift.is_default && shift.active);
+
+  const makeDefault = async (shift: Shift) => {
+    setDefaulting(shift.id);
+    try {
+      await post<Shift>(`/attendance/shifts/${shift.id}/default`);
+      toast.success(`${shift.name} is now the default shift`, {
+        description: "It applies to anyone without a shift or roster. Recompute a period to re-judge days already computed.",
+      });
+      reload();
+    } catch (caught) {
+      toast.error(errorDetail(caught, "Could not change the default shift."));
+    } finally {
+      setDefaulting(null);
+    }
+  };
 
   return (
     <Card tier="tier1" className="pb-0">
@@ -64,6 +84,17 @@ export function ShiftsTab() {
         </CardAction>
       </CardHeader>
 
+      {!isLoading && !error && shifts.length > 0 && !hasDefault && (
+        <div className="px-5 pb-4">
+          <Alert variant="warning">
+            <AlertDescription>
+              No default shift. Anyone without a shift or roster assignment cannot be judged present
+              or absent — their days show as needing regularisation. Make one shift the default.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
       {isLoading ? (
         <div className="pb-5">
           <TableSkeleton />
@@ -74,7 +105,7 @@ export function ShiftsTab() {
         <EmptyState
           icon={Clock}
           title="No shifts defined"
-          description="Create a shift so attendance can be computed against working hours."
+          description="Create a shift so attendance can be computed against working hours. The first shift you create becomes the company default for everyone without an assignment."
         />
       ) : (
         <Table>
@@ -97,7 +128,14 @@ export function ShiftsTab() {
             {shifts.map((shift) => (
               <TableRow key={shift.id} className={cn(!shift.active && "text-muted-foreground")}>
                 <TableCell className="pl-5 font-medium">{shift.code}</TableCell>
-                <TableCell>{shift.name}</TableCell>
+                <TableCell>
+                  {shift.name}
+                  {shift.is_default && (
+                    <Badge variant="success" className="ml-2">
+                      Default
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell className="whitespace-nowrap tabular-nums">
                   {shortTime(shift.start_time)}–{shortTime(shift.end_time)}
                   {shift.is_night_shift && (
@@ -125,7 +163,18 @@ export function ShiftsTab() {
                     {shift.active ? "Active" : "Inactive"}
                   </Badge>
                 </TableCell>
-                <TableCell className="pr-5 text-right">
+                <TableCell className="pr-5 text-right whitespace-nowrap">
+                  {!shift.is_default && shift.active && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={defaulting !== null}
+                      onClick={() => void makeDefault(shift)}
+                    >
+                      {defaulting === shift.id && <Loader2 className="animate-spin" />}
+                      Make default
+                    </Button>
+                  )}
                   <Button variant="ghost" size="sm" onClick={() => setEditing(shift)}>
                     <Pencil /> Edit
                   </Button>

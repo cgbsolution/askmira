@@ -4,7 +4,13 @@ import { CalendarDays, Loader2, MessageSquare } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { approvalSummary, LeaveStatusBadge } from "@/components/time/LeaveStatusBadge";
+import { EmptyState } from "@/components/common/EmptyState";
+import { LeaveDocumentButton } from "@/components/time/LeaveDocumentButton";
+import {
+  approvalSummary,
+  halfDayLabel,
+  LeaveStatusBadge,
+} from "@/components/time/LeaveStatusBadge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +45,8 @@ import { formatDateRange, initials, pluralDays } from "@/lib/utils";
 
 type Scope = "mine" | "all";
 
+const PAGE_SIZE = 20;
+
 /**
  * Leave requests: your own, or — for managers and HR — everybody you can see.
  *
@@ -56,8 +64,9 @@ export function RequestsTable({
   version: number;
   onChanged: () => void;
 }) {
-  const [scope, setScope] = useState<Scope>("mine");
+  const [scope, setScope] = useState<Scope>(employeeId ? "mine" : "all");
   const [statusFilter, setStatusFilter] = useState<LeaveRequestStatus | "any">("any");
+  const [page, setPage] = useState(1);
   const [rows, setRows] = useState<LeaveRequest[]>([]);
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,13 +75,13 @@ export function RequestsTable({
 
   const load = useCallback(async () => {
     setIsLoading(true);
-    const params = new URLSearchParams({ page: "1", page_size: "100" });
+    const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
     if (scope === "mine" && employeeId) params.set("employee_id", employeeId);
     if (statusFilter !== "any") params.set("status", statusFilter);
     try {
-      const page = await get<Page<LeaveRequest>>(`/leave/requests?${params}`);
-      setRows(page.items);
-      setTotal(page.total);
+      const result = await get<Page<LeaveRequest>>(`/leave/requests?${params}`);
+      setRows(result.items);
+      setTotal(result.total);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.detail : "Could not load leave requests.");
       setRows([]);
@@ -80,11 +89,13 @@ export function RequestsTable({
     } finally {
       setIsLoading(false);
     }
-  }, [scope, statusFilter, employeeId]);
+  }, [scope, statusFilter, employeeId, page]);
 
   useEffect(() => {
     void load();
   }, [load, version]);
+
+  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const confirmCancel = async () => {
     if (!cancelling) return;
@@ -106,8 +117,14 @@ export function RequestsTable({
   return (
     <Card tier="tier1" className="gap-0 py-0">
       <div className="flex flex-wrap items-center gap-3 border-b border-border p-4">
-        {canSeeOthers && (
-          <Select value={scope} onValueChange={(value) => setScope(value as Scope)}>
+        {canSeeOthers && employeeId && (
+          <Select
+            value={scope}
+            onValueChange={(value) => {
+              setScope(value as Scope);
+              setPage(1);
+            }}
+          >
             <SelectTrigger size="sm" className="w-44" aria-label="Whose requests">
               <SelectValue />
             </SelectTrigger>
@@ -119,7 +136,10 @@ export function RequestsTable({
         )}
         <Select
           value={statusFilter}
-          onValueChange={(value) => setStatusFilter(value as LeaveRequestStatus | "any")}
+          onValueChange={(value) => {
+            setStatusFilter(value as LeaveRequestStatus | "any");
+            setPage(1);
+          }}
         >
           <SelectTrigger size="sm" className="w-36" aria-label="Status">
             <SelectValue />
@@ -145,19 +165,15 @@ export function RequestsTable({
             ))}
           </div>
         ) : rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 px-6 py-14 text-center">
-            <span className="flex size-12 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-              <CalendarDays className="size-6" />
-            </span>
-            <div>
-              <p className="font-medium text-foreground">No leave requests</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {scope === "mine"
-                  ? "Requests you make show up here with where each one stands."
-                  : "Nobody you can see has requested leave with these filters."}
-              </p>
-            </div>
-          </div>
+          <EmptyState
+            icon={CalendarDays}
+            title="No leave requests"
+            description={
+              scope === "mine"
+                ? "Requests you make show up here with where each one stands."
+                : "Nobody you can see has requested leave with these filters."
+            }
+          />
         ) : (
           <Table>
             <TableHeader>
@@ -168,7 +184,7 @@ export function RequestsTable({
                 <TableHead className="text-right">Days</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="hidden lg:table-cell">Approval</TableHead>
-                <TableHead className="w-24" />
+                <TableHead className="w-28" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -207,7 +223,7 @@ export function RequestsTable({
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-muted-foreground">
                     {formatDateRange(row.start_date, row.end_date)}
-                    {row.is_half_day && " · half day"}
+                    {row.is_half_day && ` · ${halfDayLabel(row.half_day_session)}`}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
                     {pluralDays(row.total_days)}
@@ -222,11 +238,14 @@ export function RequestsTable({
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {row.can_cancel && (
-                      <Button variant="ghost" size="sm" onClick={() => setCancelling(row)}>
-                        Cancel
-                      </Button>
-                    )}
+                    <div className="flex items-center justify-end gap-1">
+                      {row.has_document && <LeaveDocumentButton requestId={row.id} compact />}
+                      {row.can_cancel && (
+                        <Button variant="ghost" size="sm" onClick={() => setCancelling(row)}>
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -234,6 +253,32 @@ export function RequestsTable({
           </Table>
         )}
       </CardContent>
+
+      {!isLoading && total > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+          <span className="text-sm text-muted-foreground">
+            Page {page} of {lastPage}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((current) => current - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= lastPage}
+              onClick={() => setPage((current) => current + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       <Dialog open={cancelling !== null} onOpenChange={(open) => !open && setCancelling(null)}>
         <DialogContent className="sm:max-w-md">
@@ -246,8 +291,8 @@ export function RequestsTable({
                   cancelling.end_date,
                 )}. ${
                   cancelling.status === "approved"
-                    ? `The ${pluralDays(cancelling.total_days)} go back into the balance.`
-                    : "Your approver will no longer see it."
+                    ? `The ${pluralDays(cancelling.total_days)} go back into the balance, and the approver is told.`
+                    : "The approver is told it was withdrawn."
                 }`}
             </DialogDescription>
           </DialogHeader>

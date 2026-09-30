@@ -94,6 +94,7 @@ export function TravelTripsTable({
                         <li key={`${step.user_id}-${step.at}-${index}`} className="text-xs">
                           <Badge variant={step.decision === "approved" ? "success" : "destructive"}>
                             {step.decision === "approved" ? "Approved" : "Rejected"}
+                            {step.stage === "manager" ? " by manager" : step.stage === "finance" ? " by finance" : ""}
                           </Badge>{" "}
                           <span className="text-muted-foreground tabular-nums">{formatDateTime(step.at)}</span>
                           {step.note && <p className="mt-0.5 text-foreground">{step.note}</p>}
@@ -103,7 +104,7 @@ export function TravelTripsTable({
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  {trip.status === "submitted" && (
+                  {(trip.status === "submitted" || trip.status === "pending_manager") && (
                     <Button size="sm" variant="outline" onClick={() => setCancelling(trip)}>
                       <Ban /> Cancel
                     </Button>
@@ -121,7 +122,7 @@ export function TravelTripsTable({
         title="Cancel this travel request?"
         description={
           cancelling
-            ? `${cancelling.purpose}, ${formatDateRange(cancelling.from_date, cancelling.to_date)}. Finance will no longer review it.`
+            ? `${cancelling.purpose}, ${formatDateRange(cancelling.from_date, cancelling.to_date)}. Nobody will review it any further.`
             : undefined
         }
         confirmLabel="Cancel request"

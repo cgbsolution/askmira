@@ -109,7 +109,7 @@ export function SchedulerPanel() {
           <TableBody>
             {jobs.map((job) => (
               <TableRow key={job.key} className={job.applies ? undefined : "opacity-60"}>
-                <TableCell>
+                <TableCell className="min-w-72 whitespace-normal">
                   <div className="font-medium text-foreground">{job.name}</div>
                   <div className="text-xs text-muted-foreground">{job.description}</div>
                   <Tooltip>
@@ -129,7 +129,7 @@ export function SchedulerPanel() {
                   )}
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">{job.cadence}</TableCell>
-                <TableCell>
+                <TableCell className="w-64 whitespace-normal">
                   <RunCell run={job.last_run} />
                   {job.failures_last_7_days > 0 && (
                     <Badge variant="outline" className="mt-1">
@@ -171,7 +171,10 @@ export function SchedulerPanel() {
           <AlertDescription>
             <ul className="list-disc pl-5">
               {data.not_yet_registered.map((item) => (
-                <li key={item}>{item}</li>
+                <li key={item.requirement}>
+                  <span className="font-medium text-foreground">{item.requirement}</span> —{" "}
+                  {item.reason}
+                </li>
               ))}
             </ul>
             <p className="mt-2">
@@ -184,16 +187,28 @@ export function SchedulerPanel() {
   );
 }
 
+/**
+ * A run's result as one line: `{date: "2026-09-29", days_written: 3}` reads
+ * "Date 2026-09-29 · Days written 3". Null when the job returned nothing.
+ */
+function describeDetail(detail: Record<string, unknown> | null | undefined): string | null {
+  const parts = Object.entries(detail ?? {}).map(([key, value]) => {
+    const label = key.replaceAll("_", " ");
+    const shown = value !== null && typeof value === "object" ? JSON.stringify(value) : String(value);
+    return `${label.charAt(0).toUpperCase()}${label.slice(1)} ${shown}`;
+  });
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 function RunCell({ run }: { run: SchedulerJob["last_run"] }) {
   if (!run) return <span className="text-xs text-muted-foreground">Never</span>;
+  const detail = describeDetail(run.detail);
   return (
     <div>
       <Badge variant={run.status === "succeeded" ? "secondary" : "outline"}>{run.status}</Badge>
       <div className="mt-1 text-xs text-muted-foreground">{formatDateTime(run.started_at)}</div>
       {run.error && <div className="mt-1 text-xs text-destructive">{run.error}</div>}
-      {!run.error && run.detail && (
-        <div className="mt-1 text-xs text-muted-foreground">{run.detail}</div>
-      )}
+      {!run.error && detail && <div className="mt-1 text-xs text-muted-foreground">{detail}</div>}
     </div>
   );
 }

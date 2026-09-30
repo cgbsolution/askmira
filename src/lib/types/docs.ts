@@ -32,7 +32,14 @@ export interface VaultDocument {
   is_employee_visible: boolean;
   uploaded_by_user_id: string | null;
   created_at: string;
+  /** "not_required" for what HR uploaded; the employee's own uploads start "pending". */
+  verification_status: DocumentVerification;
+  self_uploaded: boolean;
+  verified_at: string | null;
+  verification_note: string | null;
 }
+
+export type DocumentVerification = "not_required" | "pending" | "verified" | "rejected";
 
 export type LetterCategory =
   | "offer"
@@ -134,6 +141,13 @@ export interface IssuedLetter {
   has_pdf: boolean;
   has_signed_pdf: boolean;
   revoked_reason: string | null;
+  /** In-portal acknowledgement — separate from e-signature. */
+  acknowledged_at: string | null;
+  /** The name the employee typed when they accepted. */
+  acknowledged_name: string | null;
+  acknowledgement_requested_at: string | null;
+  /** True when the caller is the employee and may acknowledge it now. */
+  can_acknowledge: boolean;
 }
 
 export interface LetterContent {

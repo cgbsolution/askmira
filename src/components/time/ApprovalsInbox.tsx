@@ -4,6 +4,8 @@ import { Check, Inbox, Loader2, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { LeaveDocumentButton } from "@/components/time/LeaveDocumentButton";
+import { halfDayLabel } from "@/components/time/LeaveStatusBadge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,57 +22,82 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, get, post } from "@/lib/api";
-import type { LeaveRequest } from "@/lib/types";
-import { formatDate, formatDateRange, initials, pluralDays, toISODate } from "@/lib/utils";
+import type { CompOffClaim, LeaveRequest } from "@/lib/types";
+import {
+  formatDate,
+  formatDateRange,
+  formatDay,
+  initials,
+  pluralDays,
+  toISODate,
+} from "@/lib/utils";
+
+type Declining =
+  | { kind: "leave"; row: LeaveRequest }
+  | { kind: "comp-off"; row: CompOffClaim }
+  | null;
 
 /**
- * Requests waiting on the signed-in person.
+ * Everything waiting on the signed-in person here: leave requests and comp-off
+ * claims.
  *
  * The server decides what belongs here: steps naming this person, or every
- * pending request for HR, never their own. Declining asks for a reason, which
+ * pending item for HR, never their own. Declining asks for a reason, which
  * the server also insists on — a "no" without a why is a conversation deferred.
  */
 export function ApprovalsInbox({
   version,
   onChanged,
-  onCount,
+  onCounts,
 }: {
   version: number;
   onChanged: () => void;
-  onCount: (count: number) => void;
+  onCounts: (leave: number, compOff: number) => void;
 }) {
   const [rows, setRows] = useState<LeaveRequest[]>([]);
+  const [claims, setClaims] = useState<CompOffClaim[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [declining, setDeclining] = useState<LeaveRequest | null>(null);
+  const [declining, setDeclining] = useState<Declining>(null);
   const [note, setNote] = useState("");
 
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      const items = await get<LeaveRequest[]>("/leave/approvals");
+      const [items, compOff] = await Promise.all([
+        get<LeaveRequest[]>("/leave/approvals"),
+        get<CompOffClaim[]>("/leave/comp-off/approvals"),
+      ]);
       setRows(items);
-      onCount(items.length);
+      setClaims(compOff);
+      onCounts(items.length, compOff.length);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.detail : "Could not load approvals.");
       setRows([]);
+      setClaims([]);
     } finally {
       setIsLoading(false);
     }
-  }, [onCount]);
+  }, [onCounts]);
 
   useEffect(() => {
     void load();
-  }, [load, version]);
+    // `onCounts` is recreated by the parent on each render; reload on data changes only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version]);
 
-  const decide = async (request: LeaveRequest, approve: boolean, decisionNote: string | null) => {
-    setBusyId(request.id);
+  const decide = async (item: NonNullable<Declining>, approve: boolean, decisionNote: string | null) => {
+    setBusyId(item.row.id);
+    const path =
+      item.kind === "leave"
+        ? `/leave/requests/${item.row.id}/${approve ? "approve" : "reject"}`
+        : `/leave/comp-off/${item.row.id}/${approve ? "approve" : "reject"}`;
     try {
-      await post<LeaveRequest>(`/leave/requests/${request.id}/${approve ? "approve" : "reject"}`, {
-        note: decisionNote,
-      });
+      await post(path, { note: decisionNote });
       toast.success(
-        `${approve ? "Approved" : "Declined"} ${request.employee_name}'s ${request.leave_type_name}`,
+        item.kind === "leave"
+          ? `${approve ? "Approved" : "Declined"} ${item.row.employee_name}'s ${item.row.leave_type_name}`
+          : `${approve ? "Approved" : "Declined"} ${item.row.employee_name}'s comp-off claim`,
       );
       setDeclining(null);
       setNote("");
@@ -91,7 +118,7 @@ export function ApprovalsInbox({
     );
   }
 
-  if (rows.length === 0) {
+  if (rows.length === 0 && claims.length === 0) {
     return (
       <Card tier="tier1">
         <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
@@ -101,7 +128,7 @@ export function ApprovalsInbox({
           <div>
             <p className="font-medium text-foreground">You&apos;re all caught up</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Leave requests that need your decision will appear here.
+              Leave requests and comp-off claims that need your decision will appear here.
             </p>
           </div>
         </CardContent>
@@ -134,14 +161,73 @@ export function ApprovalsInbox({
                   </div>
                   <p className="text-sm text-foreground">
                     {formatDateRange(row.start_date, row.end_date)}
-                    {row.is_half_day && " (half day)"} ·{" "}
-                    <span className="tabular-nums">{pluralDays(row.total_days)}</span>
+                    {row.is_half_day &&
+                      ` (${halfDayLabel(row.half_day_session)})`}{" "}
+                    · <span className="tabular-nums">{pluralDays(row.total_days)}</span>
                   </p>
                   {row.reason && (
                     <p className="text-sm text-muted-foreground">“{row.reason}”</p>
                   )}
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <span>Requested {formatDate(row.created_at)}</span>
+                    {row.has_document && <LeaveDocumentButton requestId={row.id} />}
+                  </div>
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-2 md:flex-col lg:flex-row">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => {
+                    setNote("");
+                    setDeclining({ kind: "leave", row });
+                  }}
+                >
+                  <X /> Decline
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => void decide({ kind: "leave", row }, true, null)}
+                >
+                  {busy ? <Loader2 className="animate-spin" /> : <Check />}
+                  Approve
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+
+      {claims.map((claim) => {
+        const busy = busyId === claim.id;
+        return (
+          <Card key={claim.id} tier="tier1" className="gap-0 py-4">
+            <CardContent className="flex flex-col gap-4 px-4 md:flex-row md:items-center">
+              <div className="flex min-w-0 flex-1 items-start gap-3">
+                <Avatar className="size-10">
+                  {claim.employee_photo_url && (
+                    <AvatarImage src={claim.employee_photo_url} alt="" />
+                  )}
+                  <AvatarFallback>{initials(claim.employee_name)}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-foreground">{claim.employee_name}</p>
+                    <Badge variant="accent">Comp-off claim</Badge>
+                    {claim.approver_name === "HR team" && (
+                      <Badge variant="outline">No manager — HR decides</Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-foreground">
+                    Worked {formatDay(claim.worked_date, true)}
+                    {claim.worked_day_label && ` (${claim.worked_day_label})`} ·{" "}
+                    <span className="tabular-nums">{pluralDays(claim.days)}</span>
+                  </p>
+                  <p className="text-sm text-muted-foreground">“{claim.reason}”</p>
                   <p className="text-xs text-muted-foreground">
-                    Requested {formatDate(row.created_at)}
+                    Claimed {formatDate(claim.created_at)}
                   </p>
                 </div>
               </div>
@@ -152,12 +238,16 @@ export function ApprovalsInbox({
                   disabled={busy}
                   onClick={() => {
                     setNote("");
-                    setDeclining(row);
+                    setDeclining({ kind: "comp-off", row: claim });
                   }}
                 >
                   <X /> Decline
                 </Button>
-                <Button size="sm" disabled={busy} onClick={() => void decide(row, true, null)}>
+                <Button
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => void decide({ kind: "comp-off", row: claim }, true, null)}
+                >
                   {busy ? <Loader2 className="animate-spin" /> : <Check />}
                   Approve
                 </Button>
@@ -170,13 +260,15 @@ export function ApprovalsInbox({
       <Dialog open={declining !== null} onOpenChange={(open) => !open && setDeclining(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Decline {declining?.employee_name}&apos;s request</DialogTitle>
+            <DialogTitle>Decline {declining?.row.employee_name}&apos;s request</DialogTitle>
             <DialogDescription>
-              {declining &&
-                `${declining.leave_type_name}, ${formatDateRange(
-                  declining.start_date,
-                  declining.end_date,
+              {declining?.kind === "leave" &&
+                `${declining.row.leave_type_name}, ${formatDateRange(
+                  declining.row.start_date,
+                  declining.row.end_date,
                 )}. They will see your reason.`}
+              {declining?.kind === "comp-off" &&
+                `Comp-off for working ${formatDay(declining.row.worked_date, true)}. They will see your reason.`}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-1.5">
@@ -196,11 +288,11 @@ export function ApprovalsInbox({
             </Button>
             <Button
               variant="destructive"
-              disabled={!note.trim() || busyId === declining?.id}
+              disabled={!note.trim() || busyId === declining?.row.id}
               onClick={() => declining && void decide(declining, false, note.trim())}
             >
-              {busyId === declining?.id && <Loader2 className="animate-spin" />}
-              Decline request
+              {busyId === declining?.row.id && <Loader2 className="animate-spin" />}
+              Decline
             </Button>
           </DialogFooter>
         </DialogContent>

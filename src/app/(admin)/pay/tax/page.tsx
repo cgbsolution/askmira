@@ -7,7 +7,7 @@ export default function Page() {
   return (
     <PageShell
       title="Tax declarations"
-      description="Regime choice, investment declarations, proofs and Form 12BB."
+      description="Regime choice, investment declarations, proofs, Form 12BB and Form 16."
     >
       <TaxSelfService />
     </PageShell>

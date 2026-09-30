@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CalendarClock, Pencil, UserMinus, UserRound } from "lucide-react";
+import { ArrowLeft, CalendarClock, Camera, Pencil, UserMinus, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
+import { EmployeeAssetsCard } from "@/components/assets/EmployeeAssetsCard";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
@@ -23,11 +24,29 @@ import {
   personName,
 } from "@/components/people/labels";
 import { LifecycleTimeline } from "@/components/people/LifecycleTimeline";
+import { ChangeRequestsPanel } from "@/components/people/profile/ChangeRequestsPanel";
+import { PhotoDialog } from "@/components/people/profile/PhotoDialog";
+import {
+  AddressesCard,
+  BankCard,
+  EducationCard,
+  EmergencyContactsCard,
+  ExperienceCard,
+  FamilyCard,
+  HiringSnapshotCard,
+  IdentityCard,
+  MissingAlert,
+  NomineesCard,
+  PersonalCard,
+  StatutoryCard,
+} from "@/components/people/profile/ProfileSectionCards";
+import { ResignationCard } from "@/components/people/profile/ResignationCard";
+import { type EditMode, SectionEditDialog } from "@/components/people/profile/SectionEditDialog";
 import { DetailItem, EmploymentStatusBadge } from "@/components/people/StatusBadges";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Sheet,
   SheetContent,
@@ -37,34 +56,59 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AttendanceCalendar } from "@/components/attendance/AttendanceCalendar";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { del } from "@/lib/api";
-import type { EmployeeRecord } from "@/lib/types/people";
+import type { EmployeeProfile, EmployeeRecord, ProfileSection } from "@/lib/types/people";
 import { formatDay } from "@/lib/utils";
+import { LoginAccessButton } from "./LoginAccessButton";
 
 function day(value: string | null): string | null {
   return value ? formatDay(value, true) : null;
 }
 
+/** A tab a host page adds to the profile (My profile adds "Account & security"). */
+export interface ExtraTab {
+  value: string;
+  label: string;
+  content: React.ReactNode;
+}
+
 /**
  * One person's profile. What shows depends on who is looking — and the API has
  * already decided what came back: personal fields only for the person and HR,
- * pay only for them, lifecycle history for HR and the reporting line.
+ * identifiers masked for everyone but HR, pay only for them, lifecycle history
+ * for HR and the reporting line.
+ *
+ * Used by the directory (`/people/[id]`) and by My profile (`/profile`, with
+ * `recordPath="/employees/me"` and the account tab).
  */
-export function ProfileView() {
-  const { id } = useParams<{ id: string }>();
+export function ProfileView({
+  recordPath,
+  title,
+  extraTabs = [],
+}: {
+  /** Defaults to `/employees/{id}` from the route. */
+  recordPath?: string;
+  title?: string;
+  extraTabs?: ExtraTab[];
+} = {}) {
+  const params = useParams<{ id?: string }>();
   const router = useRouter();
   const { user, hasRole, hasModule } = useAuth();
   const org = useOrgReference();
-  const record = useApiQuery<EmployeeRecord>(`/employees/${id}`);
+  const record = useApiQuery<EmployeeRecord>(recordPath ?? `/employees/${params.id}`);
   const employee = record.data;
   const manager = useApiQuery<EmployeeRecord>(
     employee?.manager_id ? `/employees/${employee.manager_id}` : null,
   );
   const [editing, setEditing] = useState(false);
   const [editingContact, setEditingContact] = useState(false);
+  const [editingPhoto, setEditingPhoto] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+  const [section, setSection] = useState<{ section: ProfileSection; mode: EditMode } | null>(null);
+  const [requestsVersion, setRequestsVersion] = useState(0);
 
   const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
   const isAdmin = hasRole("tenant_admin", "hr_admin");
@@ -73,8 +117,16 @@ export function ProfileView() {
   const seesHistory = isHr || hasRole("manager");
   const seesPay = seesPrivate && hasModule("payroll");
 
+  const profile = useApiQuery<EmployeeProfile>(
+    employee && seesPrivate
+      ? isSelf
+        ? "/employees/me/profile"
+        : `/employees/${employee.id}/profile`
+      : null,
+  );
+
   const shell = (children: React.ReactNode) => (
-    <PageShell title="Employee profile">
+    <PageShell title={title ?? "Employee profile"}>
       {children}
     </PageShell>
   );
@@ -105,6 +157,7 @@ export function ProfileView() {
 
   const name = personName(employee);
   const picked = { id: employee.id, label: `${name} (${employee.employee_code})` };
+  const details = profile.data;
 
   const deactivate = async () => {
     try {
@@ -117,24 +170,47 @@ export function ProfileView() {
     }
   };
 
+  const onEdit = (next: ProfileSection, mode: EditMode) => setSection({ section: next, mode });
+
+  /** A tab's content once the extended profile has loaded. */
+  const withProfile = (render: (data: EmployeeProfile) => React.ReactNode) => {
+    if (profile.error) {
+      return (
+        <Card tier="tier1">
+          <ErrorState message={profile.error.detail} onRetry={profile.reload} />
+        </Card>
+      );
+    }
+    if (!details) return <Skeleton className="h-48 w-full" />;
+    return <div className="grid gap-6">{render(details)}</div>;
+  };
+
   return (
     <PageShell
-      title={name}
+      title={title ?? name}
       description={[employee.designation, org.departmentName(employee.department_id)]
         .filter((part) => part && part !== "—")
         .join(" · ")}
       actions={
         <>
-          <Button variant="ghost" asChild>
-            <Link href="/people">
-              <ArrowLeft /> Directory
-            </Link>
-          </Button>
+          {!recordPath && (
+            <Button variant="ghost" asChild>
+              <Link href="/people">
+                <ArrowLeft /> Directory
+              </Link>
+            </Button>
+          )}
+          {(isSelf || isHr) && (
+            <Button variant="outline" onClick={() => setEditingPhoto(true)}>
+              <Camera /> {employee.photo_url ? "Change photo" : "Add photo"}
+            </Button>
+          )}
           {isSelf && (
             <Button variant="outline" onClick={() => setEditingContact(true)}>
               <Pencil /> Edit contact details
             </Button>
           )}
+          {isHr && !isSelf && <LoginAccessButton employee={employee} />}
           {isHr && !isSelf && (
             <>
               <Button variant="outline" asChild>
@@ -167,21 +243,41 @@ export function ProfileView() {
             <EmploymentStatusBadge status={employee.status} />
             {!employee.is_active && <Badge variant="destructive">Deactivated</Badge>}
             {isSelf && <Badge variant="secondary">This is you</Badge>}
+            {details && details.pending_requests.length > 0 && (
+              <Badge variant="warning">
+                {details.pending_requests.length} change
+                {details.pending_requests.length === 1 ? "" : "s"} waiting for HR
+              </Badge>
+            )}
           </div>
         </CardContent>
       </Card>
 
       <Tabs defaultValue="overview">
-        <TabsList className="flex-wrap">
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {seesPrivate && <TabsTrigger value="personal">Personal</TabsTrigger>}
+          {seesPrivate && <TabsTrigger value="family">Family &amp; nominees</TabsTrigger>}
+          {seesPrivate && <TabsTrigger value="background">Education &amp; experience</TabsTrigger>}
+          {seesPrivate && <TabsTrigger value="statutory">Statutory &amp; bank</TabsTrigger>}
           <TabsTrigger value="employment">Employment</TabsTrigger>
           {seesPay && <TabsTrigger value="compensation">Compensation</TabsTrigger>}
           {seesPrivate && <TabsTrigger value="documents">Documents</TabsTrigger>}
+          {seesPrivate && <TabsTrigger value="requests">Change requests</TabsTrigger>}
+          {isSelf && <TabsTrigger value="resignation">Resignation</TabsTrigger>}
+          {seesHistory && !isSelf && hasModule("leave") && (
+            <TabsTrigger value="attendance">Attendance</TabsTrigger>
+          )}
           {seesHistory && !isSelf && <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>}
+          {extraTabs.map((tab) => (
+            <TabsTrigger key={tab.value} value={tab.value}>
+              {tab.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value="overview" className="mt-4">
+        <TabsContent value="overview" className="mt-4 grid gap-6">
+          {details && <MissingAlert missing={details.missing} />}
           <Card tier="tier1">
             <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <DetailItem label="Designation">{employee.designation}</DetailItem>
@@ -208,20 +304,67 @@ export function ProfileView() {
 
         {seesPrivate && (
           <TabsContent value="personal" className="mt-4">
-            <Card tier="tier1">
-              <CardHeader>
-                <CardTitle>Personal details</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <DetailItem label="Display name">{employee.display_name}</DetailItem>
-                <DetailItem label="Personal email">{employee.personal_email}</DetailItem>
-                <DetailItem label="Phone">{employee.phone}</DetailItem>
-                <DetailItem label="Date of birth">{day(employee.date_of_birth)}</DetailItem>
-                <DetailItem label="Gender">
-                  {employee.gender ? GENDER[employee.gender] : null}
-                </DetailItem>
-              </CardContent>
-            </Card>
+            {withProfile((data) => (
+              <>
+                <IdentityCard profile={data} employee={employee} isSelf={isSelf} onEdit={onEdit} />
+                <Card tier="tier1">
+                  <CardHeader>
+                    <CardTitle className="text-base">Contact details</CardTitle>
+                    {isSelf && (
+                      <CardAction>
+                        <Button size="sm" variant="outline" onClick={() => setEditingContact(true)}>
+                          <Pencil /> Edit
+                        </Button>
+                      </CardAction>
+                    )}
+                  </CardHeader>
+                  <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <DetailItem label="Display name">{employee.display_name}</DetailItem>
+                    <DetailItem label="Personal email">{employee.personal_email}</DetailItem>
+                    <DetailItem label="Phone">{employee.phone}</DetailItem>
+                    <DetailItem label="Gender">
+                      {employee.gender ? GENDER[employee.gender] : null}
+                    </DetailItem>
+                  </CardContent>
+                </Card>
+                <PersonalCard profile={data} isSelf={isSelf} onEdit={onEdit} />
+                <AddressesCard profile={data} isSelf={isSelf} onEdit={onEdit} />
+                <EmergencyContactsCard profile={data} isSelf={isSelf} onEdit={onEdit} />
+              </>
+            ))}
+          </TabsContent>
+        )}
+
+        {seesPrivate && (
+          <TabsContent value="family" className="mt-4">
+            {withProfile((data) => (
+              <>
+                <FamilyCard profile={data} isSelf={isSelf} onEdit={onEdit} />
+                <NomineesCard profile={data} isSelf={isSelf} onEdit={onEdit} />
+              </>
+            ))}
+          </TabsContent>
+        )}
+
+        {seesPrivate && (
+          <TabsContent value="background" className="mt-4">
+            {withProfile((data) => (
+              <>
+                <EducationCard profile={data} isSelf={isSelf} onEdit={onEdit} />
+                <ExperienceCard profile={data} isSelf={isSelf} onEdit={onEdit} />
+              </>
+            ))}
+          </TabsContent>
+        )}
+
+        {seesPrivate && (
+          <TabsContent value="statutory" className="mt-4">
+            {withProfile((data) => (
+              <>
+                <StatutoryCard profile={data} isSelf={isSelf} onEdit={onEdit} />
+                <BankCard profile={data} isSelf={isSelf} onEdit={onEdit} />
+              </>
+            ))}
           </TabsContent>
         )}
 
@@ -243,11 +386,17 @@ export function ProfileView() {
               <DetailItem label="Date of exit">{day(employee.date_of_exit)}</DetailItem>
             </CardContent>
           </Card>
+          {!isSelf && <EmployeeAssetsCard employeeId={employee.id} className="mt-6" />}
+          {isHr && !isSelf && details?.hiring_snapshot && Object.keys(details.hiring_snapshot).length > 0 && (
+            <div className="mt-6">
+              <HiringSnapshotCard snapshot={details.hiring_snapshot} />
+            </div>
+          )}
         </TabsContent>
 
         {seesPay && (
           <TabsContent value="compensation" className="mt-4">
-            <CompensationPanel employeeId={employee.id} />
+            <CompensationPanel employeeId={employee.id} isSelf={isSelf} />
           </TabsContent>
         )}
 
@@ -258,11 +407,40 @@ export function ProfileView() {
           </TabsContent>
         )}
 
+        {seesPrivate && (
+          <TabsContent value="requests" className="mt-4">
+            <ChangeRequestsPanel
+              employeeId={employee.id}
+              isSelf={isSelf}
+              version={requestsVersion}
+              onChanged={profile.reload}
+            />
+          </TabsContent>
+        )}
+
+        {isSelf && (
+          <TabsContent value="resignation" className="mt-4">
+            <ResignationCard employee={employee} />
+          </TabsContent>
+        )}
+
+        {seesHistory && !isSelf && hasModule("leave") && (
+          <TabsContent value="attendance" className="mt-4">
+            <AttendanceCalendar employeeId={employee.id} title={`${name}'s attendance`} />
+          </TabsContent>
+        )}
+
         {seesHistory && !isSelf && (
           <TabsContent value="lifecycle" className="mt-4">
             <LifecycleTimeline employeeId={employee.id} />
           </TabsContent>
         )}
+
+        {extraTabs.map((tab) => (
+          <TabsContent key={tab.value} value={tab.value} className="mt-4">
+            {tab.content}
+          </TabsContent>
+        ))}
       </Tabs>
 
       {isHr && !isSelf && (
@@ -272,7 +450,7 @@ export function ProfileView() {
               <SheetTitle>Edit {name}</SheetTitle>
               <SheetDescription>
                 For corrections and set-up. Transfers, promotions and confirmations belong in
-                Lifecycle events, where they are approved and dated.
+                Lifecycle events, where they are approved and dated. Leaving goes through Exits.
               </SheetDescription>
             </SheetHeader>
             <div className="px-4 pb-6">
@@ -295,6 +473,33 @@ export function ProfileView() {
           onOpenChange={setEditingContact}
           record={employee}
           onSaved={(saved) => record.setData(saved)}
+        />
+      )}
+      {(isSelf || isHr) && (
+        <PhotoDialog
+          open={editingPhoto}
+          onOpenChange={setEditingPhoto}
+          employee={employee}
+          isSelf={isSelf}
+          onSaved={(saved) => record.setData(saved)}
+        />
+      )}
+      {details && (
+        <SectionEditDialog
+          open={section !== null}
+          onOpenChange={(open) => !open && setSection(null)}
+          section={section?.section ?? null}
+          mode={section?.mode ?? "self-direct"}
+          profile={details}
+          employee={employee}
+          onSaved={(saved) => {
+            profile.setData(saved);
+            if (section?.section === "identity") record.reload();
+          }}
+          onRequested={() => {
+            profile.reload();
+            setRequestsVersion((current) => current + 1);
+          }}
         />
       )}
       <ConfirmDialog

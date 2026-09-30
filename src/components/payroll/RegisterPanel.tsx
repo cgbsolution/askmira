@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { Money } from "@/components/common/Money";
-import { apiMessage } from "@/components/payroll/labels";
+import { apiMessage, isZero } from "@/components/payroll/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -105,6 +105,9 @@ export function RegisterPanel({ runId, version }: { runId: string; version: numb
                     {row.has_variance && <Badge variant="warning">Variance</Badge>}
                     {row.review_flags.length > 0 && <Badge variant="destructive">Review</Badge>}
                     {row.skipped_recoveries > 0 && <Badge variant="muted">Recovery held</Badge>}
+                    {!isZero(row.not_employed_days) && (
+                      <Badge variant="muted">Not employed: {formatDays(row.not_employed_days)} days</Badge>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">

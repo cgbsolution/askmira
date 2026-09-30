@@ -57,7 +57,9 @@ export function ShoutoutRail({ count, isLoading }: { count?: number; isLoading: 
                   : "No shoutouts yet this week"}
               </p>
               <p className="mx-auto mt-1 max-w-[220px] text-sm text-sidebar-muted">
-                The feed lands with the Culture module in V1.
+                {count
+                  ? "See who was thanked, and add your own."
+                  : "Thank someone for their work — it shows on the Culture feed."}
               </p>
             </div>
             <Button variant="secondary" size="sm" className="mt-1" asChild>

@@ -863,6 +863,13 @@ export interface ExitRecord {
   settlement_id: string | null;
   settlement_status: SettlementStatus | null;
   created_at: string;
+  /** Self-resignation: submitted by the employee, waiting to be accepted. */
+  initiated_by_employee: boolean;
+  employee_comments: string | null;
+  accepted_at: string | null;
+  accepted_by_name: string | null;
+  withdrawn_at: string | null;
+  awaiting_acceptance: boolean;
 }
 
 export interface ExitCreateInput {
@@ -911,8 +918,26 @@ export interface ClearanceItem {
   owner_role: ClearanceOwnerRole;
   owner_user_id: string | null;
   owner_name: string | null;
+  /** Set on a "return this asset" item: not returned with no amount recovers its book value. */
+  asset_assignment_id?: string | null;
   /** The caller may sign this item off. */
   can_update: boolean;
+}
+
+/** A clearance item waiting on the caller (`GET /exits/clearance/mine`). */
+export interface ClearanceTask {
+  item_id: string;
+  exit_id: string;
+  employee_id: string;
+  employee_name: string;
+  employee_code: string;
+  photo_url: string | null;
+  last_working_day: string | null;
+  department: string;
+  description: string;
+  is_mandatory: boolean;
+  owner_role: ClearanceOwnerRole;
+  created_at: string;
 }
 
 export interface ClearanceUpdateInput {
@@ -1010,7 +1035,16 @@ export interface Settlement {
   computed_at: string | null;
   approved_at: string | null;
   paid_at: string | null;
+  /** The payment as finance recorded it: the day and the bank reference. */
+  paid_on: string | null;
+  payment_reference: string | null;
+  paid_by_name: string | null;
   statement_letter_id: string | null;
+}
+
+export interface SettlementPaymentInput {
+  paid_on: string;
+  payment_reference: string;
 }
 
 export interface SettlementLine {

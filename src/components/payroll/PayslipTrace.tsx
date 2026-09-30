@@ -71,6 +71,9 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
           <p className="text-sm text-muted-foreground">
             {formatDays(payslip.paid_days)} of {formatDays(payslip.working_days)} days paid
             {isZero(payslip.lop_days) ? "" : ` · ${formatDays(payslip.lop_days)} days loss of pay`}
+            {isZero(payslip.not_employed_days)
+              ? ""
+              : ` · Not employed: ${formatDays(payslip.not_employed_days)} days`}
             {payslip.salary && (
               <>
                 {" "}

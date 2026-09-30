@@ -442,3 +442,229 @@ export interface DriftReport {
     new_probation_end_date: string | null;
   }[];
 }
+
+// ── Extended profile and change requests ───────────────────────────────────
+// Mirrors backend/app/schemas/employee_profile.py.
+
+export type ProfileSection =
+  | "identity"
+  | "personal"
+  | "addresses"
+  | "emergency_contacts"
+  | "family_members"
+  | "nominees"
+  | "education"
+  | "previous_employment"
+  | "statutory"
+  | "bank_account";
+
+export type MaritalStatus = "single" | "married" | "separated" | "divorced" | "widowed" | "undisclosed";
+export type BloodGroup = "A+" | "A-" | "B+" | "B-" | "AB+" | "AB-" | "O+" | "O-";
+export type Relationship =
+  | "spouse"
+  | "child"
+  | "father"
+  | "mother"
+  | "sibling"
+  | "father_in_law"
+  | "mother_in_law"
+  | "grandparent"
+  | "friend"
+  | "other";
+export type NomineePurpose = "pf" | "eps" | "gratuity" | "insurance";
+export type EducationLevel =
+  | "secondary"
+  | "higher_secondary"
+  | "diploma"
+  | "graduate"
+  | "postgraduate"
+  | "doctorate"
+  | "certification"
+  | "other";
+
+export interface IdentityDetails {
+  first_name: string;
+  last_name: string | null;
+  date_of_birth: string | null;
+}
+
+export interface PersonalDetails {
+  father_name: string | null;
+  spouse_name: string | null;
+  marital_status: MaritalStatus | null;
+  blood_group: BloodGroup | null;
+  nationality: string | null;
+  alternate_phone: string | null;
+}
+
+export interface Address {
+  line1: string;
+  line2: string | null;
+  city: string;
+  district: string | null;
+  state_code: string;
+  pincode: string;
+  country_code: "IN";
+}
+
+export interface Addresses {
+  current: Address | null;
+  permanent: Address | null;
+  permanent_same_as_current: boolean;
+}
+
+export interface EmergencyContact {
+  name: string;
+  relationship: Relationship;
+  phone: string;
+  alternate_phone: string | null;
+  email: string | null;
+  is_primary: boolean;
+}
+
+export interface FamilyMember {
+  name: string;
+  relationship: Relationship;
+  date_of_birth: string | null;
+  gender: "female" | "male" | "non_binary" | "undisclosed" | null;
+  occupation: string | null;
+  is_dependent: boolean;
+}
+
+export interface Nominee {
+  name: string;
+  relationship: Relationship;
+  date_of_birth: string | null;
+  address: string | null;
+  purpose: NomineePurpose;
+  /** Decimal as a string. */
+  share_percent: string;
+  guardian_name: string | null;
+}
+
+export interface Education {
+  level: EducationLevel;
+  qualification: string;
+  specialisation: string | null;
+  institution: string;
+  board_or_university: string | null;
+  start_year: number | null;
+  end_year: number | null;
+  grade: string | null;
+}
+
+export interface PreviousEmployment {
+  employer: string;
+  designation: string | null;
+  from_date: string;
+  to_date: string;
+  location: string | null;
+  reason_for_leaving: string | null;
+}
+
+/** A write of statutory identifiers: only the fields named change. */
+export interface StatutoryInput {
+  pan?: string | null;
+  uan?: string | null;
+  /** The full twelve digits; only the last four are ever stored. */
+  aadhaar?: string | null;
+  pf_number?: string | null;
+  esi_number?: string | null;
+}
+
+export interface BankAccountInput {
+  account_number: string;
+  ifsc: string;
+  account_holder_name: string;
+  bank_name: string | null;
+}
+
+export type SectionWrite =
+  | { section: "identity"; data: IdentityDetails }
+  | { section: "personal"; data: PersonalDetails }
+  | { section: "addresses"; data: Addresses }
+  | { section: "emergency_contacts"; data: EmergencyContact[] }
+  | { section: "family_members"; data: FamilyMember[] }
+  | { section: "nominees"; data: Nominee[] }
+  | { section: "education"; data: Education[] }
+  | { section: "previous_employment"; data: PreviousEmployment[] }
+  | { section: "statutory"; data: StatutoryInput }
+  | { section: "bank_account"; data: BankAccountInput };
+
+export interface StatutoryRead {
+  pan: string | null;
+  uan: string | null;
+  pf_number: string | null;
+  esi_number: string | null;
+  aadhaar: string | null;
+  masked: boolean;
+}
+
+export interface BankAccountSummary {
+  id: string;
+  bank_name: string | null;
+  ifsc: string;
+  account_holder_name: string;
+  account_number_masked: string | null;
+  verification_method: string;
+  verified_at: string | null;
+  created_at: string;
+}
+
+export type ProfileChangeStatus = "pending" | "approved" | "rejected" | "withdrawn";
+
+export interface ChangeRequest {
+  id: string;
+  employee_id: string;
+  employee_code: string;
+  employee_name: string;
+  section: ProfileSection;
+  section_label: string;
+  status: ProfileChangeStatus;
+  proposed: Record<string, unknown>;
+  current_snapshot: Record<string, unknown>;
+  reason: string;
+  requested_at: string;
+  requested_by_name: string | null;
+  decided_at: string | null;
+  decided_by_name: string | null;
+  decision_note: string | null;
+  can_decide: boolean;
+  can_withdraw: boolean;
+}
+
+export interface EmployeeProfile {
+  employee_id: string;
+  personal: PersonalDetails;
+  addresses: Addresses;
+  emergency_contacts: EmergencyContact[];
+  family_members: FamilyMember[];
+  nominees: Nominee[];
+  education: Education[];
+  previous_employment: PreviousEmployment[];
+  statutory: StatutoryRead;
+  bank_account: BankAccountSummary | null;
+  pending_requests: ChangeRequest[];
+  hiring_snapshot: Record<string, unknown> | null;
+  direct_sections: ProfileSection[];
+  request_sections: ProfileSection[];
+  missing: string[];
+}
+
+export interface Celebration {
+  employee_id: string;
+  name: string;
+  designation: string | null;
+  photo_url: string | null;
+  kind: "birthday" | "work_anniversary";
+  on_date: string;
+  years: number | null;
+  scope: string;
+}
+
+export interface Celebrations {
+  from_date: string;
+  to_date: string;
+  items: Celebration[];
+  note: string;
+}

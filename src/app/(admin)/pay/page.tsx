@@ -9,6 +9,7 @@ import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { SalaryHistoryList } from "@/components/pay/SalaryHistoryList";
 import { periodLabel, RUN_TYPE } from "@/components/payroll/labels";
+import { DownloadButton } from "@/components/payroll-ops/shared";
 import {
   Table,
   TableBody,
@@ -20,7 +21,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { PayslipSummary, SalaryRecord } from "@/lib/types/payroll";
-import { formatDay } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
 
 /** An employee's own payslips and salary history. Only published payslips appear. */
 export default function MyPayPage() {
@@ -56,6 +57,7 @@ export default function MyPayPage() {
                 <TableHead className="text-right">Deductions</TableHead>
                 <TableHead className="text-right">Net pay</TableHead>
                 <TableHead>Published</TableHead>
+                <TableHead className="w-28" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -80,7 +82,15 @@ export default function MyPayPage() {
                     <Money value={slip.net_pay} />
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {slip.published_at ? formatDay(slip.published_at.slice(0, 10), true) : "—"}
+                    {formatDate(slip.published_at)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <DownloadButton
+                      path={`/payroll/my-payslips/${slip.id}/pdf`}
+                      fallbackName={`payslip-${slip.period_year}-${String(slip.period_month).padStart(2, "0")}.pdf`}
+                      label="PDF"
+                      variant="ghost"
+                    />
                   </TableCell>
                 </TableRow>
               ))}

@@ -1,36 +1,30 @@
 "use client";
 
-import {
-  CalendarClock,
-  CircleDollarSign,
-  ListChecks,
-  ShieldCheck,
-  Sparkles,
-  UserPlus,
-  Users,
-} from "lucide-react";
+import { CalendarClock, CalendarPlus, ListChecks, Sparkles, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 
+import { PunchCard } from "@/components/attendance/PunchCard";
+import {
+  ApprovalsCard,
+  CelebrationsCard,
+  ComplianceCard,
+  HolidaysCard,
+  LeaveBalanceCard,
+  PayrollCard,
+  TeamTodayCard,
+} from "@/components/dashboard/HomeCards";
 import { PulseStat } from "@/components/dashboard/PulseStat";
+import { MyOpenTicketsCard } from "@/components/helpdesk/MyOpenTicketsCard";
+import { OnboardingProgressCard } from "@/components/onboarding/OnboardingProgressCard";
 import { ShoutoutRail } from "@/components/dashboard/ShoutoutRail";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
+import { HR, MANAGERS } from "@/lib/access";
 import { get } from "@/lib/api";
 import type { DashboardSummary } from "@/lib/types";
 import { initials } from "@/lib/utils";
-
-const STATUTORY_HEADS = ["PF", "ESI", "Professional Tax", "TDS"];
 
 function greetingFor(hour: number) {
   if (hour < 12) return "Good morning";
@@ -48,10 +42,16 @@ function greetingFor(hour: number) {
  * like the screen where people thank each other.
  *
  * The greeting banner and the four pulse cards follow the shell every screen
- * shares: banner first, then a row of figures, then the working cards.
+ * shares: banner first, then a row of figures, then the working cards. Every
+ * card reads its own real source; a card for a module that is off, or a role
+ * that cannot act on it, is not shown rather than shown empty.
  */
 export default function HomePage() {
-  const { user } = useAuth();
+  const { user, hasRole, hasModule } = useAuth();
+  const isEmployee = Boolean(user?.employee_id);
+  const timeOn = hasModule("leave");
+  const isManager = hasRole(...MANAGERS);
+  const isHr = hasRole(...HR);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -122,11 +122,20 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          <Button variant="accent" size="lg" asChild>
-            <Link href="/culture">
-              <Sparkles /> Give a shoutout
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {isEmployee && timeOn && (
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/time">
+                  <CalendarPlus /> Apply leave
+                </Link>
+              </Button>
+            )}
+            <Button variant="accent" size="lg" asChild>
+              <Link href="/culture">
+                <Sparkles /> Give a shoutout
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -152,57 +161,34 @@ export default function HomePage() {
         />
       </div>
 
-      {/* ── Operations left, culture right ─────────────────────────────── */}
+      {/* ── My day: punch, leave, holidays ────────────────────────────── */}
+      {isEmployee && timeOn && (
+        <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr_1fr]">
+          <PunchCard compact />
+          <LeaveBalanceCard />
+          <HolidaysCard holidays={summary?.upcoming_holidays ?? []} isLoading={isLoading} />
+        </div>
+      )}
+
+      {/* ── Work waiting, team, and the culture rail ───────────────────── */}
       <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
         <div className="flex flex-col gap-6">
-          {/* Payroll (Tier 1 — flat, on the same warm screen) */}
-          <Card tier="tier1" className="flex-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <CircleDollarSign className="size-4 text-brand-600 dark:text-brand-300" />
-                Payroll
-              </CardTitle>
-              <CardDescription>Current cycle status.</CardDescription>
-              <CardAction>
-                <Badge variant="muted">No run yet</Badge>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
-              <p className="rounded-md bg-muted/60 px-4 py-3 text-xs leading-relaxed text-muted-foreground">
-                The computation engine ships in V1 step 4. Nothing here is estimated — a payroll
-                figure appears only once a real run has been computed and signed off.
-              </p>
-            </CardContent>
-          </Card>
-
-          {/* Compliance (Tier 1) */}
-          <Card tier="tier1" className="flex-1">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <ShieldCheck className="size-4 text-brand-600 dark:text-brand-300" />
-                Compliance
-              </CardTitle>
-              <CardDescription>
-                Statutory rule sets require Compliance SME sign-off before payroll can use them.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {STATUTORY_HEADS.map((head) => (
-                  <div
-                    key={head}
-                    className="flex items-center justify-between gap-2 rounded-md bg-muted/60 px-3 py-2.5"
-                  >
-                    <span className="text-sm text-foreground">{head}</span>
-                    <Badge variant="warning">Awaiting</Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <ApprovalsCard />
+          {isManager && timeOn && <TeamTodayCard />}
+          {isHr && hasModule("payroll") && (
+            <div className="grid gap-6 xl:grid-cols-2">
+              <PayrollCard run={summary?.latest_payroll_run ?? null} />
+              <ComplianceCard filings={summary?.filings ?? []} />
+            </div>
+          )}
         </div>
 
-        <ShoutoutRail count={summary?.shoutouts_this_week} isLoading={isLoading} />
+        <div className="flex flex-col gap-6">
+          <OnboardingProgressCard />
+          {isEmployee && <MyOpenTicketsCard />}
+          <CelebrationsCard />
+          <ShoutoutRail count={summary?.shoutouts_this_week} isLoading={isLoading} />
+        </div>
       </div>
     </div>
   );

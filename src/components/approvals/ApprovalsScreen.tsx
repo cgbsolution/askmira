@@ -11,34 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
+import type { ApprovalInbox } from "@/lib/types/approvals";
 import { cn, formatDate, formatDateTime, parseISODate } from "@/lib/utils";
-
-interface ApprovalItem {
-  source: string;
-  source_label: string;
-  id: string;
-  title: string;
-  subject_name: string | null;
-  detail: string | null;
-  submitted_at: string;
-  due_on: string | null;
-  /** The page where this is decided. The owning module stays the authority. */
-  link: string;
-}
-
-interface ApprovalSource {
-  key: string;
-  label: string;
-  count: number;
-  available: boolean;
-  note: string | null;
-}
-
-interface ApprovalInbox {
-  items: ApprovalItem[];
-  sources: ApprovalSource[];
-  total: number;
-}
 
 const ALL = "__all__";
 

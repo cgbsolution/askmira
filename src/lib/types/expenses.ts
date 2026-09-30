@@ -21,7 +21,15 @@ export type PolicyVerdictKind =
   | "pre_approval_required"
   | "no_rule";
 
-export type ClaimStatus = "draft" | "submitted" | "approved" | "rejected" | "reimbursed" | "cancelled";
+/** `submitted` is the finance stage; `pending_manager` comes before it. */
+export type ClaimStatus =
+  | "draft"
+  | "pending_manager"
+  | "submitted"
+  | "approved"
+  | "rejected"
+  | "reimbursed"
+  | "cancelled";
 export type ReportStatus =
   | "draft"
   | "submitted"
@@ -31,6 +39,7 @@ export type ReportStatus =
   | "cancelled";
 export type TravelRequestStatus =
   | "draft"
+  | "pending_manager"
   | "submitted"
   | "approved"
   | "rejected"
@@ -160,6 +169,20 @@ export interface Claim {
   decided_at: string | null;
   decision_note: string | null;
   created_at: string | null;
+  /** The line manager's stage. */
+  manager_decided_at: string | null;
+  manager_decision_note: string | null;
+  manager_decided_by_name: string | null;
+  /** How the claim was paid, once it was. */
+  reimbursed_in_run_id: string | null;
+  reimbursed_at: string | null;
+  advance_settlement_id: string | null;
+  /** "October 2026" — the payroll month that paid it. */
+  reimbursed_in_period: string | null;
+  /** The paying run's status: "approved" (not yet sent) or "paid". */
+  reimbursed_run_status: string | null;
+  /** One sentence for the claimant: where the money is. */
+  payment_note: string | null;
 }
 
 export interface SubmitClaimResult {
@@ -232,6 +255,9 @@ export interface TravelRequestInput {
 
 export interface TravelApproval {
   user_id: string;
+  /** Absent on decisions recorded before the manager stage existed. */
+  name?: string;
+  stage?: "manager" | "finance";
   decision: "approved" | "rejected";
   at: string;
   note: string;
@@ -274,6 +300,8 @@ export interface Advance {
   age_days: number;
   is_blocking: boolean;
   payroll_recovery_ref: string | null;
+  /** Null until a payroll run pays a balance owed to the employee. */
+  payroll_refund_ref: string | null;
 }
 
 export interface AdvanceInput {
@@ -318,12 +346,27 @@ export interface SettlementResult {
     reference: string | null;
     note: string;
   } | null;
+  /** A trip that cost more than its advance: the balance, paid in payroll. */
+  payroll_refund: {
+    amount: string;
+    reference: string | null;
+    note: string;
+  } | null;
 }
 
 export interface ReviewQueue {
   claims: Claim[];
   travel_requests: TravelRequest[];
   advances_to_settle: Advance[];
+  excluded_own: number;
+}
+
+/** `GET /expenses/team-queue` — waiting for a line manager's decision. */
+export interface TeamQueue {
+  claims: Claim[];
+  travel_requests: TravelRequest[];
+  /** True for HR, who can stand in for any manager. */
+  covers_everyone: boolean;
   excluded_own: number;
 }
 

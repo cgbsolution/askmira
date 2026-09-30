@@ -77,6 +77,11 @@ function SignInForm() {
             placeholder="Enter your password"
           />
         </FormField>
+        <div className="-mt-2 flex justify-end">
+          <Link href="/forgot-password" className="text-sm font-medium text-primary hover:underline">
+            Forgot password?
+          </Link>
+        </div>
 
         {error && (
           <Alert variant="destructive">

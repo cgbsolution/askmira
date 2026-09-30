@@ -72,7 +72,8 @@ type Variant = "warning" | "success" | "destructive" | "muted" | "secondary" | "
 
 const CLAIM_STATUS: Record<ClaimStatus, [Variant, string]> = {
   draft: ["muted", "Draft"],
-  submitted: ["warning", "Submitted"],
+  pending_manager: ["warning", "With manager"],
+  submitted: ["warning", "With finance"],
   approved: ["success", "Approved"],
   rejected: ["destructive", "Rejected"],
   reimbursed: ["success", "Reimbursed"],
@@ -115,6 +116,7 @@ export function VerdictBadge({ kind }: { kind: PolicyVerdictKind }) {
 
 const TRAVEL_STATUS: Record<TravelRequestStatus, [Variant, string]> = {
   draft: ["muted", "Draft"],
+  pending_manager: ["warning", "Awaiting manager"],
   submitted: ["warning", "Awaiting finance"],
   approved: ["success", "Approved"],
   rejected: ["destructive", "Rejected"],

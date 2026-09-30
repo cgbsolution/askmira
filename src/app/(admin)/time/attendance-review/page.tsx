@@ -3,13 +3,18 @@ import { AttendanceReview } from "@/components/attendance/AttendanceReview";
 
 export const metadata = { title: "Attendance review" };
 
-export default function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
   return (
     <PageShell
       title="Attendance review"
-      description="Regularisations to decide and exceptions to resolve."
+      description="Who is in today, requests to decide, and exceptions to resolve."
     >
-      <AttendanceReview />
+      <AttendanceReview initialTab={tab} />
     </PageShell>
   );
 }

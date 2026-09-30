@@ -26,10 +26,19 @@ import type { Claim, DecisionInput } from "@/lib/types/expenses";
 import { formatDate, formatDay } from "@/lib/utils";
 
 /**
- * Submitted claims, each with the policy engine's verdict as it was recorded
- * at capture. Rejecting needs a reason — the server insists as well.
+ * Claims waiting on a decision, each with the policy engine's verdict as it was
+ * recorded at capture. Rejecting needs a reason — the server insists as well.
+ * At the manager stage an approval sends the claim on to finance.
  */
-export function ReviewClaims({ claims, onChanged }: { claims: Claim[]; onChanged: () => void }) {
+export function ReviewClaims({
+  claims,
+  onChanged,
+  stage = "finance",
+}: {
+  claims: Claim[];
+  onChanged: () => void;
+  stage?: "manager" | "finance";
+}) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<Claim | null>(null);
   const [note, setNote] = useState("");
@@ -40,12 +49,12 @@ export function ReviewClaims({ claims, onChanged }: { claims: Claim[]; onChanged
     setProblem(null);
     try {
       const body: DecisionInput = { approve, note: decisionNote };
-      await post<{ claim_id: string; status: string; decided_at: string }>(
-        `/expenses/claims/${claim.id}/decision`,
-        body,
-      );
+      const path = stage === "manager" ? "manager-decision" : "decision";
+      await post<unknown>(`/expenses/claims/${claim.id}/${path}`, body);
       toast.success(
-        `${approve ? "Approved" : "Rejected"} ${claim.employee_name ?? "the"} claim for ${formatMoney(claim.amount)}`,
+        stage === "manager" && approve
+          ? `Approved ${claim.employee_name ?? "the"} claim for ${formatMoney(claim.amount)}; it goes to finance next`
+          : `${approve ? "Approved" : "Rejected"} ${claim.employee_name ?? "the"} claim for ${formatMoney(claim.amount)}`,
       );
       setRejecting(null);
       setNote("");
@@ -74,7 +83,11 @@ export function ReviewClaims({ claims, onChanged }: { claims: Claim[]; onChanged
         <EmptyState
           icon={Inbox}
           title="No claims waiting"
-          description="Claims appear here once an employee submits them. Your own claims go to another approver."
+          description={
+            stage === "manager"
+              ? "Claims from your team appear here when they are submitted. Your own claims go to your manager."
+              : "Claims appear here once a line manager approves them, or straight away for someone with no manager. Your own claims go to another approver."
+          }
         />
       </Card>
     );
@@ -94,6 +107,9 @@ export function ReviewClaims({ claims, onChanged }: { claims: Claim[]; onChanged
                   <Badge variant="secondary">{humanizeKey(claim.category_key)}</Badge>
                   <VerdictBadge kind={claim.policy_verdict} />
                   {claim.flagged_for_approver && <Badge variant="warning">Flagged for you</Badge>}
+                  {claim.manager_decided_by_name && (
+                    <Badge variant="success">Approved by {claim.manager_decided_by_name}</Badge>
+                  )}
                   {claim.exceeds_route_tolerance && (
                     <Badge variant="warning">Distance beyond route tolerance</Badge>
                   )}

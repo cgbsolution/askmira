@@ -3,6 +3,7 @@
 import {
   BadgeCheck,
   Ban,
+  BellRing,
   Download,
   Eye,
   FileSignature,
@@ -10,6 +11,7 @@ import {
   MoreHorizontal,
   Plus,
   PlugZap,
+  PenLine,
 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -60,7 +62,36 @@ import type {
 } from "@/lib/types/docs";
 import { formatDate } from "@/lib/utils";
 
-type Action = { kind: "sign" | "approve" | "revoke"; letter: IssuedLetter };
+type Action = { kind: "sign" | "approve" | "revoke" | "acknowledge"; letter: IssuedLetter };
+
+/** Where a letter's in-portal acknowledgement stands, in a few words. */
+function AcknowledgementCell({ letter, own }: { letter: IssuedLetter; own: boolean }) {
+  if (letter.acknowledged_at) {
+    return (
+      <div>
+        <Badge variant="success">Acknowledged</Badge>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {formatDate(letter.acknowledged_at)}
+          {letter.acknowledged_name ? ` · “${letter.acknowledged_name}”` : ""}
+        </p>
+      </div>
+    );
+  }
+  if (own && letter.can_acknowledge) {
+    return <Badge variant="warning">Awaiting you</Badge>;
+  }
+  if (letter.acknowledgement_requested_at) {
+    return (
+      <div>
+        <Badge variant="warning">Requested</Badge>
+        <p className="mt-1 text-xs text-muted-foreground">{formatDate(letter.acknowledgement_requested_at)}</p>
+      </div>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">—</span>;
+}
+
+const ACKNOWLEDGEABLE: LetterStatus[] = ["approved", "sent", "signed"];
 
 /**
  * Issued letters: an employee's own archive, or — for HR — the tenant's.
@@ -122,6 +153,9 @@ export function LettersPanel({
       if (kind === "sign") {
         await post(`/letters/${letter.id}/send-for-signature`, {});
         toast.success(`${letter.reference_number} sent for signature`);
+      } else if (kind === "acknowledge") {
+        await post(`/letters/${letter.id}/request-acknowledgement`);
+        toast.success(`${letter.recipient_name} has been asked to acknowledge ${letter.reference_number}`);
       } else if (kind === "approve") {
         await post(`/letters/${letter.id}/approve`);
         toast.success(`${letter.reference_number} approved`);
@@ -196,6 +230,7 @@ export function LettersPanel({
               {!employee && manage && <TableHead>Recipient</TableHead>}
               <TableHead>Letter</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Acknowledgement</TableHead>
               <TableHead>Issued</TableHead>
               <TableHead className="w-12" />
             </TableRow>
@@ -222,6 +257,9 @@ export function LettersPanel({
                       <p className="mt-1 text-xs text-muted-foreground">{letter.revoked_reason}</p>
                     )}
                   </TableCell>
+                  <TableCell>
+                    <AcknowledgementCell letter={letter} own={own} />
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(letter.issued_at)}</TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -234,6 +272,11 @@ export function LettersPanel({
                         {letter.candidate_id === null && (
                           <DropdownMenuItem onSelect={() => setViewing(letter)}>
                             <Eye /> View
+                          </DropdownMenuItem>
+                        )}
+                        {own && letter.can_acknowledge && (
+                          <DropdownMenuItem onSelect={() => setViewing(letter)}>
+                            <PenLine /> Read & acknowledge
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem onSelect={() => void download(letter)}>
@@ -253,6 +296,12 @@ export function LettersPanel({
                             {(letter.status === "approved" || letter.status === "sent") && (
                               <DropdownMenuItem onSelect={() => setAction({ kind: "sign", letter })}>
                                 <MailCheck /> Send for signature
+                              </DropdownMenuItem>
+                            )}
+                            {ACKNOWLEDGEABLE.includes(letter.status) && !letter.acknowledged_at && (
+                              <DropdownMenuItem onSelect={() => setAction({ kind: "acknowledge", letter })}>
+                                <BellRing />{" "}
+                                {letter.acknowledgement_requested_at ? "Remind to acknowledge" : "Request acknowledgement"}
                               </DropdownMenuItem>
                             )}
                             {isAdmin && letter.status === "pending_approval" && (
@@ -283,7 +332,14 @@ export function LettersPanel({
         </Table>
       </DataPanel>
 
-      <LetterViewerDialog letter={viewing} onOpenChange={(open) => !open && setViewing(null)} />
+      <LetterViewerDialog
+        letter={viewing}
+        onOpenChange={(open) => !open && setViewing(null)}
+        onAcknowledged={() => {
+          setViewing(null);
+          reload();
+        }}
+      />
       {manage && (
         <IssueLetterDialog
           open={issuing}
@@ -298,12 +354,16 @@ export function LettersPanel({
         title={
           action?.kind === "sign"
             ? "Send for e-signature?"
-            : action?.kind === "approve"
+            : action?.kind === "acknowledge"
+              ? "Ask for acknowledgement?"
+              : action?.kind === "approve"
               ? "Approve this letter?"
               : "Revoke this letter?"
         }
         description={
-          action?.kind === "sign"
+          action?.kind === "acknowledge"
+            ? `${action.letter.recipient_name} is notified to read ${action.letter.reference_number} in the portal and accept it with their typed name. This is separate from e-signature.`
+            : action?.kind === "sign"
             ? providerConnected
               ? `${action.letter.reference_number} goes to ${action.letter.recipient_name} through ${provider.data?.provider}.`
               : "No e-signature provider is connected. This records the request against a development stand-in; nothing is sent to the employee."
@@ -313,7 +373,15 @@ export function LettersPanel({
                 ? `${action.letter.reference_number} stays on record, marked revoked. Its content does not change.`
                 : undefined
         }
-        confirmLabel={action?.kind === "sign" ? "Send" : action?.kind === "approve" ? "Approve" : "Revoke"}
+        confirmLabel={
+          action?.kind === "sign"
+            ? "Send"
+            : action?.kind === "acknowledge"
+              ? "Notify"
+              : action?.kind === "approve"
+                ? "Approve"
+                : "Revoke"
+        }
         destructive={action?.kind === "revoke"}
         onConfirm={runAction}
       >

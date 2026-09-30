@@ -19,10 +19,15 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import type { SalaryHistoryRow } from "@/lib/types/people";
 import { formatDay } from "@/lib/utils";
 
-/** The effective-dated salary series. Tier 1: every figure is payroll's own, as a string. */
-export function CompensationPanel({ employeeId }: { employeeId: string }) {
+/**
+ * The effective-dated salary series. Tier 1: every figure is payroll's own, as a string.
+ *
+ * On your own profile it reads your own series (`/payroll/my-salary`); the
+ * per-employee endpoint is HR's.
+ */
+export function CompensationPanel({ employeeId, isSelf = false }: { employeeId: string; isSelf?: boolean }) {
   const { data, error, isLoading, reload } = useApiQuery<SalaryHistoryRow[]>(
-    `/employees/${employeeId}/salary/history`,
+    isSelf ? "/payroll/my-salary" : `/employees/${employeeId}/salary/history`,
   );
   const rows = data ?? [];
 

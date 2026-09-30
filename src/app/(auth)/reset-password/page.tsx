@@ -1,0 +1,143 @@
+"use client";
+
+import { CheckCircle2, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import React, { Suspense, useState } from "react";
+
+import { FormField } from "@/components/common/FormField";
+import { PasswordInput } from "@/components/common/IconInput";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { ApiError, post } from "@/lib/api";
+
+import { passwordProblem } from "@/lib/password";
+
+function ResetPasswordForm() {
+  const params = useSearchParams();
+  const token = params.get("token") ?? "";
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const problem = passwordProblem(password);
+  const mismatch = confirm !== password;
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    setSubmitted(true);
+    if (problem || mismatch) return;
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await post("/auth/reset-password", { token, new_password: password });
+      setDone(true);
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.detail : "Could not reset the password.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  if (!token) {
+    return (
+      <Alert variant="destructive">
+        <AlertTitle>This link is incomplete</AlertTitle>
+        <AlertDescription>
+          Open the link from your email again, or{" "}
+          <Link href="/forgot-password" className="font-medium underline">
+            ask for a new one
+          </Link>
+          .
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  return (
+    <>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Set a new password</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          At least 10 characters, with a letter and a digit. Every device signed in to your account
+          is signed out.
+        </p>
+      </div>
+
+      {done ? (
+        <div className="space-y-5">
+          <Alert variant="success">
+            <CheckCircle2 />
+            <AlertTitle>Password changed</AlertTitle>
+            <AlertDescription>Sign in with your new password.</AlertDescription>
+          </Alert>
+          <Button asChild className="h-12 w-full font-semibold">
+            <Link href="/signin">Go to sign in</Link>
+          </Button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <FormField
+            htmlFor="password"
+            label="New password"
+            required
+            error={submitted ? problem : null}
+          >
+            <PasswordInput
+              id="password"
+              autoComplete="new-password"
+              autoFocus
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="New password"
+            />
+          </FormField>
+          <FormField
+            htmlFor="confirm"
+            label="Confirm new password"
+            required
+            error={submitted && mismatch ? "The two passwords do not match." : null}
+          >
+            <PasswordInput
+              id="confirm"
+              autoComplete="new-password"
+              required
+              value={confirm}
+              onChange={(event) => setConfirm(event.target.value)}
+              placeholder="Type it again"
+            />
+          </FormField>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {error}{" "}
+                <Link href="/forgot-password" className="font-medium underline">
+                  Ask for a new link
+                </Link>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <Button type="submit" className="h-12 w-full font-semibold" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="animate-spin" />}
+            Set new password
+          </Button>
+        </form>
+      )}
+    </>
+  );
+}
+
+export default function ResetPasswordPage() {
+  // useSearchParams needs a Suspense boundary in the App Router.
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}

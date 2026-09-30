@@ -80,6 +80,8 @@ const TONES: Record<string, Tone> = {
   on_track: "success",
   at_risk: "warning",
   off_track: "destructive",
+  done: "success",
+  declined: "muted",
   lenient: "warning",
   severe: "warning",
   typical: "muted",

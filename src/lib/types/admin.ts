@@ -109,7 +109,8 @@ export interface SchedulerRun {
   finished_at: string | null;
   /** How it was started: the scheduler tick, or a named admin. */
   trigger: string | null;
-  detail: string | null;
+  /** What the job returned — a flat object such as `{date, days_written}`, or `{}`. */
+  detail: Record<string, unknown>;
   error: string | null;
 }
 
@@ -145,6 +146,6 @@ export interface SchedulerJobs {
   runner: SchedulerRunnerStatus;
   jobs: SchedulerJob[];
   /** Requirements that have no job yet — named rather than quietly omitted. */
-  not_yet_registered: string[];
+  not_yet_registered: { requirement: string; reason: string }[];
   note: string;
 }

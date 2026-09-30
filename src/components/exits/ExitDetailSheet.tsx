@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, HandCoins, KeyRound } from "lucide-react";
+import { Ban, CircleCheck, HandCoins, KeyRound } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
@@ -19,8 +19,10 @@ import {
 } from "@/components/exits/common";
 import { LettersPanel } from "@/components/exits/LettersPanel";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FormField } from "@/components/common/FormField";
 import { QueryBoundary, toastApiError } from "@/components/payroll-ops/shared";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -92,8 +94,9 @@ function ExitDetail({
   onUpdated: (record: ExitRecord) => void;
   onClearanceChanged: () => void;
 }) {
-  const { isHr, isAdmin, ownEmployeeId } = useExitRoles();
-  const [dialog, setDialog] = useState<"cancel" | "waive" | "revoke" | null>(null);
+  const { isHr, isAdmin, isManager, ownEmployeeId } = useExitRoles();
+  const [dialog, setDialog] = useState<"cancel" | "waive" | "revoke" | "accept" | null>(null);
+  const [agreedLastDay, setAgreedLastDay] = useState<string | null>(null);
   const [childVersion, setChildVersion] = useState(0);
 
   const isOwnExit = ownEmployeeId !== null && record.employee_id === ownEmployeeId;
@@ -108,6 +111,8 @@ function ExitDetail({
     !record.notice_waived;
   const canRevoke =
     isAdmin && !isOwnExit && record.status !== "cancelled" && !record.access_revoked_at;
+  // The leaver's line manager or HR; the server checks the reporting line.
+  const canAccept = (isHr || isManager) && !isOwnExit && record.awaiting_acceptance;
 
   const updated = (next: ExitRecord) => {
     onUpdated(next);
@@ -120,6 +125,17 @@ function ExitDetail({
         <Alert>
           <AlertDescription>
             This is your own exit. Actions on it are taken by someone else in HR.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {record.awaiting_acceptance && (
+        <Alert variant="warning">
+          <AlertTitle>Resignation waiting to be accepted</AlertTitle>
+          <AlertDescription>
+            Submitted by the employee on {dayOrDash(record.resignation_date)}. Until it is accepted
+            they can withdraw it themselves.
+            {record.employee_comments ? ` Their comments: “${record.employee_comments}”` : ""}
           </AlertDescription>
         </Alert>
       )}
@@ -158,6 +174,15 @@ function ExitDetail({
               {record.clearance_pending_mandatory > 0 &&
                 `, ${record.clearance_pending_mandatory} mandatory pending`}
             </Fact>
+            {record.initiated_by_employee && (
+              <Fact label="Accepted">
+                {record.accepted_at
+                  ? `${timestampOrDash(record.accepted_at)}${record.accepted_by_name ? ` by ${record.accepted_by_name}` : ""}`
+                  : record.withdrawn_at
+                    ? `Withdrawn ${timestampOrDash(record.withdrawn_at)}`
+                    : "Not yet"}
+              </Fact>
+            )}
             <Fact label="Login access">
               {record.access_revoked_at
                 ? `Revoked ${timestampOrDash(record.access_revoked_at)}`
@@ -170,8 +195,19 @@ function ExitDetail({
             )}
           </dl>
 
-          {(canCancel || canWaive || canRevoke) && (
+          {(canCancel || canWaive || canRevoke || canAccept) && (
             <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
+              {canAccept && (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setAgreedLastDay(record.requested_last_working_day);
+                    setDialog("accept");
+                  }}
+                >
+                  <CircleCheck /> Accept resignation
+                </Button>
+              )}
               {canWaive && (
                 <Button variant="outline" size="sm" onClick={() => setDialog("waive")}>
                   <HandCoins /> Waive notice recovery
@@ -200,6 +236,37 @@ function ExitDetail({
       />
 
       {isHr && !isOwnExit && <LettersPanel exitId={record.id} version={childVersion} />}
+
+      <ReasonDialog
+        open={dialog === "accept"}
+        onOpenChange={(open) => !open && setDialog(null)}
+        title="Accept this resignation?"
+        description="Agree the last working day. The notice shortfall is worked out from it, and the employee is told."
+        label="Note to the employee"
+        required={false}
+        confirmLabel="Accept resignation"
+        onSubmit={async (note) => {
+          const next = await post<ExitRecord>(`/exits/${record.id}/accept`, {
+            approved_last_working_day: agreedLastDay,
+            note: note || null,
+          });
+          toast.success("Resignation accepted");
+          updated(next);
+        }}
+      >
+        <FormField
+          htmlFor="accept-last-day"
+          label="Agreed last working day"
+          hint={`They proposed ${dayOrDash(record.requested_last_working_day)}; notice period ${pluralCount(record.notice_period_days, "day")}.`}
+        >
+          <DatePicker
+            id="accept-last-day"
+            value={agreedLastDay}
+            min={record.resignation_date}
+            onChange={setAgreedLastDay}
+          />
+        </FormField>
+      </ReasonDialog>
 
       <ReasonDialog
         open={dialog === "cancel"}

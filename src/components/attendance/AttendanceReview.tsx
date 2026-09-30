@@ -55,6 +55,7 @@ import type {
 } from "@/lib/types/attendance";
 import { formatDate, formatDateRange, formatDay } from "@/lib/utils";
 
+import { KIND_LABELS } from "./AttendanceRequestDialog";
 import {
   currentMonthBounds,
   errorDetail,
@@ -65,18 +66,22 @@ import {
   StatusBadge,
   TableSkeleton,
 } from "./shared";
+import { TeamToday } from "./TeamToday";
 
 /**
  * Attendance review for managers and HR (their reporting line, or everyone for HR).
  */
-export function AttendanceReview() {
+const TABS = ["today", "regularisations", "exceptions"];
+
+export function AttendanceReview({ initialTab }: { initialTab?: string }) {
   const [pendingCount, setPendingCount] = useState<number | null>(null);
 
   return (
-    <Tabs defaultValue="regularisations">
+    <Tabs defaultValue={initialTab && TABS.includes(initialTab) ? initialTab : "today"}>
       <TabsList>
+        <TabsTrigger value="today">Team today</TabsTrigger>
         <TabsTrigger value="regularisations">
-          Regularisations
+          Requests
           {pendingCount !== null && pendingCount > 0 && (
             <span className="ml-1.5 rounded-full bg-accent px-1.5 text-[11px] font-semibold text-accent-foreground tabular-nums">
               {pendingCount}
@@ -85,6 +90,9 @@ export function AttendanceReview() {
         </TabsTrigger>
         <TabsTrigger value="exceptions">Exceptions</TabsTrigger>
       </TabsList>
+      <TabsContent value="today" className="mt-4">
+        <TeamToday />
+      </TabsContent>
       <TabsContent value="regularisations" className="mt-4">
         <RegularisationQueue onCount={setPendingCount} />
       </TabsContent>
@@ -130,7 +138,7 @@ function RegularisationQueue({ onCount }: { onCount: (count: number) => void }) 
         note: decisionNote,
       });
       toast.success(
-        `${approve ? "Approved" : "Rejected"} ${item.employee_name}'s regularisation for ${formatDay(item.attendance_date, true)}`,
+        `${approve ? "Approved" : "Rejected"} ${item.employee_name}'s ${KIND_LABELS[item.kind].toLowerCase()} for ${formatDay(item.attendance_date, true)}`,
       );
       setRejecting(null);
       reload();
@@ -185,6 +193,7 @@ function RegularisationQueue({ onCount }: { onCount: (count: number) => void }) 
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <PersonCell name={row.employee_name} subtitle={row.employee_code} />
+                    <Badge variant="outline">{KIND_LABELS[row.kind]}</Badge>
                     {row.period_locked && (
                       <Badge variant="warning">
                         <Lock /> Period locked

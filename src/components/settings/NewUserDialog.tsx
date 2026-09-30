@@ -1,9 +1,10 @@
 "use client";
 
 import { Copy, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { EmployeePicker, employeeDisplayName } from "@/components/common/EmployeePicker";
 import { FormField } from "@/components/common/FormField";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { post } from "@/lib/api";
 import type { ManagedUserCreated } from "@/lib/types/admin";
-import type { UserRole } from "@/lib/types";
+import type { EmployeeSummary, UserRole } from "@/lib/types";
 
 import { ASSIGNABLE_ROLES, ROLE_LABEL, ROLE_SCOPE, errorDetail } from "./settingsShared";
 
@@ -41,17 +42,34 @@ export function NewUserDialog({
   onOpenChange,
   canGrantTenantAdmin,
   onCreated,
+  initialEmployee = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canGrantTenantAdmin: boolean;
   onCreated: () => void;
+  /** Opened from a person's profile: the login is for them. */
+  initialEmployee?: EmployeeSummary | null;
 }) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<UserRole>("employee");
+  const [employee, setEmployee] = useState<EmployeeSummary | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [issued, setIssued] = useState<ManagedUserCreated | null>(null);
+
+  const pickEmployee = (picked: EmployeeSummary | null) => {
+    setEmployee(picked);
+    if (picked) {
+      // Their record already has the name and work email; start from those.
+      setFullName(employeeDisplayName(picked));
+      if (picked.work_email) setEmail(picked.work_email);
+    }
+  };
+
+  useEffect(() => {
+    if (open && initialEmployee) pickEmployee(initialEmployee);
+  }, [open, initialEmployee]);
 
   const roles = ASSIGNABLE_ROLES.filter(
     (candidate) => canGrantTenantAdmin || candidate !== "tenant_admin",
@@ -61,6 +79,7 @@ export function NewUserDialog({
     setEmail("");
     setFullName("");
     setRole("employee");
+    setEmployee(null);
     setIssued(null);
   };
 
@@ -76,6 +95,7 @@ export function NewUserDialog({
         email: email.trim(),
         full_name: fullName.trim(),
         role,
+        employee_id: employee?.id ?? null,
       });
       setIssued(created);
       onCreated();
@@ -138,11 +158,24 @@ export function NewUserDialog({
             <DialogHeader>
               <DialogTitle>Add a login</DialogTitle>
               <DialogDescription>
-                A login is how somebody signs in. Linking it to an employee record is done from
-                that person&apos;s profile.
+                A login is how somebody signs in. Link it to their employee record so they can
+                punch, apply for leave and see their payslips.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4">
+              <FormField
+                htmlFor="new-user-employee"
+                label="Employee record"
+                optional
+                hint="Leave empty only for someone who is not an employee, such as an auditor."
+              >
+                <EmployeePicker
+                  id="new-user-employee"
+                  value={employee}
+                  onChange={pickEmployee}
+                  excludeId={null}
+                />
+              </FormField>
               <FormField htmlFor="new-user-name" label="Full name">
                 <Input
                   id="new-user-name"

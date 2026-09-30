@@ -82,9 +82,14 @@ export function ClaimDetailSheet({
         justification: justification.trim() || null,
       });
       toast.success("Claim submitted", {
-        description: result.flagged_for_approver
-          ? "It is flagged for your approver's attention."
-          : undefined,
+        description: [
+          result.status === "pending_manager"
+            ? "It goes to your line manager first, then finance."
+            : "It goes to finance.",
+          result.flagged_for_approver ? "It is flagged for your approver's attention." : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
       });
       onChanged();
     } catch (caught) {
@@ -223,7 +228,27 @@ export function ClaimDetailSheet({
                 )}
               </section>
 
-              {claim.decision_note && (
+              {(claim.manager_decided_at || claim.payment_note) && (
+                <section className="space-y-2">
+                  <h3 className="text-sm font-semibold text-foreground">Approval and payment</h3>
+                  {claim.manager_decided_at && (
+                    <p className="text-sm text-foreground">
+                      <span className="text-muted-foreground">Line manager: </span>
+                      {claim.manager_decided_by_name ?? "Your manager"} on{" "}
+                      {formatDateTime(claim.manager_decided_at)}
+                      {claim.manager_decision_note && ` — ${claim.manager_decision_note}`}
+                    </p>
+                  )}
+                  {claim.payment_note && (
+                    <p className="flex items-start gap-2 text-sm text-foreground">
+                      <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+                      {claim.payment_note}
+                    </p>
+                  )}
+                </section>
+              )}
+
+              {claim.decision_note && claim.decision_note !== claim.manager_decision_note && (
                 <section className="space-y-1">
                   <h3 className="text-sm font-semibold text-foreground">Decision note</h3>
                   <p className="text-sm text-foreground">{claim.decision_note}</p>

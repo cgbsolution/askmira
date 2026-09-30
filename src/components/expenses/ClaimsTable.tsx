@@ -23,6 +23,17 @@ import {
   humanizeKey,
 } from "./shared";
 
+/** Where a paid claim's money went, in a few words for a table cell. */
+function paidLine(claim: Claim): string | null {
+  if (claim.status !== "reimbursed") return null;
+  if (claim.reimbursed_in_period) {
+    return claim.reimbursed_run_status === "paid"
+      ? `Paid in ${claim.reimbursed_in_period} payroll`
+      : `In ${claim.reimbursed_in_period} payroll`;
+  }
+  return claim.advance_settlement_id ? "Settled against advance" : null;
+}
+
 /** The person's own claims. A row opens the full detail. */
 export function ClaimsTable({
   claims,
@@ -82,6 +93,9 @@ export function ClaimsTable({
                   </TableCell>
                   <TableCell>
                     <ClaimStatusBadge status={claim.status} />
+                    {paidLine(claim) && (
+                      <p className="mt-1 text-xs text-muted-foreground">{paidLine(claim)}</p>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">

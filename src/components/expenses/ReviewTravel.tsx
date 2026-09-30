@@ -54,21 +54,25 @@ function TripSummary({ trip }: { trip: TravelRequest }) {
 }
 
 /**
- * Trips waiting on finance, and — for trips approved in this sitting — the
- * advance. The advance dialog runs the block check before anything is issued.
+ * Trips waiting on a decision. At the finance stage, trips approved in this
+ * sitting also offer the advance; the advance dialog runs the block check
+ * before anything is issued. At the manager stage an approval hands the trip
+ * on to finance.
  */
 export function ReviewTravel({
   requests,
-  approvedTrips,
+  approvedTrips = [],
   onApproved,
   onAdvanceIssued,
   onChanged,
+  stage = "finance",
 }: {
   requests: TravelRequest[];
-  approvedTrips: TravelRequest[];
-  onApproved: (trip: TravelRequest) => void;
-  onAdvanceIssued: (advance: Advance) => void;
+  approvedTrips?: TravelRequest[];
+  onApproved?: (trip: TravelRequest) => void;
+  onAdvanceIssued?: (advance: Advance) => void;
   onChanged: () => void;
+  stage?: "manager" | "finance";
 }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<TravelRequest | null>(null);
@@ -81,9 +85,14 @@ export function ReviewTravel({
     setProblem(null);
     try {
       const body: DecisionInput = { approve, note: decisionNote };
-      const updated = await post<TravelRequest>(`/expenses/travel-requests/${trip.id}/decision`, body);
-      toast.success(`${approve ? "Approved" : "Rejected"} ${trip.employee_name ?? "the"} trip`);
-      if (approve && updated.status === "approved") onApproved(updated);
+      const path = stage === "manager" ? "manager-decision" : "decision";
+      const updated = await post<TravelRequest>(`/expenses/travel-requests/${trip.id}/${path}`, body);
+      toast.success(
+        stage === "manager" && approve
+          ? `Approved ${trip.employee_name ?? "the"} trip; it goes to finance next`
+          : `${approve ? "Approved" : "Rejected"} ${trip.employee_name ?? "the"} trip`,
+      );
+      if (approve && updated.status === "approved") onApproved?.(updated);
       setRejecting(null);
       setNote("");
       onChanged();
@@ -141,7 +150,11 @@ export function ReviewTravel({
           <EmptyState
             icon={Plane}
             title="No travel requests waiting"
-            description="Trips appear here once an employee submits them. Your own trips go to another approver."
+            description={
+              stage === "manager"
+                ? "Trips from your team appear here when they are raised. Your own trips go to your manager."
+                : "Trips appear here once a line manager approves them, or straight away for someone with no manager. Your own trips go to another approver."
+            }
           />
         </Card>
       ) : (
@@ -217,7 +230,7 @@ export function ReviewTravel({
         trip={issuing}
         onClose={() => setIssuing(null)}
         onIssued={(advance) => {
-          onAdvanceIssued(advance);
+          onAdvanceIssued?.(advance);
           setIssuing(null);
           onChanged();
         }}

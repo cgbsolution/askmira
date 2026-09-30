@@ -137,7 +137,10 @@ export function ExitsTable({
                   <ClearanceProgress record={row} />
                 </TableCell>
                 <TableCell>
-                  <ExitStatusBadge status={row.status} />
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <ExitStatusBadge status={row.status} />
+                    {row.awaiting_acceptance && <Badge variant="warning">To accept</Badge>}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <SettlementStatusBadge status={row.settlement_status} />

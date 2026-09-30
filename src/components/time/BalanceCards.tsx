@@ -28,14 +28,19 @@ const isZero = (value: string) => /^-?0(\.0+)?$/.test(value);
  *
  * Statutory entitlements such as maternity leave are not drawn down through
  * the year, and "182 days available" on everybody's screen would read as an
- * offer. They sit on one quiet line underneath instead.
+ * offer. They sit on one quiet line underneath instead. Unpaid leave has no
+ * balance at all: its card counts the days taken instead.
  */
 export function BalanceCards({
   balances,
   isLoading,
+  emptyTitle = "No leave policy covers you yet",
+  emptyDescription = "Balances appear once HR assigns a policy for your location and grade.",
 }: {
   balances: LeaveBalance[];
   isLoading: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }) {
   if (isLoading) {
     return (
@@ -55,10 +60,8 @@ export function BalanceCards({
             <CalendarOff className="size-5" />
           </span>
           <div>
-            <p className="font-medium text-foreground">No leave policy covers you yet</p>
-            <p className="text-sm text-muted-foreground">
-              Balances appear once HR assigns a policy for your location and grade.
-            </p>
+            <p className="font-medium text-foreground">{emptyTitle}</p>
+            <p className="text-sm text-muted-foreground">{emptyDescription}</p>
           </div>
         </CardContent>
       </Card>
@@ -72,11 +75,17 @@ export function BalanceCards({
     <div className="space-y-3">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {drawn.map((balance) => {
+          // Earned includes carry-forward and HR or comp-off credits (net of
+          // any debit or lapse); spent includes encashment. The big number is
+          // the API's `available`, never recomputed here.
           const entitled =
-            Number(balance.opening) + Number(balance.accrued) + Number(balance.carried_forward);
+            Number(balance.opening) +
+            Number(balance.accrued) +
+            Number(balance.carried_forward) +
+            Number(balance.adjusted);
+          const spent = Number(balance.used) + Number(balance.encashed);
           // Display-only proportion for the bar; every figure shown is the API's string.
-          const usedShare =
-            entitled > 0 ? Math.min(100, (Number(balance.used) / entitled) * 100) : 0;
+          const usedShare = entitled > 0 ? Math.min(100, (spent / entitled) * 100) : 0;
           const negative = balance.available.startsWith("-");
 
           return (
@@ -92,37 +101,53 @@ export function BalanceCards({
                         ? `${formatDays(balance.annual_quota_days)} a year, ${
                             ACCRUAL_LABEL[balance.accrual_frequency ?? ""] ?? ""
                           }`
-                        : "No active policy"}
+                        : balance.is_comp_off
+                          ? "Credited for approved comp-off claims"
+                          : "No active policy"}
                     </p>
                   </div>
                   {!balance.is_paid && <Badge variant="muted">Unpaid</Badge>}
+                  {balance.is_comp_off && <Badge variant="outline">Comp-off</Badge>}
                 </div>
 
-                <div className="flex items-baseline gap-1.5">
-                  <span
-                    className={cn(
-                      "text-3xl font-semibold tracking-tight tabular-nums",
-                      negative ? "text-destructive" : "text-foreground",
-                    )}
-                  >
-                    {formatDays(balance.available)}
-                  </span>
-                  <span className="text-sm text-muted-foreground">days available</span>
-                </div>
+                {balance.is_paid ? (
+                  <div className="flex items-baseline gap-1.5">
+                    <span
+                      className={cn(
+                        "text-3xl font-semibold tracking-tight tabular-nums",
+                        negative ? "text-destructive" : "text-foreground",
+                      )}
+                    >
+                      {formatDays(balance.available)}
+                    </span>
+                    <span className="text-sm text-muted-foreground">days available</span>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-3xl font-semibold tracking-tight text-foreground tabular-nums">
+                      {formatDays(balance.used)}
+                    </span>
+                    <span className="text-sm text-muted-foreground">days taken, unpaid</span>
+                  </div>
+                )}
 
-                <Progress value={usedShare} aria-label={`${balance.leave_type_name} used`} />
+                {balance.is_paid && (
+                  <Progress value={usedShare} aria-label={`${balance.leave_type_name} used`} />
+                )}
 
                 <dl className="grid grid-cols-3 gap-2 text-xs">
                   <div>
                     <dt className="text-muted-foreground">Earned</dt>
                     <dd className="font-medium text-foreground tabular-nums">
-                      {formatDays(entitled.toFixed(2))}
+                      {balance.is_paid ? formatDays(entitled.toFixed(2)) : "—"}
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Used</dt>
+                    <dt className="text-muted-foreground">
+                      {isZero(balance.encashed) ? "Used" : "Used & encashed"}
+                    </dt>
                     <dd className="font-medium text-foreground tabular-nums">
-                      {formatDays(balance.used)}
+                      {formatDays(spent.toFixed(2))}
                     </dd>
                   </div>
                   <div>

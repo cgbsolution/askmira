@@ -14,6 +14,7 @@ import { useAuth } from "@/context/AuthContext";
 import { FinancialYearSelect } from "./common";
 import { DeclarationsPanel } from "./DeclarationsPanel";
 import { Form12BBPanel } from "./Form12BBPanel";
+import { Form16Panel } from "./Form16Panel";
 import { HouseRentPanel } from "./HouseRentPanel";
 import { PreviousEmployerPanel } from "./PreviousEmployerPanel";
 import { ProjectionPanel } from "./ProjectionPanel";
@@ -74,6 +75,7 @@ export function TaxSelfService() {
             <TabsTrigger value="previous">Previous employer</TabsTrigger>
             <TabsTrigger value="projection">Projection</TabsTrigger>
             <TabsTrigger value="form12bb">Form 12BB</TabsTrigger>
+            <TabsTrigger value="form16">Form 16</TabsTrigger>
           </TabsList>
         </div>
 
@@ -99,6 +101,9 @@ export function TaxSelfService() {
         </TabsContent>
         <TabsContent value="form12bb">
           <Form12BBPanel key={financialYear} financialYear={financialYear} version={version} />
+        </TabsContent>
+        <TabsContent value="form16">
+          <Form16Panel />
         </TabsContent>
       </Tabs>
     </div>

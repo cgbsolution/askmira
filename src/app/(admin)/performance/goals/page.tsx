@@ -1,13 +1,13 @@
 "use client";
 
-import { Flag, History, Loader2, Plus, Target, Trash2 } from "lucide-react";
+import { Flag, History, Loader2, MessageSquareReply, Plus, Target, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 
 import { DataPanel } from "@/components/common/DataPanel";
+import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { PercentBar, PersonSelect, StatusBadge, humanize, useAction, usePeople } from "@/components/performance/shared";
-import { Badge } from "@/components/ui/badge";
+import { PercentBar, PersonSelect, StatusBadge, useAction, usePeople } from "@/components/performance/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -35,16 +35,22 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { patch, post } from "@/lib/api";
 import type {
   CheckInConfidence,
-  CycleSummary,
   Goal,
   GoalCheckIn,
+  GoalCycleOption,
   GoalVisibility,
   KeyResultInput,
   KeyResultKind,
 } from "@/lib/types/performance";
-import { formatDate, formatDay } from "@/lib/utils";
+import { formatDate, formatDateTime, formatDay } from "@/lib/utils";
 
 const NONE = "__none__";
+const CONFIDENCE_LABEL: Record<CheckInConfidence, string> = {
+  on_track: "On track",
+  at_risk: "At risk",
+  off_track: "Off track",
+  done: "Done",
+};
 const VISIBILITY_LABEL: Record<GoalVisibility, string> = {
   self: "Only me and HR",
   manager_line: "My reporting line",
@@ -141,7 +147,9 @@ function GoalList({ scope, version, onChanged }: { scope: string; version: numbe
 }
 
 function GoalCard({ goal, showOwner, onChanged }: { goal: Goal; showOwner: boolean; onChanged: () => void }) {
+  /** A key result id, "" for a status-only check-in, or null when closed. */
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
+  const [historyVersion, setHistoryVersion] = useState(0);
   const [showHistory, setShowHistory] = useState(false);
   const { busy, run } = useAction();
   const active = goal.status === "active";
@@ -167,6 +175,9 @@ function GoalCard({ goal, showOwner, onChanged }: { goal: Goal; showOwner: boole
         </CardDescription>
         {goal.can_edit && active && (
           <CardAction className="flex gap-1">
+            <Button size="sm" variant="outline" onClick={() => setCheckingIn("")}>
+              Check in
+            </Button>
             <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => void setStatus("completed")}>
               Complete
             </Button>
@@ -179,6 +190,7 @@ function GoalCard({ goal, showOwner, onChanged }: { goal: Goal; showOwner: boole
       <CardContent className="space-y-3">
         {goal.description && <p className="text-sm text-muted-foreground">{goal.description}</p>}
         <PercentBar value={goal.progress_percent} label={`${goal.title} progress`} />
+        <LatestCheckInLine goal={goal} />
         <ul className="space-y-2">
           {goal.key_results.map((kr) => (
             <li key={kr.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2">
@@ -207,15 +219,16 @@ function GoalCard({ goal, showOwner, onChanged }: { goal: Goal; showOwner: boole
         <Button size="sm" variant="ghost" onClick={() => setShowHistory((v) => !v)}>
           <History /> {showHistory ? "Hide" : "Show"} progress history
         </Button>
-        {showHistory && <CheckInHistory goalId={goal.id} />}
+        {showHistory && <CheckInHistory key={historyVersion} goalId={goal.id} />}
       </CardContent>
-      {checkingIn && (
+      {checkingIn !== null && (
         <CheckInDialog
           goal={goal}
-          keyResultId={checkingIn}
+          keyResultId={checkingIn || null}
           onClose={() => setCheckingIn(null)}
           onDone={() => {
             setCheckingIn(null);
+            setHistoryVersion((v) => v + 1);
             onChanged();
           }}
         />
@@ -224,29 +237,114 @@ function GoalCard({ goal, showOwner, onChanged }: { goal: Goal; showOwner: boole
   );
 }
 
+/** The most recent check-in, so a list of goals says how each is going without opening it. */
+function LatestCheckInLine({ goal }: { goal: Goal }) {
+  const latest = goal.latest_check_in;
+  if (!latest) {
+    return <p className="text-xs text-muted-foreground">No check-in yet.</p>;
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+      {latest.confidence && <StatusBadge status={latest.confidence} />}
+      <span>
+        Last check-in {formatDate(latest.recorded_at)}
+        {latest.recorded_by_name ? ` by ${latest.recorded_by_name}` : ""}
+      </span>
+      {latest.note && <span className="text-foreground">“{latest.note}”</span>}
+    </div>
+  );
+}
+
 function CheckInHistory({ goalId }: { goalId: string }) {
-  const { data, error, isLoading } = useApiQuery<GoalCheckIn[]>(`/goals/${goalId}/check-ins`);
-  if (isLoading) return <Skeleton className="h-16 w-full" />;
+  const { data, error, isLoading, reload } = useApiQuery<GoalCheckIn[]>(`/goals/${goalId}/check-ins`);
+  if (isLoading && !data) return <Skeleton className="h-16 w-full" />;
   if (error) return <p className="text-sm text-destructive">{error.detail}</p>;
   if (!data?.length) return <p className="text-sm text-muted-foreground">No progress recorded yet.</p>;
   return (
-    <ul className="space-y-1 text-xs">
+    <ul className="space-y-3">
       {data.map((c) => (
-        <li key={c.id} className="flex flex-wrap gap-x-2 text-muted-foreground">
-          <span>{formatDate(c.recorded_at)}</span>
-          <span className="text-foreground">
-            {c.key_result_title}: {c.previous_value ?? "—"} → {c.new_value ?? "—"}
-          </span>
-          <span className="tabular-nums">goal at {c.progress_after}%</span>
-          {c.confidence && <Badge variant="outline">{humanize(c.confidence)}</Badge>}
-          {c.recorded_by_name && <span>by {c.recorded_by_name}</span>}
-          {c.note && <span className="text-foreground">“{c.note}”</span>}
+        <li key={c.id} className="rounded-md border border-border px-3 py-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            <span>{formatDateTime(c.recorded_at)}</span>
+            {c.key_result_title && (
+              <span className="text-foreground">
+                {c.key_result_title}: {c.previous_value ?? "—"} → {c.new_value ?? "—"}
+              </span>
+            )}
+            <span className="tabular-nums">goal at {c.progress_after}%</span>
+            {c.confidence && <StatusBadge status={c.confidence} />}
+            {c.recorded_by_name && <span>by {c.recorded_by_name}</span>}
+          </div>
+          {c.note && <p className="mt-1 text-sm text-foreground">{c.note}</p>}
+          {c.comments.length > 0 && (
+            <ul className="mt-2 space-y-1 border-l-2 border-border pl-3">
+              {c.comments.map((comment) => (
+                <li key={comment.id} className="text-sm">
+                  <span className="font-medium text-foreground">{comment.author_name ?? "Someone"}</span>
+                  <span className="text-xs text-muted-foreground"> · {formatDateTime(comment.created_at)}</span>
+                  <p className="text-foreground">{comment.body}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+          {c.can_comment && <ReplyBox goalId={goalId} checkInId={c.id} onSent={reload} />}
         </li>
       ))}
     </ul>
   );
 }
 
+function ReplyBox({ goalId, checkInId, onSent }: { goalId: string; checkInId: string; onSent: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [body, setBody] = useState("");
+  const { busy, run } = useAction();
+  if (!open) {
+    return (
+      <Button size="sm" variant="ghost" className="mt-1" onClick={() => setOpen(true)}>
+        <MessageSquareReply /> Reply
+      </Button>
+    );
+  }
+  return (
+    <div className="mt-2 grid gap-2">
+      <Textarea
+        aria-label="Reply to this check-in"
+        rows={2}
+        maxLength={2000}
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+      />
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        <Button
+          size="sm"
+          disabled={!body.trim() || busy !== null}
+          onClick={async () => {
+            const r = await run(
+              "reply",
+              () => post(`/goals/${goalId}/check-ins/${checkInId}/comments`, { body: body.trim() }),
+              "Reply sent.",
+            );
+            if (r !== undefined) {
+              setBody("");
+              setOpen(false);
+              onSent();
+            }
+          }}
+        >
+          {busy && <Loader2 className="animate-spin" />} Send reply
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Record progress. With a key result it moves that result's value; without one
+ * it is a status and a comment ("at risk, waiting on legal"). "Done" completes the goal.
+ */
 function CheckInDialog({
   goal,
   keyResultId,
@@ -254,73 +352,91 @@ function CheckInDialog({
   onDone,
 }: {
   goal: Goal;
-  keyResultId: string;
+  keyResultId: string | null;
   onClose: () => void;
   onDone: () => void;
 }) {
-  const kr = goal.key_results.find((k) => k.id === keyResultId)!;
-  const [value, setValue] = useState(kr.kind === "milestone" ? (Number(kr.current_value) >= 1 ? "1" : "0") : kr.current_value);
+  const kr = keyResultId ? (goal.key_results.find((k) => k.id === keyResultId) ?? null) : null;
+  const [value, setValue] = useState(
+    kr ? (kr.kind === "milestone" ? (Number(kr.current_value) >= 1 ? "1" : "0") : kr.current_value) : "",
+  );
   const [confidence, setConfidence] = useState<string>(NONE);
   const [note, setNote] = useState("");
   const { busy, run } = useAction();
-  const valid = /^-?\d+(\.\d{1,4})?$/.test(value.trim());
+  const valueValid = !kr || /^-?\d+(\.\d{1,4})?$/.test(value.trim());
+  const saysSomething = Boolean(kr) || confidence !== NONE || note.trim().length > 0;
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Update progress</DialogTitle>
-          <DialogDescription>{kr.title}</DialogDescription>
+          <DialogTitle>{kr ? "Update progress" : "Check in"}</DialogTitle>
+          <DialogDescription>{kr ? kr.title : goal.title}</DialogDescription>
         </DialogHeader>
-        {kr.kind === "milestone" ? (
-          <FormField htmlFor="ci-value" label="Status">
-            <Select value={value} onValueChange={setValue}>
-              <SelectTrigger id="ci-value" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">Not done</SelectItem>
-                <SelectItem value="1">Done</SelectItem>
-              </SelectContent>
-            </Select>
-          </FormField>
-        ) : (
-          <FormField htmlFor="ci-value" label={`Current value${kr.unit ? ` (${kr.unit})` : ""}`} hint={`Target ${kr.target_value}, started at ${kr.start_value}.`}>
-            <Input id="ci-value" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
-          </FormField>
-        )}
-        <FormField htmlFor="ci-confidence" label="How is it going?" optional>
+        {kr &&
+          (kr.kind === "milestone" ? (
+            <FormField htmlFor="ci-value" label="Status">
+              <Select value={value} onValueChange={setValue}>
+                <SelectTrigger id="ci-value" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Not done</SelectItem>
+                  <SelectItem value="1">Done</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormField>
+          ) : (
+            <FormField
+              htmlFor="ci-value"
+              label={`Current value${kr.unit ? ` (${kr.unit})` : ""}`}
+              hint={`Target ${kr.target_value}, started at ${kr.start_value}.`}
+            >
+              <Input id="ci-value" inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
+            </FormField>
+          ))}
+        <FormField
+          htmlFor="ci-confidence"
+          label="How is it going?"
+          optional
+          hint={confidence === "done" ? "Marking it done completes the goal." : undefined}
+        >
           <Select value={confidence} onValueChange={setConfidence}>
             <SelectTrigger id="ci-confidence" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NONE}>Not stated</SelectItem>
-              <SelectItem value="on_track">On track</SelectItem>
-              <SelectItem value="at_risk">At risk</SelectItem>
-              <SelectItem value="off_track">Off track</SelectItem>
+              {(Object.keys(CONFIDENCE_LABEL) as CheckInConfidence[]).map((key) => (
+                <SelectItem key={key} value={key}>
+                  {CONFIDENCE_LABEL[key]}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </FormField>
-        <FormField htmlFor="ci-note" label="Note" optional>
-          <Textarea id="ci-note" rows={2} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
+        <FormField htmlFor="ci-note" label="Comment" optional>
+          <Textarea id="ci-note" rows={3} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
         </FormField>
+        {!kr && !saysSomething && (
+          <p className="text-xs text-muted-foreground">Choose how it is going, or write a comment.</p>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button
-            disabled={!valid || busy !== null}
+            disabled={!valueValid || !saysSomething || busy !== null}
             onClick={async () => {
               const r = await run(
                 "save",
                 () =>
                   post(`/goals/${goal.id}/check-ins`, {
-                    key_result_id: kr.id,
-                    value: value.trim(),
+                    key_result_id: kr ? kr.id : null,
+                    value: kr ? value.trim() : null,
                     confidence: confidence === NONE ? null : (confidence as CheckInConfidence),
                     note: note.trim() || null,
                   }),
-                "Progress recorded.",
+                confidence === "done" ? "Goal completed." : "Check-in recorded.",
               );
               if (r !== undefined) onDone();
             }}
@@ -348,7 +464,8 @@ function GoalDialog({
   onDone: () => void;
 }) {
   const people = usePeople();
-  const cycles = useApiQuery<CycleSummary[]>(mode === "company" ? null : "/appraisal/cycles");
+  // Readable by everybody who sets a goal, not only managers.
+  const cycles = useApiQuery<GoalCycleOption[]>(mode === "company" ? null : "/goals/cycles");
   const [isCompany, setIsCompany] = useState(mode === "company" && canCompany);
   const [owner, setOwner] = useState(mode === "team" ? "" : "");
   const alignable = useApiQuery<Goal[]>(
@@ -438,7 +555,7 @@ function GoalDialog({
           </FormField>
           <div className="grid gap-3 sm:grid-cols-3">
             <FormField htmlFor="g-due" label="Due">
-              <Input id="g-due" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+              <DatePicker id="g-due" value={due} onChange={setDue} />
             </FormField>
             {!isCompany && (
               <>
@@ -487,13 +604,11 @@ function GoalDialog({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>By due date</SelectItem>
-                    {(cycles.data ?? [])
-                      .filter((c) => c.status !== "closed")
-                      .map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
+                    {(cycles.data ?? []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} · {formatDay(c.period_start, true)} – {formatDay(c.period_end, true)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </FormField>

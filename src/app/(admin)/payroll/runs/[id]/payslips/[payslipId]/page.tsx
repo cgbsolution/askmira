@@ -8,6 +8,7 @@ import React from "react";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
 import { PayslipTrace } from "@/components/payroll/PayslipTrace";
+import { DownloadButton } from "@/components/payroll-ops/shared";
 import { RunStatusBadge } from "@/components/payroll/RunStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,11 +28,20 @@ export default function RunPayslipPage() {
       title="Payslip"
       description="Every line, the rule version behind it, and the income tax working."
       actions={
-        <Button variant="ghost" size="sm" asChild>
-          <Link href={`/payroll/runs/${params.id}`}>
-            <ArrowLeft /> Back to the run
-          </Link>
-        </Button>
+        <>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href={`/payroll/runs/${params.id}`}>
+              <ArrowLeft /> Back to the run
+            </Link>
+          </Button>
+          {data && (
+            <DownloadButton
+              path={`/payroll/runs/${params.id}/payslips/${params.payslipId}/pdf`}
+              fallbackName={`payslip-${data.employee_code}-${data.period_year}-${String(data.period_month).padStart(2, "0")}.pdf`}
+              label="Download PDF"
+            />
+          )}
+        </>
       }
     >
       {isLoading && !data ? (

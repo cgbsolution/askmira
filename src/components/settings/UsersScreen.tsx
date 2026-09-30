@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound, Plus, ShieldAlert, UserCog, Users } from "lucide-react";
+import { KeyRound, Link2, Plus, ShieldAlert, UserCog, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,7 +16,9 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import type { ManagedUser } from "@/lib/types/admin";
 import type { UserRole } from "@/lib/types";
 
+import { LinkEmployeeDialog } from "./LinkEmployeeDialog";
 import { NewUserDialog } from "./NewUserDialog";
+import { ResetPasswordDialog } from "./ResetPasswordDialog";
 import { RoleChangeDialog } from "./RoleChangeDialog";
 import { ActiveChangeDialog } from "./ActiveChangeDialog";
 import { ROLE_LABEL, formatDateTime } from "./settingsShared";
@@ -40,6 +42,8 @@ export function UsersScreen() {
   const [creating, setCreating] = useState(false);
   const [changingRole, setChangingRole] = useState<ManagedUser | null>(null);
   const [changingActive, setChangingActive] = useState<ManagedUser | null>(null);
+  const [linking, setLinking] = useState<ManagedUser | null>(null);
+  const [resetting, setResetting] = useState<ManagedUser | null>(null);
 
   const rows = useMemo(() => {
     const all = data ?? [];
@@ -166,7 +170,7 @@ export function UsersScreen() {
                         )}
                       </>
                     ) : (
-                      <span className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1 text-mustard-900 dark:text-mustard-100">
                         <ShieldAlert className="size-3.5" /> Not linked
                       </span>
                     )}
@@ -176,6 +180,20 @@ export function UsersScreen() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      <ActionButton
+                        blocked={null}
+                        onClick={() => setLinking(row)}
+                        label="Link to an employee record"
+                      >
+                        <Link2 /> {row.employee_id ? "Relink" : "Link"}
+                      </ActionButton>
+                      <ActionButton
+                        blocked={row.is_you ? "Change your own password from your profile." : null}
+                        onClick={() => setResetting(row)}
+                        label="Reset password"
+                      >
+                        <KeyRound /> Password
+                      </ActionButton>
                       <ActionButton
                         blocked={roleBlocked}
                         onClick={() => setChangingRole(row)}
@@ -205,6 +223,15 @@ export function UsersScreen() {
         onOpenChange={setCreating}
         canGrantTenantAdmin={isTenantAdmin}
         onCreated={reload}
+      />
+      <LinkEmployeeDialog
+        target={linking}
+        onOpenChange={(open) => !open && setLinking(null)}
+        onChanged={reload}
+      />
+      <ResetPasswordDialog
+        target={resetting}
+        onOpenChange={(open) => !open && setResetting(null)}
       />
       <RoleChangeDialog
         target={changingRole}

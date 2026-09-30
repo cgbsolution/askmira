@@ -237,9 +237,14 @@ export function ClaimCaptureDialog({
         justification: submitJustification.trim() || null,
       });
       toast.success("Claim submitted", {
-        description: submitted.flagged_for_approver
-          ? "It is flagged for your approver's attention."
-          : undefined,
+        description: [
+          submitted.status === "pending_manager"
+            ? "It goes to your line manager first, then finance."
+            : "It goes to finance.",
+          submitted.flagged_for_approver ? "It is flagged for your approver's attention." : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
       });
       onChanged();
       close(false);

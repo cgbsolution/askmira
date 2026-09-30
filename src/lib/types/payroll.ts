@@ -24,6 +24,8 @@ export interface VarianceFlag {
   previous_net: string;
   current_net: string;
   change_percent: string;
+  /** Days before joining or after leaving: why a joining or leaving month swings. */
+  not_employed_days: string;
   acknowledged: boolean;
   acknowledged_by_user_id: string | null;
   acknowledged_by_name: string | null;
@@ -180,6 +182,7 @@ export interface Payslip {
   working_days: string;
   paid_days: string;
   lop_days: string;
+  not_employed_days: string;
   gross_earnings: string;
   other_earnings: string;
   total_deductions: string;
@@ -232,6 +235,7 @@ export interface RegisterRow {
   working_days: string;
   paid_days: string;
   lop_days: string;
+  not_employed_days: string;
   gross_earnings: string;
   other_earnings: string;
   pf_employee: string;

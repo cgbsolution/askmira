@@ -114,8 +114,13 @@ export function TravelRequestDialog({
         estimated_cost: estimatedCost.trim(),
         advance_requested: advance.trim(),
       };
-      await post<TravelRequest>("/expenses/travel-requests", body);
-      toast.success("Travel request submitted", { description: "Finance will review it." });
+      const created = await post<TravelRequest>("/expenses/travel-requests", body);
+      toast.success("Travel request submitted", {
+        description:
+          created.status === "pending_manager"
+            ? "Your line manager reviews it first, then finance."
+            : "Finance will review it.",
+      });
       setOpen(false);
       reset();
       onCreated();

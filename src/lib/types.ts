@@ -19,6 +19,8 @@ export interface AuthUser {
   role: UserRole;
   is_active: boolean;
   is_email_verified: boolean;
+  /** Signed in with a temporary password; the portal asks for a new one first. */
+  must_change_password: boolean;
   employee_id: string | null;
   last_login_at: string | null;
   created_at: string;
@@ -72,6 +74,26 @@ export interface DashboardSummary {
   pending_approvals: number;
   shoutouts_this_week: number;
   open_tasks: number;
+  /** The workspace's local date. */
+  today: string;
+  upcoming_holidays: { holiday_date: string; name: string }[];
+  /** HR only; null when no run exists yet. */
+  latest_payroll_run: {
+    id: string;
+    period_year: number;
+    period_month: number;
+    status: string;
+    employee_count: number;
+    total_net: string;
+    payment_date: string | null;
+  } | null;
+  /** HR only, with payroll on: where last month's returns stand. */
+  filings: {
+    return_type: "pf_ecr" | "esic" | "professional_tax" | "tds_24q";
+    period: string;
+    status: "generated" | "filed" | "rejected" | "blocked" | null;
+    due_on: string | null;
+  }[];
 }
 
 // ── Time off ───────────────────────────────────────────────────────────────
@@ -82,6 +104,10 @@ export type LeaveRequestStatus = "draft" | "pending" | "approved" | "rejected" |
 
 export type AccrualFrequency = "monthly" | "quarterly" | "annual" | "on_joining";
 
+export type HalfDaySession = "first_half" | "second_half";
+
+export type HolidayScope = "national" | "state" | "location";
+
 export interface LeaveType {
   id: string;
   name: string;
@@ -91,6 +117,8 @@ export interface LeaveType {
   allows_half_day: boolean;
   requires_document: boolean;
   is_statutory: boolean;
+  is_comp_off: boolean;
+  is_active: boolean;
 }
 
 export interface LeavePolicy {
@@ -99,12 +127,15 @@ export interface LeavePolicy {
   name: string;
   location_id: string | null;
   grade: string | null;
+  /** "female" | "male"; null is everyone. */
+  applies_to_gender: "female" | "male" | null;
   annual_quota_days: string;
   accrual_frequency: AccrualFrequency;
   max_carry_forward_days: string;
   max_consecutive_days: number | null;
   min_notice_days: number;
   allows_negative_balance: boolean;
+  sandwich_weekends_holidays: boolean;
   effective_from: string;
   effective_to: string | null;
   is_active: boolean;
@@ -116,7 +147,27 @@ export interface Holiday {
   holiday_date: string;
   state_code: string | null;
   location_id: string | null;
+  location_name: string | null;
+  scope: HolidayScope;
   is_optional: boolean;
+  /** In scope for the viewer's own work location. */
+  applies_to_me: boolean;
+  /** An optional holiday the viewer opted in to. */
+  selected: boolean;
+}
+
+export interface OptionalHolidays {
+  year: number;
+  quota: number;
+  chosen: number;
+  holidays: Holiday[];
+}
+
+export interface LeaveSettings {
+  optional_holiday_quota: number;
+  comp_off_expiry_days: number;
+  comp_off_leave_type_id: string | null;
+  comp_off_leave_type_name: string | null;
 }
 
 export interface ApprovalStep {
@@ -140,8 +191,10 @@ export interface LeaveRequest {
   end_date: string;
   total_days: string;
   is_half_day: boolean;
+  half_day_session: HalfDaySession | null;
   reason: string | null;
   document_url: string | null;
+  has_document: boolean;
   status: LeaveRequestStatus;
   approval_chain: ApprovalStep[];
   decided_at: string | null;
@@ -156,7 +209,9 @@ export interface LeaveRequestInput {
   start_date: string;
   end_date: string;
   is_half_day: boolean;
+  half_day_session?: HalfDaySession | null;
   reason?: string | null;
+  document_url?: string | null;
   employee_id?: string | null;
 }
 
@@ -165,13 +220,21 @@ export interface LeavePreview {
   working_days: number;
   weekly_offs: string[];
   holidays: { date: string; name: string }[];
+  sandwiched: string[];
   available_before: string | null;
   pending_days: string | null;
   available_after: string | null;
+  projected_carry_forward: string | null;
   approvers: string[];
   allowed: boolean;
   problems: string[];
   warnings: string[];
+}
+
+export interface LeaveAttachment {
+  document_url: string;
+  mime_type: string;
+  size_bytes: number;
 }
 
 export interface LeaveBalance {
@@ -180,6 +243,7 @@ export interface LeaveBalance {
   leave_type_code: string;
   is_paid: boolean;
   is_statutory: boolean;
+  is_comp_off: boolean;
   year: number;
   policy_name: string | null;
   annual_quota_days: string | null;
@@ -187,11 +251,45 @@ export interface LeaveBalance {
   opening: string;
   accrued: string;
   carried_forward: string;
+  adjusted: string;
   used: string;
   encashed: string;
   pending: string;
   available: string;
   available_after_pending: string;
+}
+
+export type ManualAdjustmentKind = "opening" | "credit" | "debit";
+
+export interface BalanceAdjustment {
+  id: string;
+  employee_id: string;
+  leave_type_id: string;
+  year: number;
+  kind: string;
+  days: string;
+  reason: string;
+  effective_on: string;
+  created_at: string;
+}
+
+export interface BalanceHistoryEntry {
+  on: string;
+  kind: string;
+  label: string;
+  days: string;
+  running_balance: string;
+  note: string | null;
+}
+
+export interface BalanceHistory {
+  employee_id: string;
+  employee_name: string;
+  leave_type_id: string;
+  leave_type_name: string;
+  year: number;
+  entries: BalanceHistoryEntry[];
+  available: string;
 }
 
 export interface WhoIsOut {
@@ -201,6 +299,7 @@ export interface WhoIsOut {
   start_date: string;
   end_date: string;
   is_half_day: boolean;
+  half_day_session: HalfDaySession | null;
   status: LeaveRequestStatus;
   leave_type_name: string | null;
 }
@@ -209,6 +308,36 @@ export interface AccrualRun {
   year: number;
   as_of: string;
   balances_updated: number;
+}
+
+export interface YearEndRun {
+  year: number;
+  balances_closed: number;
+  days_carried: string;
+  days_lapsed: string;
+  already_closed: number;
+}
+
+export type CompOffStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+export interface CompOffClaim {
+  id: string;
+  employee_id: string;
+  employee_name: string;
+  employee_photo_url: string | null;
+  worked_date: string;
+  worked_day_label: string | null;
+  days: string;
+  reason: string;
+  status: CompOffStatus;
+  approver_name: string;
+  decided_by_name: string | null;
+  decided_at: string | null;
+  decision_note: string | null;
+  expires_on: string | null;
+  created_at: string;
+  can_decide: boolean;
+  can_cancel: boolean;
 }
 
 export interface Shoutout {

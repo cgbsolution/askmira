@@ -1,7 +1,8 @@
 "use client";
 
 import { CalendarClock, GitCommitHorizontal, Loader2, MoreHorizontal, Plus } from "lucide-react";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { DataPanel } from "@/components/common/DataPanel";
@@ -33,13 +34,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { post } from "@/lib/api";
-import type { LifecycleEvent, LifecycleEventType, LifecycleStatus } from "@/lib/types/people";
+import { get, post } from "@/lib/api";
+import type {
+  EmployeeRecord,
+  LifecycleEvent,
+  LifecycleEventType,
+  LifecycleStatus,
+} from "@/lib/types/people";
 import { formatDate, parseISODate } from "@/lib/utils";
 
 import { useFieldValue } from "../LifecycleTimeline";
 import { EventStatusBadge } from "../StatusBadges";
-import { EVENT_STATUS, EVENT_TYPE, FIELD_LABEL, apiMessage } from "../labels";
+import type { PickedEmployee } from "../EmployeePicker";
+import { EVENT_STATUS, EVENT_TYPE, FIELD_LABEL, apiMessage, personName } from "../labels";
 import { RaiseEventDialog } from "./RaiseEventDialog";
 
 const ANY = "__any__";
@@ -69,6 +76,28 @@ export function EventsTab() {
   );
 
   const [raising, setRaising] = useState(false);
+  const [preselected, setPreselected] = useState<PickedEmployee | null>(null);
+
+  // Arriving from a profile's "Raise event" (`?employee=<id>`): open the
+  // dialog with that person already chosen.
+  const searchParams = useSearchParams();
+  const requested = searchParams.get("employee");
+  useEffect(() => {
+    if (!requested || !canRaise) return;
+    let cancelled = false;
+    get<EmployeeRecord>(`/employees/${requested}`)
+      .then((person) => {
+        if (cancelled) return;
+        setPreselected({ id: person.id, label: `${personName(person)} (${person.employee_code})` });
+        setRaising(true);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("That employee could not be found. Choose them in the form instead.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [requested, canRaise]);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [effecting, setEffecting] = useState<string | null>(null);
   const [sweeping, setSweeping] = useState(false);
@@ -263,7 +292,15 @@ export function EventsTab() {
         </Table>
       </DataPanel>
 
-      <RaiseEventDialog open={raising} onOpenChange={setRaising} onRaised={reload} />
+      <RaiseEventDialog
+        open={raising}
+        onOpenChange={(open) => {
+          setRaising(open);
+          if (!open) setPreselected(null);
+        }}
+        onRaised={reload}
+        initialEmployee={preselected}
+      />
       <DecisionDialog
         decision={decision}
         onOpenChange={(open) => !open && setDecision(null)}

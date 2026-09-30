@@ -291,3 +291,15 @@ export interface ReminderRun {
   notifications_raised: number;
   events: string[];
 }
+
+/** `GET /tax/form-16` — a financial year with approved payroll, and its Part B. */
+export interface Form16Year {
+  financial_year: string;
+  assessment_year: string;
+  available: boolean;
+  /** Why Part B cannot be produced yet, when it cannot. */
+  reason: string | null;
+  taxable_income: string | null;
+  tax_payable: string | null;
+  tds_deducted: string | null;
+}

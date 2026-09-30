@@ -215,13 +215,18 @@ function UpdateItemDialog({
     setError(null);
   };
 
+  // An asset item may leave the amount empty: the API then recovers the
+  // asset's current book value from the asset register.
+  const isAssetItem = Boolean(item?.asset_assignment_id);
   const recoveryProblem =
     outcome === "cleared_with_recovery"
-      ? !isMoneyInput(recovery)
-        ? "Enter the recovery amount in rupees, up to two decimals."
-        : isZero(recovery)
-          ? "A recovery must be more than zero."
-          : null
+      ? isAssetItem && (recovery.trim() === "" || (isMoneyInput(recovery) && isZero(recovery)))
+        ? null
+        : !isMoneyInput(recovery)
+          ? "Enter the recovery amount in rupees, up to two decimals."
+          : isZero(recovery)
+            ? "A recovery must be more than zero."
+            : null
       : null;
   const waiverProblem =
     outcome === "waived" && waiverReason.trim() === "" ? "Say why this item is waived." : null;
@@ -232,7 +237,8 @@ function UpdateItemDialog({
     if (!item || !outcome || !isValid) return;
     const input: ClearanceUpdateInput = {
       outcome,
-      recovery_amount: outcome === "cleared_with_recovery" ? recovery.trim() : "0",
+      recovery_amount:
+        outcome === "cleared_with_recovery" ? recovery.trim() || "0" : "0",
       waiver_reason: outcome === "waived" ? waiverReason.trim() : null,
       notes: notes.trim() || null,
     };
@@ -287,7 +293,9 @@ function UpdateItemDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="cleared">Cleared</SelectItem>
-                <SelectItem value="cleared_with_recovery">Cleared with recovery</SelectItem>
+                <SelectItem value="cleared_with_recovery">
+                  {isAssetItem ? "Not returned — recover" : "Cleared with recovery"}
+                </SelectItem>
                 <SelectItem value="waived">Waived</SelectItem>
               </SelectContent>
             </Select>
@@ -297,7 +305,12 @@ function UpdateItemDialog({
             <FormField
               htmlFor="clearance-recovery"
               label="Recovery amount (₹)"
-              hint="Deducted in the full & final settlement."
+              optional={isAssetItem}
+              hint={
+                isAssetItem
+                  ? "Leave empty to recover the asset's current book value. Deducted in the full & final settlement."
+                  : "Deducted in the full & final settlement."
+              }
               error={touched ? recoveryProblem : null}
             >
               <Input

@@ -52,10 +52,13 @@ export function RaiseEventDialog({
   open,
   onOpenChange,
   onRaised,
+  initialEmployee = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onRaised: () => void;
+  /** Preselected, e.g. when arriving from a profile's "Raise event". */
+  initialEmployee?: PickedEmployee | null;
 }) {
   const [person, setPerson] = useState<PickedEmployee | null>(null);
   const [eventType, setEventType] = useState<LifecycleEventType>("promotion");
@@ -69,14 +72,14 @@ export function RaiseEventDialog({
 
   useEffect(() => {
     if (!open) return;
-    setPerson(null);
+    setPerson(initialEmployee);
     setEventType("promotion");
     setEffectiveFrom(toISODate(new Date()));
     setFields({});
     setCtc("");
     setReason("");
     setPreview(null);
-  }, [open]);
+  }, [open, initialEmployee]);
 
   // Any edit invalidates the preview: what is raised must be what was previewed.
   useEffect(() => {

@@ -4,6 +4,7 @@ import { HandCoins, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DatePicker } from "@/components/common/DatePicker";
 import { PersonCell } from "@/components/common/PersonCell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { InlineProblem, StatTile, errorDetail, todayISO } from "@/components/expenses/ReviewCommon";
@@ -19,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -200,7 +200,7 @@ function SettleDialog({
               <div className="rounded-md border border-mustard-200 bg-mustard-50 px-3 py-2.5 text-sm text-mustard-900 dark:border-mustard-900/40 dark:bg-mustard-900/20 dark:text-mustard-100">
                 <p className="font-medium">
                   Payroll recovery of <span className="tabular-nums">{formatMoney(result.payroll_recovery.amount)}</span>{" "}
-                  recorded for payroll — not yet picked up by a payroll run.
+                  goes into the next payroll run.
                 </p>
                 {result.payroll_recovery.reference && (
                   <p className="mt-1">Reference {result.payroll_recovery.reference}</p>
@@ -208,15 +208,24 @@ function SettleDialog({
                 <p className="mt-1">{result.payroll_recovery.note}</p>
               </div>
             )}
+            {result.payroll_refund && (
+              <div className="rounded-md border border-border px-3 py-2.5 text-sm text-foreground">
+                <p className="font-medium">
+                  <span className="tabular-nums">{formatMoney(result.payroll_refund.amount)}</span> is
+                  paid to the employee in the next payroll run.
+                </p>
+                <p className="mt-1 text-muted-foreground">{result.payroll_refund.note}</p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="grid gap-1.5">
             <Label htmlFor="settle-on">Settled on</Label>
-            <Input
+            <DatePicker
               id="settle-on"
-              type="date"
               value={settledOn}
-              onChange={(event) => setSettledOn(event.target.value)}
+              onChange={setSettledOn}
+              max={todayISO()}
             />
           </div>
         )}

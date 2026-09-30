@@ -1,12 +1,28 @@
 "use client";
 
-import { Download, EyeOff, FileText, MoreHorizontal, Pencil, Trash2, Upload } from "lucide-react";
+import {
+  BadgeCheck,
+  Download,
+  EyeOff,
+  FileText,
+  FilePlus2,
+  MoreHorizontal,
+  Pencil,
+  ShieldX,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
-import { EditDocumentDialog, UploadDocumentDialog } from "@/components/docs/DocumentDialogs";
+import {
+  EditDocumentDialog,
+  SelfUploadDialog,
+  UploadDocumentDialog,
+  VerifyDocumentDialog,
+} from "@/components/docs/DocumentDialogs";
 import type { PickedEmployee } from "@/components/people/EmployeePicker";
 import { apiMessage, NONE } from "@/components/people/labels";
 import { Badge } from "@/components/ui/badge";
@@ -35,8 +51,21 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { del, downloadFile } from "@/lib/api";
-import type { DocumentCategoryOption, VaultDocument } from "@/lib/types/docs";
+import type {
+  DocumentCategoryOption,
+  DocumentVerification,
+  VaultDocument,
+} from "@/lib/types/docs";
 import { formatDate, formatDay } from "@/lib/utils";
+
+const VERIFICATION: Record<
+  Exclude<DocumentVerification, "not_required">,
+  { label: string; variant: "warning" | "success" | "destructive" }
+> = {
+  pending: { label: "Waiting for HR", variant: "warning" },
+  verified: { label: "Verified", variant: "success" },
+  rejected: { label: "Rejected", variant: "destructive" },
+};
 
 function size(bytes: number | null): string {
   if (bytes === null) return "—";
@@ -55,12 +84,15 @@ export function DocumentsPanel({
   employee,
   showEmployee = false,
   expiringOnly = false,
+  verification,
 }: {
   title?: string;
   /** Restrict to one person (a profile tab). */
   employee?: PickedEmployee | null;
   showEmployee?: boolean;
   expiringOnly?: boolean;
+  /** Only documents in this verification state (HR's "to verify" queue). */
+  verification?: DocumentVerification;
 }) {
   const { user, hasRole } = useAuth();
   const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
@@ -68,18 +100,30 @@ export function DocumentsPanel({
   const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState<VaultDocument | null>(null);
   const [deleting, setDeleting] = useState<VaultDocument | null>(null);
+  const [selfUploading, setSelfUploading] = useState(false);
+  const [verifying, setVerifying] = useState<{
+    document: VaultDocument;
+    decision: "verified" | "rejected";
+  } | null>(null);
 
   const categories = useApiQuery<DocumentCategoryOption[]>("/documents/categories");
   const params = new URLSearchParams();
   if (employee) params.set("employee_id", employee.id);
   if (category !== NONE) params.set("category", category);
+  if (verification) params.set("verification", verification);
   const path = expiringOnly ? "/documents/expiring?within_days=60" : `/documents?${params}`;
   const { data, error, isLoading, reload } = useApiQuery<VaultDocument[]>(path);
 
   const labels = new Map((categories.data ?? []).map((c) => [c.value as string, c.label]));
   const rows = data ?? [];
   const managingOwn = Boolean(employee && employee.id === user?.employee_id);
-  const canUpload = isHr && !expiringOnly && !managingOwn;
+  const canUpload = isHr && !expiringOnly && !managingOwn && !verification;
+  // Anybody adds documents to their own record; HR verifies them.
+  const canSelfUpload =
+    Boolean(user?.employee_id) && !expiringOnly && !verification && (managingOwn || (!isHr && !employee));
+  const selfCategories = useApiQuery<DocumentCategoryOption[]>(
+    canSelfUpload ? "/documents/categories/self-upload" : null,
+  );
 
   const download = async (doc: VaultDocument) => {
     try {
@@ -110,14 +154,20 @@ export function DocumentsPanel({
             ? "Expired, or expiring in the next 60 days."
             : isHr
               ? managingOwn
-                ? "Documents on your own record are managed by another HR admin."
-                : undefined
-              : "Documents HR has shared with you."
+                ? "Documents you add wait for another HR admin to verify them."
+                : verification === "pending"
+                  ? "Documents employees added themselves. Download each one and check it before verifying."
+                  : undefined
+              : "Documents HR has shared with you, and those you have added yourself."
         }
         actions={
           canUpload ? (
             <Button size="sm" onClick={() => setUploading(true)}>
               <Upload /> Upload
+            </Button>
+          ) : canSelfUpload ? (
+            <Button size="sm" onClick={() => setSelfUploading(true)}>
+              <FilePlus2 /> Add a document
             </Button>
           ) : undefined
         }
@@ -144,12 +194,20 @@ export function DocumentsPanel({
         isEmpty={rows.length === 0}
         empty={{
           icon: FileText,
-          title: expiringOnly ? "Nothing is expiring" : "No documents here",
+          title: expiringOnly
+            ? "Nothing is expiring"
+            : verification === "pending"
+              ? "Nothing waiting to be verified"
+              : "No documents here",
           description: expiringOnly
             ? "No document with a validity date runs out in the next 60 days."
-            : isHr
-              ? "Upload ID proofs, contracts and certificates to keep them with the record."
-              : "When HR shares a document with you, it appears here.",
+            : verification === "pending"
+              ? "When an employee adds a document to their record, it waits here for you."
+              : canSelfUpload
+                ? "Add your ID proof, certificates and relieving letters. HR shares letters and contracts here too."
+                : isHr
+                  ? "Upload ID proofs, contracts and certificates to keep them with the record."
+                  : "When HR shares a document with you, it appears here.",
         }}
       >
         <Table>
@@ -158,6 +216,7 @@ export function DocumentsPanel({
               <TableHead>Document</TableHead>
               {showEmployee && <TableHead>Employee</TableHead>}
               <TableHead>Category</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Valid until</TableHead>
               <TableHead>Size</TableHead>
               <TableHead>Added</TableHead>
@@ -167,6 +226,7 @@ export function DocumentsPanel({
           <TableBody>
             {rows.map((doc) => {
               const own = doc.employee_id === user?.employee_id;
+              const state = doc.verification_status === "not_required" ? null : VERIFICATION[doc.verification_status];
               return (
                 <TableRow key={doc.id}>
                   <TableCell>
@@ -178,6 +238,9 @@ export function DocumentsPanel({
                         </Badge>
                       )}
                     </div>
+                    {doc.verification_status === "rejected" && doc.verification_note && (
+                      <p className="mt-0.5 text-xs text-destructive">{doc.verification_note}</p>
+                    )}
                   </TableCell>
                   {showEmployee && (
                     <TableCell className="text-muted-foreground">
@@ -186,6 +249,13 @@ export function DocumentsPanel({
                   )}
                   <TableCell className="text-muted-foreground">
                     {labels.get(doc.category) ?? doc.category}
+                  </TableCell>
+                  <TableCell>
+                    {state ? (
+                      <Badge variant={state.variant}>{state.label}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {doc.valid_until ? (
@@ -212,6 +282,19 @@ export function DocumentsPanel({
                         <DropdownMenuItem onSelect={() => void download(doc)}>
                           <Download /> Download
                         </DropdownMenuItem>
+                        {isHr && !own && doc.verification_status === "pending" && (
+                          <>
+                            <DropdownMenuItem onSelect={() => setVerifying({ document: doc, decision: "verified" })}>
+                              <BadgeCheck /> Verify
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onSelect={() => setVerifying({ document: doc, decision: "rejected" })}
+                            >
+                              <ShieldX /> Reject
+                            </DropdownMenuItem>
+                          </>
+                        )}
                         {isHr && !own && (
                           <>
                             <DropdownMenuItem onSelect={() => setEditing(doc)}>
@@ -241,6 +324,20 @@ export function DocumentsPanel({
           onUploaded={reload}
         />
       )}
+      {canSelfUpload && (
+        <SelfUploadDialog
+          open={selfUploading}
+          onOpenChange={setSelfUploading}
+          categories={selfCategories.data ?? []}
+          onUploaded={reload}
+        />
+      )}
+      <VerifyDocumentDialog
+        document={verifying?.document ?? null}
+        decision={verifying?.decision ?? "verified"}
+        onOpenChange={(open) => !open && setVerifying(null)}
+        onDone={reload}
+      />
       <EditDocumentDialog
         document={editing}
         onOpenChange={(open) => !open && setEditing(null)}

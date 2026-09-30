@@ -4,17 +4,36 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { halfDayLabel } from "@/components/time/LeaveStatusBadge";
+import { holidayScopeLabel } from "@/components/time/HolidayList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, get } from "@/lib/api";
 import type { Holiday, WhoIsOut } from "@/lib/types";
 import { cn, formatDateRange, initials, parseISODate, toISODate } from "@/lib/utils";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MAX_AVATARS = 3;
+const EVERYONE = "__everyone__";
+const MY_TEAM = "__team__";
+const MY_HOLIDAYS = "mine";
+
+interface DepartmentOption {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
 
 /** Monday-first grid covering the whole month: always whole weeks, at most six. */
 function monthGrid(month: Date): Date[] {
@@ -37,15 +56,31 @@ function monthGrid(month: Date): Date[] {
  * Colleagues outside your reporting line appear without a leave type — the
  * server leaves it out, so there is nothing here to hide. Pending leave is
  * drawn dashed, and only ever arrives for people you are allowed to see it for.
+ * The holidays shown are your own (your state's and office's) unless HR asks
+ * for a state or for every location.
  */
-export function WhoIsOutCalendar({ version }: { version: number }) {
+export function WhoIsOutCalendar({ version, isHr }: { version: number; isHr: boolean }) {
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [people, setPeople] = useState(EVERYONE);
+  const [holidayFilter, setHolidayFilter] = useState(MY_HOLIDAYS);
   const [entries, setEntries] = useState<WhoIsOut[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const departments = useApiQuery<DepartmentOption[]>("/org/departments");
+  const allHolidays = useApiQuery<Holiday[]>(
+    isHr ? `/leave/holidays?year=${month.getFullYear()}&scope=all` : null,
+  );
+  const states = useMemo(
+    () =>
+      Array.from(
+        new Set((allHolidays.data ?? []).map((row) => row.state_code).filter(Boolean)),
+      ).sort() as string[],
+    [allHolidays.data],
+  );
 
   const days = useMemo(() => monthGrid(month), [month]);
   const rangeStart = toISODate(days[0]);
@@ -55,9 +90,18 @@ export function WhoIsOutCalendar({ version }: { version: number }) {
     let cancelled = false;
     setIsLoading(true);
     const years = Array.from(new Set([days[0].getFullYear(), days[days.length - 1].getFullYear()]));
+    const outParams = new URLSearchParams({ start: rangeStart, end: rangeEnd });
+    if (people === MY_TEAM) outParams.set("team", "true");
+    else if (people !== EVERYONE) outParams.set("department_id", people);
+    const holidayScope =
+      holidayFilter === MY_HOLIDAYS
+        ? ""
+        : holidayFilter === EVERYONE
+          ? "&scope=all"
+          : `&state_code=${holidayFilter}`;
     Promise.all([
-      get<WhoIsOut[]>(`/leave/who-is-out?start=${rangeStart}&end=${rangeEnd}`),
-      ...years.map((year) => get<Holiday[]>(`/leave/holidays?year=${year}`)),
+      get<WhoIsOut[]>(`/leave/who-is-out?${outParams}`),
+      ...years.map((year) => get<Holiday[]>(`/leave/holidays?year=${year}${holidayScope}`)),
     ])
       .then(([out, ...holidayLists]) => {
         if (cancelled) return;
@@ -75,7 +119,7 @@ export function WhoIsOutCalendar({ version }: { version: number }) {
     return () => {
       cancelled = true;
     };
-  }, [rangeStart, rangeEnd, days, version]);
+  }, [rangeStart, rangeEnd, days, version, people, holidayFilter]);
 
   const holidaysByDate = useMemo(() => {
     const map = new Map<string, Holiday[]>();
@@ -103,7 +147,7 @@ export function WhoIsOutCalendar({ version }: { version: number }) {
   return (
     <div className="grid gap-4 xl:grid-cols-[1fr_300px]">
       <Card tier="tier1" className="gap-0 py-0">
-        <div className="flex items-center justify-between border-b border-border p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-3">
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon-sm" onClick={() => shift(-1)} aria-label="Previous month">
               <ChevronLeft />
@@ -113,16 +157,50 @@ export function WhoIsOutCalendar({ version }: { version: number }) {
             </Button>
             <p className="ml-2 font-semibold text-foreground">{monthLabel}</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const now = new Date();
-              setMonth(new Date(now.getFullYear(), now.getMonth(), 1));
-            }}
-          >
-            Today
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={people} onValueChange={setPeople}>
+              <SelectTrigger size="sm" className="w-44" aria-label="Whose leave">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={EVERYONE}>Everyone</SelectItem>
+                <SelectItem value={MY_TEAM}>My team</SelectItem>
+                {(departments.data ?? [])
+                  .filter((department) => department.is_active)
+                  .map((department) => (
+                    <SelectItem key={department.id} value={department.id}>
+                      {department.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            {isHr && (
+              <Select value={holidayFilter} onValueChange={setHolidayFilter}>
+                <SelectTrigger size="sm" className="w-44" aria-label="Which holidays">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={MY_HOLIDAYS}>My holidays</SelectItem>
+                  <SelectItem value={EVERYONE}>Every location&apos;s</SelectItem>
+                  {states.map((state) => (
+                    <SelectItem key={state} value={state}>
+                      {state} holidays
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const now = new Date();
+                setMonth(new Date(now.getFullYear(), now.getMonth(), 1));
+              }}
+            >
+              Today
+            </Button>
+          </div>
         </div>
 
         <CardContent className="overflow-x-auto p-0">
@@ -139,7 +217,10 @@ export function WhoIsOutCalendar({ version }: { version: number }) {
               const iso = toISODate(day);
               const outside = day.getMonth() !== month.getMonth();
               const weekend = index % 7 >= 5;
-              const dayHolidays = holidaysByDate.get(iso) ?? [];
+              const dayHolidays = (holidaysByDate.get(iso) ?? []).filter(
+                // An optional holiday is a day off only for those who chose it.
+                (holiday) => !holiday.is_optional || holiday.selected || holidayFilter !== MY_HOLIDAYS,
+              );
               const out = entries.filter(
                 (entry) => entry.start_date <= iso && entry.end_date >= iso,
               );
@@ -165,11 +246,16 @@ export function WhoIsOutCalendar({ version }: { version: number }) {
                   {dayHolidays.map((holiday) => (
                     <p
                       key={holiday.id}
-                      className="mt-1 truncate rounded bg-mustard-100 px-1.5 py-0.5 text-[10px] font-medium text-mustard-900 dark:bg-mustard-900/30 dark:text-mustard-100"
-                      title={`${holiday.name}${holiday.state_code ? ` (${holiday.state_code})` : ""}`}
+                      className={cn(
+                        "mt-1 truncate rounded px-1.5 py-0.5 text-[10px] font-medium",
+                        holiday.is_optional
+                          ? "border border-dashed border-mustard-300 text-mustard-900 dark:text-mustard-100"
+                          : "bg-mustard-100 text-mustard-900 dark:bg-mustard-900/30 dark:text-mustard-100",
+                      )}
+                      title={`${holiday.name} · ${holidayScopeLabel(holiday)}${holiday.is_optional ? " · optional" : ""}`}
                     >
                       {holiday.name}
-                      {holiday.state_code && ` · ${holiday.state_code}`}
+                      {holiday.scope !== "national" && ` · ${holidayScopeLabel(holiday)}`}
                     </p>
                   ))}
                   {isLoading ? (
@@ -178,7 +264,7 @@ export function WhoIsOutCalendar({ version }: { version: number }) {
                     out.length > 0 && (
                       <div className="mt-1.5 flex items-center -space-x-1.5">
                         {out.slice(0, MAX_AVATARS).map((entry) => (
-                          <Tooltip key={`${entry.employee_id}-${entry.start_date}`}>
+                          <Tooltip key={`${entry.employee_id}-${entry.start_date}-${entry.half_day_session ?? ""}`}>
                             <TooltipTrigger asChild>
                               <Avatar
                                 className={cn(
@@ -196,7 +282,7 @@ export function WhoIsOutCalendar({ version }: { version: number }) {
                             <TooltipContent>
                               {entry.employee_name}
                               {entry.leave_type_name ? ` · ${entry.leave_type_name}` : " · Out"}
-                              {entry.is_half_day && " (half day)"}
+                              {entry.is_half_day && ` (${halfDayLabel(entry.half_day_session)})`}
                               {entry.status === "pending" && " · pending"}
                             </TooltipContent>
                           </Tooltip>
@@ -222,12 +308,16 @@ export function WhoIsOutCalendar({ version }: { version: number }) {
           {isLoading ? (
             <Skeleton className="h-24 w-full" />
           ) : inMonth.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nobody is out this month.</p>
+            <p className="text-sm text-muted-foreground">
+              {people === EVERYONE
+                ? "Nobody is out this month."
+                : "Nobody in this group is out this month."}
+            </p>
           ) : (
             <ul className="space-y-2.5">
               {inMonth.map((entry) => (
                 <li
-                  key={`${entry.employee_id}-${entry.start_date}`}
+                  key={`${entry.employee_id}-${entry.start_date}-${entry.half_day_session ?? ""}`}
                   className="flex items-center gap-2.5"
                 >
                   <Avatar className="size-8">
@@ -242,6 +332,7 @@ export function WhoIsOutCalendar({ version }: { version: number }) {
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {formatDateRange(entry.start_date, entry.end_date)}
+                      {entry.is_half_day && ` · ${halfDayLabel(entry.half_day_session)}`}
                       {entry.leave_type_name && ` · ${entry.leave_type_name}`}
                       {entry.status === "pending" && " · pending"}
                     </p>
