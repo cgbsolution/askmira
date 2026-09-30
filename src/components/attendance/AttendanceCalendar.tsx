@@ -52,13 +52,13 @@ import type {
 import { cn, formatDay, formatDays, parseISODate, toISODate } from "@/lib/utils";
 
 import { KIND_LABELS } from "./AttendanceRequestDialog";
+import { PunchLocation } from "./location";
 import {
   formatClock,
   formatMinutes,
   LoadError,
   monthBounds,
   shortTime,
-  STATUS_LABELS,
   StatusBadge,
 } from "./shared";
 
@@ -109,6 +109,18 @@ const TINTS: Record<CellKind, string> = {
     "bg-card text-muted-foreground data-[selected-single=true]:bg-card data-[selected-single=true]:text-muted-foreground",
   before_joining:
     "bg-card text-muted-foreground/60 data-[selected-single=true]:bg-card data-[selected-single=true]:text-muted-foreground/60",
+};
+
+/** Labels short enough for a calendar cell. */
+const SHORT_LABELS: Record<AttendanceStatus, string> = {
+  present: "Present",
+  absent: "Absent",
+  half_day: "Half day",
+  week_off: "Off",
+  holiday: "Holiday",
+  on_leave: "Leave",
+  lop: "LOP",
+  needs_regularisation: "Regularise",
 };
 
 const LEGEND: { kind: CellKind; label: string }[] = [
@@ -212,12 +224,12 @@ export function AttendanceCalendar({
         row.status === "present" || row.status === "half_day"
           ? row.first_in && row.last_out
             ? `${formatClock(row.first_in)}–${formatClock(row.last_out)}`
-            : STATUS_LABELS[row.status]
+            : SHORT_LABELS[row.status]
           : row.status === "holiday"
             ? (holiday ?? "Holiday")
             : row.status === "on_leave" && leave
               ? leave.leave_type
-              : STATUS_LABELS[row.status];
+              : SHORT_LABELS[row.status];
       return { ...base, kind: row.status, label: times };
     }
     if (data?.date_of_joining && iso < data.date_of_joining) {
@@ -229,10 +241,10 @@ export function AttendanceCalendar({
     if (iso === today) return { ...base, kind: "today", label: "Today" };
     const weekOffs = data?.shift_today?.weekly_off_days ?? [];
     if (iso > today) {
-      if (weekOffs.includes(isoWeekday(iso))) return { ...base, kind: "week_off", label: "Week off" };
+      if (weekOffs.includes(isoWeekday(iso))) return { ...base, kind: "week_off", label: "Off" };
       return { ...base, kind: "upcoming", label: "" };
     }
-    return { ...base, kind: "not_computed", label: "Not computed" };
+    return { ...base, kind: "not_computed", label: "—" };
   };
 
   const selectedInfo = describe(selected);
@@ -244,7 +256,7 @@ export function AttendanceCalendar({
       <CalendarDayButton
         {...props}
         className={cn(
-          "aspect-auto h-full min-h-14 items-stretch justify-start gap-0.5 rounded-md border border-transparent p-1.5 text-left sm:min-h-20 [&>span]:opacity-100",
+          "aspect-auto h-full min-h-12 w-full min-w-0 items-stretch justify-start gap-1 overflow-hidden rounded-md border border-transparent p-1.5 text-left sm:min-h-[4.5rem] [&>span]:opacity-100",
           "data-[selected-single=true]:border-primary data-[selected-single=true]:ring-2 data-[selected-single=true]:ring-primary/30",
           TINTS[info.kind],
         )}
@@ -255,7 +267,9 @@ export function AttendanceCalendar({
             <span aria-label="Request pending" className="size-1.5 rounded-full bg-accent" />
           )}
         </span>
-        <span className="hidden truncate text-[10px] leading-tight sm:block">{info.label}</span>
+        <span className="hidden min-w-0 truncate text-[11px] leading-tight font-medium sm:block">
+          {info.label}
+        </span>
       </CalendarDayButton>
     );
   };
@@ -273,8 +287,8 @@ export function AttendanceCalendar({
         </CardTitle>
         <CardDescription>
           {data?.shift_today
-            ? `On ${data.shift_today.name} (${shortTime(data.shift_today.start_time)}–${shortTime(data.shift_today.end_time)})${data.shift_today_is_default ? ", the company default" : ""}. Days are computed the night after from punches, shift, leave and holidays.`
-            : "Days are computed the night after from punches, shift, leave and holidays."}
+            ? `${data.shift_today.name} ${shortTime(data.shift_today.start_time)}–${shortTime(data.shift_today.end_time)}${data.shift_today_is_default ? " (company default)" : ""}. Each day is judged once it is over, from punches, shift, leave and holidays.`
+            : "Each day is judged once it is over, from punches, shift, leave and holidays."}
         </CardDescription>
         <CardAction>
           <Button
@@ -347,7 +361,7 @@ export function AttendanceCalendar({
             </CardContent>
 
             <TabsContent value="calendar">
-              <CardContent className="grid gap-6 pb-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <CardContent className="grid gap-6 pb-6 xl:grid-cols-[minmax(0,1fr)_300px]">
                 <div className="min-w-0">
                   <Calendar
                     mode="single"
@@ -358,14 +372,17 @@ export function AttendanceCalendar({
                     onSelect={(date) => date && setSelected(toISODate(date))}
                     showOutsideDays={false}
                     weekStartsOn={1}
-                    className="w-full p-0 [--cell-size:--spacing(10)]"
+                    className="w-full p-0 [--cell-size:--spacing(9)]"
                     classNames={{
                       root: "w-full",
                       months: "relative flex w-full flex-col",
-                      month: "flex w-full flex-col gap-3",
+                      month: "flex w-full min-w-0 flex-col gap-3",
+                      month_grid: "w-full table-fixed border-collapse",
                       week: "mt-1.5 flex w-full gap-1.5",
                       weekdays: "flex gap-1.5",
-                      day: "relative w-full p-0 select-none",
+                      weekday:
+                        "min-w-0 flex-1 rounded-md text-[0.8rem] font-medium text-muted-foreground select-none",
+                      day: "relative min-w-0 flex-1 p-0 select-none",
                       today: "",
                     }}
                     components={{ DayButton: DayCell }}
@@ -400,6 +417,7 @@ export function AttendanceCalendar({
             <TabsContent value="list">
               <DayList
                 days={data.days}
+                shifts={shifts}
                 today={today}
                 isLocked={data.is_locked}
                 onRequest={onRequest}
@@ -549,16 +567,20 @@ function DayDetail({
             ) : (punches.data ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground">No punches recorded.</p>
             ) : (
-              <ul className="flex flex-wrap gap-1.5">
+              <ul className="grid gap-1.5">
                 {(punches.data ?? []).map((punch) => (
                   <li
                     key={punch.id}
-                    className="flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs"
+                    className="flex flex-col gap-0.5 rounded-md border border-border px-2.5 py-1.5"
                   >
-                    <Badge variant={punch.direction === "in" ? "success" : "secondary"}>
-                      {punch.direction === "in" ? "In" : "Out"}
-                    </Badge>
-                    <span className="tabular-nums">{formatClock(punch.punched_at)}</span>
+                    <span className="flex items-center gap-1.5 text-xs">
+                      <Badge variant={punch.direction === "in" ? "success" : "secondary"}>
+                        {punch.direction === "in" ? "In" : "Out"}
+                      </Badge>
+                      <span className="font-medium tabular-nums">{formatClock(punch.punched_at)}</span>
+                      <span className="text-muted-foreground">{punch.source.replace("_", " ")}</span>
+                    </span>
+                    <PunchLocation punch={punch} />
                   </li>
                 ))}
               </ul>
@@ -624,13 +646,80 @@ function DayDetail({
   );
 }
 
+/** Hours on the log's strip: 06:00 to midnight, one cell per hour. */
+const STRIP_START_HOUR = 6;
+const STRIP_HOURS = 18;
+
+function hourOf(iso: string): number {
+  const at = new Date(iso);
+  return at.getHours() + at.getMinutes() / 60;
+}
+
+function clockHours(hhmmss: string): number {
+  const [hours, minutes] = hhmmss.split(":").map(Number);
+  return hours + minutes / 60;
+}
+
+function overlap(a0: number, a1: number, b0: number, b1: number): number {
+  return Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
+}
+
+/**
+ * The day at a glance: each hour from 06:00 is a cell — worked (filled),
+ * scheduled but not worked (tinted), or neither. Cells rather than a sized
+ * bar keep it to static classes.
+ */
+function HourStrip({ day, shift }: { day: AttendanceDay; shift: ShiftBrief | null }) {
+  const worked =
+    day.first_in && day.last_out
+      ? [hourOf(day.first_in), Math.max(hourOf(day.first_in), hourOf(day.last_out) || 24)]
+      : null;
+  let scheduled: [number, number] | null = null;
+  if (shift) {
+    const from = clockHours(shift.start_time);
+    const to = clockHours(shift.end_time);
+    scheduled = [from, to > from ? to : 24];
+  }
+  return (
+    <div className="w-40 xl:w-56">
+      <div className="grid grid-cols-[repeat(18,minmax(0,1fr))] gap-px overflow-hidden rounded-full">
+        {Array.from({ length: STRIP_HOURS }, (_, index) => {
+          const hour = STRIP_START_HOUR + index;
+          const isWorked = worked !== null && overlap(hour, hour + 1, worked[0], worked[1]) >= 0.5;
+          const isScheduled =
+            scheduled !== null && overlap(hour, hour + 1, scheduled[0], scheduled[1]) >= 0.5;
+          return (
+            <span
+              key={hour}
+              className={cn(
+                "h-2",
+                isWorked ? "bg-mint-500" : isScheduled ? "bg-mint-100 dark:bg-mint-900/50" : "bg-muted",
+              )}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-0.5 flex justify-between text-[10px] text-muted-foreground tabular-nums">
+        <span>06</span>
+        <span>12</span>
+        <span>18</span>
+        <span>24</span>
+      </div>
+    </div>
+  );
+}
+
+const weekdayShort = new Intl.DateTimeFormat("en-IN", { weekday: "short" });
+
 function DayList({
   days,
+  shifts,
   today,
   isLocked,
   onRequest,
 }: {
   days: AttendanceDay[];
+  shifts: Map<string, ShiftBrief>;
   today: string;
   isLocked: boolean;
   onRequest?: (
@@ -646,8 +735,8 @@ function DayList({
     return (
       <EmptyState
         icon={ClipboardList}
-        title="No attendance days computed for this month"
-        description="Days are computed the night after they happen, from punches, shift, leave and holidays."
+        title="No attendance days yet this month"
+        description="A day appears here once it is over and judged, from punches, shift, leave and holidays."
       />
     );
   }
@@ -655,14 +744,12 @@ function DayList({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="pl-6">Date</TableHead>
+          <TableHead className="pl-6">Day</TableHead>
           <TableHead>Status</TableHead>
-          <TableHead>First in</TableHead>
-          <TableHead>Last out</TableHead>
+          <TableHead className="hidden lg:table-cell">Timeline</TableHead>
+          <TableHead>In – Out</TableHead>
           <TableHead>Worked</TableHead>
-          <TableHead>Late by</TableHead>
-          <TableHead>Overtime</TableHead>
-          <TableHead>Note</TableHead>
+          <TableHead className="hidden md:table-cell">Arrival</TableHead>
           {onRequest && (
             <TableHead className="pr-6 text-right">
               <span className="sr-only">Actions</span>
@@ -671,51 +758,76 @@ function DayList({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {sorted.map((day) => (
-          <TableRow key={day.id}>
-            <TableCell className="pl-6 whitespace-nowrap">{formatDay(day.attendance_date)}</TableCell>
-            <TableCell>
-              <div className="flex flex-wrap items-center gap-1">
-                <StatusBadge status={day.status} />
-                {day.is_regularised && <Badge variant="outline">Regularised</Badge>}
-              </div>
-            </TableCell>
-            <TableCell className="tabular-nums">{formatClock(day.first_in)}</TableCell>
-            <TableCell className="tabular-nums">{formatClock(day.last_out)}</TableCell>
-            <TableCell className="tabular-nums">{formatMinutes(day.worked_minutes)}</TableCell>
-            <TableCell className="tabular-nums">
-              {day.late_by_minutes > 0 ? formatMinutes(day.late_by_minutes) : "—"}
-            </TableCell>
-            <TableCell className="tabular-nums">
-              {day.overtime_minutes > 0 ? formatMinutes(day.overtime_minutes) : "—"}
-            </TableCell>
-            <TableCell className="max-w-64 whitespace-normal text-muted-foreground">
-              {day.computation_note ?? "—"}
-            </TableCell>
-            {onRequest && (
-              <TableCell className="pr-6 text-right">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={day.attendance_date > today}
-                  onClick={() =>
-                    onRequest(
-                      day.status === "needs_regularisation" ? "missed_punch" : "status_change",
-                      day.attendance_date,
-                      day,
-                      isLocked,
-                      today,
-                    )
-                  }
-                >
-                  Regularise
-                </Button>
+        {sorted.map((day) => {
+          const shift = day.shift_id ? (shifts.get(day.shift_id) ?? null) : null;
+          const judged = day.status === "present" || day.status === "half_day";
+          return (
+            <TableRow key={day.id}>
+              <TableCell className="pl-6 whitespace-nowrap">
+                <span className="block font-medium">{formatDay(day.attendance_date)}</span>
+                <span className="text-xs text-muted-foreground">
+                  {weekdayShort.format(parseISODate(day.attendance_date))}
+                </span>
               </TableCell>
-            )}
-          </TableRow>
-        ))}
+              <TableCell>
+                <div className="flex flex-col items-start gap-1">
+                  <StatusBadge status={day.status} />
+                  {day.is_regularised && <Badge variant="outline">Regularised</Badge>}
+                </div>
+              </TableCell>
+              <TableCell className="hidden lg:table-cell">
+                <HourStrip day={day} shift={shift} />
+              </TableCell>
+              <TableCell className="whitespace-nowrap tabular-nums">
+                {day.first_in || day.last_out
+                  ? `${formatClock(day.first_in)} – ${formatClock(day.last_out)}`
+                  : "—"}
+              </TableCell>
+              <TableCell className="tabular-nums">
+                {day.worked_minutes > 0 ? formatMinutes(day.worked_minutes) : "—"}
+                {day.overtime_minutes > 0 && (
+                  <span className="block text-xs text-muted-foreground">
+                    +{formatMinutes(day.overtime_minutes)} overtime
+                  </span>
+                )}
+              </TableCell>
+              <TableCell className="hidden md:table-cell">
+                {!judged ? (
+                  <span className="text-xs text-muted-foreground">
+                    {day.computation_note ?? "—"}
+                  </span>
+                ) : day.late_by_minutes > 0 ? (
+                  <Badge variant="warning">Late {formatMinutes(day.late_by_minutes)}</Badge>
+                ) : (
+                  <Badge variant="success">On time</Badge>
+                )}
+              </TableCell>
+              {onRequest && (
+                <TableCell className="pr-6 text-right">
+                  {!["week_off", "holiday", "on_leave"].includes(day.status) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={day.attendance_date > today}
+                    onClick={() =>
+                      onRequest(
+                        day.status === "needs_regularisation" ? "missed_punch" : "status_change",
+                        day.attendance_date,
+                        day,
+                        isLocked,
+                        today,
+                      )
+                    }
+                  >
+                    <PencilLine /> Regularise
+                  </Button>
+                  )}
+                </TableCell>
+              )}
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
   );
 }
-

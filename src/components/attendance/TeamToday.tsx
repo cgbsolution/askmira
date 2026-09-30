@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, RefreshCw, Users } from "lucide-react";
+import { CalendarDays, MapPin, MapPinOff, RefreshCw, Users } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
 import { DataPanel } from "@/components/common/DataPanel";
@@ -177,10 +177,29 @@ export function TeamToday() {
                   </div>
                 </TableCell>
                 <TableCell className="tabular-nums">{formatClock(member.first_in)}</TableCell>
-                <TableCell className="tabular-nums">
-                  {member.last_punch_at
-                    ? `${formatClock(member.last_punch_at)} ${member.last_direction === "in" ? "in" : "out"}`
-                    : "—"}
+                <TableCell>
+                  {member.last_punch_at ? (
+                    <div className="flex flex-col gap-0.5">
+                      <span className="tabular-nums">
+                        {formatClock(member.last_punch_at)} {member.last_direction === "in" ? "in" : "out"}
+                      </span>
+                      <span
+                        className={cn(
+                          "flex items-center gap-1 text-xs",
+                          member.last_punch_outside
+                            ? "text-mustard-900 dark:text-mustard-100"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        {member.last_punch_location ? <MapPin className="size-3" /> : <MapPinOff className="size-3" />}
+                        {member.last_punch_location
+                          ? `${member.last_punch_outside ? "Away from" : "At"} ${member.last_punch_location}`
+                          : "No location"}
+                      </span>
+                    </div>
+                  ) : (
+                    "—"
+                  )}
                 </TableCell>
                 <TableCell className="tabular-nums">
                   {member.late_by_minutes > 0 ? (

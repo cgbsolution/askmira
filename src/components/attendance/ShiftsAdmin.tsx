@@ -9,6 +9,7 @@ import { ImportPunchesTab } from "./ImportPunchesTab";
 import { PeriodsTab } from "./PeriodsTab";
 import { RostersTab } from "./RostersTab";
 import { ShiftsTab } from "./ShiftsTab";
+import { LocationPolicyCard } from "./LocationPolicyCard";
 import { WorkLocationsTab } from "./WorkLocationsTab";
 
 /**
@@ -43,7 +44,10 @@ export function ShiftsAdmin() {
         <ImportPunchesTab />
       </TabsContent>
       <TabsContent value="locations" className="mt-4">
-        <WorkLocationsTab />
+        <div className="flex flex-col gap-6">
+          <LocationPolicyCard />
+          <WorkLocationsTab />
+        </div>
       </TabsContent>
     </Tabs>
   );

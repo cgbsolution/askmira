@@ -231,7 +231,7 @@ function MyRegularisations({
                     ? `${formatClock(row.requested_first_in)} – ${formatClock(row.requested_last_out)}`
                     : "—"}
                 </TableCell>
-                <TableCell className="max-w-64 whitespace-normal">{row.reason}</TableCell>
+                <TableCell className="min-w-48 max-w-72 whitespace-normal">{row.reason}</TableCell>
                 <TableCell>
                   <RegularisationStatusBadge status={row.status} />
                 </TableCell>

@@ -47,7 +47,19 @@ export interface Punch {
   source: PunchSource;
   device_id: string | null;
   outside_geofence: boolean;
+  /** Metres beyond the nearest work location's edge; negative inside it. */
   nearest_location_metres: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  /** The nearest work location's name when the punch was made. */
+  location_label: string | null;
+}
+
+/** How punches record location in this workspace. */
+export type LocationMode = "off" | "optional" | "required";
+
+export interface AttendanceSettings {
+  location_mode: LocationMode;
 }
 
 export interface AttendanceDay {
@@ -151,6 +163,8 @@ export interface TeamMemberToday {
   first_in: string | null;
   last_punch_at: string | null;
   last_direction: PunchDirection | null;
+  last_punch_location: string | null;
+  last_punch_outside: boolean;
   shift_name: string | null;
   shift_start: string | null;
   late_by_minutes: number;
