@@ -1,10 +1,10 @@
 "use client";
 
 import { ExternalLink, MapPin, MapPinOff } from "lucide-react";
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import type { Punch } from "@/lib/types/attendance";
+import type { Punch, WorkLocationPin } from "@/lib/types/attendance";
 import { cn } from "@/lib/utils";
 
 /** 850 → "850 m", 2340 → "2.3 km". */
@@ -64,4 +64,80 @@ export function PunchLocation({ punch, className }: { punch: Punch; className?: 
       )}
     </span>
   );
+}
+
+const EARTH_RADIUS_METRES = 6_371_000;
+
+/** Great-circle distance in metres; the same formula the API uses for geofences. */
+export function haversineMetres(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dPhi = toRad(lat2 - lat1);
+  const dLambda = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dPhi / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLambda / 2) ** 2;
+  return 2 * EARTH_RADIUS_METRES * Math.asin(Math.sqrt(a));
+}
+
+/** The work location whose edge is nearest, and how far beyond it (negative inside). */
+export function nearestPlace(
+  latitude: number,
+  longitude: number,
+  places: WorkLocationPin[],
+): { place: WorkLocationPin; beyond: number } | null {
+  let best: { place: WorkLocationPin; beyond: number } | null = null;
+  for (const place of places) {
+    const beyond =
+      haversineMetres(latitude, longitude, place.latitude, place.longitude) - place.radius_metres;
+    if (!best || beyond < best.beyond) best = { place, beyond };
+  }
+  return best;
+}
+
+export interface LivePositionState {
+  position: { latitude: number; longitude: number; accuracy: number; at: number } | null;
+  error: string | null;
+}
+
+/**
+ * Where the browser says this person is, kept current while `enabled`.
+ * Asks for permission the first time; stops watching when disabled or unmounted.
+ */
+export function useLivePosition(enabled: boolean): LivePositionState {
+  const [state, setState] = useState<LivePositionState>({ position: null, error: null });
+  useEffect(() => {
+    if (!enabled) {
+      setState({ position: null, error: null });
+      return;
+    }
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setState({ position: null, error: "This browser cannot share a location." });
+      return;
+    }
+    const id = navigator.geolocation.watchPosition(
+      (found) =>
+        setState({
+          position: {
+            latitude: found.coords.latitude,
+            longitude: found.coords.longitude,
+            accuracy: found.coords.accuracy,
+            at: Date.now(),
+          },
+          error: null,
+        }),
+      (failure) =>
+        setState((current) => ({
+          position: current.position,
+          error:
+            failure.code === failure.PERMISSION_DENIED
+              ? "Location access is blocked for this site. Allow it from the lock icon in the address bar."
+              : failure.code === failure.TIMEOUT
+                ? "Still finding your location…"
+                : "Your location is not available right now.",
+        })),
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, [enabled]);
+  return state;
 }

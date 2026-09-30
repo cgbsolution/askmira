@@ -30,6 +30,7 @@ const apiOrigin = new URL(apiTarget).origin;
  *   bootstrap scripts Next.js emits; `'unsafe-eval'` only in development, for
  *   fast refresh.
  * - The browser may talk to this origin and the API, nothing else.
+ * - Map tiles for attendance locations come from OpenStreetMap, as images only.
  * - Documents such as offer letters are previewed in a sandboxed iframe
  *   (`srcdoc` or a blob), never injected into the page.
  * - Nobody may frame the portal.
@@ -38,7 +39,7 @@ const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.supabase.co",
+  "img-src 'self' data: blob: https://*.supabase.co https://tile.openstreetmap.org",
   "font-src 'self' data:",
   `connect-src 'self' ${apiOrigin}${isDev ? " ws://localhost:* http://localhost:*" : ""}`,
   "frame-src 'self' blob:",

@@ -28,7 +28,7 @@ import { Switch } from "@/components/ui/switch";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type {
-  AttendanceSettings,
+  AttendanceSettingsRead,
   MyAttendancePeriod,
   Punch,
   PunchInput,
@@ -36,7 +36,8 @@ import type {
 } from "@/lib/types/attendance";
 import { cn, toISODate } from "@/lib/utils";
 
-import { formatDistance, PunchLocation } from "./location";
+import { AttendanceMap, type MapPoint } from "./AttendanceMap";
+import { formatDistance, nearestPlace, PunchLocation, useLivePosition } from "./location";
 import { errorDetail, formatClock, formatMinutes, LoadError, shortTime } from "./shared";
 
 // A punch-in older than this is a forgotten punch-out, not a shift in
@@ -183,7 +184,7 @@ export function PunchCard({
   const periodQuery = useApiQuery<MyAttendancePeriod>(
     `/attendance/period?from=${today}&to=${today}`,
   );
-  const settingsQuery = useApiQuery<AttendanceSettings>("/attendance/settings");
+  const settingsQuery = useApiQuery<AttendanceSettingsRead>("/attendance/settings");
   const [sharePreference, setSharePreference] = useState(true);
   const [isPunching, setIsPunching] = useState(false);
   const [locationProblem, setLocationProblem] = useState<string | null>(null);
@@ -192,6 +193,11 @@ export function PunchCard({
 
   const mode = settingsQuery.data?.location_mode ?? "optional";
   const shareLocation = mode === "required" || (mode === "optional" && sharePreference);
+  const places = settingsQuery.data?.work_locations ?? [];
+  const live = useLivePosition(shareLocation && settingsQuery.data !== null);
+  const livePlace = live.position
+    ? nearestPlace(live.position.latitude, live.position.longitude, places)
+    : null;
 
   const punches = useMemo(
     () =>
@@ -234,7 +240,10 @@ export function PunchCard({
     // From the portal, with or without a location, it is a web punch.
     const body: PunchInput = { direction: nextDirection, source: "web" };
     if (shareLocation) {
-      const position = await requestPosition();
+      const fresh = live.position && Date.now() - live.position.at < 60_000 ? live.position : null;
+      const position: PositionResult = fresh
+        ? { ok: true, latitude: fresh.latitude, longitude: fresh.longitude }
+        : await requestPosition();
       if (position.ok) {
         body.latitude = position.latitude;
         body.longitude = position.longitude;
@@ -272,6 +281,17 @@ export function PunchCard({
       setIsPunching(false);
     }
   };
+
+  const mapPoints: MapPoint[] = shown
+    .filter((row) => row.latitude !== null && row.longitude !== null)
+    .map((row) => ({
+      id: row.id,
+      latitude: row.latitude as number,
+      longitude: row.longitude as number,
+      label: `${row.direction === "in" ? "In" : "Out"} ${formatClock(row.punched_at)}`,
+      kind: row.direction,
+    }));
+  const showMap = !compact && (mode !== "off" || mapPoints.length > 0);
 
   const isLoading = punchesQuery.isLoading && !punchesQuery.data;
   const error = punchesQuery.error;
@@ -360,7 +380,7 @@ export function PunchCard({
         </div>
 
         {/* Punch */}
-        <div className="flex flex-col items-stretch gap-2 lg:items-end">
+        <div className="flex flex-col items-stretch gap-2 lg:max-w-60 lg:items-end">
           <Button
             onClick={() => void punch()}
             disabled={isPunching || isLoading || error !== null}
@@ -372,6 +392,17 @@ export function PunchCard({
             {isPunching && shareLocation ? "Locating…" : nextDirection === "in" ? "Punch in" : "Punch out"}
           </Button>
           {locationLine}
+          {shareLocation && (
+            <p className="text-xs text-muted-foreground lg:text-right">
+              {live.position
+                ? livePlace
+                  ? livePlace.beyond <= 0
+                    ? `Inside ${livePlace.place.name}`
+                    : `${formatDistance(livePlace.beyond)} from ${livePlace.place.name}`
+                  : `Location found (±${Math.round(live.position.accuracy)} m)`
+                : (live.error ?? "Finding your location…")}
+            </p>
+          )}
         </div>
       </CardContent>
 
@@ -417,7 +448,21 @@ export function PunchCard({
       {!compact && !isLoading && !error && (
         <>
           <Separator />
-          <CardContent className="px-5 py-4 lg:px-6">
+          <CardContent
+            className={cn(
+              "grid gap-5 px-5 py-4 lg:px-6",
+              showMap && "lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]",
+            )}
+          >
+            {showMap && (
+              <AttendanceMap
+                className="h-72 lg:h-80"
+                places={places}
+                points={mapPoints}
+                live={live.position}
+              />
+            )}
+            <div className="min-w-0">
             <p className="mb-3 text-sm font-medium">Today&apos;s punches</p>
             {shown.length === 0 ? (
               <EmptyState
@@ -427,7 +472,7 @@ export function PunchCard({
                 description="Punches from this screen, the mobile app and biometric devices appear here."
               />
             ) : (
-              <ol className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <ol className={cn("grid gap-2", showMap ? "grid-cols-1" : "sm:grid-cols-2 xl:grid-cols-3")}>
                 {shown.map((row) => (
                   <li
                     key={row.id}
@@ -454,6 +499,7 @@ export function PunchCard({
                 ))}
               </ol>
             )}
+            </div>
           </CardContent>
         </>
       )}

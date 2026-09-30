@@ -52,6 +52,7 @@ import type {
 import { cn, formatDay, formatDays, parseISODate, toISODate } from "@/lib/utils";
 
 import { KIND_LABELS } from "./AttendanceRequestDialog";
+import { AttendanceMap } from "./AttendanceMap";
 import { PunchLocation } from "./location";
 import {
   formatClock,
@@ -584,6 +585,22 @@ function DayDetail({
                   </li>
                 ))}
               </ul>
+            )}
+            {(punches.data ?? []).some((p) => p.latitude !== null) && (
+              <AttendanceMap
+                className="mt-3 h-44"
+                places={[]}
+                live={null}
+                points={(punches.data ?? [])
+                  .filter((p) => p.latitude !== null && p.longitude !== null)
+                  .map((p) => ({
+                    id: p.id,
+                    latitude: p.latitude as number,
+                    longitude: p.longitude as number,
+                    label: `${p.direction === "in" ? "In" : "Out"} ${formatClock(p.punched_at)}`,
+                    kind: p.direction,
+                  }))}
+              />
             )}
           </div>
         </>

@@ -7,6 +7,7 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { PersonCell } from "@/components/common/PersonCell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -18,10 +19,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import type { TeamMemberState, TeamMemberToday, TeamToday as TeamTodayData } from "@/lib/types/attendance";
+import type {
+  AttendanceSettingsRead,
+  TeamMemberState,
+  TeamMemberToday,
+  TeamToday as TeamTodayData,
+} from "@/lib/types/attendance";
 import { cn, formatDay } from "@/lib/utils";
 
 import { AttendanceCalendar } from "./AttendanceCalendar";
+import { AttendanceMap, type MapPoint } from "./AttendanceMap";
 import { formatClock, formatMinutes, shortTime } from "./shared";
 
 type BadgeVariant = React.ComponentProps<typeof Badge>["variant"];
@@ -85,6 +92,17 @@ export function TeamToday() {
       );
     });
   }, [data, filter, search]);
+
+  const settings = useApiQuery<AttendanceSettingsRead>("/attendance/settings");
+  const located: MapPoint[] = (data?.members ?? [])
+    .filter((m) => m.last_punch_latitude !== null && m.last_punch_longitude !== null)
+    .map((m) => ({
+      id: m.employee_id,
+      latitude: m.last_punch_latitude as number,
+      longitude: m.last_punch_longitude as number,
+      label: `${m.employee_name} · ${formatClock(m.last_punch_at)} ${m.last_direction === "in" ? "in" : "out"}`,
+      kind: m.last_punch_outside ? "person-away" : "person",
+    }));
 
   const count = (key: (typeof FILTERS)[number]["key"]) => {
     if (!data) return 0;
@@ -223,6 +241,28 @@ export function TeamToday() {
           </TableBody>
         </Table>
       </DataPanel>
+
+      {located.length > 0 && (
+        <Card tier="tier1" className="mt-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MapPin className="size-4 text-primary" /> Where people punched today
+            </CardTitle>
+            <CardDescription>
+              Last punch of each person who shared a location. Amber marks a punch outside every
+              work location.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AttendanceMap
+              className="h-96"
+              places={settings.data?.work_locations ?? []}
+              live={null}
+              points={located}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       <Sheet open={viewing !== null} onOpenChange={(open) => !open && setViewing(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-4xl">

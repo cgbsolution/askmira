@@ -62,6 +62,18 @@ export interface AttendanceSettings {
   location_mode: LocationMode;
 }
 
+/** A work location as the punch map draws it. */
+export interface WorkLocationPin {
+  name: string;
+  latitude: number;
+  longitude: number;
+  radius_metres: number;
+}
+
+export interface AttendanceSettingsRead extends AttendanceSettings {
+  work_locations: WorkLocationPin[];
+}
+
 export interface AttendanceDay {
   id: string;
   employee_id: string;
@@ -165,6 +177,8 @@ export interface TeamMemberToday {
   last_direction: PunchDirection | null;
   last_punch_location: string | null;
   last_punch_outside: boolean;
+  last_punch_latitude: number | null;
+  last_punch_longitude: number | null;
   shift_name: string | null;
   shift_start: string | null;
   late_by_minutes: number;
