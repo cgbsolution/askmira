@@ -92,6 +92,8 @@ export const NAV: NavSection[] = [
       { name: "My onboarding", path: "/onboarding", roles: EVERYONE },
       { name: "My tasks", path: "/onboarding/tasks", roles: EVERYONE },
       { name: "New joiners", path: "/onboarding/plans", roles: HR },
+      { name: "Asset assignment", path: "/onboarding/assets", roles: HR },
+      { name: "Document entry", path: "/onboarding/documents", roles: HR },
       { name: "Checklists", path: "/onboarding/templates", roles: HR },
     ],
   },

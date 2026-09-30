@@ -217,7 +217,8 @@ export function DocumentsPanel({
               {showEmployee && <TableHead>Employee</TableHead>}
               <TableHead>Category</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Valid until</TableHead>
+              <TableHead>Issued</TableHead>
+              <TableHead>Expires</TableHead>
               <TableHead>Size</TableHead>
               <TableHead>Added</TableHead>
               <TableHead className="w-12" />
@@ -253,6 +254,13 @@ export function DocumentsPanel({
                   <TableCell>
                     {state ? (
                       <Badge variant={state.variant}>{state.label}</Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {doc.issued_on ? (
+                      formatDay(doc.issued_on, true)
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}

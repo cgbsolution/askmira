@@ -27,6 +27,8 @@ export interface VaultDocument {
   title: string;
   mime_type: string | null;
   file_size_bytes: number | null;
+  /** When the document was issued; `valid_until` is when it expires. */
+  issued_on: string | null;
   valid_until: string | null;
   is_expired: boolean;
   is_employee_visible: boolean;

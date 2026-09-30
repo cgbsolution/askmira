@@ -97,7 +97,7 @@ function ActionDialog({
   );
 }
 
-function ConditionSelect({
+export function ConditionSelect({
   id,
   value,
   onChange,

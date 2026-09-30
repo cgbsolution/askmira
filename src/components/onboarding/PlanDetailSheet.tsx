@@ -13,6 +13,7 @@ import {
   ProgressRing,
   ReasonDialog,
 } from "@/components/onboarding/shared";
+import { JoinerAssets, JoinerDocuments } from "@/components/onboarding/JoinerAssetsDocs";
 import { PhasedTaskList } from "@/components/onboarding/TaskList";
 import { apiErrorMessage, InlineProblem, QueryBoundary } from "@/components/payroll-ops/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -47,6 +48,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { patch, post } from "@/lib/api";
 import type {
@@ -164,6 +166,19 @@ function PlanDetail({ plan, onChanged }: { plan: OnboardingPlanDetail; onChanged
         </Alert>
       )}
 
+      <Tabs defaultValue="checklist">
+        <TabsList>
+          <TabsTrigger value="checklist">Checklist</TabsTrigger>
+          <TabsTrigger value="assets">Assets</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+        </TabsList>
+        <TabsContent value="assets" className="mt-4">
+          <JoinerAssets employeeId={plan.employee_id} employeeName={plan.employee_name} />
+        </TabsContent>
+        <TabsContent value="documents" className="mt-4">
+          <JoinerDocuments employeeId={plan.employee_id} employeeName={plan.employee_name} />
+        </TabsContent>
+        <TabsContent value="checklist" className="mt-4">
       <PhasedTaskList
         tasks={plan.tasks}
         showDocument
@@ -193,6 +208,8 @@ function PlanDetail({ plan, onChanged }: { plan: OnboardingPlanDetail; onChanged
           ) : null
         }
       />
+        </TabsContent>
+      </Tabs>
 
       {manageable && plan.status === "in_progress" && (
         <div className="flex justify-end border-t border-border pt-4">

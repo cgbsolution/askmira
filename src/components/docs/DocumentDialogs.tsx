@@ -35,6 +35,11 @@ const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = "application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg";
 
 /** HR uploads a document to one employee's vault. The server re-checks size and type. */
+function todayIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export function UploadDocumentDialog({
   open,
   onOpenChange,
@@ -52,6 +57,7 @@ export function UploadDocumentDialog({
   const [person, setPerson] = useState<PickedEmployee | null>(employee ?? null);
   const [category, setCategory] = useState<DocumentCategory | "">("");
   const [title, setTitle] = useState("");
+  const [issuedOn, setIssuedOn] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [visible, setVisible] = useState(true);
   const [file, setFile] = useState<File | null>(null);
@@ -64,6 +70,7 @@ export function UploadDocumentDialog({
     setPerson(employee ?? null);
     setCategory("");
     setTitle("");
+    setIssuedOn("");
     setValidUntil("");
     setVisible(true);
     setFile(null);
@@ -88,6 +95,7 @@ export function UploadDocumentDialog({
     form.set("category", category);
     form.set("title", title.trim());
     form.set("is_employee_visible", visible ? "true" : "false");
+    if (issuedOn) form.set("issued_on", issuedOn);
     if (validUntil) form.set("valid_until", validUntil);
     form.set("file", file);
 
@@ -146,14 +154,19 @@ export function UploadDocumentDialog({
               onChange={(event) => setTitle(event.target.value)}
             />
           </FormField>
-          <FormField htmlFor="doc-valid" label="Valid until" optional hint="For passports, visas, certificates.">
-            <Input
-              id="doc-valid"
-              type="date"
-              value={validUntil}
-              onChange={(event) => setValidUntil(event.target.value)}
-            />
-          </FormField>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField htmlFor="doc-issued" label="Issued on" optional>
+              <DatePicker id="doc-issued" value={issuedOn || null} max={todayIso()} onChange={setIssuedOn} />
+            </FormField>
+            <FormField htmlFor="doc-valid" label="Expires on" optional hint="Passports, visas, licences.">
+              <DatePicker
+                id="doc-valid"
+                value={validUntil || null}
+                min={issuedOn || undefined}
+                onChange={setValidUntil}
+              />
+            </FormField>
+          </div>
           <FormField htmlFor="doc-file" label="File" error={errors.file}>
             <Input
               id="doc-file"
@@ -204,6 +217,7 @@ export function EditDocumentDialog({
 }) {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
+  const [issuedOn, setIssuedOn] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [visible, setVisible] = useState(true);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -213,6 +227,7 @@ export function EditDocumentDialog({
     if (!document) return;
     setTitle(document.title);
     setCategory(document.category);
+    setIssuedOn(document.issued_on ?? "");
     setValidUntil(document.valid_until ?? "");
     setVisible(document.is_employee_visible);
     setServerError(null);
@@ -230,6 +245,7 @@ export function EditDocumentDialog({
       await patch(`/documents/${document.id}`, {
         title: title.trim(),
         category,
+        issued_on: issuedOn || null,
         valid_until: validUntil || null,
         is_employee_visible: visible,
       });
@@ -273,14 +289,24 @@ export function EditDocumentDialog({
               </SelectContent>
             </Select>
           </FormField>
-          <FormField htmlFor="edit-doc-valid" label="Valid until" optional>
-            <Input
-              id="edit-doc-valid"
-              type="date"
-              value={validUntil}
-              onChange={(e) => setValidUntil(e.target.value)}
-            />
-          </FormField>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField htmlFor="edit-doc-issued" label="Issued on" optional>
+              <DatePicker
+                id="edit-doc-issued"
+                value={issuedOn || null}
+                max={todayIso()}
+                onChange={setIssuedOn}
+              />
+            </FormField>
+            <FormField htmlFor="edit-doc-valid" label="Expires on" optional>
+              <DatePicker
+                id="edit-doc-valid"
+                value={validUntil || null}
+                min={issuedOn || undefined}
+                onChange={setValidUntil}
+              />
+            </FormField>
+          </div>
           <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
             <p className="text-sm font-medium">Visible to the employee</p>
             <Switch checked={visible} onCheckedChange={setVisible} aria-label="Visible to the employee" />
@@ -318,6 +344,7 @@ export function SelfUploadDialog({
 }) {
   const [category, setCategory] = useState<DocumentCategory | "">("");
   const [title, setTitle] = useState("");
+  const [selfIssuedOn, setSelfIssuedOn] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -328,6 +355,7 @@ export function SelfUploadDialog({
     if (!open) return;
     setCategory("");
     setTitle("");
+    setSelfIssuedOn("");
     setValidUntil("");
     setFile(null);
     setErrors({});
@@ -348,6 +376,7 @@ export function SelfUploadDialog({
     const form = new FormData();
     form.set("category", category);
     form.set("title", title.trim());
+    if (selfIssuedOn) form.set("issued_on", selfIssuedOn);
     if (validUntil) form.set("valid_until", validUntil);
     form.set("file", file);
 
@@ -407,9 +436,24 @@ export function SelfUploadDialog({
               onChange={(event) => setTitle(event.target.value)}
             />
           </FormField>
-          <FormField htmlFor="self-doc-valid" label="Valid until" optional hint="For passports, visas and licences.">
-            <DatePicker id="self-doc-valid" value={validUntil || null} onChange={setValidUntil} />
-          </FormField>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField htmlFor="self-doc-issued" label="Issued on" optional>
+              <DatePicker
+                id="self-doc-issued"
+                value={selfIssuedOn || null}
+                max={todayIso()}
+                onChange={setSelfIssuedOn}
+              />
+            </FormField>
+            <FormField htmlFor="self-doc-valid" label="Expires on" optional hint="Passports, visas and licences.">
+              <DatePicker
+                id="self-doc-valid"
+                value={validUntil || null}
+                min={selfIssuedOn || undefined}
+                onChange={setValidUntil}
+              />
+            </FormField>
+          </div>
           <FormField htmlFor="self-doc-file" label="File" error={errors.file}>
             <Input
               id="self-doc-file"
