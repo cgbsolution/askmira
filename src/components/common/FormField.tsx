@@ -32,7 +32,7 @@ export function FormField({
 }) {
   const describedBy = error ? `${htmlFor}-error` : hint ? `${htmlFor}-hint` : undefined;
   return (
-    <div className={cn("grid gap-1.5", className)} aria-describedby={describedBy}>
+    <div className={cn("grid content-start gap-1.5", className)} aria-describedby={describedBy}>
       <Label htmlFor={htmlFor}>
         {label}
         {optional && <span className="font-normal text-muted-foreground">(optional)</span>}

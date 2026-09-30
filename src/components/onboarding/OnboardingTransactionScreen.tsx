@@ -6,7 +6,7 @@ import React, { useState } from "react";
 import { EmptyState } from "@/components/common/EmptyState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
-import { DocumentsPanel } from "@/components/docs/DocumentsPanel";
+import { DocumentEntrySections } from "@/components/docs/DocumentEntrySections";
 import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import type { OnboardingPlan } from "@/lib/types/onboarding";
 import { cn, formatDay } from "@/lib/utils";
 
-import { JoinerAssets, JoinerDocuments } from "./JoinerAssetsDocs";
+import { JoinerAssets } from "./JoinerAssetsDocs";
 
 type Kind = "assets" | "documents";
 
@@ -28,7 +28,7 @@ const COPY: Record<Kind, { title: string; description: string }> = {
   documents: {
     title: "Document entry",
     description:
-      "Record an employee's documents — ID proofs, certificates, letters — with issue and expiry dates and the soft copy.",
+      "Employee, dependant and company documents — with their numbers, issue and expiry dates, remarks and the soft copy.",
   },
 };
 
@@ -81,14 +81,10 @@ export function OnboardingTransactionScreen({ kind }: { kind: Kind }) {
         </CardContent>
       </Card>
 
-      {picked ? (
-        kind === "assets" ? (
-          <JoinerAssets key={picked.id} employeeId={picked.id} employeeName={picked.label} />
-        ) : (
-          <JoinerDocuments key={picked.id} employeeId={picked.id} employeeName={picked.label} />
-        )
-      ) : kind === "documents" ? (
-        <DocumentsPanel title="All employees' documents" showEmployee />
+      {kind === "documents" ? (
+        <DocumentEntrySections key={picked?.id ?? "everyone"} employee={picked} />
+      ) : picked ? (
+        <JoinerAssets key={picked.id} employeeId={picked.id} employeeName={picked.label} />
       ) : (
         <Card tier="tier1">
           <EmptyState

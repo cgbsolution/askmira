@@ -29,22 +29,148 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { patch, post } from "@/lib/api";
+import { useApiQuery } from "@/hooks/useApiQuery";
 import type { DocumentCategory, DocumentCategoryOption, VaultDocument } from "@/lib/types/docs";
+import type { EmployeeProfile } from "@/lib/types/people";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = "application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg";
 
-/** HR uploads a document to one employee's vault. The server re-checks size and type. */
 function todayIso(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
+/** Common document names per category, offered as one-click titles. */
+const TITLE_PRESETS: Partial<Record<DocumentCategory, string[]>> = {
+  id_proof: ["PAN card", "Aadhaar card", "Passport", "Voter ID", "Driving licence"],
+  address_proof: ["Aadhaar card", "Rent agreement", "Utility bill", "Passport"],
+  education: ["10th marksheet", "12th marksheet", "Graduation", "Post-graduation", "Diploma"],
+  experience: ["Relieving letter", "Experience letter", "Last 3 payslips", "Offer letter"],
+  bank: ["Cancelled cheque", "Bank passbook", "Bank statement"],
+  medical: ["Fitness certificate", "Insurance card", "Birth certificate"],
+  tax: ["Form 16", "Form 12B", "Investment proof"],
+};
+
+const SELF = "__self__";
+
+/**
+ * The details every vault document carries besides its file: a title (with
+ * the usual names one click away), the number printed on it, whom it belongs
+ * to (the employee or one of their dependants) and a remark.
+ */
+function DocumentDetailsFields({
+  idPrefix,
+  category,
+  title,
+  onTitle,
+  titleError,
+  number,
+  onNumber,
+  dependant,
+  onDependant,
+  dependants,
+  dependantError,
+  remark,
+  onRemark,
+}: {
+  idPrefix: string;
+  category: DocumentCategory | "";
+  title: string;
+  onTitle: (value: string) => void;
+  titleError?: string;
+  number: string;
+  onNumber: (value: string) => void;
+  dependant: string;
+  onDependant: (value: string) => void;
+  dependants: string[];
+  dependantError?: string;
+  remark: string;
+  onRemark: (value: string) => void;
+}) {
+  const presets = category ? (TITLE_PRESETS[category] ?? []) : [];
+  const choices = dependant && !dependants.includes(dependant) ? [...dependants, dependant] : dependants;
+  return (
+    <>
+      <FormField htmlFor={`${idPrefix}-title`} label="Document type" error={titleError}>
+        <Input
+          id={`${idPrefix}-title`}
+          value={title}
+          maxLength={255}
+          placeholder="e.g. PAN card"
+          onChange={(event) => onTitle(event.target.value)}
+        />
+        {presets.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {presets.map((preset) => (
+              <Button
+                key={preset}
+                type="button"
+                size="sm"
+                variant={title === preset ? "default" : "outline"}
+                className="h-7 px-2 text-xs"
+                onClick={() => onTitle(preset)}
+              >
+                {preset}
+              </Button>
+            ))}
+          </div>
+        )}
+      </FormField>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <FormField htmlFor={`${idPrefix}-number`} label="Document no." optional>
+          <Input
+            id={`${idPrefix}-number`}
+            value={number}
+            maxLength={64}
+            placeholder="e.g. ABCDE1234F"
+            onChange={(event) => onNumber(event.target.value)}
+          />
+        </FormField>
+        <FormField htmlFor={`${idPrefix}-belongs`} label="Belongs to" error={dependantError}>
+          <Select value={dependant || SELF} onValueChange={(value) => onDependant(value === SELF ? "" : value)}>
+            <SelectTrigger id={`${idPrefix}-belongs`} className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={SELF}>The employee</SelectItem>
+              {choices.map((name) => (
+                <SelectItem key={name} value={name}>
+                  Dependant: {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
+      </div>
+      <FormField htmlFor={`${idPrefix}-remark`} label="Remark" optional>
+        <Textarea
+          id={`${idPrefix}-remark`}
+          rows={2}
+          maxLength={1000}
+          value={remark}
+          onChange={(event) => onRemark(event.target.value)}
+        />
+      </FormField>
+    </>
+  );
+}
+
+/** The dependants listed on someone's profile, by name. */
+function useDependants(path: string | null): string[] {
+  const profile = useApiQuery<EmployeeProfile>(path);
+  return (profile.data?.family_members ?? [])
+    .map((member) => member.name)
+    .filter((name) => name.trim().length > 0);
+}
+
+/** HR uploads a document to one employee's vault. The server re-checks size and type. */
 export function UploadDocumentDialog({
   open,
   onOpenChange,
   categories,
   employee,
+  forDependant = false,
   onUploaded,
 }: {
   open: boolean;
@@ -52,6 +178,8 @@ export function UploadDocumentDialog({
   categories: DocumentCategoryOption[];
   /** Fixed recipient (on a profile). Omitted: HR picks one. */
   employee?: PickedEmployee | null;
+  /** A dependant's document: which dependant it belongs to is required. */
+  forDependant?: boolean;
   onUploaded: () => void;
 }) {
   const [person, setPerson] = useState<PickedEmployee | null>(employee ?? null);
@@ -59,9 +187,13 @@ export function UploadDocumentDialog({
   const [title, setTitle] = useState("");
   const [issuedOn, setIssuedOn] = useState("");
   const [validUntil, setValidUntil] = useState("");
+  const [number, setNumber] = useState("");
+  const [dependant, setDependant] = useState("");
+  const [remark, setRemark] = useState("");
   const [visible, setVisible] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const dependants = useDependants(open && person ? `/employees/${person.id}/profile` : null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -72,6 +204,9 @@ export function UploadDocumentDialog({
     setTitle("");
     setIssuedOn("");
     setValidUntil("");
+    setNumber("");
+    setDependant("");
+    setRemark("");
     setVisible(true);
     setFile(null);
     setErrors({});
@@ -83,7 +218,14 @@ export function UploadDocumentDialog({
     const found: Record<string, string> = {};
     if (!person) found.person = "Choose whose vault this goes in.";
     if (!category) found.category = "Choose a category.";
-    if (!title.trim()) found.title = "Give the document a title.";
+    if (!title.trim()) found.title = "Say what the document is.";
+    if (forDependant && !dependant) {
+      found.dependant = person
+        ? dependants.length
+          ? "Choose the dependant this belongs to."
+          : "Add the family members on the employee's profile first."
+        : "Choose the employee first.";
+    }
     if (!file) found.file = "Choose a file.";
     else if (file.size > MAX_BYTES) found.file = "The file is larger than 10 MB.";
     setErrors(found);
@@ -97,6 +239,9 @@ export function UploadDocumentDialog({
     form.set("is_employee_visible", visible ? "true" : "false");
     if (issuedOn) form.set("issued_on", issuedOn);
     if (validUntil) form.set("valid_until", validUntil);
+    if (number.trim()) form.set("document_number", number.trim());
+    if (dependant) form.set("dependant_name", dependant);
+    if (remark.trim()) form.set("remark", remark.trim());
     form.set("file", file);
 
     setIsSaving(true);
@@ -117,7 +262,7 @@ export function UploadDocumentDialog({
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={submit} className="grid gap-4" noValidate>
           <DialogHeader>
-            <DialogTitle>Upload a document</DialogTitle>
+            <DialogTitle>{forDependant ? "Add a dependant's document" : "Upload a document"}</DialogTitle>
             <DialogDescription>
               PDF, PNG or JPEG up to 10 MB. The type is checked from the file itself.
             </DialogDescription>
@@ -146,14 +291,21 @@ export function UploadDocumentDialog({
               </SelectContent>
             </Select>
           </FormField>
-          <FormField htmlFor="doc-title" label="Title" error={errors.title}>
-            <Input
-              id="doc-title"
-              value={title}
-              maxLength={255}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </FormField>
+          <DocumentDetailsFields
+            idPrefix="doc"
+            dependantError={errors.dependant}
+            category={category}
+            title={title}
+            onTitle={setTitle}
+            titleError={errors.title}
+            number={number}
+            onNumber={setNumber}
+            dependant={dependant}
+            onDependant={setDependant}
+            dependants={dependants}
+            remark={remark}
+            onRemark={setRemark}
+          />
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField htmlFor="doc-issued" label="Issued on" optional>
               <DatePicker id="doc-issued" value={issuedOn || null} max={todayIso()} onChange={setIssuedOn} />
@@ -218,6 +370,10 @@ export function EditDocumentDialog({
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("");
   const [issuedOn, setIssuedOn] = useState("");
+  const [number, setNumber] = useState("");
+  const [dependant, setDependant] = useState("");
+  const [remark, setRemark] = useState("");
+  const dependants = useDependants(document ? `/employees/${document.employee_id}/profile` : null);
   const [validUntil, setValidUntil] = useState("");
   const [visible, setVisible] = useState(true);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -228,6 +384,9 @@ export function EditDocumentDialog({
     setTitle(document.title);
     setCategory(document.category);
     setIssuedOn(document.issued_on ?? "");
+    setNumber(document.document_number ?? "");
+    setDependant(document.dependant_name ?? "");
+    setRemark(document.remark ?? "");
     setValidUntil(document.valid_until ?? "");
     setVisible(document.is_employee_visible);
     setServerError(null);
@@ -246,6 +405,9 @@ export function EditDocumentDialog({
         title: title.trim(),
         category,
         issued_on: issuedOn || null,
+        document_number: number.trim() || null,
+        dependant_name: dependant || null,
+        remark: remark.trim() || null,
         valid_until: validUntil || null,
         is_employee_visible: visible,
       });
@@ -272,9 +434,19 @@ export function EditDocumentDialog({
               <AlertDescription>{serverError}</AlertDescription>
             </Alert>
           )}
-          <FormField htmlFor="edit-doc-title" label="Title">
-            <Input id="edit-doc-title" value={title} onChange={(e) => setTitle(e.target.value)} />
-          </FormField>
+          <DocumentDetailsFields
+            idPrefix="edit-doc"
+            category={category as DocumentCategory}
+            title={title}
+            onTitle={setTitle}
+            number={number}
+            onNumber={setNumber}
+            dependant={dependant}
+            onDependant={setDependant}
+            dependants={dependants}
+            remark={remark}
+            onRemark={setRemark}
+          />
           <FormField htmlFor="edit-doc-category" label="Category">
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger id="edit-doc-category" className="w-full">
@@ -345,6 +517,10 @@ export function SelfUploadDialog({
   const [category, setCategory] = useState<DocumentCategory | "">("");
   const [title, setTitle] = useState("");
   const [selfIssuedOn, setSelfIssuedOn] = useState("");
+  const [number, setNumber] = useState("");
+  const [dependant, setDependant] = useState("");
+  const [remark, setRemark] = useState("");
+  const dependants = useDependants(open ? "/employees/me/profile" : null);
   const [validUntil, setValidUntil] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -356,6 +532,9 @@ export function SelfUploadDialog({
     setCategory("");
     setTitle("");
     setSelfIssuedOn("");
+    setNumber("");
+    setDependant("");
+    setRemark("");
     setValidUntil("");
     setFile(null);
     setErrors({});
@@ -377,6 +556,9 @@ export function SelfUploadDialog({
     form.set("category", category);
     form.set("title", title.trim());
     if (selfIssuedOn) form.set("issued_on", selfIssuedOn);
+    if (number.trim()) form.set("document_number", number.trim());
+    if (dependant) form.set("dependant_name", dependant);
+    if (remark.trim()) form.set("remark", remark.trim());
     if (validUntil) form.set("valid_until", validUntil);
     form.set("file", file);
 
@@ -423,19 +605,20 @@ export function SelfUploadDialog({
               </SelectContent>
             </Select>
           </FormField>
-          <FormField
-            htmlFor="self-doc-title"
-            label="Title"
-            error={errors.title}
-            hint="For example: Passport, B.Tech degree, Relieving letter from Acme."
-          >
-            <Input
-              id="self-doc-title"
-              value={title}
-              maxLength={255}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </FormField>
+          <DocumentDetailsFields
+            idPrefix="self-doc"
+            category={category}
+            title={title}
+            onTitle={setTitle}
+            titleError={errors.title}
+            number={number}
+            onNumber={setNumber}
+            dependant={dependant}
+            onDependant={setDependant}
+            dependants={dependants}
+            remark={remark}
+            onRemark={setRemark}
+          />
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField htmlFor="self-doc-issued" label="Issued on" optional>
               <DatePicker

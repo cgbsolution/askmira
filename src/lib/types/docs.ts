@@ -11,6 +11,7 @@ export type DocumentCategory =
   | "payslip"
   | "tax"
   | "medical"
+  | "bank"
   | "other";
 
 export interface DocumentCategoryOption {
@@ -27,6 +28,11 @@ export interface VaultDocument {
   title: string;
   mime_type: string | null;
   file_size_bytes: number | null;
+  /** The number on the document: passport, PAN or cheque number. */
+  document_number: string | null;
+  remark: string | null;
+  /** Set when the document belongs to one of the employee's dependants. */
+  dependant_name: string | null;
   /** When the document was issued; `valid_until` is when it expires. */
   issued_on: string | null;
   valid_until: string | null;
@@ -42,6 +48,23 @@ export interface VaultDocument {
 }
 
 export type DocumentVerification = "not_required" | "pending" | "verified" | "rejected";
+
+/** A company document: a policy or handbook, not about any one person. */
+export interface CompanyDocument {
+  id: string;
+  document_type: string;
+  title: string;
+  document_number: string | null;
+  remark: string | null;
+  mime_type: string | null;
+  file_size_bytes: number | null;
+  issued_on: string | null;
+  valid_until: string | null;
+  is_expired: boolean;
+  /** Published to employees (policy lookup). */
+  is_employee_visible: boolean;
+  created_at: string;
+}
 
 export type LetterCategory =
   | "offer"

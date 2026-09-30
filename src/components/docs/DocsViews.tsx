@@ -5,6 +5,7 @@ import React from "react";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { PageShell } from "@/components/common/PageShell";
+import { CompanyDocumentsPanel } from "@/components/docs/CompanyDocuments";
 import { DocumentsPanel } from "@/components/docs/DocumentsPanel";
 import { LettersPanel } from "@/components/docs/LettersPanel";
 import { TemplatesPanel } from "@/components/docs/TemplatesPanel";
@@ -12,7 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 
-/** /docs — your own vault and letters; HR also gets the company vault and expiries. */
+/** /docs — your own vault, letters and the company's policies; HR also gets the company vault and expiries. */
 export function MyDocumentsView() {
   const { user, hasRole } = useAuth();
   const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
@@ -45,6 +46,7 @@ export function MyDocumentsView() {
             <TabsTrigger value="company">All employees</TabsTrigger>
             <TabsTrigger value="verify">To verify</TabsTrigger>
             <TabsTrigger value="expiring">Expiring</TabsTrigger>
+            <TabsTrigger value="policies">Company documents</TabsTrigger>
             <TabsTrigger value="mine">Mine</TabsTrigger>
           </TabsList>
           <TabsContent value="company" className="mt-4">
@@ -56,12 +58,18 @@ export function MyDocumentsView() {
           <TabsContent value="expiring" className="mt-4">
             <DocumentsPanel title="Expiring documents" showEmployee expiringOnly />
           </TabsContent>
+          <TabsContent value="policies" className="mt-4">
+            <CompanyDocumentsPanel />
+          </TabsContent>
           <TabsContent value="mine" className="mt-4">
             {own}
           </TabsContent>
         </Tabs>
       ) : (
-        own
+        <div className="grid gap-6">
+          {own}
+          <CompanyDocumentsPanel title="Company policies" />
+        </div>
       )}
     </PageShell>
   );
