@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { ApiError, get, post } from "@/lib/api";
-import type { AuthResponse, AuthUser, Tenant, UserRole } from "@/lib/types";
+import { roleAllows } from "@/lib/access";
+import type { Audience, AuthResponse, AuthUser, Tenant } from "@/lib/types";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -17,8 +18,11 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   /** Re-read the signed-in user and workspace from the server. */
   reloadSession: () => Promise<void>;
-  /** True when the user holds any of the given roles. Platform admin passes always. */
-  hasRole: (...roles: UserRole[]) => boolean;
+  /**
+   * True when the user holds any of the given roles, or `manager` is listed and
+   * somebody reports to them. Super admin passes always.
+   */
+  hasRole: (...roles: Audience[]) => boolean;
   /** True when the workspace has this module switched on. */
   hasModule: (module: string) => boolean;
 }
@@ -111,11 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/signin");
   }, [router]);
 
-  const hasRole = useCallback(
-    (...roles: UserRole[]) =>
-      user ? user.role === "platform_admin" || roles.includes(user.role) : false,
-    [user],
-  );
+  const hasRole = useCallback((...roles: Audience[]) => roleAllows(user, roles), [user]);
 
   const hasModule = useCallback(
     (module: string) => Boolean(tenant?.enabled_modules?.[module]),

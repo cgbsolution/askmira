@@ -91,7 +91,7 @@ export function BatchesTab({
                 ))}
               </SelectContent>
             </Select>
-            <RequireRole roles={["tenant_admin", "hr_admin", "hr_ops"]}>
+            <RequireRole roles={["admin", "sub_admin"]}>
               <Button
                 size="sm"
                 className="ml-auto"

@@ -30,7 +30,7 @@ export function MyLoansArea() {
         <EmptyState
           icon={UserX}
           title="Your login is not linked to an employee record"
-          description="Loans, reimbursements and leave encashment belong to an employee record. Ask your HR admin to link your account to yours."
+          description="Loans, reimbursements and leave encashment belong to an employee record. Ask your admin to link your account to yours."
         />
       </Card>
     );

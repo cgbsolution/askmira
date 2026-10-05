@@ -326,7 +326,7 @@ function ProposalsTab() {
 
 function AutonomyTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const { data, error, isLoading, reload } = useApiQuery<{ actions: ActionConfig[]; protected_statement: string }>("/autonomy/configuration");
   const [editing, setEditing] = useState<ActionConfig | null>(null);
 
@@ -459,7 +459,7 @@ function AutonomyDialog({ action, onOpenChange, onSaved }: { action: ActionConfi
 
 function EvaluationTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const coverage = useApiQuery<{
     suites: { agent_key: string; name: string; version: string; is_scoring_agent: boolean; case_count: number; regression_case_count: number }[];
     agents_without_suites: string[];
@@ -620,7 +620,7 @@ function EvaluationTab() {
 
 function GroundingTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const sources = useApiQuery<{ retrievable: string[]; never_retrievable: string[]; statement: string }>("/grounding/sources");
   const attempts = useApiQuery<{ attempts: { id: string; source_field: string; source_table: string; severity: string; matched_text: string; intent: string; reviewed_at: string | null; created_at: string }[] }>("/grounding/injection-attempts?limit=100");
   const invocations = useApiQuery<{

@@ -56,7 +56,7 @@ import type {
 } from "@/lib/types/payroll-ops";
 import { formatDay, toISODate } from "@/lib/utils";
 
-const ADMIN = ["tenant_admin", "hr_admin"] as const;
+const ADMIN = ["admin"] as const;
 
 /** TDS deposits (challans) and the payslips whose TDS is not yet tied to one. */
 export function TdsChallansTab({ entities }: { entities: LegalEntity[] }) {
@@ -538,7 +538,7 @@ function MapChallanDialog({
         </DialogHeader>
         {challans.length === 0 ? (
           <InlineProblem>
-            No challan is recorded for this quarter yet. An HR admin needs to record the deposit
+            No challan is recorded for this quarter yet. An admin needs to record the deposit
             first.
           </InlineProblem>
         ) : (

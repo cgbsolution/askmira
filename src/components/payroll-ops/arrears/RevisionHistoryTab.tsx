@@ -49,7 +49,7 @@ export function RevisionHistoryTab({ onOpenBatch }: { onOpenBatch: (batchId: str
       empty={{
         icon: History,
         title: "No revisions committed for this employee",
-        description: "Revisions appear here once an HR admin commits one.",
+        description: "Revisions appear here once an admin commits one.",
       }}
     >
       {(rows) => (

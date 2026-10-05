@@ -58,8 +58,8 @@ import type {
 } from "@/lib/types/payroll-ops";
 import { formatDay, toISODate } from "@/lib/utils";
 
-const ADMIN = ["tenant_admin", "hr_admin"] as const;
-const HR = ["tenant_admin", "hr_admin", "hr_ops"] as const;
+const ADMIN = ["admin"] as const;
+const HR = ["admin", "sub_admin"] as const;
 
 /** One disbursement batch: its file, maker-checker, release, and reconciliation. */
 export function BatchDetailDialog({
@@ -256,7 +256,7 @@ function BatchBody({
           <div className="rounded-md border border-border p-4">
             {preparedByMe ? (
               <p className="text-sm text-muted-foreground">
-                You prepared this file, so you cannot approve it. Another HR admin must check and
+                You prepared this file, so you cannot approve it. Another admin must check and
                 approve it.
               </p>
             ) : !batch.file_hash ? (
@@ -635,8 +635,8 @@ function ReconcilePanel({
             {outcome.failed.length === 0
               ? "No failed credits, so nobody needed notifying."
               : outcome.notified > 0
-                ? `${outcome.notified} HR Ops ${outcome.notified === 1 ? "user was" : "users were"} notified about the failed credits.`
-                : "No HR Ops user was notified about the failed credits. Tell the team directly."}
+                ? `${outcome.notified} ${outcome.notified === 1 ? "person in HR was" : "people in HR were"} notified about the failed credits.`
+                : "Nobody in HR was notified about the failed credits. Tell the team directly."}
           </p>
           {outcome.failed.length > 0 && (
             <div className="overflow-hidden rounded-md border border-border">

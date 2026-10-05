@@ -85,8 +85,8 @@ const DESTINATION_LABEL = { postgres_role: "Read-only Postgres role", object_sto
 const EXPORT_ROLES = [
   { value: "employee", label: "Employee — public fields only" },
   { value: "manager", label: "Manager — public fields only" },
-  { value: "hr_ops", label: "HR ops — adds HR fields" },
-  { value: "hr_admin", label: "HR admin — adds payroll fields" },
+  { value: "sub_admin", label: "Sub-admin — adds HR fields" },
+  { value: "admin", label: "Admin — adds payroll fields" },
 ];
 
 function detail(caught: unknown, fallback: string): string {
@@ -131,7 +131,7 @@ export function BiConnectorScreen() {
 
 function ConnectionsTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const { data, error, isLoading, reload } = useApiQuery<Connection[]>("/bi/connections");
   const posture = useApiQuery<Posture>("/bi/posture");
   const [creating, setCreating] = useState(false);
@@ -241,7 +241,7 @@ function ConnectionsTab() {
 }
 
 function ConnectionDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: () => void }) {
-  const [role, setRole] = useState("hr_ops");
+  const [role, setRole] = useState("sub_admin");
   const schema = useApiQuery<SchemaDocument>(open ? "/bi/schema" : null);
   const [name, setName] = useState("");
   const [entity, setEntity] = useState("");
@@ -254,7 +254,7 @@ function ConnectionDialog({ open, onOpenChange, onCreated }: { open: boolean; on
   useEffect(() => {
     if (!open) return;
     setName("");
-    setRole("hr_ops");
+    setRole("sub_admin");
     setDestination("postgres_role");
     setDestinationRef("");
     setNarrow(false);
@@ -493,7 +493,7 @@ function SchemaTab() {
 
 function BenchmarkTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const terms = useApiQuery<{ minimum_contributors: number; sources: string[]; statement: string }>("/bi/benchmark-terms");
   const [contributing, setContributing] = useState(false);
   const [reference, setReference] = useState("");

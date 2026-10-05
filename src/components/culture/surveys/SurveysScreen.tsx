@@ -41,8 +41,8 @@ const STATUS: Record<SurveyStatus, { label: string; variant: "outline" | "succes
  */
 export function SurveysScreen() {
   const { hasRole } = useAuth();
-  const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
-  const isManager = hasRole("tenant_admin", "hr_admin", "hr_ops", "manager");
+  const isHr = hasRole("admin", "sub_admin");
+  const isManager = hasRole("admin", "sub_admin", "manager");
 
   const mine = useApiQuery<MySurvey[]>("/culture/surveys/mine");
   const all = useApiQuery<SurveySummary[]>(isHr ? "/culture/surveys" : null);

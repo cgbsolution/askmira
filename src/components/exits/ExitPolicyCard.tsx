@@ -14,7 +14,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { put } from "@/lib/api";
 import type { ExitPolicy } from "@/lib/types/payroll-ops";
 
-/** Exit policy. HR can read it; an HR admin changes it. */
+/** Exit policy. HR can read it; an admin changes it. */
 export function ExitPolicyCard() {
   const { isAdmin } = useExitRoles();
   const query = useApiQuery<ExitPolicy>("/exits/policy");
@@ -42,7 +42,7 @@ export function ExitPolicyCard() {
       <CardHeader>
         <CardTitle>Exit policy</CardTitle>
         <CardDescription>
-          {isAdmin ? "Changes are recorded in the audit trail." : "Only an HR admin can change this."}
+          {isAdmin ? "Changes are recorded in the audit trail." : "Only an admin can change this."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

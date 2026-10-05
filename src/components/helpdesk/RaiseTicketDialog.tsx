@@ -186,7 +186,7 @@ export function RaiseTicketDialog({
               {category.is_confidential && (
                 <p className="mt-2 flex items-start gap-1.5 text-xs text-foreground">
                   <Lock className="mt-0.5 size-3.5 shrink-0" />
-                  Confidential: seen only by you, the category owner and HR admins.
+                  Confidential: seen only by you, the category owner and admins.
                 </p>
               )}
             </div>

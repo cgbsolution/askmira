@@ -99,7 +99,7 @@ export function ArrearBatchDialog({
 
 function BatchBody({ batch, onApproved }: { batch: ArrearBatch; onApproved: () => void }) {
   const { user, hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const [employee, setEmployee] = useState<EmployeeSummary | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
@@ -157,7 +157,7 @@ function BatchBody({ batch, onApproved }: { batch: ArrearBatch; onApproved: () =
     if (computedByMe) {
       approvalBlock = (
         <p className="text-sm text-muted-foreground">
-          You computed this batch, so you cannot approve it. Another HR admin must.
+          You computed this batch, so you cannot approve it. Another admin must.
         </p>
       );
     } else if (batch.awaiting_additional_approval && firstApprovalMine) {
@@ -170,7 +170,7 @@ function BatchBody({ batch, onApproved }: { batch: ArrearBatch; onApproved: () =
     } else if (containsMine) {
       approvalBlock = (
         <p className="text-sm text-muted-foreground">
-          This batch contains your own arrears, so you cannot approve it. Another HR admin must.
+          This batch contains your own arrears, so you cannot approve it. Another admin must.
         </p>
       );
     } else {

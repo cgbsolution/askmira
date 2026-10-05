@@ -326,7 +326,7 @@ export function CompanyDocumentsPanel({
   description?: string;
 }) {
   const { hasRole } = useAuth();
-  const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
+  const isHr = hasRole("admin", "sub_admin");
   const { data, error, isLoading, reload } = useApiQuery<CompanyDocument[]>("/documents/company");
   const [type, setType] = useState(ALL_TYPES);
   const [query, setQuery] = useState("");

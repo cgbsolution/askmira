@@ -91,7 +91,7 @@ function GstPostureNotice() {
 /** GST input tax credit on expenses. Configuration writes are admin-only. */
 export function GstWorkspace() {
   const { hasRole } = useAuth();
-  const canAdmin = hasRole("tenant_admin", "hr_admin");
+  const canAdmin = hasRole("admin");
 
   return (
     <div className="flex flex-col gap-4">

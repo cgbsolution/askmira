@@ -67,7 +67,7 @@ export function LoanSchemesPanel() {
         title: "No loan schemes yet",
         description: isAdmin
           ? "Create a scheme before anyone can apply for a loan."
-          : "An HR admin has to create a scheme before anyone can apply for a loan.",
+          : "An admin has to create a scheme before anyone can apply for a loan.",
       }}
     >
       {(schemes) => (

@@ -28,7 +28,7 @@ import { errorDetail, formatDateTime } from "./settingsShared";
  */
 export function SchedulerPanel() {
   const { hasRole } = useAuth();
-  const canRunNow = hasRole("tenant_admin");
+  const canRunNow = hasRole("admin");
   const { data, error, isLoading, reload } = useApiQuery<SchedulerJobs>("/admin/scheduler/jobs");
   const [running, setRunning] = useState<string | null>(null);
 

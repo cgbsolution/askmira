@@ -137,7 +137,7 @@ export function RetentionScreen() {
 
 function PoliciesTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const { data, error, isLoading, reload } = useApiQuery<{ policies: Policy[]; unconfigured_categories: string[] }>("/retention/policies");
   const [editing, setEditing] = useState<Policy | { category: string; category_name: string } | null>(null);
   const [seeding, setSeeding] = useState(false);
@@ -308,7 +308,7 @@ function PolicyDialog({
 
 function HoldsTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const { data, error, isLoading, reload } = useApiQuery<{ holds: Hold[] }>("/retention/legal-holds");
   const [placing, setPlacing] = useState(false);
   const [releasing, setReleasing] = useState<Hold | null>(null);
@@ -530,7 +530,7 @@ function HoldDialog({ open, onOpenChange, onPlaced }: { open: boolean; onOpenCha
 
 function RunsTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const { data, error, isLoading, reload } = useApiQuery<{ runs: Run[] }>("/retention/runs");
   const [busy, setBusy] = useState<string | null>(null);
   const [executing, setExecuting] = useState<Run | null>(null);

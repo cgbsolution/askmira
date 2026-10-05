@@ -30,7 +30,7 @@ import { CategoryDialog } from "./CategoryDialog";
 import { REQUEST_KIND_LABEL, errorDetail } from "./shared";
 
 /**
- * Helpdesk categories (tenant and HR admins): what employees can ask about,
+ * Helpdesk categories (admins): what employees can ask about,
  * who handles each and its SLA. Nothing is added until an admin adds it —
  * the standard set included.
  */

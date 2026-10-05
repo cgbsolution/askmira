@@ -137,7 +137,7 @@ export function formatMoney(
   return `${negative ? "−" : ""}${currency ? "₹" : ""}${grouped}${fraction ? `.${fraction}` : ""}`;
 }
 
-/** "hr_ops" → "HR Ops". Role slugs are stored snake_case and shown title-case. */
+/** "sub_admin" → "Sub Admin". Role slugs are stored snake_case and shown title-case. */
 export function humanizeRole(role: string): string {
   return role
     .split("_")

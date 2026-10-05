@@ -48,7 +48,7 @@ export function DeviceTable({
           description={
             canManage
               ? "Register a biometric or attendance device to issue it a push token."
-              : "An HR admin registers devices here. None has been registered yet."
+              : "An admin registers devices here. None has been registered yet."
           }
           action={
             canManage ? (

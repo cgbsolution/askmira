@@ -15,8 +15,8 @@ import type {
 import type { EmployeeSummary, UserRole } from "@/lib/types";
 
 /** Roles, as fixed by the W3 contract. */
-export const HR_ROLES: UserRole[] = ["tenant_admin", "hr_admin", "hr_ops"];
-export const ADMIN_ROLES: UserRole[] = ["tenant_admin", "hr_admin"];
+export const HR_ROLES: UserRole[] = ["admin", "sub_admin"];
+export const ADMIN_ROLES: UserRole[] = ["admin"];
 
 export const LOAN_STATUS_LABEL: Record<LoanStatus, string> = {
   applied: "Applied",

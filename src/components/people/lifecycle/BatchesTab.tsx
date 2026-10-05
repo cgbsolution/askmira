@@ -50,7 +50,7 @@ import { EventFields, type FieldValues, toNewValues } from "./EventFields";
  */
 export function BatchesTab() {
   const { hasRole } = useAuth();
-  const canRaise = hasRole("tenant_admin", "hr_admin");
+  const canRaise = hasRole("admin");
   const { data, error, isLoading, reload } = useApiQuery<LifecycleBatch[]>("/lifecycle/batches");
   const [open, setOpen] = useState(false);
 

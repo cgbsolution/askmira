@@ -147,7 +147,7 @@ export function PrepareBatchDialog({
           <FormField htmlFor="prepare-profile" label="Bank profile">
             {activeProfiles.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No active bank profile. An HR admin adds one under Bank profiles.
+                No active bank profile. An admin adds one under Bank profiles.
               </p>
             ) : (
               <Select value={profileId} onValueChange={setProfileId}>

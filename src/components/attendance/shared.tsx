@@ -208,7 +208,7 @@ export function LoadError({ error, onRetry }: { error: ApiError; onRetry?: () =>
   if (error.status === 403) {
     return (
       <ErrorState
-        message={`You don't have access to this. ${error.detail} If you think you should, ask your HR admin to check your role.`}
+        message={`You don't have access to this. ${error.detail} If you think you should, ask your admin to check your role.`}
       />
     );
   }

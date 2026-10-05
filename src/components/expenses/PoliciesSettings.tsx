@@ -79,7 +79,7 @@ export function PoliciesSettings({ canAdmin }: { canAdmin: boolean }) {
           <CardDescription>
             {canAdmin
               ? "How foreign currency is converted and when an unsettled advance blocks a new one."
-              : "Read-only for your role. An HR admin can change these."}
+              : "Read-only for your role. An admin can change these."}
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -59,7 +59,7 @@ export function ArrearBatchesTab({
         icon: History,
         title: status === "any" ? "No arrear batches yet" : "No batches with this status",
         description:
-          "A batch is computed when an HR admin commits a salary revision that reaches back into closed payroll periods.",
+          "A batch is computed when an admin commits a salary revision that reaches back into closed payroll periods.",
       }}
       toolbar={
         <Select value={status} onValueChange={(value) => setStatus(value as ArrearStatus | "any")}>

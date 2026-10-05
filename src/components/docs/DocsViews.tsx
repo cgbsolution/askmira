@@ -16,7 +16,7 @@ import { useAuth } from "@/context/AuthContext";
 /** /docs — your own vault, letters and the company's policies; HR also gets the company vault and expiries. */
 export function MyDocumentsView() {
   const { user, hasRole } = useAuth();
-  const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
+  const isHr = hasRole("admin", "sub_admin");
   const hasRecord = Boolean(user?.employee_id);
   const me = user?.employee_id ? { id: user.employee_id, label: user.full_name } : null;
 

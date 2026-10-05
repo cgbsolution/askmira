@@ -3,7 +3,7 @@
 import React from "react";
 
 import { useAuth } from "@/context/AuthContext";
-import type { UserRole } from "@/lib/types";
+import type { Audience } from "@/lib/types";
 
 /**
  * Renders its children only for the given roles.
@@ -16,7 +16,7 @@ export function RequireRole({
   children,
   fallback = null,
 }: {
-  roles: UserRole[];
+  roles: Audience[];
   children: React.ReactNode;
   fallback?: React.ReactNode;
 }) {

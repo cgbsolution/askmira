@@ -28,7 +28,7 @@ import type {
   SettlementStatus,
 } from "@/lib/types/payroll-ops";
 import type { ApiError } from "@/lib/api";
-import type { UserRole } from "@/lib/types";
+import type { Audience, UserRole } from "@/lib/types";
 import { formatDate, formatDay } from "@/lib/utils";
 
 /**
@@ -39,9 +39,9 @@ import { formatDate, formatDay } from "@/lib/utils";
 
 // ── Roles ───────────────────────────────────────────────────────────────────
 
-export const HR_ROLES: UserRole[] = ["tenant_admin", "hr_admin", "hr_ops"];
-export const ADMIN_ROLES: UserRole[] = ["tenant_admin", "hr_admin"];
-export const MANAGER_ROLES: UserRole[] = [...HR_ROLES, "manager"];
+export const HR_ROLES: UserRole[] = ["admin", "sub_admin"];
+export const ADMIN_ROLES: UserRole[] = ["admin"];
+export const MANAGER_ROLES: Audience[] = [...HR_ROLES, "manager"];
 
 export function useExitRoles() {
   const { user, hasRole } = useAuth();

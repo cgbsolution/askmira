@@ -41,12 +41,12 @@ import { formatDate, formatDay, toISODate } from "@/lib/utils";
  * Approval says the company owes the money; this records that it was paid —
  * the day and the bank's reference — so the leaver asking "where is my money"
  * and the auditor reconciling the bank statement get the same answer. Tenant
- * and HR admins record payments, as they approve settlements; nobody records
+ * and admins record payments, as they approve settlements; nobody records
  * their own.
  */
 export function SettlementPayments() {
   const { user, hasRole } = useAuth();
-  const canPay = hasRole("tenant_admin", "hr_admin");
+  const canPay = hasRole("admin");
   const approved = useApiQuery<Settlement[]>("/exits/settlements?status=approved");
   const paid = useApiQuery<Settlement[]>("/exits/settlements?status=paid");
   const [paying, setPaying] = useState<Settlement | null>(null);

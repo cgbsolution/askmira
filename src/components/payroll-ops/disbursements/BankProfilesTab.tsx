@@ -67,7 +67,7 @@ export function BankProfilesTab({
         title="Bank profiles"
         description="The account salaries are paid from, and the file format that bank expects. The account number is stored when you save it and is never displayed again."
         actions={
-          <RequireRole roles={["tenant_admin", "hr_admin"]}>
+          <RequireRole roles={["admin"]}>
             <Button size="sm" onClick={() => setOpen(true)} disabled={entities.length === 0}>
               <Plus /> Add bank profile
             </Button>
@@ -78,7 +78,7 @@ export function BankProfilesTab({
           icon: Landmark,
           title: "No bank profile yet",
           description:
-            "A batch needs a bank profile to know which account pays and which file format to build. An HR admin adds one here.",
+            "A batch needs a bank profile to know which account pays and which file format to build. An admin adds one here.",
         }}
       >
         {(rows) => (

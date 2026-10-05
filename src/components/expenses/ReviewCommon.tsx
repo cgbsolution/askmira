@@ -41,7 +41,7 @@ export function ForbiddenState({ message }: { message?: string }) {
       <div className="max-w-md">
         <p className="font-medium text-foreground">You don&apos;t have access to this</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          {message ?? "Your role does not allow this. Ask your HR admin if you think it should."}
+          {message ?? "Your role does not allow this. Ask your admin if you think it should."}
         </p>
       </div>
     </div>

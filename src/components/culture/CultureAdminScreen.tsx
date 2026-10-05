@@ -99,7 +99,7 @@ export function CultureAdminScreen() {
 
 function ValuesTab() {
   const { hasRole } = useAuth();
-  const canEdit = hasRole("tenant_admin", "hr_admin");
+  const canEdit = hasRole("admin");
   const { data, error, isLoading, reload } = useApiQuery<CompanyValue[]>("/culture/values?include_inactive=true");
   const [editing, setEditing] = useState<CompanyValue | "new" | null>(null);
 

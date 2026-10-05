@@ -91,7 +91,7 @@ export function CategoryDialog({
 
   const owners = users.filter(
     (user) =>
-      user.role !== "platform_admin" && (user.is_active || user.id === form.owner_user_id),
+      user.role !== "super_admin" && (user.is_active || user.id === form.owner_user_id),
   );
 
   const set = <K extends keyof CategoryInput>(key: K, value: CategoryInput[K]) =>
@@ -244,7 +244,7 @@ export function CategoryDialog({
               <div>
                 <p className="text-sm font-medium text-foreground">Confidential</p>
                 <p className="text-xs text-muted-foreground">
-                  Tickets are seen only by the employee, the owner and tenant or HR admins — not HR
+                  Tickets are seen only by the employee, the owner and admins — not HR
                   ops. Use for grievances.
                 </p>
               </div>

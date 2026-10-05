@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
           <AlertTitle>Check your inbox</AlertTitle>
           <AlertDescription>
             If {email} has an AskMira account, a reset link is on its way. It works once and
-            expires in 30 minutes. Nothing arrived? Check spam, or ask your HR admin to issue a
+            expires in 30 minutes. Nothing arrived? Check spam, or ask your admin to issue a
             temporary password.
           </AlertDescription>
         </Alert>

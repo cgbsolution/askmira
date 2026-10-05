@@ -1,12 +1,17 @@
 /** Shared API types. These mirror the Pydantic schemas in `backend/app/schemas`. */
 
-export type UserRole =
-  | "platform_admin"
-  | "tenant_admin"
-  | "hr_admin"
-  | "hr_ops"
-  | "manager"
-  | "employee";
+/**
+ * The four login roles. `super_admin` is AskMira staff managing the tenants on
+ * the platform; the other three belong to one workspace.
+ */
+export type UserRole = "super_admin" | "admin" | "sub_admin" | "employee";
+
+/**
+ * Who a page or an action is for: a login role, or `manager` — anybody with a
+ * direct report (`AuthUser.is_manager`). Managing people follows the org chart;
+ * it is not a role anybody is given.
+ */
+export type Audience = UserRole | "manager";
 
 export type EmploymentStatus = "active" | "on_notice" | "on_leave" | "exited" | "pre_joining";
 
@@ -21,6 +26,8 @@ export interface AuthUser {
   is_email_verified: boolean;
   /** Signed in with a temporary password; the portal asks for a new one first. */
   must_change_password: boolean;
+  /** Somebody reports to them, so they see their team's pages and approvals. */
+  is_manager: boolean;
   employee_id: string | null;
   last_login_at: string | null;
   created_at: string;

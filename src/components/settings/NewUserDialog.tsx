@@ -40,13 +40,11 @@ import { ASSIGNABLE_ROLES, ROLE_LABEL, ROLE_SCOPE, errorDetail } from "./setting
 export function NewUserDialog({
   open,
   onOpenChange,
-  canGrantTenantAdmin,
   onCreated,
   initialEmployee = null,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  canGrantTenantAdmin: boolean;
   onCreated: () => void;
   /** Opened from a person's profile: the login is for them. */
   initialEmployee?: EmployeeSummary | null;
@@ -70,10 +68,6 @@ export function NewUserDialog({
   useEffect(() => {
     if (open && initialEmployee) pickEmployee(initialEmployee);
   }, [open, initialEmployee]);
-
-  const roles = ASSIGNABLE_ROLES.filter(
-    (candidate) => canGrantTenantAdmin || candidate !== "tenant_admin",
-  );
 
   const reset = () => {
     setEmail("");
@@ -205,7 +199,7 @@ export function NewUserDialog({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {roles.map((candidate) => (
+                    {ASSIGNABLE_ROLES.map((candidate) => (
                       <SelectItem key={candidate} value={candidate}>
                         {ROLE_LABEL[candidate]}
                       </SelectItem>

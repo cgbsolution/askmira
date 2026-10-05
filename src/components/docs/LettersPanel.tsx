@@ -110,7 +110,7 @@ export function LettersPanel({
   title?: string;
 }) {
   const { user, hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const [status, setStatus] = useState(NONE);
   const [viewing, setViewing] = useState<IssuedLetter | null>(null);
   const [issuing, setIssuing] = useState(false);

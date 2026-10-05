@@ -22,8 +22,8 @@ import type { DeclarationStatus, ProofStatus, TaxRegime } from "@/lib/types/tax"
  * Labels only — every value they label comes from the API.
  */
 
-export const HR_ROLES = ["tenant_admin", "hr_admin", "hr_ops"] as const;
-export const ADMIN_ROLES = ["tenant_admin", "hr_admin"] as const;
+export const HR_ROLES = ["admin", "sub_admin"] as const;
+export const ADMIN_ROLES = ["admin"] as const;
 
 // ── Labels ──────────────────────────────────────────────────────────────────
 

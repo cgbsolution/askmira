@@ -62,8 +62,8 @@ type Decision = { event: LifecycleEvent; kind: "approve" | "reject" | "cancel" }
  */
 export function EventsTab() {
   const { hasRole } = useAuth();
-  const canRaise = hasRole("tenant_admin", "hr_admin", "hr_ops");
-  const canDecide = hasRole("tenant_admin", "hr_admin");
+  const canRaise = hasRole("admin", "sub_admin");
+  const canDecide = hasRole("admin");
 
   const [statusFilter, setStatusFilter] = useState<string>("pending_approval");
   const [typeFilter, setTypeFilter] = useState<string>(ANY);

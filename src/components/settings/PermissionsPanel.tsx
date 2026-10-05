@@ -96,7 +96,7 @@ export function PermissionsPanel() {
                       <TableRow key={`${role}-${module}`}>
                         <TableCell className="sticky left-0 bg-card">
                           {index === 0 ? (
-                            <Badge variant={role === "tenant_admin" ? "default" : "outline"}>
+                            <Badge variant={role === "admin" ? "default" : "outline"}>
                               {ROLE_LABEL[role as UserRole] ?? role}
                             </Badge>
                           ) : null}

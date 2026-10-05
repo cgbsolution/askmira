@@ -41,12 +41,10 @@ import { ASSIGNABLE_ROLES, ROLE_LABEL, ROLE_SCOPE, errorDetail } from "./setting
 export function RoleChangeDialog({
   target,
   onOpenChange,
-  canGrantTenantAdmin,
   onChanged,
 }: {
   target: ManagedUser | null;
   onOpenChange: (open: boolean) => void;
-  canGrantTenantAdmin: boolean;
   onChanged: () => void;
 }) {
   const [role, setRole] = useState<UserRole>("employee");
@@ -59,10 +57,6 @@ export function RoleChangeDialog({
       setReason("");
     }
   }, [target]);
-
-  const roles = ASSIGNABLE_ROLES.filter(
-    (candidate) => canGrantTenantAdmin || candidate !== "tenant_admin",
-  );
 
   const submit = async () => {
     if (!target) return;
@@ -99,7 +93,7 @@ export function RoleChangeDialog({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {roles.map((candidate) => (
+                {ASSIGNABLE_ROLES.map((candidate) => (
                   <SelectItem key={candidate} value={candidate}>
                     {ROLE_LABEL[candidate]}
                   </SelectItem>
@@ -122,9 +116,9 @@ export function RoleChangeDialog({
             />
           </FormField>
 
-          {role === "tenant_admin" && target?.role !== "tenant_admin" && (
+          {role === "admin" && target?.role !== "admin" && (
             <Alert>
-              <AlertTitle>Tenant admin reaches everything</AlertTitle>
+              <AlertTitle>An admin reaches everything</AlertTitle>
               <AlertDescription>
                 Including module switches, other people&apos;s roles and payroll approval.
               </AlertDescription>

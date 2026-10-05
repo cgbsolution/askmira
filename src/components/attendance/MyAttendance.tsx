@@ -73,7 +73,7 @@ export function MyAttendance() {
         <EmptyState
           icon={UserX}
           title="Your login isn't linked to an employee record"
-          description="Attendance is recorded against an employee. Ask your HR admin to link this login to your employee profile, then punches and attendance days will appear here."
+          description="Attendance is recorded against an employee. Ask your admin to link this login to your employee profile, then punches and attendance days will appear here."
         />
       </Card>
     );

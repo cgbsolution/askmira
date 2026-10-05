@@ -34,12 +34,12 @@ import { DeviceTokenDialog, type IssuedToken } from "./DeviceTokenDialog";
 /**
  * Settings → Devices.
  *
- * HR sees every registered device and what it has sent; tenant and HR admins
+ * HR sees every registered device and what it has sent; admins
  * register, edit and rotate. Push tokens are shown once, then only a hint.
  */
 export function DevicesScreen() {
   const { hasRole } = useAuth();
-  const canManage = hasRole("tenant_admin", "hr_admin");
+  const canManage = hasRole("admin");
 
   const status = useApiQuery<IngestionStatus>("/devices/ingestion-status");
   const devices = useApiQuery<Device[]>("/devices");

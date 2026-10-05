@@ -29,7 +29,7 @@ import { LocationDialog } from "./LocationDialog";
  */
 export function OrganisationScreen() {
   const { hasRole } = useAuth();
-  const canManage = hasRole("tenant_admin", "hr_admin");
+  const canManage = hasRole("admin");
 
   const entities = useApiQuery<LegalEntity[]>("/org/legal-entities");
   const locations = useApiQuery<Location[]>("/org/locations");

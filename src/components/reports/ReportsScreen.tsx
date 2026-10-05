@@ -405,7 +405,7 @@ function ScheduleDialog({ report, onOpenChange }: { report: SavedReport | null; 
 
 function SchedulesTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const { data, error, isLoading, reload, setData } = useApiQuery<ReportSchedule[]>("/reports/schedules");
   const [busy, setBusy] = useState<string | null>(null);
 

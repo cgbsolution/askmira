@@ -64,7 +64,7 @@ const STATUS_VARIANT = { draft: "secondary", committed: "success", discarded: "m
  */
 export function ScenariosTab() {
   const { hasRole } = useAuth();
-  const canManage = hasRole("tenant_admin", "hr_admin");
+  const canManage = hasRole("admin");
   const scenarios = useApiQuery<ScenarioSummary[]>("/positions/scenarios");
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);

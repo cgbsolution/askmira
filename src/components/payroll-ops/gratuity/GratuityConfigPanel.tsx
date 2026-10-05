@@ -209,7 +209,7 @@ export function GratuityConfigPanel({
           <CardDescription>
             {isAdmin
               ? "Saving any change clears the SME approval."
-              : "Only an HR admin can change the configuration."}
+              : "Only an admin can change the configuration."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">

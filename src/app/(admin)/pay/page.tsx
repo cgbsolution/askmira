@@ -44,7 +44,7 @@ export default function MyPayPage() {
           title: linked ? "No payslips yet" : "Your login is not linked to an employee record",
           description: linked
             ? "A payslip appears here once payroll for the month is approved and published."
-            : "Ask your HR admin to link your login to your employee record.",
+            : "Ask your admin to link your login to your employee record.",
         }}
       >
         <div className="overflow-x-auto">

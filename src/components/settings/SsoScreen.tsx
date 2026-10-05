@@ -30,7 +30,7 @@ import { ScimTokensPanel } from "./ScimTokensPanel";
  */
 export function SsoScreen() {
   const { hasRole } = useAuth();
-  const isTenantAdmin = hasRole("tenant_admin");
+  const isAdmin = hasRole("admin");
 
   const providers = useApiQuery<IdentityProvider[]>("/sso/providers");
   const serviceProvider = useApiQuery<ServiceProviderDetails>("/sso/service-provider");
@@ -55,7 +55,7 @@ export function SsoScreen() {
         </Alert>
       )}
 
-      <BreakGlassCard canManage={isTenantAdmin} enforcing={enforcing} />
+      <BreakGlassCard canManage={isAdmin} enforcing={enforcing} />
 
       <Tabs defaultValue="providers">
         <TabsList>
@@ -69,7 +69,7 @@ export function SsoScreen() {
             title="Identity providers"
             description="Roles are always assigned in AskMira. There is deliberately no mapping from an IdP role claim — that would be a path to granting yourself payroll access from outside."
             actions={
-              isTenantAdmin ? (
+              isAdmin ? (
                 <Button size="sm" onClick={() => setForm({ open: true, editing: null })}>
                   <Plus /> Add provider
                 </Button>
@@ -92,7 +92,7 @@ export function SsoScreen() {
                   <TableHead>Type</TableHead>
                   <TableHead>Email domains</TableHead>
                   <TableHead>Behaviour</TableHead>
-                  {isTenantAdmin && <TableHead className="text-right">Actions</TableHead>}
+                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -134,7 +134,7 @@ export function SsoScreen() {
                         )}
                       </div>
                     </TableCell>
-                    {isTenantAdmin && (
+                    {isAdmin && (
                       <TableCell className="text-right">
                         <Button
                           variant="outline"
@@ -153,7 +153,7 @@ export function SsoScreen() {
         </TabsContent>
 
         <TabsContent value="directory" className="mt-4">
-          <ScimTokensPanel canManage={isTenantAdmin} />
+          <ScimTokensPanel canManage={isAdmin} />
         </TabsContent>
 
         <TabsContent value="endpoints" className="mt-4">

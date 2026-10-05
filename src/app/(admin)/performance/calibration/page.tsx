@@ -150,7 +150,7 @@ function NewSessionDialog({ onClose, onDone }: { onClose: () => void; onDone: ()
     list.forEach((p) => p.department_id && map.set(p.department_id, p.department ?? p.department_id));
     return [...map.entries()];
   }, [list]);
-  const managers = list.filter((p) => p.role === "manager" || list.some((q) => q.manager_id === p.employee_id));
+  const managers = list.filter((p) => list.some((q) => q.manager_id === p.employee_id));
   const grades = [...new Set(list.map((p) => p.grade).filter(Boolean))] as string[];
   const effectiveScope = scope === "company" ? "company" : scopeValue;
   const valid = cycleId && name.trim() && effectiveScope;

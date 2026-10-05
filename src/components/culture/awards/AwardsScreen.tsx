@@ -31,7 +31,7 @@ import { NewCycleDialog, NewProgrammeDialog } from "./ProgrammeDialogs";
  */
 export function AwardsScreen() {
   const { hasRole, user } = useAuth();
-  const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
+  const isHr = hasRole("admin", "sub_admin");
 
   const cycles = useApiQuery<AwardCycle[]>("/culture/award-cycles");
   const results = useApiQuery<AwardResult[]>("/culture/award-results");

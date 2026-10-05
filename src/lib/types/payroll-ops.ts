@@ -268,7 +268,7 @@ export interface ReconcileOutcome {
   credited: number;
   failed: { line_id: string; employee_id: string; amount: string; reason: string }[];
   unmatched: string[];
-  /** HR Ops users notified about failed credits. */
+  /** People in HR notified about failed credits. */
   notified: number;
   /** Rows of an imported file that could not be read. */
   parse_errors: string[];

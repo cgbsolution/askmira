@@ -22,7 +22,7 @@ import type { ManagedUser } from "@/lib/types/admin";
  */
 export function LoginAccessButton({ employee }: { employee: EmployeeSummary }) {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const logins = useApiQuery<ManagedUser[]>(isAdmin ? "/admin/users" : null);
   const [creating, setCreating] = useState(false);
 
@@ -50,7 +50,6 @@ export function LoginAccessButton({ employee }: { employee: EmployeeSummary }) {
       <NewUserDialog
         open={creating}
         onOpenChange={setCreating}
-        canGrantTenantAdmin={hasRole("tenant_admin")}
         initialEmployee={employee}
         onCreated={logins.reload}
       />

@@ -53,7 +53,7 @@ import { apiDetail } from "./cultureShared";
  */
 export function AnnouncementsScreen() {
   const { hasRole } = useAuth();
-  const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
+  const isHr = hasRole("admin", "sub_admin");
 
   return (
     <PageShell tier="tier2" title="Announcements" description="What the company wants everyone to know.">

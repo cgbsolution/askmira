@@ -90,7 +90,7 @@ function VaultSection({
   categories: DocumentCategoryOption[];
 }) {
   const { user, hasRole } = useAuth();
-  const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
+  const isHr = hasRole("admin", "sub_admin");
   const [category, setCategory] = useState(ALL_TYPES);
   const [query, setQuery] = useState("");
   const [adding, setAdding] = useState(false);

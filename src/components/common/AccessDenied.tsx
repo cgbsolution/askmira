@@ -23,7 +23,7 @@ export function AccessDenied({ reason }: { reason: "role" | "module" }) {
           <p className="mt-1 text-sm text-muted-foreground">
             {reason === "module"
               ? "An admin can enable it under Settings → Modules."
-              : "If you think you should, ask your HR admin to check your role."}
+              : "If you think you should, ask your admin to check your role."}
           </p>
         </div>
         <Button variant="outline" asChild>

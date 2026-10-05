@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { ManagedUser } from "@/lib/types/admin";
 import type { UserRole } from "@/lib/types";
@@ -29,13 +28,10 @@ import { ROLE_LABEL, formatDateTime } from "./settingsShared";
  * The role is the coarse gate on every router, so this screen is the one that
  * decides who can reach payroll. Every change asks for a reason and lands in
  * the audit trail, and the rules the API enforces — you cannot change your own
- * role, only a tenant admin grants tenant admin, the last tenant admin and the
- * break-glass account cannot be stranded — are shown here rather than
- * discovered as a refusal.
+ * role, the last admin and the break-glass account cannot be stranded — are
+ * shown here rather than discovered as a refusal.
  */
 export function UsersScreen() {
-  const { hasRole } = useAuth();
-  const isTenantAdmin = hasRole("tenant_admin");
   const { data, error, isLoading, reload } = useApiQuery<ManagedUser[]>("/admin/users");
 
   const [search, setSearch] = useState("");
@@ -57,17 +53,15 @@ export function UsersScreen() {
     );
   }, [data, search]);
 
-  const activeTenantAdmins = (data ?? []).filter(
-    (row) => row.role === "tenant_admin" && row.is_active,
+  const activeAdmins = (data ?? []).filter(
+    (row) => row.role === "admin" && row.is_active,
   ).length;
 
   /** Why a row's role cannot be changed, or null when it can. */
   const roleBlockedBecause = (row: ManagedUser): string | null => {
     if (row.is_you) return "You cannot change your own role. Ask another administrator.";
-    if (row.role === "tenant_admin" && !isTenantAdmin)
-      return "Only a tenant admin can change another tenant admin's role.";
-    if (row.role === "tenant_admin" && activeTenantAdmins <= 1)
-      return "This is the last tenant admin; the workspace needs one.";
+    if (row.role === "admin" && activeAdmins <= 1)
+      return "This is the last admin; the workspace needs one.";
     return null;
   };
 
@@ -75,8 +69,8 @@ export function UsersScreen() {
     if (row.is_you) return "You cannot disable your own login.";
     if (row.is_break_glass)
       return "This is the break-glass account. Designate another one before disabling it.";
-    if (row.is_active && row.role === "tenant_admin" && activeTenantAdmins <= 1)
-      return "This is the last active tenant admin; the workspace needs one.";
+    if (row.is_active && row.role === "admin" && activeAdmins <= 1)
+      return "This is the last active admin; the workspace needs one.";
     return null;
   };
 
@@ -94,7 +88,7 @@ export function UsersScreen() {
         title="Logins"
         description={
           data
-            ? `${data.length} login${data.length === 1 ? "" : "s"}, ${activeTenantAdmins} active tenant admin${activeTenantAdmins === 1 ? "" : "s"}.`
+            ? `${data.length} login${data.length === 1 ? "" : "s"}, ${activeAdmins} active admin${activeAdmins === 1 ? "" : "s"}.`
             : undefined
         }
         toolbar={
@@ -157,7 +151,7 @@ export function UsersScreen() {
                     <div className="text-xs text-muted-foreground">{row.email}</div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={row.role === "tenant_admin" ? "default" : "outline"}>
+                    <Badge variant={row.role === "admin" ? "default" : "outline"}>
                       {ROLE_LABEL[row.role as UserRole] ?? row.role}
                     </Badge>
                   </TableCell>
@@ -221,7 +215,6 @@ export function UsersScreen() {
       <NewUserDialog
         open={creating}
         onOpenChange={setCreating}
-        canGrantTenantAdmin={isTenantAdmin}
         onCreated={reload}
       />
       <LinkEmployeeDialog
@@ -236,7 +229,6 @@ export function UsersScreen() {
       <RoleChangeDialog
         target={changingRole}
         onOpenChange={(open) => !open && setChangingRole(null)}
-        canGrantTenantAdmin={isTenantAdmin}
         onChanged={reload}
       />
       <ActiveChangeDialog

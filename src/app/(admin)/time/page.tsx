@@ -37,7 +37,7 @@ export default function TimePage() {
   // Once somebody picks a tab themselves, a count arriving late must not move them.
   const tabChosen = useRef(false);
 
-  const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
+  const isHr = hasRole("admin", "sub_admin");
   const isManager = hasRole("manager");
   const hasEmployee = Boolean(user?.employee_id);
   const approvalCount = leaveApprovals + compOffApprovals;

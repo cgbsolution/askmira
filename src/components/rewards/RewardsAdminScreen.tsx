@@ -649,7 +649,7 @@ function LedgerTab() {
 
 function PolicyTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const valuations = useApiQuery<Valuation[]>("/rewards/valuations");
   const expiry = useApiQuery<ExpiryPolicy>("/rewards/expiry-policy");
   const rules = useApiQuery<TaxRule[]>("/rewards/tax-rules");

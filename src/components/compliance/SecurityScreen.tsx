@@ -162,7 +162,7 @@ export function SecurityScreen() {
 
 function SessionsTab() {
   const { user, hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const mine = useApiQuery<{ sessions: MySession[]; active_count: number; enforced: boolean }>("/opsec/sessions");
   const everyone = useApiQuery<ActiveSession[]>(isAdmin ? "/opsec/sessions/active" : null);
   const [ending, setEnding] = useState<{ sessionId?: string; userId?: string; label: string } | null>(null);
@@ -305,7 +305,7 @@ function SessionsTab() {
 
 function PolicyTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const { data, isLoading, error, reload } = useApiQuery<Policy>(isAdmin ? "/opsec/sessions/policy" : null);
   const [idle, setIdle] = useState("");
   const [lifetime, setLifetime] = useState("");
@@ -328,7 +328,7 @@ function PolicyTab() {
   if (!isAdmin) {
     return (
       <Alert>
-        <AlertDescription>The session policy is managed by tenant and HR admins.</AlertDescription>
+        <AlertDescription>The session policy is managed by admins.</AlertDescription>
       </Alert>
     );
   }
@@ -426,7 +426,7 @@ function PolicyTab() {
 
 function DrillsTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const registers = useApiQuery<Registers>(isAdmin ? "/opsec/registers" : null);
   const continuity = useApiQuery<Record<string, unknown>>("/opsec/continuity");
   const [recording, setRecording] = useState(false);
@@ -574,7 +574,7 @@ function DrillDialog({ open, onOpenChange, onRecorded }: { open: boolean; onOpen
 
 function PentestTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const registers = useApiQuery<Registers>(isAdmin ? "/opsec/registers" : null);
   const scope = useApiQuery<Record<string, unknown>>("/opsec/pentest-scope");
   const [recording, setRecording] = useState(false);
@@ -747,7 +747,7 @@ function FindingDialog({ open, onOpenChange, onRecorded }: { open: boolean; onOp
 
 function SiemTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const health = useApiQuery<{ destinations: Health[]; alerting: Health[] }>("/opsec/siem/health");
   const preview = useApiQuery<Record<string, unknown>>("/opsec/siem/preview?limit=5");
   const [adding, setAdding] = useState(false);

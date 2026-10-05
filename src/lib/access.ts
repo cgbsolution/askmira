@@ -22,7 +22,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import type { AuthUser, Tenant, UserRole } from "@/lib/types";
+import type { Audience, AuthUser, Tenant } from "@/lib/types";
 
 /**
  * The web portal's information architecture and who may reach each part of it.
@@ -33,18 +33,20 @@ import type { AuthUser, Tenant, UserRole } from "@/lib/types";
  * enforcement: this map decides what a person is shown, the API decides what
  * they get.
  *
- * `platform_admin` passes every check, as it does in `require_roles`.
+ * `super_admin` passes every check, as it does in `require_roles`. `manager`
+ * is anybody with a direct report, whatever their role — the backend's
+ * `line_managers=True`.
  */
 
-export const HR: UserRole[] = ["tenant_admin", "hr_admin", "hr_ops"];
-export const ADMIN: UserRole[] = ["tenant_admin", "hr_admin"];
-export const MANAGERS: UserRole[] = [...HR, "manager"];
-export const EVERYONE: UserRole[] = [...HR, "manager", "employee"];
+export const HR: Audience[] = ["admin", "sub_admin"];
+export const ADMIN: Audience[] = ["admin"];
+export const MANAGERS: Audience[] = [...HR, "manager"];
+export const EVERYONE: Audience[] = [...HR, "employee"];
 
 export interface NavPage {
   name: string;
   path: string;
-  roles: UserRole[];
+  roles: Audience[];
   /** Guarded but not listed in the section navigation (a create form, say). */
   hidden?: boolean;
   /** For a page outside any section, which has no section icon to borrow. */
@@ -317,9 +319,10 @@ const STANDALONE: NavPage[] = [
   { name: "Notifications", path: "/notifications", roles: EVERYONE, icon: Bell },
 ];
 
-export function roleAllows(user: AuthUser | null, roles: UserRole[]): boolean {
+export function roleAllows(user: AuthUser | null, roles: Audience[]): boolean {
   if (!user) return false;
-  return user.role === "platform_admin" || roles.includes(user.role);
+  if (user.role === "super_admin" || roles.includes(user.role)) return true;
+  return Boolean(user.is_manager) && roles.includes("manager");
 }
 
 export function moduleEnabled(tenant: Tenant | null, module: string | undefined): boolean {

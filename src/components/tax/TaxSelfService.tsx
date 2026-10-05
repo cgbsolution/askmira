@@ -49,7 +49,7 @@ export function TaxSelfService() {
         <EmptyState
           icon={UserX}
           title="Your login is not linked to an employee record"
-          description="Tax declarations, proofs and TDS projections belong to an employee record. Ask your HR admin to link your login to your employee profile."
+          description="Tax declarations, proofs and TDS projections belong to an employee record. Ask your admin to link your login to your employee profile."
         />
       </Card>
     );

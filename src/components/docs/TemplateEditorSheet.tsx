@@ -46,7 +46,7 @@ import type {
 } from "@/lib/types/docs";
 import { humanizeRole } from "@/lib/utils";
 
-const APPROVER_ROLES = ["tenant_admin", "hr_admin", "hr_ops", "manager"];
+const APPROVER_ROLES = ["admin", "sub_admin"];
 const SOURCES: FieldSource[] = ["employee", "salary", "tenant", "manual", "computed"];
 
 function blank(): TemplateContentInput {
@@ -399,7 +399,7 @@ export function TemplateEditorSheet({
               {content.requires_approval && (
                 <div className="grid gap-2">
                   <p className="text-xs text-muted-foreground">
-                    Who may approve (none selected: any tenant or HR admin)
+                    Who may approve (none selected: any admin)
                   </p>
                   {APPROVER_ROLES.map((role) => (
                     <div key={role} className="flex items-center gap-2">

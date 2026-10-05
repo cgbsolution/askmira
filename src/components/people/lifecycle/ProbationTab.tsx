@@ -51,7 +51,7 @@ const SILENCE: Record<SilencePolicy, { label: string; consequence: string }> = {
  */
 export function ProbationTab() {
   const { hasRole } = useAuth();
-  const canSetPolicy = hasRole("tenant_admin", "hr_admin");
+  const canSetPolicy = hasRole("admin");
   const policy = useApiQuery<ProbationPolicy>("/lifecycle/probation/policy");
   const drift = useApiQuery<DriftReport>(
     policy.data?.configured ? "/lifecycle/probation/drift" : null,

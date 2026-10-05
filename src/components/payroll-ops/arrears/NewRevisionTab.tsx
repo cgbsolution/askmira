@@ -49,7 +49,7 @@ interface Row {
 const AUTO = "auto";
 
 /**
- * A retrospective revision. HR can preview what it would pay; an HR admin
+ * A retrospective revision. HR can preview what it would pay; an admin
  * commits it, which computes an arrear batch for approval.
  */
 export function NewRevisionTab({
@@ -60,7 +60,7 @@ export function NewRevisionTab({
   onCommitted: (batch: ArrearBatch) => void;
 }) {
   const { hasRole } = useAuth();
-  const canCommit = hasRole("tenant_admin", "hr_admin");
+  const canCommit = hasRole("admin");
 
   const [entityId, setEntityId] = useState(entities.length === 1 ? entities[0].id : "");
   const [effectiveFrom, setEffectiveFrom] = useState("");
@@ -269,7 +269,7 @@ export function NewRevisionTab({
             <CardContent>
               {!canCommit ? (
                 <p className="text-sm text-muted-foreground">
-                  An HR admin commits revisions. Share this preview with them.
+                  An admin commits revisions. Share this preview with them.
                 </p>
               ) : (
                 <form className="grid gap-4" onSubmit={(event) => void commit(event)} noValidate>

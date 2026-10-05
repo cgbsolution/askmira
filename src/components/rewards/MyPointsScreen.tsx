@@ -52,7 +52,7 @@ function detail(caught: unknown, fallback: string): string {
  */
 export function MyPointsScreen() {
   const { user, hasRole } = useAuth();
-  const canAward = hasRole("tenant_admin", "hr_admin", "hr_ops", "manager");
+  const canAward = hasRole("admin", "sub_admin", "manager");
   const statement = useApiQuery<RewardStatement>(user?.employee_id ? "/rewards/me/statement" : null);
   const [redeeming, setRedeeming] = useState(false);
   const [awarding, setAwarding] = useState(false);

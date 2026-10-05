@@ -39,8 +39,8 @@ const ANY = "__any__";
 /** The positions list: who sits where, and the actions a seat allows in its current state. */
 export function PositionsTab() {
   const { hasRole } = useAuth();
-  const canManage = hasRole("tenant_admin", "hr_admin");
-  const canStaff = hasRole("tenant_admin", "hr_admin", "hr_ops");
+  const canManage = hasRole("admin");
+  const canStaff = hasRole("admin", "sub_admin");
 
   const [statusFilter, setStatusFilter] = useState<string>(ANY);
   const [search, setSearch] = useState("");

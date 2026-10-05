@@ -87,7 +87,7 @@ export function ReimbursementComponentsPanel() {
           title: "No reimbursement components yet",
           description: isAdmin
             ? "Add a component before employees can claim against it."
-            : "An HR admin has to add a component before employees can claim against it.",
+            : "An admin has to add a component before employees can claim against it.",
         }}
       >
         {(components) => (

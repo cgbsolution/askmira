@@ -66,7 +66,7 @@ export function EmployeeAccountsTab({ initialSearch }: { initialSearch: string }
     if (initialSearch) setEmployee(null);
   }, [initialSearch]);
 
-  const canAdd = hasRole("tenant_admin", "hr_admin", "hr_ops");
+  const canAdd = hasRole("admin", "sub_admin");
 
   return (
     <>

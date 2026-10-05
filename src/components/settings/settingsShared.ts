@@ -3,32 +3,24 @@ import type { UserRole } from "@/lib/types";
 
 /** Role names as an administrator reads them, not as the enum spells them. */
 export const ROLE_LABEL: Record<UserRole, string> = {
-  platform_admin: "Platform admin",
-  tenant_admin: "Tenant admin",
-  hr_admin: "HR admin",
-  hr_ops: "HR ops",
-  manager: "Manager",
+  super_admin: "Super admin",
+  admin: "Admin",
+  sub_admin: "Sub-admin",
   employee: "Employee",
 };
 
 /** What each role can reach, shown beside the choice rather than after it. */
 export const ROLE_SCOPE: Record<UserRole, string> = {
-  platform_admin: "Everything, across every workspace. Cannot be granted from here.",
-  tenant_admin: "Everything in this workspace, including modules, roles and payroll approval.",
-  hr_admin: "People, payroll, hiring and settings. Cannot grant tenant admin.",
-  hr_ops: "Day-to-day HR and payroll operations. Cannot change roles or modules.",
-  manager: "Their own team: approvals, attendance, appraisals and team reports.",
-  employee: "Their own record, payslips, time off and the culture feed.",
+  super_admin: "Every workspace on the platform. Cannot be granted from here.",
+  admin: "Everything in this workspace: settings, modules, logins and roles, payroll approval.",
+  sub_admin: "Day-to-day HR and payroll work. Cannot change settings, roles or approve money.",
+  employee:
+    "Their own record, payslips, time off and the culture feed — plus their team's " +
+    "approvals once somebody reports to them.",
 };
 
 /** The roles a workspace administrator may choose from. */
-export const ASSIGNABLE_ROLES: UserRole[] = [
-  "tenant_admin",
-  "hr_admin",
-  "hr_ops",
-  "manager",
-  "employee",
-];
+export const ASSIGNABLE_ROLES: UserRole[] = ["admin", "sub_admin", "employee"];
 
 export function errorDetail(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;

@@ -16,8 +16,8 @@ import { useAuth } from "@/context/AuthContext";
  */
 export function PoliciesWorkspace() {
   const { hasRole } = useAuth();
-  const canAdmin = hasRole("tenant_admin", "hr_admin");
-  const canHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
+  const canAdmin = hasRole("admin");
+  const canHr = hasRole("admin", "sub_admin");
 
   return (
     <Tabs defaultValue="policies">

@@ -302,7 +302,7 @@ export function PeriodsTab() {
             description={
               canLock
                 ? "Lock a period once its attendance is final, before payroll runs."
-                : "A tenant admin or HR admin locks a period once its attendance is final."
+                : "An admin locks a period once its attendance is final."
             }
           />
         ) : (

@@ -61,9 +61,9 @@ interface CostGap {
  */
 export function BudgetTab() {
   const { hasRole } = useAuth();
-  // Payroll-only in the semantic layer: tenant and HR admins, not HR ops.
-  const canSeeCost = hasRole("tenant_admin", "hr_admin");
-  const canManage = hasRole("tenant_admin", "hr_admin");
+  // Payroll-only in the semantic layer: admins, not sub-admins.
+  const canSeeCost = hasRole("admin");
+  const canManage = hasRole("admin");
   const org = useOrgReference();
 
   const [includeCost, setIncludeCost] = useState(false);

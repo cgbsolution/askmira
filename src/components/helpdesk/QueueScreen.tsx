@@ -70,7 +70,7 @@ const STATUS_FILTERS: [string, string][] = [
  *
  * Which tickets come back is the server's decision: HR sees the shared queue,
  * a category owner sees their categories, and confidential tickets reach only
- * their owner and HR admins. Nobody's own tickets appear here.
+ * their owner and admins. Nobody's own tickets appear here.
  */
 export function QueueScreen({ title, description }: { title: string; description: string }) {
   const { hasRole } = useAuth();

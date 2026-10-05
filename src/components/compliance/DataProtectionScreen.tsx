@@ -155,7 +155,7 @@ export function DataProtectionScreen() {
 
 function RequestsTab() {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const [openOnly, setOpenOnly] = useState(true);
   const { data, error, isLoading, reload } = useApiQuery<{ requests: QueueRequest[]; escalations: { request_id?: string; message?: string }[] }>(
     `/dpdp/requests?open_only=${openOnly}`,
@@ -420,7 +420,7 @@ function ErasureSheet({
                   <Trash2 /> Carry out erasure
                 </Button>
               ) : (
-                <p className="text-xs text-muted-foreground">Carrying out an erasure needs a tenant or HR admin.</p>
+                <p className="text-xs text-muted-foreground">Carrying out an erasure needs an admin.</p>
               )}
             </>
           ) : null}
@@ -912,7 +912,7 @@ const SLA_TYPES: RequestType[] = ["access", "correction", "erasure", "grievance"
 
 function ConfigTab({ onSaved }: { onSaved: () => void }) {
   const { hasRole } = useAuth();
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isAdmin = hasRole("admin");
   const { data, isLoading, reload } = useApiQuery<{
     configured: boolean;
     grievance_contact?: string;
@@ -938,7 +938,7 @@ function ConfigTab({ onSaved }: { onSaved: () => void }) {
   }, [data]);
 
   if (!isAdmin) {
-    return <Alert><AlertDescription>Configuration is managed by tenant and HR admins.</AlertDescription></Alert>;
+    return <Alert><AlertDescription>Configuration is managed by admins.</AlertDescription></Alert>;
   }
 
   const save = async () => {

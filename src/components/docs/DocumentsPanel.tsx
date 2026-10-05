@@ -95,7 +95,7 @@ export function DocumentsPanel({
   verification?: DocumentVerification;
 }) {
   const { user, hasRole } = useAuth();
-  const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
+  const isHr = hasRole("admin", "sub_admin");
   const [category, setCategory] = useState(NONE);
   const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState<VaultDocument | null>(null);
@@ -154,7 +154,7 @@ export function DocumentsPanel({
             ? "Expired, or expiring in the next 60 days."
             : isHr
               ? managingOwn
-                ? "Documents you add wait for another HR admin to verify them."
+                ? "Documents you add wait for another admin to verify them."
                 : verification === "pending"
                   ? "Documents employees added themselves. Download each one and check it before verifying."
                   : undefined

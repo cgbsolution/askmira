@@ -44,7 +44,7 @@ interface SeatNode extends TreeNode {
  */
 export function OrgChartScreen() {
   const { hasRole } = useAuth();
-  const canSeePositions = hasRole("tenant_admin", "hr_admin", "hr_ops", "manager");
+  const canSeePositions = hasRole("admin", "sub_admin", "manager");
 
   return (
     <PageShell

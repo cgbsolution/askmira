@@ -71,7 +71,7 @@ export function ClearanceTemplates() {
         title: "No checklist items",
         description: isAdmin
           ? "Add the items each department must sign off before someone leaves."
-          : "An HR admin has not set up the clearance checklist yet.",
+          : "An admin has not set up the clearance checklist yet.",
       }}
     >
       {(rows) => (

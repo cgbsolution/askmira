@@ -110,8 +110,8 @@ export function ProfileView({
   const [section, setSection] = useState<{ section: ProfileSection; mode: EditMode } | null>(null);
   const [requestsVersion, setRequestsVersion] = useState(0);
 
-  const isHr = hasRole("tenant_admin", "hr_admin", "hr_ops");
-  const isAdmin = hasRole("tenant_admin", "hr_admin");
+  const isHr = hasRole("admin", "sub_admin");
+  const isAdmin = hasRole("admin");
   const isSelf = Boolean(employee && employee.id === user?.employee_id);
   const seesPrivate = isSelf || isHr;
   const seesHistory = isHr || hasRole("manager");
