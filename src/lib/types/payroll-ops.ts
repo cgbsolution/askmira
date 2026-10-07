@@ -1015,6 +1015,8 @@ export interface SettlementSources {
   clearance_recovery: string;
   clearance_basis: string;
   notes: string[];
+  /** Leave encashable on exit whose encashment has not been computed yet. */
+  encashable_leave: { leave_type_code: string; days: string }[];
 }
 
 export interface Settlement {

@@ -98,17 +98,20 @@ function detail(caught: unknown, fallback: string): string {
  * that failed verification, not just the ones that passed.
  */
 export function AiGovernanceScreen() {
-  const posture = useApiQuery<{ invocations: unknown[]; not_built?: string[] }>("/grounding/invocations?limit=1");
+  const posture = useApiQuery<{ invocations: unknown[]; not_built?: string[] | string }>("/grounding/invocations?limit=1");
+  // The API states this as one sentence; a list is accepted too.
+  const raw = posture.data?.not_built;
+  const notBuilt = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
 
   return (
     <PageShell title="AI governance" description="What Mira's agents may do on their own, what they proposed, and how they are tested.">
-      {posture.data?.not_built && posture.data.not_built.length > 0 && (
+      {notBuilt.length > 0 && (
         <Alert variant="warning">
           <CircleSlash />
           <AlertTitle>The controls are built; the agents that use them are not all live</AlertTitle>
           <AlertDescription>
             <ul className="list-disc pl-5">
-              {posture.data.not_built.map((line) => (
+              {notBuilt.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>

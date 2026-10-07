@@ -114,7 +114,9 @@ export function ProfileView({
   const isAdmin = hasRole("admin");
   const isSelf = Boolean(employee && employee.id === user?.employee_id);
   const seesPrivate = isSelf || isHr;
-  const seesHistory = isHr || hasRole("manager");
+  // Managing somebody else's team does not open this person's history: the API
+  // allows it to HR and to people in this person's own reporting line.
+  const seesHistory = isHr || Boolean(employee?.in_your_line);
   const seesPay = seesPrivate && hasModule("payroll");
 
   const profile = useApiQuery<EmployeeProfile>(
@@ -386,7 +388,9 @@ export function ProfileView({
               <DetailItem label="Date of exit">{day(employee.date_of_exit)}</DetailItem>
             </CardContent>
           </Card>
-          {!isSelf && <EmployeeAssetsCard employeeId={employee.id} className="mt-6" />}
+          {!isSelf && seesHistory && (
+            <EmployeeAssetsCard employeeId={employee.id} className="mt-6" />
+          )}
           {isHr && !isSelf && details?.hiring_snapshot && Object.keys(details.hiring_snapshot).length > 0 && (
             <div className="mt-6">
               <HiringSnapshotCard snapshot={details.hiring_snapshot} />

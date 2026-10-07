@@ -364,6 +364,7 @@ function PolicyDialog({
             <TextField
               id="policy-max-year"
               label="Max days / year"
+              hint="In service only. At exit the whole balance is paid, up to the cap."
               optional
               numeric
               value={form.maxPerYear}
@@ -382,6 +383,7 @@ function PolicyDialog({
             <TextField
               id="policy-min-balance"
               label="Keep at least (days)"
+              hint="After an in-service encashment."
               required
               numeric
               value={form.minBalance}

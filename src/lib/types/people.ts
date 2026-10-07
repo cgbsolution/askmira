@@ -22,6 +22,8 @@ export interface DirectoryEmployee {
 
 export interface EmployeeRecord {
   id: string;
+  /** Set on a single-record read: this person is in the caller's reporting line. */
+  in_your_line?: boolean;
   tenant_id: string;
   employee_code: string;
   first_name: string;

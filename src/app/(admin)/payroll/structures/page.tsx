@@ -1,7 +1,7 @@
 "use client";
 
 import { Calculator, Loader2 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
@@ -52,7 +52,7 @@ export default function SalaryStructuresPage() {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
 
-  const list = structures.data ?? [];
+  const list = useMemo(() => structures.data ?? [], [structures.data]);
 
   useEffect(() => {
     if (!selectedId && list.length > 0) setSelectedId(list[0].id);

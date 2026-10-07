@@ -144,7 +144,7 @@ function NewSessionDialog({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [facilitator, setFacilitator] = useState("");
   const [participants, setParticipants] = useState<string[]>([]);
   const { busy, run } = useAction();
-  const list = people.data ?? [];
+  const list = useMemo(() => people.data ?? [], [people.data]);
   const departments = useMemo(() => {
     const map = new Map<string, string>();
     list.forEach((p) => p.department_id && map.set(p.department_id, p.department ?? p.department_id));

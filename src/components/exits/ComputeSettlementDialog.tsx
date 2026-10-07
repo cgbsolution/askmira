@@ -1,6 +1,6 @@
 "use client";
 
-import { Info, Loader2 } from "lucide-react";
+import { Calculator, Info, Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -128,6 +128,7 @@ export function ComputeSettlementDialog({
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEncashing, setIsEncashing] = useState(false);
 
   useEffect(() => {
     if (!current) return;
@@ -177,6 +178,26 @@ export function ComputeSettlementDialog({
     }
   };
 
+  // Leave encashable on exit is computed from the balance by the server, then
+  // comes back as a prefilled line, as gratuity does.
+  const encash = async () => {
+    if (!exitId) return;
+    setIsEncashing(true);
+    setError(null);
+    try {
+      const rows = await post<{ leave_type_code: string; days_approved: string }[]>(
+        `/encashment/exits/${exitId}`,
+      );
+      const what = rows.map((row) => `${row.days_approved} day(s) of ${row.leave_type_code}`);
+      toast.success(`Leave encashment computed: ${what.join(", ")}`);
+      sources.reload();
+    } catch (caught) {
+      setError(apiErrorMessage(caught, "Leave encashment could not be computed."));
+    } finally {
+      setIsEncashing(false);
+    }
+  };
+
   const set = (key: Key, value: string) => setForm((previous) => ({ ...previous, [key]: value }));
 
   return (
@@ -218,6 +239,32 @@ export function ComputeSettlementDialog({
                   )}
                 </div>
               </div>
+
+              {data.encashable_leave.length > 0 && (
+                <Alert>
+                  <Calculator />
+                  <AlertTitle>Leave encashment not computed yet</AlertTitle>
+                  <AlertDescription>
+                    <p>
+                      {data.encashable_leave
+                        .map((row) => `${row.days} day(s) of ${row.leave_type_code}`)
+                        .join(", ")}{" "}
+                      can be encashed on exit. Compute it from the leave balance and the
+                      encashment policy; it comes off the balance and is prefilled below.
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2"
+                      disabled={isEncashing || isSaving}
+                      onClick={() => void encash()}
+                    >
+                      {isEncashing && <Loader2 className="animate-spin" />}
+                      Compute leave encashment
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {data.notes.length > 0 && (
                 <Alert>
