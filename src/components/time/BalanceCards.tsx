@@ -44,10 +44,12 @@ export function BalanceCards({
 }) {
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-36 w-full" />
-        ))}
+      <div className="@container">
+        <div className="grid gap-4 @lg:grid-cols-2 @4xl:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-36 w-full" />
+          ))}
+        </div>
       </div>
     );
   }
@@ -72,8 +74,10 @@ export function BalanceCards({
   const statutory = balances.filter((balance) => balance.is_statutory && isZero(balance.used));
 
   return (
-    <div className="space-y-3">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+    // Columns follow the space the cards are given, not the window: the same
+    // cards sit full width on the Time page and in a side sheet.
+    <div className="space-y-3 @container">
+      <div className="grid gap-4 @lg:grid-cols-2 @4xl:grid-cols-3">
         {drawn.map((balance) => {
           // Earned includes carry-forward and HR or comp-off credits (net of
           // any debit or lapse); spent includes encashment. The big number is

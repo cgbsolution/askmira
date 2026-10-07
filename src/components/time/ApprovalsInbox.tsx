@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Inbox, Loader2, X } from "lucide-react";
+import { Check, Inbox, Loader2, Palmtree, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -22,15 +22,59 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, get, post } from "@/lib/api";
-import type { CompOffClaim, LeaveRequest } from "@/lib/types";
+import type { CompOffClaim, LeaveRequest, RequestBalance } from "@/lib/types";
 import {
+  cn,
   formatDate,
   formatDateRange,
   formatDay,
+  formatDays,
   initials,
   pluralDays,
   toISODate,
 } from "@/lib/utils";
+
+const isZero = (value: string) => /^-?0(\.0+)?$/.test(value);
+
+/**
+ * What the person has of this leave, so the approver need not leave the inbox
+ * to look it up. Every figure is the API's; "left" is what approving this one
+ * request leaves, with their other pending requests named rather than taken off.
+ */
+function RequestBalanceLine({ balance }: { balance: RequestBalance }) {
+  const negative = balance.after_approval.startsWith("-");
+  return (
+    <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+      <Palmtree className="size-3.5 shrink-0 text-brand-600" />
+      <span>
+        Balance{" "}
+        <span className="font-medium text-foreground tabular-nums">
+          {formatDays(balance.available)}
+        </span>{" "}
+        →{" "}
+        <span
+          className={cn(
+            "font-medium tabular-nums",
+            negative ? "text-destructive" : "text-foreground",
+          )}
+        >
+          {formatDays(balance.after_approval)}
+        </span>{" "}
+        {negative ? "after this — below zero" : "left after this"}
+      </span>
+      {!isZero(balance.other_pending) && (
+        <span className="text-warning">
+          · {pluralDays(balance.other_pending)} more pending
+        </span>
+      )}
+      {balance.projected_carry_forward && (
+        <span>
+          · includes {pluralDays(balance.projected_carry_forward)} expected to carry forward
+        </span>
+      )}
+    </p>
+  );
+}
 
 type Declining =
   | { kind: "leave"; row: LeaveRequest }
@@ -165,6 +209,7 @@ export function ApprovalsInbox({
                       ` (${halfDayLabel(row.half_day_session)})`}{" "}
                     · <span className="tabular-nums">{pluralDays(row.total_days)}</span>
                   </p>
+                  {row.balance && <RequestBalanceLine balance={row.balance} />}
                   {row.reason && (
                     <p className="text-sm text-muted-foreground">“{row.reason}”</p>
                   )}

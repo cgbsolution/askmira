@@ -12,6 +12,7 @@ import { HolidayList } from "@/components/time/HolidayList";
 import { LeaveSetup } from "@/components/time/LeaveSetup";
 import { RequestsTable } from "@/components/time/RequestsTable";
 import { RequestTimeOffDialog } from "@/components/time/RequestTimeOffDialog";
+import { TeamBalancesTable } from "@/components/time/TeamBalancesTable";
 import { WhoIsOutCalendar } from "@/components/time/WhoIsOutCalendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -113,7 +114,7 @@ export default function TimePage() {
         {hasEmployee && <BalanceCards balances={balances} isLoading={balancesLoading} />}
 
         <Tabs value={tab} onValueChange={chooseTab}>
-          <TabsList className="flex-wrap">
+          <TabsList className="h-auto flex-wrap">
             <TabsTrigger value="requests">Requests</TabsTrigger>
             {showApprovals && (
               <TabsTrigger value="approvals">
@@ -129,6 +130,11 @@ export default function TimePage() {
             <TabsTrigger value="calendar">Who&apos;s out</TabsTrigger>
             <TabsTrigger value="holidays">Holidays</TabsTrigger>
             {(hasEmployee || isHr) && <TabsTrigger value="balances">Balances</TabsTrigger>}
+            {(isHr || isManager) && (
+              <TabsTrigger value="team-balances">
+                {isHr ? "All balances" : "Team balances"}
+              </TabsTrigger>
+            )}
             {isHr && <TabsTrigger value="setup">Setup</TabsTrigger>}
           </TabsList>
 
@@ -170,6 +176,16 @@ export default function TimePage() {
           {(hasEmployee || isHr) && (
             <TabsContent value="balances" className="mt-4">
               <BalancesPanel
+                isHr={isHr}
+                ownEmployeeId={user?.employee_id ?? null}
+                version={version}
+                onChanged={refresh}
+              />
+            </TabsContent>
+          )}
+          {(isHr || isManager) && (
+            <TabsContent value="team-balances" className="mt-4">
+              <TeamBalancesTable
                 isHr={isHr}
                 ownEmployeeId={user?.employee_id ?? null}
                 version={version}

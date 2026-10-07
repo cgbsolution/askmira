@@ -57,6 +57,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AttendanceCalendar } from "@/components/attendance/AttendanceCalendar";
+import { BalancesPanel } from "@/components/time/BalancesPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { del } from "@/lib/api";
@@ -118,6 +119,8 @@ export function ProfileView({
   // allows it to HR and to people in this person's own reporting line.
   const seesHistory = isHr || Boolean(employee?.in_your_line);
   const seesPay = seesPrivate && hasModule("payroll");
+  // Balances follow the same rule as the history: yourself, HR, your line.
+  const seesLeave = (isSelf || seesHistory) && hasModule("leave");
 
   const profile = useApiQuery<EmployeeProfile>(
     employee && seesPrivate
@@ -267,6 +270,7 @@ export function ProfileView({
           {seesPrivate && <TabsTrigger value="documents">Documents</TabsTrigger>}
           {seesPrivate && <TabsTrigger value="requests">Change requests</TabsTrigger>}
           {isSelf && <TabsTrigger value="resignation">Resignation</TabsTrigger>}
+          {seesLeave && <TabsTrigger value="leave">Leave</TabsTrigger>}
           {seesHistory && !isSelf && hasModule("leave") && (
             <TabsTrigger value="attendance">Attendance</TabsTrigger>
           )}
@@ -431,6 +435,18 @@ export function ProfileView({
         {seesHistory && !isSelf && hasModule("leave") && (
           <TabsContent value="attendance" className="mt-4">
             <AttendanceCalendar employeeId={employee.id} title={`${name}'s attendance`} />
+          </TabsContent>
+        )}
+
+        {seesLeave && (
+          <TabsContent value="leave" className="mt-4">
+            <BalancesPanel
+              isHr={isHr}
+              ownEmployeeId={user?.employee_id ?? null}
+              fixed={{ id: employee.id, name }}
+              version={0}
+              onChanged={() => undefined}
+            />
           </TabsContent>
         )}
 

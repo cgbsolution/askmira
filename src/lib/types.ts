@@ -209,6 +209,20 @@ export interface LeaveRequest {
   created_at: string;
   can_decide: boolean;
   can_cancel: boolean;
+  /** In the approvals inbox only, for a paid type with a balance to draw on. */
+  balance?: RequestBalance | null;
+}
+
+/** The requester's balance of the type asked for, as whoever decides sees it. */
+export interface RequestBalance {
+  year: number;
+  /** What the ledger says today, before this request. */
+  available: string;
+  /** Their other undecided requests of this type in the same year. */
+  other_pending: string;
+  /** `available` less this request. */
+  after_approval: string;
+  projected_carry_forward: string | null;
 }
 
 export interface LeaveRequestInput {
@@ -267,6 +281,47 @@ export interface LeaveBalance {
 }
 
 export type ManualAdjustmentKind = "opening" | "credit" | "debit";
+
+/** A leave type, as a column of the team table. */
+export interface TeamBalanceColumn {
+  leave_type_id: string;
+  name: string;
+  code: string;
+  is_paid: boolean;
+  is_statutory: boolean;
+  is_comp_off: boolean;
+}
+
+export interface TeamBalanceCell {
+  leave_type_id: string;
+  /** Opening + accrued + carried forward + adjustments. */
+  entitled: string;
+  used: string;
+  encashed: string;
+  pending: string;
+  available: string;
+}
+
+export interface TeamBalanceRow {
+  employee_id: string;
+  employee_code: string;
+  employee_name: string;
+  photo_url: string | null;
+  designation: string | null;
+  department_name: string | null;
+  /** Only the types a policy or a ledger row gives this person. */
+  balances: TeamBalanceCell[];
+}
+
+export interface TeamBalances {
+  year: number;
+  /** Every active leave type, so the columns do not move between pages. */
+  leave_types: TeamBalanceColumn[];
+  items: TeamBalanceRow[];
+  total: number;
+  page: number;
+  page_size: number;
+}
 
 export interface BalanceAdjustment {
   id: string;

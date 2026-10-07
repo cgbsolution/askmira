@@ -59,24 +59,30 @@ const KIND_LABEL: Record<ManualAdjustmentKind, string> = {
  *
  * The history's last running total is the card's `available`, from the same
  * API; if the two ever differ, that is a bug to report, not a rounding.
+ *
+ * With `fixed`, one person's balances and no picker: their profile, or a row
+ * opened from the team table. The API decides whether the caller may look.
  */
 export function BalancesPanel({
   isHr,
   ownEmployeeId,
   version,
   onChanged,
+  fixed = null,
 }: {
   isHr: boolean;
   ownEmployeeId: string | null;
   version: number;
   onChanged: () => void;
+  fixed?: { id: string; name: string } | null;
 }) {
   const thisYear = new Date().getFullYear();
-  const [person, setPerson] = useState<EmployeeSummary | null>(null);
+  const [picked, setPerson] = useState<EmployeeSummary | null>(null);
   const [year, setYear] = useState(thisYear);
   const [historyTypeId, setHistoryTypeId] = useState<string>("");
   const [adjusting, setAdjusting] = useState(false);
 
+  const person = fixed ?? (picked ? { id: picked.id, name: employeeDisplayName(picked) } : null);
   const employeeId = person?.id ?? ownEmployeeId;
   const viewingSelf = !person || person.id === ownEmployeeId;
   const params = new URLSearchParams({ year: String(year) });
@@ -109,15 +115,15 @@ export function BalancesPanel({
   }, [version, reloadBalances, reloadHistory]);
 
   return (
-    <div className="grid gap-4">
+    <div className="grid grid-cols-1 gap-4">
       <Card tier="tier1" className="gap-0 py-0">
         <CardContent className="flex flex-wrap items-end gap-4 p-4">
-          {isHr && (
+          {isHr && !fixed && (
             <div className="grid min-w-72 flex-1 gap-1.5">
-              <FormField htmlFor="balance-person" label="Employee" hint={person ? undefined : "Showing your own balances. Search to see someone else's."}>
+              <FormField htmlFor="balance-person" label="Employee" hint={picked ? undefined : "Showing your own balances. Search to see someone else's."}>
                 <EmployeePicker
                   id="balance-person"
-                  value={person}
+                  value={picked}
                   onChange={setPerson}
                   excludeId={null}
                 />
@@ -245,7 +251,7 @@ export function BalancesPanel({
         <AdjustDialog
           open={adjusting}
           employeeId={employeeId}
-          employeeName={person ? employeeDisplayName(person) : "you"}
+          employeeName={person ? person.name : "you"}
           year={year}
           onClose={() => setAdjusting(false)}
           onSaved={() => {
