@@ -26,7 +26,9 @@ export interface AwardPostRef {
 
 export interface Shoutout {
   id: string;
-  kind: "peer" | "award";
+  kind: "peer" | "award" | "milestone";
+  /** A work anniversary the company marked: how many years. */
+  milestone_years?: number | null;
   from_employee_id: string | null;
   to_employee_id: string;
   sender: PersonRef | null;
@@ -345,6 +347,8 @@ export interface SurveyResults {
   responses: number;
   min_responses_to_report: number;
   overall: Record<string, number> | EnpsResult;
+  /** The instrument's scale, low and high. Absent for eNPS. */
+  scale_bounds?: [number, number];
   groups?: SurveyGroupResult[];
   movement?: {
     deltas: Record<string, number>;

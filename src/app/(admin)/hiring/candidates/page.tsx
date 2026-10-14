@@ -22,9 +22,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
+import { useAuth } from "@/context/AuthContext";
 import { HR } from "@/lib/access";
 import type { Page } from "@/lib/types";
-import type { CandidateSummary, RequisitionSummary } from "@/lib/types/hiring";
+import type { CandidateSummary, RequisitionSummary, TagCount, TalentPool } from "@/lib/types/hiring";
 
 const ALL = "all";
 const PAGE_SIZE = 200;
@@ -55,6 +56,12 @@ function CandidatesPipeline() {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [view, setView] = useState<"board" | "list">("board");
+  const [tag, setTag] = useState<string>(ALL);
+  const [poolId, setPoolId] = useState<string>(ALL);
+  const { hasRole } = useAuth();
+  const isHr = hasRole(...HR);
+  const tags = useApiQuery<TagCount[]>("/hiring/candidate-tags");
+  const pools = useApiQuery<TalentPool[]>(isHr ? "/hiring/talent-pools" : null);
   const [addOpen, setAddOpen] = useState(false);
 
   useEffect(() => {
@@ -83,6 +90,8 @@ function CandidatesPipeline() {
   const params = new URLSearchParams({ page: "1", page_size: String(PAGE_SIZE) });
   if (requisitionId !== ALL) params.set("requisition_id", requisitionId);
   if (debounced) params.set("search", debounced);
+  if (tag !== ALL) params.set("tag", tag);
+  if (poolId !== ALL) params.set("pool_id", poolId);
   const { data, error, isLoading, reload } = useApiQuery<Page<CandidateSummary>>(
     `/hiring/candidates?${params.toString()}`,
   );
@@ -144,12 +153,42 @@ function CandidatesPipeline() {
               <Input
                 type="search"
                 aria-label="Search candidates"
-                placeholder="Search name or email"
+                placeholder="Name, email, employer or resume words"
                 className="w-64 pl-8"
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
               />
             </div>
+            {(tags.data ?? []).length > 0 && (
+              <Select value={tag} onValueChange={setTag}>
+                <SelectTrigger className="w-44" aria-label="Tag">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>Any tag</SelectItem>
+                  {(tags.data ?? []).map((row) => (
+                    <SelectItem key={row.tag} value={row.tag}>
+                      {row.tag} ({row.candidates})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {(pools.data ?? []).length > 0 && (
+              <Select value={poolId} onValueChange={setPoolId}>
+                <SelectTrigger className="w-52" aria-label="Talent pool">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>Any talent pool</SelectItem>
+                  {(pools.data ?? []).map((pool) => (
+                    <SelectItem key={pool.id} value={pool.id}>
+                      {pool.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
             {requisitions.error && (
               <p className="text-xs text-destructive">{requisitions.error.detail}</p>
             )}
@@ -163,7 +202,7 @@ function CandidatesPipeline() {
           icon: Users,
           title: debounced ? "No candidates match this search" : "No candidates yet",
           description: debounced
-            ? "Try a different name or email."
+            ? "Try other words: names, emails, employers and resume text are all searched."
             : "Candidates appear here when they apply on the careers page, are referred, or are added by HR.",
         }}
       >

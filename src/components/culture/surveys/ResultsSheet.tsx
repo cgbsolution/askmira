@@ -3,6 +3,7 @@
 import { EyeOff, Info } from "lucide-react";
 import { useState } from "react";
 
+import { SurveyThemesCard } from "@/components/ai/SurveyThemesCard";
 import { ErrorState } from "@/components/common/ErrorState";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { EnpsResult, SurveyResults } from "@/lib/types/culture";
+import { cn } from "@/lib/utils";
 
 const GROUPINGS = [
   { value: "department_key", label: "By department" },
@@ -38,6 +40,22 @@ function isEnps(overall: SurveyResults["overall"]): overall is EnpsResult {
 
 function fmt(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2);
+}
+
+/**
+ * A heatmap cell's shade: how far a group sits from the overall score, as a
+ * share of the scale's range, so the same gap reads the same on any instrument.
+ */
+function heat(value: number, overall: number | undefined, bounds: [number, number] | undefined): string {
+  if (overall === undefined || !bounds) return "";
+  const span = bounds[1] - bounds[0];
+  if (span <= 0) return "";
+  const share = (value - overall) / span;
+  if (share >= 0.1) return "bg-mint-200 dark:bg-mint-900/50";
+  if (share >= 0.04) return "bg-mint-100 dark:bg-mint-900/25";
+  if (share <= -0.1) return "bg-destructive/20";
+  if (share <= -0.04) return "bg-destructive/10";
+  return "";
 }
 
 /**
@@ -124,7 +142,7 @@ export function ResultsSheet({
               {data.groups && (
                 <section className="grid gap-2">
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-sm font-semibold text-foreground">Groups</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Heatmap</h3>
                     <Select value={groupBy} onValueChange={setGroupBy}>
                       <SelectTrigger className="w-44" aria-label="Group results by">
                         <SelectValue />
@@ -150,6 +168,14 @@ export function ResultsSheet({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
+                      <TableRow>
+                        <TableCell className="text-sm font-medium">Everyone</TableCell>
+                        {themes.map((theme) => (
+                          <TableCell key={theme} className="text-right font-medium tabular-nums">
+                            {fmt((data.overall as Record<string, number>)[theme])}
+                          </TableCell>
+                        ))}
+                      </TableRow>
                       {data.groups.map((group) => (
                         <TableRow key={group.key}>
                           <TableCell className="text-sm">
@@ -161,7 +187,15 @@ export function ResultsSheet({
                             )}
                           </TableCell>
                           {themes.map((theme) => (
-                            <TableCell key={theme} className="text-right tabular-nums">
+                            <TableCell
+                              key={theme}
+                              className={cn(
+                                "text-right tabular-nums",
+                                group.visible &&
+                                  group.scores[theme] !== undefined &&
+                                  heat(group.scores[theme], (data.overall as Record<string, number>)[theme], data.scale_bounds),
+                              )}
+                            >
                               {group.visible && group.scores[theme] !== undefined ? fmt(group.scores[theme]) : "—"}
                             </TableCell>
                           ))}
@@ -169,8 +203,16 @@ export function ResultsSheet({
                       ))}
                     </TableBody>
                   </Table>
+                  {data.scale_bounds && (
+                    <p className="text-xs text-muted-foreground">
+                      Shaded by distance from everyone&apos;s score on the {data.scale_bounds[0]}–{data.scale_bounds[1]} scale:
+                      green is above it, red below; the darker shade is a gap of a tenth of the scale or more, the
+                      lighter one of a twenty-fifth. Withheld groups are never shaded.
+                    </p>
+                  )}
                 </section>
               )}
+              {survey ? <SurveyThemesCard surveyId={survey.id} /> : null}
             </>
           ) : null}
         </div>

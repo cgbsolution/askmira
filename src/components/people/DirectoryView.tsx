@@ -1,9 +1,10 @@
 "use client";
 
-import { Plus, Search, Users } from "lucide-react";
+import { Download, Loader2, Plus, Search, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { HR } from "@/lib/access";
+import { ApiError, downloadFile } from "@/lib/api";
 import type { EmploymentStatus, Page } from "@/lib/types";
 import type { DirectoryEmployee } from "@/lib/types/people";
 
@@ -94,6 +96,20 @@ export function DirectoryView() {
   const rows = data?.items ?? [];
   const total = data?.total ?? 0;
   const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const [exporting, setExporting] = useState(false);
+  const exportCsv = async () => {
+    const filters = new URLSearchParams(query);
+    filters.delete("page");
+    filters.delete("page_size");
+    setExporting(true);
+    try {
+      await downloadFile(`/employees/export${filters.toString() ? `?${filters}` : ""}`, "directory.csv");
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.detail : "The directory could not be exported.");
+    } finally {
+      setExporting(false);
+    }
+  };
   const filtered =
     Boolean(debounced.trim()) || [department, location, status].some((v) => v !== NONE);
 
@@ -103,6 +119,9 @@ export function DirectoryView() {
       description="Everyone in the company — names, roles, departments and work contacts."
       actions={
         <RequireRole roles={HR}>
+          <Button variant="outline" onClick={() => void exportCsv()} disabled={exporting}>
+            {exporting ? <Loader2 className="animate-spin" /> : <Download />} Export CSV
+          </Button>
           <Button variant="accent" asChild>
             <Link href="/people/new">
               <Plus /> Add employee

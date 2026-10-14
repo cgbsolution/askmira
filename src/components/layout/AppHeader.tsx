@@ -3,7 +3,10 @@
 import {
   AlignLeft,
   Bell,
+  Building2,
+  Check,
   ChevronDown,
+  Languages,
   LogOut,
   Moon,
   Search,
@@ -23,12 +26,17 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
+import { HR } from "@/lib/access";
+import { LOCALES, useLocale, useT } from "@/lib/i18n";
 import { humanizeRole, initials } from "@/lib/utils";
 
 /**
@@ -39,6 +47,7 @@ import { humanizeRole, initials } from "@/lib/utils";
  * count is shown by the notifications work, not guessed here.
  */
 export function AppHeader() {
+  const t = useT();
   const { toggleSidebar } = useSidebar();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
@@ -93,7 +102,7 @@ export function AppHeader() {
           onChange={(event) => setTerm(event.target.value)}
           placeholder="Search people by name, code or email"
           className="rounded-xl pr-16 pl-12 shadow-sm"
-          aria-label="Search people"
+          aria-label={t("Search people")}
         />
         <kbd className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded-lg border border-border bg-muted px-1.5 py-1 font-sans text-xs font-medium text-muted-foreground">
           {shortcut}
@@ -106,7 +115,7 @@ export function AppHeader() {
           size="icon"
           className={round}
           onClick={toggleTheme}
-          aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+          aria-label={t(theme === "light" ? "Switch to dark theme" : "Switch to light theme")}
         >
           {theme === "light" ? <Moon /> : <Sun />}
         </Button>
@@ -125,7 +134,8 @@ export function AppHeader() {
 
 /** Avatar, first name and the account menu, at the right of the bar. */
 function UserMenu() {
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
+  const { locale, setLocale, t } = useLocale();
   if (!user) return null;
 
   return (
@@ -133,7 +143,7 @@ function UserMenu() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          aria-label="Account menu"
+          aria-label={t("Account menu")}
           className="group h-11 gap-3 rounded-full px-0 hover:bg-transparent sm:pr-1"
         >
           <Avatar className="size-11">
@@ -159,16 +169,37 @@ function UserMenu() {
         <DropdownMenuSeparator className="my-2" />
         <DropdownMenuItem asChild className="gap-3 rounded-lg px-3 py-2 font-medium">
           <Link href="/profile">
-            <UserCircle2 /> My profile
+            <UserCircle2 /> {t("My profile")}
           </Link>
         </DropdownMenuItem>
+        {hasRole(...HR) ? (
+          <DropdownMenuItem asChild className="gap-3 rounded-lg px-3 py-2 font-medium">
+            <Link href="/operator">
+              <Building2 /> {t("Client workspaces")}
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger className="gap-3 rounded-lg px-3 py-2 font-medium">
+            <Languages className="size-4" /> {t("Language")}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent>
+            {LOCALES.map((option) => (
+              <DropdownMenuItem key={option.code} lang={option.code} onClick={() => setLocale(option.code)}>
+                <Check className={option.code === locale ? "opacity-100" : "opacity-0"} />
+                {option.label}
+                {option.code !== "en" ? <span className="text-xs text-muted-foreground">{option.english}</span> : null}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         <DropdownMenuSeparator className="my-2" />
         <DropdownMenuItem
           variant="destructive"
           className="gap-3 rounded-lg px-3 py-2 font-medium"
           onClick={() => void logout()}
         >
-          <LogOut /> Sign out
+          <LogOut /> {t("Sign out")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

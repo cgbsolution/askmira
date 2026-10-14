@@ -6,6 +6,7 @@ import { ClearanceTemplates } from "@/components/exits/ClearanceTemplates";
 import { useExitRoles } from "@/components/exits/common";
 import { ExitDetailSheet } from "@/components/exits/ExitDetailSheet";
 import { ExitPolicyCard } from "@/components/exits/ExitPolicyCard";
+import { ExitReasonsPanel } from "@/components/exits/ExitReasonsPanel";
 import { ExitsTable } from "@/components/exits/ExitsTable";
 import { NoticeRecoveryCalculator } from "@/components/exits/NoticeRecoveryCalculator";
 import { StartExitDialog } from "@/components/exits/StartExitDialog";
@@ -27,6 +28,7 @@ export function ExitsWorkspace() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <TabsList className="no-scrollbar max-w-full overflow-x-auto">
             <TabsTrigger value="exits">Exits</TabsTrigger>
+            {isHr && <TabsTrigger value="reasons">Why people leave</TabsTrigger>}
             {isHr && <TabsTrigger value="recovery">Notice recovery</TabsTrigger>}
             {isHr && <TabsTrigger value="checklist">Checklist setup</TabsTrigger>}
             {isHr && <TabsTrigger value="policy">Policy</TabsTrigger>}
@@ -44,6 +46,11 @@ export function ExitsWorkspace() {
         <TabsContent value="exits">
           <ExitsTable version={version} onOpen={setOpenExitId} />
         </TabsContent>
+        {isHr && (
+          <TabsContent value="reasons">
+            <ExitReasonsPanel />
+          </TabsContent>
+        )}
         {isHr && (
           <TabsContent value="recovery">
             <NoticeRecoveryCalculator />

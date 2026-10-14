@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { DeviceWithToken } from "@/lib/types/attendance";
 
-import { PUSH_URL_PATTERN, pushUrl } from "./DeviceShared";
+import { admsAddress, kioskUrl, PUSH_URL_PATTERN, pushUrl } from "./DeviceShared";
 
 export interface IssuedToken {
   device: DeviceWithToken;
@@ -50,6 +50,10 @@ export function DeviceTokenDialog({
 
   const token = issued?.device.push_token ?? "";
   const url = token ? pushUrl(token) : "";
+  const adms = token ? admsAddress(token) : "";
+  const speaksAdms = issued?.device.vendor === "essl" || issued?.device.vendor === "zkteco";
+  const isKiosk = issued?.device.vendor === "kiosk";
+  const kiosk = token && isKiosk ? kioskUrl(token) : "";
 
   return (
     <Dialog open={issued !== null} onOpenChange={(open) => !open && onClose()}>
@@ -106,6 +110,49 @@ export function DeviceTokenDialog({
             </div>
             <p className="text-xs text-muted-foreground">Pattern: POST {PUSH_URL_PATTERN}</p>
           </div>
+          {isKiosk && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="device-kiosk-url">Kiosk page</Label>
+              <div className="flex gap-2">
+                <Input id="device-kiosk-url" readOnly value={kiosk} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Copy kiosk page address"
+                  onClick={() => void copy(kiosk, "Kiosk address")}
+                >
+                  <Copy />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Open this on the tablet and pin it full screen. People punch with their employee
+                code and the PIN they set on their Attendance page.
+              </p>
+            </div>
+          )}
+          {speaksAdms && (
+            <div className="grid gap-1.5">
+              <Label htmlFor="device-adms-url">ADMS server address (eSSL / ZKTeco)</Label>
+              <div className="flex gap-2">
+                <Input id="device-adms-url" readOnly value={adms} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  aria-label="Copy ADMS address"
+                  onClick={() => void copy(adms, "ADMS address")}
+                >
+                  <Copy />
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Enter this as the device&apos;s cloud server address; it adds /iclock/cdata
+                itself. If the device takes only a host and port, edit the device here and turn
+                on push by serial number instead.
+              </p>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

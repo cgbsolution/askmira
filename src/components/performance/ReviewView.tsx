@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { Feedback360Panel } from "./Feedback360Panel";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { ReviewDetail, ReviewEntry } from "@/lib/types/performance";
@@ -121,6 +122,8 @@ export function ReviewView({ appraisalId, onChanged }: { appraisalId: string; on
           )}
         </CardContent>
       </Card>
+
+      <Feedback360Panel requests={data.feedback_360 ?? []} />
 
       {viewer.can_act && (
         <Card tier="tier1">

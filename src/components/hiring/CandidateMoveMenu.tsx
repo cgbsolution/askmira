@@ -24,6 +24,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, post } from "@/lib/api";
 import type { CandidateStage, StageMoveResult } from "@/lib/types/hiring";
@@ -57,6 +59,7 @@ export function CandidateStageMoveDialog({
   onMoved: (result: StageMoveResult) => void;
 }) {
   const [reason, setReason] = useState("");
+  const [notifyCandidate, setNotifyCandidate] = useState(true);
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,6 +67,7 @@ export function CandidateStageMoveDialog({
   useEffect(() => {
     if (target) {
       setReason("");
+      setNotifyCandidate(true);
       setFieldError(null);
       setApiError(null);
     }
@@ -83,6 +87,7 @@ export function CandidateStageMoveDialog({
       const result = await post<StageMoveResult>(`/hiring/candidates/${candidate.id}/stage`, {
         to_stage: target,
         reason: reason.trim() || undefined,
+        notify_candidate: target === "rejected" ? notifyCandidate : undefined,
       });
       toast.success(`${candidate.full_name} moved to ${stageLabel(result.to_stage)}`);
       onOpenChange(false);
@@ -130,6 +135,19 @@ export function CandidateStageMoveDialog({
             }}
           />
         </FormField>
+        {target === "rejected" && (
+          <div className="flex items-start gap-3">
+            <Switch id={`move-notify-${candidate.id}`} checked={notifyCandidate} onCheckedChange={setNotifyCandidate} />
+            <div className="grid gap-1">
+              <Label htmlFor={`move-notify-${candidate.id}`} className="text-sm font-normal">
+                Tell the candidate
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                A courteous email, sent after 24 hours so a mistaken move can be undone. The reason above stays internal.
+              </p>
+            </div>
+          </div>
+        )}
         <DialogFooter>
           <Button variant="outline" disabled={isSaving} onClick={() => onOpenChange(false)}>
             Cancel

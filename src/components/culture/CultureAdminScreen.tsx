@@ -31,6 +31,7 @@ import { put } from "@/lib/api";
 import type { ClubParticipation, CompanyValue, ValueAnalytics } from "@/lib/types/culture";
 
 import { apiDetail } from "./cultureShared";
+import { MilestonesPanel } from "./MilestonesPanel";
 
 interface LoopRow {
   theme: string;
@@ -75,6 +76,7 @@ export function CultureAdminScreen() {
           <TabsTrigger value="analytics">Values in practice</TabsTrigger>
           <TabsTrigger value="loop">Survey follow-through</TabsTrigger>
           <TabsTrigger value="clubs">Club participation</TabsTrigger>
+          <TabsTrigger value="milestones">Work anniversaries</TabsTrigger>
           <TabsTrigger value="posture">What is enforced</TabsTrigger>
         </TabsList>
         <TabsContent value="values" className="mt-4">
@@ -88,6 +90,9 @@ export function CultureAdminScreen() {
         </TabsContent>
         <TabsContent value="clubs" className="mt-4">
           <ParticipationTab />
+        </TabsContent>
+        <TabsContent value="milestones" className="mt-4">
+          <MilestonesPanel />
         </TabsContent>
         <TabsContent value="posture" className="mt-4">
           <PostureTab />

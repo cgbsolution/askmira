@@ -6,7 +6,7 @@
  */
 
 export type PunchDirection = "in" | "out";
-export type PunchSource = "biometric" | "mobile_geo" | "web" | "manual" | "import";
+export type PunchSource = "biometric" | "mobile_geo" | "web" | "manual" | "import" | "kiosk";
 
 export type AttendanceStatus =
   | "present"
@@ -37,6 +37,8 @@ export interface PunchInput {
   employee_id?: string | null;
   punched_at?: string | null;
   source?: PunchSource | null;
+  /** A photo taken now, as a JPEG data URL, where the workspace asks for one. */
+  photo?: string | null;
 }
 
 export interface Punch {
@@ -49,6 +51,8 @@ export interface Punch {
   outside_geofence: boolean;
   /** Metres beyond the nearest work location's edge; negative inside it. */
   nearest_location_metres: number | null;
+  /** A photo was taken with the punch; HR and the manager line can open it. */
+  has_photo: boolean;
   latitude: number | null;
   longitude: number | null;
   /** The nearest work location's name when the punch was made. */
@@ -60,6 +64,8 @@ export type LocationMode = "off" | "optional" | "required";
 
 export interface AttendanceSettings {
   location_mode: LocationMode;
+  /** Off: no photo; optional: asked for; required: a self-service punch needs one. */
+  photo_mode: LocationMode;
 }
 
 /** A work location as the punch map draws it. */
@@ -298,6 +304,13 @@ export interface ShiftInput {
   is_night_shift: boolean;
   /** ISO weekdays, 1 = Monday … 7 = Sunday. */
   weekly_off_days: number[];
+  /** A per-day shift differential paid by payroll, in rupees. */
+  allowance_per_day?: string | null;
+  allowance_name?: string | null;
+  /** The fewest people the shift needs on a working day, for the coverage view. */
+  min_headcount?: number | null;
+  /** Courses (Learning) anyone working this shift must hold, valid on the day. */
+  required_course_ids?: string[];
 }
 
 export interface ShiftCreateInput extends ShiftInput {
@@ -391,7 +404,7 @@ export interface WorkLocation {
 
 // ── Devices ─────────────────────────────────────────────────────────────────
 
-export type DeviceVendor = "essl" | "matrix" | "zkteco" | "generic";
+export type DeviceVendor = "essl" | "matrix" | "zkteco" | "generic" | "kiosk";
 export type DeviceStatus = "active" | "silent" | "disabled";
 
 export interface DeviceInput {
@@ -410,6 +423,7 @@ export interface DeviceUpdateInput {
   assumed_timezone?: string;
   silence_threshold_minutes?: number;
   enabled?: boolean;
+  accepts_serial_push?: boolean;
 }
 
 export interface Device {
@@ -423,6 +437,8 @@ export interface Device {
   last_seen_at: string | null;
   silence_threshold_minutes: number;
   push_token_hint: string | null;
+  /** May push by serial number alone (ADMS/iclock firmware that takes only a host and port). */
+  accepts_serial_push?: boolean;
 }
 
 /** Returned by register and rotate only. The token is never shown again. */
@@ -460,4 +476,57 @@ export interface IngestionStatus {
   pull_ingestion_built: boolean;
   silence_alerts_sent: boolean;
   notes: string[];
+}
+
+// ── Shift swaps and coverage ────────────────────────────────────────────────
+
+export type ShiftSwapStatus =
+  | "awaiting_partner"
+  | "awaiting_approval"
+  | "approved"
+  | "declined"
+  | "rejected"
+  | "cancelled";
+
+export interface SwapShift {
+  id: string;
+  name: string;
+  start_time: string | null;
+  end_time: string | null;
+}
+
+export interface ShiftSwap {
+  id: string;
+  requester_employee_id: string;
+  requester_name: string;
+  partner_employee_id: string;
+  partner_name: string;
+  swap_date: string;
+  requester_shift: SwapShift;
+  partner_shift: SwapShift;
+  reason: string;
+  status: ShiftSwapStatus;
+  note: string | null;
+  created_at: string | null;
+  decided_at: string | null;
+  /** The viewer's part in it. */
+  you_are: "requester" | "partner" | "approver";
+}
+
+export interface CoverageCell {
+  shift_id: string;
+  scheduled: number;
+  on_leave: number;
+  available: number;
+  min_headcount: number | null;
+  short_by: number;
+}
+
+export interface Coverage {
+  from: string;
+  to: string;
+  people: number;
+  shifts: { id: string; code: string; name: string; start_time: string; end_time: string; min_headcount: number | null }[];
+  days: { date: string; shifts: CoverageCell[] }[];
+  note: string;
 }

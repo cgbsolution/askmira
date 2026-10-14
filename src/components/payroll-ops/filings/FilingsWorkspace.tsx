@@ -6,6 +6,7 @@ import React, { useCallback, useState } from "react";
 import { EmptyState } from "@/components/common/EmptyState";
 import { NotLiveNotice, QueryBoundary } from "@/components/payroll-ops/shared";
 import { FilingDetailDialog } from "@/components/payroll-ops/filings/FilingDetailDialog";
+import { Form16PartATab } from "@/components/payroll-ops/filings/Form16PartATab";
 import { FilingsList } from "@/components/payroll-ops/filings/FilingsList";
 import { GenerateReturnCard } from "@/components/payroll-ops/filings/GenerateReturnCard";
 import { RETURN_LABEL } from "@/components/payroll-ops/filings/labels";
@@ -75,6 +76,7 @@ export function FilingsWorkspace() {
               <TabsList>
                 <TabsTrigger value="returns">Returns</TabsTrigger>
                 <TabsTrigger value="challans">TDS challans</TabsTrigger>
+                <TabsTrigger value="form16">Form 16 Part A</TabsTrigger>
               </TabsList>
               <TabsContent value="returns" className="grid gap-4">
                 <GenerateReturnCard
@@ -95,6 +97,9 @@ export function FilingsWorkspace() {
               </TabsContent>
               <TabsContent value="challans">
                 <TdsChallansTab entities={rows} />
+              </TabsContent>
+              <TabsContent value="form16">
+                <Form16PartATab />
               </TabsContent>
             </Tabs>
           )

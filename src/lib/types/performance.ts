@@ -160,7 +160,32 @@ export interface ReviewEntry {
   returned_reason: string | null;
 }
 
+/** One 360 request about the person in this cycle, as the viewer may see it. */
+export interface Feedback360 {
+  request_id: string;
+  asked: number;
+  answered: number;
+  status: string;
+  aggregate: {
+    responses: number;
+    overall_average: string | null;
+    overall_count: number;
+    competencies: { competency_id: string; name: string; average: string | null; responses: number; comments: string[] }[];
+    strengths: string[];
+    improvements: string[];
+  } | null;
+  by_relationship: { relationship: string; responses: number; overall_average: string | null; withheld: boolean }[];
+  responses_named: {
+    reviewer_name: string;
+    relationship: string | null;
+    overall_rating: string | null;
+    strengths: string | null;
+    improvements: string | null;
+  }[] | null;
+}
+
 export interface ReviewDetail {
+  feedback_360?: Feedback360[];
   appraisal: {
     id: string;
     cycle_id: string;

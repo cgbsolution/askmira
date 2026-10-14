@@ -61,8 +61,18 @@ interface DraftTask {
   due_offset_days: string;
   task_type: OnboardingTaskType;
   document_type: OnboardingDocumentType | "";
+  form_code: string;
   is_mandatory: boolean;
 }
+
+/** The statutory forms a FORM task can generate from the joiner's profile. */
+const STATUTORY_FORMS: Record<string, string> = {
+  FORM11_STD: "EPF declaration (Form 11)",
+  FORM2_STD: "PF and EPS nomination (Form 2)",
+  FORMF_STD: "Gratuity nomination (Form F)",
+  ESI_DECL_STD: "ESI declaration (Form 1)",
+};
+const NO_FORM = "__none__";
 
 let draftCounter = 0;
 function nextKey(): string {
@@ -80,6 +90,7 @@ function blankTask(): DraftTask {
     due_offset_days: "0",
     task_type: "general",
     document_type: "",
+    form_code: NO_FORM,
     is_mandatory: true,
   };
 }
@@ -95,6 +106,7 @@ function fromTemplate(template: OnboardingTemplate | null): DraftTask[] {
     due_offset_days: String(task.due_offset_days),
     task_type: task.task_type,
     document_type: (task.document_type as OnboardingDocumentType | null) ?? "",
+    form_code: task.form_code ?? NO_FORM,
     is_mandatory: task.is_mandatory,
   }));
 }
@@ -213,6 +225,7 @@ function EditorForm({
         due_offset_days: Number(task.due_offset_days.trim()),
         task_type: task.task_type,
         document_type: task.task_type === "document_upload" ? task.document_type || null : null,
+        form_code: task.task_type === "form" && task.form_code !== NO_FORM ? task.form_code : null,
         is_mandatory: task.is_mandatory,
       })),
     };
@@ -451,6 +464,27 @@ function EditorForm({
                                 {(owners.data ?? []).map((person) => (
                                   <SelectItem key={person.user_id} value={person.user_id}>
                                     {person.full_name} · {humanizeRole(person.role)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FormField>
+                        )}
+                        {task.task_type === "form" && (
+                          <FormField htmlFor={`${id}-form`} label="Generates" optional>
+                            <Select
+                              value={task.form_code}
+                              disabled={isSaving}
+                              onValueChange={(value) => update(task.key, { form_code: value })}
+                            >
+                              <SelectTrigger id={`${id}-form`} className="w-full">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NO_FORM}>A form filled outside AskMira</SelectItem>
+                                {Object.entries(STATUTORY_FORMS).map(([code, label]) => (
+                                  <SelectItem key={code} value={code}>
+                                    {label}
                                   </SelectItem>
                                 ))}
                               </SelectContent>

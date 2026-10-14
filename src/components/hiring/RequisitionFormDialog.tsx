@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { DraftJdButton } from "@/components/ai/DraftJdButton";
 import { FormField } from "@/components/common/FormField";
 import { Button } from "@/components/ui/button";
 import {
@@ -208,11 +209,13 @@ export function RequisitionFormDialog({
   const [form, setForm] = useState<FormState>(() => fromDetail(requisition));
   const [errors, setErrors] = useState<Errors>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [aiAssisted, setAiAssisted] = useState(false);
 
   useEffect(() => {
     if (open) {
       setForm(fromDetail(requisition));
       setErrors({});
+      setAiAssisted(Boolean(requisition?.description_ai_assisted));
     }
   }, [open, requisition]);
 
@@ -234,6 +237,7 @@ export function RequisitionFormDialog({
     setIsSaving(true);
     try {
       const input = toInput(form, isHr, editing);
+      if (editing) input.description_ai_assisted = aiAssisted;
       const saved = editing
         ? await patch<RequisitionDetail>(`/hiring/requisitions/${requisition!.id}`, input)
         : await post<RequisitionDetail>("/hiring/requisitions", input);
@@ -493,15 +497,35 @@ export function RequisitionFormDialog({
             />
           </FormField>
 
-          <FormField htmlFor="req-description" label="Job description" optional>
+          <FormField
+            htmlFor="req-description"
+            label="Job description"
+            optional
+            hint={aiAssisted ? "Started from an AI draft; the published version will say so." : undefined}
+          >
             <Textarea
               id="req-description"
               rows={6}
               maxLength={20000}
               value={form.description}
-              onChange={(event) => set("description", event.target.value)}
+              onChange={(event) => {
+                set("description", event.target.value);
+                if (!event.target.value.trim()) setAiAssisted(false);
+              }}
             />
           </FormField>
+          {editing && requisition ? (
+            <div className="-mt-2 flex justify-end">
+              <DraftJdButton
+                requisitionId={requisition.id}
+                notes={form.description}
+                onDraft={(draft) => {
+                  set("description", draft);
+                  setAiAssisted(true);
+                }}
+              />
+            </div>
+          ) : null}
 
           <FormField
             htmlFor="req-skills"

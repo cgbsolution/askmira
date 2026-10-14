@@ -49,6 +49,7 @@ export const RULE_TYPE_LABEL: Record<string, string> = {
   gratuity: "Gratuity",
   bonus: "Statutory bonus",
   labour_welfare_fund: "Labour Welfare Fund",
+  tds_non_salary: "TDS on contractors (194C / 194J)",
 };
 
 export const COMPONENT_TYPE_LABEL: Record<string, string> = {

@@ -2,6 +2,7 @@
 
 import {
   CalendarOff,
+  Camera,
   Clock,
   Fingerprint,
   Loader2,
@@ -10,6 +11,7 @@ import {
   MapPin,
   MapPinOff,
   Palmtree,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
@@ -20,6 +22,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
@@ -38,6 +41,8 @@ import { cn, toISODate } from "@/lib/utils";
 
 import { AttendanceMap, type MapPoint } from "./AttendanceMap";
 import { formatDistance, nearestPlace, PunchLocation, useLivePosition } from "./location";
+import { PunchPhoto } from "./PunchPhoto";
+import { shrinkPhoto } from "./shrinkPhoto";
 import { errorDetail, formatClock, formatMinutes, LoadError, shortTime } from "./shared";
 
 // A punch-in older than this is a forgotten punch-out, not a shift in
@@ -188,10 +193,14 @@ export function PunchCard({
   const [sharePreference, setSharePreference] = useState(true);
   const [isPunching, setIsPunching] = useState(false);
   const [locationProblem, setLocationProblem] = useState<string | null>(null);
+  // The photo lives here until the punch is sent, then it is dropped.
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoInputKey, setPhotoInputKey] = useState(0);
 
   useEffect(() => setSharePreference(readSharePreference()), []);
 
   const mode = settingsQuery.data?.location_mode ?? "optional";
+  const photoMode = settingsQuery.data?.photo_mode ?? "off";
   const shareLocation = mode === "required" || (mode === "optional" && sharePreference);
   const places = settingsQuery.data?.work_locations ?? [];
   const live = useLivePosition(shareLocation && settingsQuery.data !== null);
@@ -233,12 +242,34 @@ export function PunchCard({
     writeSharePreference(value);
   };
 
+  const clearPhoto = () => {
+    setPhoto(null);
+    setPhotoInputKey((key) => key + 1);
+  };
+
+  const takePhoto = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      setPhoto(await shrinkPhoto(file));
+    } catch (caught) {
+      clearPhoto();
+      toast.error(caught instanceof Error ? caught.message : "The photo could not be used.");
+    }
+  };
+
   const punch = async () => {
+    if (photoMode === "required" && !photo) {
+      toast.error("Your company takes a photo with every punch.", {
+        description: "Take one with the camera button, then punch.",
+      });
+      return;
+    }
     setIsPunching(true);
     setLocationProblem(null);
     // Coordinates live only in this call: sent once, never kept in state or storage.
     // From the portal, with or without a location, it is a web punch.
     const body: PunchInput = { direction: nextDirection, source: "web" };
+    if (photo && photoMode !== "off") body.photo = photo;
     if (shareLocation) {
       const fresh = live.position && Date.now() - live.position.at < 60_000 ? live.position : null;
       const position: PositionResult = fresh
@@ -272,6 +303,7 @@ export function PunchCard({
           ? `Recorded ${where} — outside every work location, so HR sees it flagged.`
           : `Recorded ${where}.`,
       });
+      clearPhoto();
       punchesQuery.reload();
       periodQuery.reload();
       onPunched?.();
@@ -392,6 +424,38 @@ export function PunchCard({
             {isPunching && shareLocation ? "Locating…" : nextDirection === "in" ? "Punch in" : "Punch out"}
           </Button>
           {locationLine}
+          {photoMode !== "off" && (
+            <div className="flex items-center gap-2 lg:justify-end">
+              {photo ? (
+                <>
+                  <Badge variant="success">
+                    <Camera /> Photo ready
+                  </Badge>
+                  <Button size="icon" variant="ghost" className="size-7" onClick={clearPhoto} aria-label="Remove the photo">
+                    <X />
+                  </Button>
+                </>
+              ) : (
+                <Label
+                  htmlFor={compact ? "punch-photo-home" : "punch-photo"}
+                  className="flex cursor-pointer items-center gap-1 text-xs font-normal text-muted-foreground"
+                >
+                  <Camera className="size-3.5" />
+                  {photoMode === "required" ? "Take a photo to punch" : "Add a photo (optional)"}
+                </Label>
+              )}
+              <Input
+                key={photoInputKey}
+                id={compact ? "punch-photo-home" : "punch-photo"}
+                type="file"
+                accept="image/*"
+                capture="user"
+                className="sr-only"
+                disabled={isPunching}
+                onChange={(event) => void takePhoto(event.target.files?.[0])}
+              />
+            </div>
+          )}
           {shareLocation && (
             <p className="text-xs text-muted-foreground lg:text-right">
               {live.position
@@ -493,7 +557,10 @@ export function PunchCard({
                           {row.direction === "in" ? "In" : "Out"} · {row.source.replace("_", " ")}
                         </span>
                       </span>
-                      <PunchLocation punch={row} />
+                      <span className="flex flex-wrap items-center gap-2">
+                        <PunchLocation punch={row} />
+                        <PunchPhoto punch={row} />
+                      </span>
                     </span>
                   </li>
                 ))}

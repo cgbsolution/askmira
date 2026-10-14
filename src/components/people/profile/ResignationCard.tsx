@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { DatePicker } from "@/components/common/DatePicker";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
+import { ExitInterviewPanel } from "@/components/exits/ExitInterviewPanel";
 import { ExitStatusBadge, ReasonDialog } from "@/components/exits/common";
 import { apiMessage } from "@/components/people/labels";
 import { DetailItem } from "@/components/people/StatusBadges";
@@ -258,6 +259,7 @@ export function ResignationCard({ employee }: { employee: EmployeeRecord }) {
                 To withdraw an accepted resignation, speak to your manager or HR.
               </p>
             )}
+            {!open.awaiting_acceptance && <ExitInterviewPanel exitId={open.id} viewer="leaver" />}
           </>
         ) : (
           !record?.withdrawn_at && (

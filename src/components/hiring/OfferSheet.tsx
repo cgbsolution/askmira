@@ -694,11 +694,19 @@ function OfferActionDialogs({
           return null;
         }}
         onSubmit={async () => {
-          const result = await post<{ employee_id: string; employee_code: string }>(`/offers/${id}/convert`, {
+          const result = await post<{
+            employee_id: string;
+            employee_code: string;
+            onboarding_checklist: string | null;
+          }>(`/offers/${id}/convert`, {
             employee_code: employeeCode.trim(),
             work_email: workEmail.trim(),
           });
-          toast.success(`Employee ${result.employee_code} created`);
+          toast.success(
+            result.onboarding_checklist
+              ? `Employee ${result.employee_code} created; onboarding started from ${result.onboarding_checklist}.`
+              : `Employee ${result.employee_code} created. No default onboarding checklist is set, so start their onboarding from Onboarding.`,
+          );
           onConverted(result);
           onDone();
         }}

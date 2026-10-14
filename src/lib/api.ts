@@ -25,7 +25,7 @@ const CSRF_HEADER = "X-CSRF-Token";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /** Pages that must not bounce to sign-in on a 401 (they are the sign-in flow, or public). */
-const PUBLIC_PATH_PREFIXES = ["/signin", "/signup", "/careers", "/candidate", "/interview"];
+const PUBLIC_PATH_PREFIXES = ["/signin", "/signup", "/careers", "/candidate", "/interview", "/kiosk"];
 
 export class ApiError extends Error {
   constructor(
@@ -55,6 +55,16 @@ function readCookie(name: string): string | undefined {
 function isPublicPage(): boolean {
   if (typeof window === "undefined") return true;
   return PUBLIC_PATH_PREFIXES.some((prefix) => window.location.pathname.startsWith(prefix));
+}
+
+/** Asks the person to prove who they are; resolves true once they have. */
+export type StepUpHandler = (action: string, reason: string) => Promise<boolean>;
+
+let stepUpHandler: StepUpHandler | null = null;
+
+/** Registered once by StepUpProvider; a 428 naming an action is answered through it. */
+export function setStepUpHandler(handler: StepUpHandler | null): void {
+  stepUpHandler = handler;
 }
 
 let refreshing: Promise<boolean> | null = null;
@@ -111,6 +121,15 @@ async function send(path: string, options: ApiOptions): Promise<Response> {
     response = await rawFetch(path, init, timeout);
     if (response.status === 401 && !skipAuthRedirect && !path.startsWith("/auth/")) {
       if (await refreshSession()) {
+        response = await rawFetch(path, init, timeout);
+      }
+    }
+    // A money-moving action wants fresh proof of identity: ask, then try once more.
+    const stepUpAction = response.status === 428 ? response.headers.get("X-Step-Up-Action") : null;
+    if (stepUpAction && stepUpHandler) {
+      const payload = await response.clone().json().catch(() => null);
+      const reason = typeof payload?.detail === "string" ? payload.detail : "Confirm it is you to continue.";
+      if (await stepUpHandler(stepUpAction, reason)) {
         response = await rawFetch(path, init, timeout);
       }
     }

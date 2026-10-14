@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import { ErrorState } from "@/components/common/ErrorState";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
+import { JournalExportMenu } from "@/components/payroll/accounting/JournalExportMenu";
 import { InputSourcesPanel } from "@/components/payroll/InputSourcesPanel";
 import { formatMoment, periodLabel, RUN_TYPE } from "@/components/payroll/labels";
 import { RegisterPanel } from "@/components/payroll/RegisterPanel";
@@ -78,7 +79,10 @@ export default function PayrollRunPage() {
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <RunStatusBadge status={run.status} />
-            <RunActions run={run} onChanged={changed} />
+            <div className="flex flex-wrap items-center gap-2">
+              <JournalExportMenu run={run} />
+              <RunActions run={run} onChanged={changed} />
+            </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <Stat label="Employees">
@@ -115,6 +119,24 @@ export default function PayrollRunPage() {
               {run.payment_date ? ` · payment date ${formatDay(run.payment_date, true)}` : ""}
             </li>
           </ul>
+          {run.run_type !== "regular" && (
+            <div className="grid gap-1 rounded-md border border-border bg-muted/40 p-3 text-sm">
+              <p className="text-foreground">
+                <span className="font-medium">Why: </span>
+                {run.reason ?? "—"}
+              </p>
+              <p className="text-muted-foreground">
+                Pays {run.employee_scope.length}{" "}
+                {run.employee_scope.length === 1 ? "person" : "people"} on top of the month&apos;s
+                approved regular run
+                {run.included_sources?.length
+                  ? `, from: ${run.included_sources.map((key) => key.replaceAll("_", " ")).join(", ")}`
+                  : ""}
+                . Anyone the regular run already paid gets a top-up payslip: their salary, PF and
+                the month&apos;s TDS share are not paid again.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -5,6 +5,7 @@ import React, { useEffect } from "react";
 
 import { AccessDenied } from "@/components/common/AccessDenied";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { OperatorBanner } from "@/components/operators/OperatorBanner";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,6 +62,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <SidebarInset className="min-w-0">
           <AppHeader />
           <div className="mx-auto w-full max-w-(--breakpoint-2xl) flex-1 p-4 md:p-6">
+            <OperatorBanner />
             {decision === "allowed" ? children : <AccessDenied reason={decision} />}
           </div>
         </SidebarInset>

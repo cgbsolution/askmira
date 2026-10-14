@@ -210,6 +210,10 @@ interface ShiftForm {
   is_night_shift: boolean;
   weekly_off_days: number[];
   active: boolean;
+  allowance_per_day: string;
+  allowance_name: string;
+  min_headcount: string;
+  required_course_ids: string[];
 }
 
 const EMPTY_FORM: ShiftForm = {
@@ -225,6 +229,10 @@ const EMPTY_FORM: ShiftForm = {
   is_night_shift: false,
   weekly_off_days: [],
   active: true,
+  allowance_per_day: "",
+  allowance_name: "",
+  min_headcount: "",
+  required_course_ids: [],
 };
 
 const NUMBER_FIELDS: { key: keyof ShiftForm; label: string }[] = [
@@ -241,6 +249,12 @@ function validate(form: ShiftForm, isCreate: boolean): Record<string, string> {
   if (!form.name.trim()) errors.name = "A name is required.";
   if (!form.start_time) errors.start_time = "A start time is required.";
   if (!form.end_time) errors.end_time = "An end time is required.";
+  if (form.allowance_per_day.trim() && !/^\d+(\.\d{1,2})?$/.test(form.allowance_per_day.trim())) {
+    errors.allowance_per_day = "Enter rupees, like 150 or 150.50 — or leave it empty.";
+  }
+  if (form.min_headcount.trim() && !/^[1-9]\d{0,5}$/.test(form.min_headcount.trim())) {
+    errors.min_headcount = "A whole number of people, 1 or more — or leave it empty.";
+  }
   for (const field of NUMBER_FIELDS) {
     const value = parseWholeNumber(form[field.key] as string);
     if (value === null) errors[field.key] = "Enter whole minutes (0 or more).";
@@ -276,6 +290,7 @@ function ShiftDialog({
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const courses = useApiQuery<{ id: string; title: string; active: boolean }[]>(target ? "/learning/courses" : null);
 
   useEffect(() => {
     if (target === null) return;
@@ -298,6 +313,10 @@ function ShiftDialog({
       is_night_shift: target.is_night_shift,
       weekly_off_days: [...target.weekly_off_days],
       active: target.active,
+      allowance_per_day: target.allowance_per_day ?? "",
+      allowance_name: target.allowance_name ?? "",
+      min_headcount: target.min_headcount ? String(target.min_headcount) : "",
+      required_course_ids: target.required_course_ids ?? [],
     });
   }, [target]);
 
@@ -320,6 +339,10 @@ function ShiftDialog({
       full_day_threshold_minutes: Number(form.full_day_threshold_minutes),
       is_night_shift: form.is_night_shift,
       weekly_off_days: [...form.weekly_off_days].sort((a, b) => a - b),
+      allowance_per_day: form.allowance_per_day.trim() || null,
+      allowance_name: form.allowance_name.trim() || null,
+      min_headcount: form.min_headcount.trim() ? Number(form.min_headcount.trim()) : null,
+      required_course_ids: form.required_course_ids,
     };
     setIsSaving(true);
     setServerError(null);
@@ -415,6 +438,71 @@ function ShiftDialog({
               </Field>
             ))}
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field id="shift-allowance" label="Shift allowance a day (₹)" error={shown.allowance_per_day}>
+              <Input
+                id="shift-allowance"
+                inputMode="decimal"
+                className="tabular-nums"
+                placeholder="None"
+                value={form.allowance_per_day}
+                aria-invalid={Boolean(shown.allowance_per_day)}
+                onChange={(event) => set("allowance_per_day", event.target.value)}
+              />
+            </Field>
+            <Field id="shift-allowance-name" label="Shown on the payslip as">
+              <Input
+                id="shift-allowance-name"
+                maxLength={128}
+                placeholder={form.name ? `${form.name} allowance` : "Night shift allowance"}
+                value={form.allowance_name}
+                onChange={(event) => set("allowance_name", event.target.value)}
+              />
+            </Field>
+          </div>
+
+          <Field id="shift-min-headcount" label="Fewest people needed (for coverage)" error={shown.min_headcount}>
+            <Input
+              id="shift-min-headcount"
+              inputMode="numeric"
+              className="tabular-nums"
+              placeholder="No minimum"
+              value={form.min_headcount}
+              aria-invalid={Boolean(shown.min_headcount)}
+              onChange={(event) => set("min_headcount", event.target.value)}
+            />
+          </Field>
+
+          {(courses.data ?? []).length > 0 && (
+            <fieldset className="grid gap-1.5">
+              <legend className="mb-1 text-sm font-medium">Courses needed to work it</legend>
+              <p className="text-xs text-muted-foreground">
+                Nobody is assigned this shift, or swapped onto it, without these completed and in date.
+              </p>
+              <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {(courses.data ?? []).map((course) => (
+                  <div key={course.id} className="flex items-center gap-1.5">
+                    <Checkbox
+                      id={`shift-course-${course.id}`}
+                      checked={form.required_course_ids.includes(course.id)}
+                      onCheckedChange={(on) =>
+                        set(
+                          "required_course_ids",
+                          on
+                            ? [...form.required_course_ids, course.id]
+                            : form.required_course_ids.filter((id) => id !== course.id),
+                        )
+                      }
+                    />
+                    <Label htmlFor={`shift-course-${course.id}`} className="font-normal">
+                      {course.title}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </fieldset>
+          )}
 
           <div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
             <div>

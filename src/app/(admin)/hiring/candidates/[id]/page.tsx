@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { ScreeningPanel } from "@/components/ai/ScreeningPanel";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -14,6 +15,9 @@ import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
+import { AddToPoolDialog } from "@/components/hiring/AddToPoolDialog";
+import { BackgroundChecksPanel } from "@/components/hiring/BackgroundChecksPanel";
+import { CandidateMessages } from "@/components/hiring/CandidateMessages";
 import { CandidateMoveMenu } from "@/components/hiring/CandidateMoveMenu";
 import { CandidatePortalLinkDialog } from "@/components/hiring/CandidatePortalLinkDialog";
 import {
@@ -29,6 +33,7 @@ import {
   CandidateReferral,
 } from "@/components/hiring/CandidateProfileSections";
 import { CandidateScores } from "@/components/hiring/CandidateScores";
+import { CandidateTagsEditor } from "@/components/hiring/CandidateTagsEditor";
 import { CANDIDATE_STAGE, StatusBadge } from "@/components/hiring/labels";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -129,6 +134,7 @@ export default function CandidateProfilePage() {
               }
             />
             <StatusBadge map={CANDIDATE_STAGE} value={c.stage} />
+            <CandidateTagsEditor key={c.id} candidateId={c.id} initial={c.tags ?? []} />
           </div>
           <div className="flex flex-wrap gap-2">
             <CandidateMoveMenu
@@ -147,6 +153,7 @@ export default function CandidateProfilePage() {
             )}
             <RequireRole roles={HR}>
               <CandidatePortalLinkDialog candidateId={c.id} />
+              <AddToPoolDialog candidateId={c.id} candidateName={c.full_name} />
             </RequireRole>
             <RequireRole roles={ADMIN}>
               <Button variant="outline" onClick={() => setEraseOpen(true)}>
@@ -168,7 +175,9 @@ export default function CandidateProfilePage() {
             <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="duplicates">Duplicates</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="messages">Messages</TabsTrigger>
             {profile.viewer_is_hr && <TabsTrigger value="offers">Offers</TabsTrigger>}
+            {profile.viewer_is_hr && <TabsTrigger value="background">Background check</TabsTrigger>}
             {profile.referral && <TabsTrigger value="referral">Referral</TabsTrigger>}
           </TabsList>
         </div>
@@ -187,7 +196,10 @@ export default function CandidateProfilePage() {
           </DataPanel>
         </TabsContent>
         <TabsContent value="scores">
-          <CandidateScores scores={profile.scores} fit={profile.fit_score} />
+          <div className="grid gap-6">
+            <CandidateScores scores={profile.scores} fit={profile.fit_score} />
+            <ScreeningPanel candidateId={c.id} />
+          </div>
         </TabsContent>
         <TabsContent value="consent">
           <DataPanel title="Consent" description="What the candidate has agreed to, per purpose.">
@@ -209,11 +221,19 @@ export default function CandidateProfilePage() {
             <CandidateDocuments profile={profile} />
           </DataPanel>
         </TabsContent>
+        <TabsContent value="messages">
+          <CandidateMessages candidateId={c.id} email={c.email} />
+        </TabsContent>
         {profile.viewer_is_hr && (
           <TabsContent value="offers">
             <DataPanel title="Offers">
               <CandidateOffers profile={profile} />
             </DataPanel>
+          </TabsContent>
+        )}
+        {profile.viewer_is_hr && (
+          <TabsContent value="background">
+            <BackgroundChecksPanel candidateId={c.id} />
           </TabsContent>
         )}
         {profile.referral && (

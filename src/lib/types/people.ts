@@ -16,6 +16,8 @@ export interface DirectoryEmployee {
   department_id: string | null;
   location_id: string | null;
   manager_id: string | null;
+  /** A second, dotted-line manager: informational, no approval rights. */
+  dotted_line_manager_id?: string | null;
   photo_url: string | null;
   status: EmploymentStatus;
 }
@@ -38,6 +40,8 @@ export interface EmployeeRecord {
   location_id: string | null;
   department_id: string | null;
   manager_id: string | null;
+  /** A second, dotted-line manager: informational, no approval rights. */
+  dotted_line_manager_id?: string | null;
   designation: string | null;
   grade: string | null;
   employment_type: EmploymentType;
@@ -69,6 +73,7 @@ export type EmployeeInput = Partial<
     | "location_id"
     | "department_id"
     | "manager_id"
+    | "dotted_line_manager_id"
     | "designation"
     | "grade"
     | "employment_type"
@@ -77,8 +82,34 @@ export type EmployeeInput = Partial<
     | "date_of_exit"
     | "probation_end_date"
     | "notice_period_days"
+    | "custom_fields"
   >
 > & { employee_code?: string };
+
+export type CustomFieldType = "text" | "number" | "date" | "select" | "multiselect" | "boolean";
+
+export const CUSTOM_FIELD_TYPE: Record<CustomFieldType, string> = {
+  text: "Text",
+  number: "Number",
+  date: "Date",
+  select: "One choice",
+  multiselect: "Several choices",
+  boolean: "Yes or no",
+};
+
+/** An extra field on every employee record, defined by an admin. */
+export interface CustomField {
+  id: string;
+  key: string;
+  label: string;
+  field_type: CustomFieldType;
+  options: string[] | null;
+  is_required: boolean;
+  /** Hidden from the person the record is about. */
+  is_sensitive: boolean;
+  display_order: number;
+  is_active: boolean;
+}
 
 export interface SalaryHistoryRow {
   id: string;
@@ -396,6 +427,16 @@ export interface EmployeeHistory {
   employee_id: string;
   employee_code: string;
   events: HistoryEvent[];
+}
+
+/** The job fields as they stood on a date, rebuilt from effected events. */
+export interface EmployeeStateOn {
+  employee_id: string;
+  as_of: string;
+  state: Record<string, string | number | null>;
+  manager_name: string | null;
+  /** Effected events after the date that were undone to get here. */
+  events_undone: number;
 }
 
 export interface BulkResult {

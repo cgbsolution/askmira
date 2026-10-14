@@ -12,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tr } from "@/lib/i18n/Tr";
 import { cn } from "@/lib/utils";
 
 /**
@@ -76,8 +77,12 @@ export function DataPanel({
     <Card tier={tier} className={cn("gap-0 py-0", className)}>
       {(title || actions) && (
         <CardHeader className="border-b border-border py-5">
-          {title && <CardTitle>{title}</CardTitle>}
-          {description && <CardDescription>{description}</CardDescription>}
+          {title && <CardTitle>{typeof title === "string" ? <Tr text={title} /> : title}</CardTitle>}
+          {description && (
+            <CardDescription>
+              {typeof description === "string" ? <Tr text={description} /> : description}
+            </CardDescription>
+          )}
           {actions && <CardAction className="flex flex-wrap gap-2">{actions}</CardAction>}
         </CardHeader>
       )}

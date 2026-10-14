@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { Fraunces, Inter } from "next/font/google";
 import { Toaster } from "sonner";
 
+import { StepUpProvider } from "@/components/auth/StepUpProvider";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { LocaleProvider } from "@/lib/i18n";
 
 import "./globals.css";
 
@@ -29,6 +31,11 @@ export const metadata: Metadata = {
   },
   description:
     "Culture-analytics-first HRMS for the Indian mid-market — statutory compliance, people analytics and a culture layer in one platform.",
+  icons: {
+    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  appleWebApp: { capable: true, title: "AskMira", statusBarStyle: "default" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -36,10 +43,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${fraunces.variable} antialiased`}>
         <AuthProvider>
-          <ThemeProvider>
-            {children}
-            <Toaster richColors closeButton position="top-right" />
-          </ThemeProvider>
+          <LocaleProvider>
+            <ThemeProvider>
+              <StepUpProvider>{children}</StepUpProvider>
+              <Toaster richColors closeButton position="top-right" />
+            </ThemeProvider>
+          </LocaleProvider>
         </AuthProvider>
       </body>
     </html>

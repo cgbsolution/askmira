@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 import { FormField } from "@/components/common/FormField";
+import { CustomFieldInputs, useCustomFields } from "@/components/people/CustomFields";
 import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
 import {
   EMPLOYMENT_STATUS,
@@ -26,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { useApiQuery } from "@/hooks/useApiQuery";
 import { get, patch, post } from "@/lib/api";
 import type { EmploymentStatus } from "@/lib/types";
 import type { EmployeeInput, EmployeeRecord, EmploymentType, Gender } from "@/lib/types/people";
@@ -83,7 +85,7 @@ function toValues(record?: EmployeeRecord): Values {
   };
 }
 
-function toPayload(values: Values, managerId: string | null): EmployeeInput {
+function toPayload(values: Values, managerId: string | null, dottedId: string | null): EmployeeInput {
   const text = (value: string) => (value.trim() === "" ? null : value.trim());
   return {
     employee_code: values.employee_code.trim(),
@@ -99,6 +101,7 @@ function toPayload(values: Values, managerId: string | null): EmployeeInput {
     location_id: fromSelect(values.location_id),
     department_id: fromSelect(values.department_id),
     manager_id: managerId,
+    dotted_line_manager_id: dottedId,
     designation: text(values.designation),
     grade: text(values.grade),
     employment_type: values.employment_type,
@@ -159,9 +162,16 @@ export function EmployeeForm({
   const org = useOrgReference();
   const [values, setValues] = useState<Values>(() => toValues(record));
   const [manager, setManager] = useState<PickedEmployee | null>(null);
+  const [dotted, setDotted] = useState<PickedEmployee | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const customFields = useCustomFields();
+  // Once the workspace has grades, a record carries one of them.
+  const payGrades = useApiQuery<{ code: string; name: string; active: boolean }[]>("/pay-grades");
+  const grades = payGrades.data ?? [];
+  const definitions = customFields.data ?? [];
+  const [custom, setCustom] = useState<Record<string, unknown>>(() => ({ ...(record?.custom_fields ?? {}) }));
 
   useEffect(() => {
     if (!record?.manager_id) return;
@@ -170,31 +180,51 @@ export function EmployeeForm({
       .catch(() => setManager({ id: record.manager_id as string, label: "Current manager" }));
   }, [record?.manager_id]);
 
+  useEffect(() => {
+    if (!record?.dotted_line_manager_id) return;
+    get<EmployeeRecord>(`/employees/${record.dotted_line_manager_id}`)
+      .then((m) => setDotted({ id: m.id, label: `${personName(m)} (${m.employee_code})` }))
+      .catch(() => setDotted({ id: record.dotted_line_manager_id as string, label: "Current dotted-line manager" }));
+  }, [record?.dotted_line_manager_id]);
+
   const set = <K extends keyof Values>(key: K, value: Values[K]) =>
     setValues((current) => ({ ...current, [key]: value }));
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     const found = validate(values, isCreate);
+    for (const field of definitions) {
+      const value = custom[field.key];
+      if (field.is_required && (value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0))) {
+        found[field.key] = `${field.label} is required.`;
+      }
+    }
     setErrors(found);
     setServerError(null);
     if (Object.keys(found).length) return;
 
-    const payload = toPayload(values, manager?.id ?? null);
+    const filled = Object.fromEntries(
+      Object.entries(custom).filter(
+        ([, value]) => value !== null && value !== undefined && value !== "" && !(Array.isArray(value) && value.length === 0),
+      ),
+    );
+    const payload = toPayload(values, manager?.id ?? null, dotted?.id ?? null);
     let body: EmployeeInput = payload;
     if (record) {
-      const before = toPayload(toValues(record), record.manager_id);
+      const before = toPayload(toValues(record), record.manager_id, record.dotted_line_manager_id ?? null);
       body = Object.fromEntries(
         Object.entries(payload).filter(
           ([key, value]) => key !== "employee_code" && before[key as keyof EmployeeInput] !== value,
         ),
       ) as EmployeeInput;
+      if (JSON.stringify(filled) !== JSON.stringify(record.custom_fields ?? {})) body.custom_fields = filled;
       if (Object.keys(body).length === 0) {
         setServerError("Nothing has changed.");
         return;
       }
     } else {
       delete body.date_of_exit;
+      body.custom_fields = filled;
     }
 
     setIsSaving(true);
@@ -277,6 +307,13 @@ export function EmployeeForm({
 
       <section className="grid gap-4">
         <p className="text-sm font-semibold text-foreground">Placement</p>
+        {!isCreate && (
+          <p className="text-xs text-muted-foreground">
+            A change to location, department, manager, designation or grade saved here takes effect
+            today and is added to their lifecycle history. For a later date, or one that needs
+            approval, raise it under People → Lifecycle events.
+          </p>
+        )}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <FormField htmlFor="emp-entity" label="Legal entity" optional>
             <Select value={values.legal_entity_id} onValueChange={(v) => set("legal_entity_id", v)}>
@@ -338,8 +375,44 @@ export function EmployeeForm({
               allowClear
             />
           </FormField>
+          <FormField
+            htmlFor="emp-dotted"
+            label="Dotted-line manager"
+            optional
+            hint="A project or functional lead. Approvals still go to the manager."
+          >
+            <EmployeePicker
+              id="emp-dotted"
+              value={dotted}
+              onChange={setDotted}
+              excludeId={record?.id}
+              placeholder="None"
+              allowClear
+            />
+          </FormField>
           {textField("designation", "Designation", { optional: true })}
-          {textField("grade", "Grade", { optional: true })}
+          {grades.length > 0 ? (
+            <FormField htmlFor="emp-grade" label="Grade" optional error={errors.grade}>
+              <Select value={values.grade || NONE} onValueChange={(v) => set("grade", v === NONE ? "" : v)}>
+                <SelectTrigger id="emp-grade" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>No grade</SelectItem>
+                  {values.grade && !grades.some((g) => g.code === values.grade) && (
+                    <SelectItem value={values.grade}>{values.grade} (not in the grade list)</SelectItem>
+                  )}
+                  {grades.map((g) => (
+                    <SelectItem key={g.code} value={g.code}>
+                      {g.code} · {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+          ) : (
+            textField("grade", "Grade", { optional: true })
+          )}
         </div>
       </section>
 
@@ -400,6 +473,21 @@ export function EmployeeForm({
           })}
         </div>
       </section>
+
+      {definitions.length > 0 && (
+        <>
+          <Separator />
+          <section className="grid gap-4">
+            <p className="text-sm font-semibold text-foreground">More details</p>
+            <CustomFieldInputs
+              fields={definitions}
+              values={custom}
+              errors={errors}
+              onChange={(key, value) => setCustom((current) => ({ ...current, [key]: value }))}
+            />
+          </section>
+        </>
+      )}
 
       <div className="flex justify-end gap-2">
         {onCancel && (

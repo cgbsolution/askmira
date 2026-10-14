@@ -33,7 +33,7 @@ import type {
   WorkLocation,
 } from "@/lib/types/attendance";
 
-import { DEVICE_VENDORS, NO_LOCATION, VENDOR_LABEL, errorDetail } from "./DeviceShared";
+import { ADMS_HOST, DEVICE_VENDORS, NO_LOCATION, VENDOR_LABEL, errorDetail } from "./DeviceShared";
 
 const DEFAULT_TIMEZONE = "Asia/Kolkata";
 
@@ -69,6 +69,7 @@ export function DeviceFormDialog({
   const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE);
   const [threshold, setThreshold] = useState("60");
   const [enabled, setEnabled] = useState(true);
+  const [serialPush, setSerialPush] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -82,6 +83,7 @@ export function DeviceFormDialog({
     setTimezone(device?.assumed_timezone ?? DEFAULT_TIMEZONE);
     setThreshold(device ? String(device.silence_threshold_minutes) : "60");
     setEnabled(device ? device.status !== "disabled" : true);
+    setSerialPush(device?.accepts_serial_push ?? false);
   }, [open, device]);
 
   const validate = (): string | null => {
@@ -111,6 +113,7 @@ export function DeviceFormDialog({
           assumed_timezone: timezone.trim(),
           silence_threshold_minutes: Number(threshold.trim()),
           enabled,
+          accepts_serial_push: serialPush,
         };
         if (workLocationId) body.work_location_id = workLocationId;
         else if (device.work_location_id) body.clear_work_location = true;
@@ -259,6 +262,20 @@ export function DeviceFormDialog({
                 </p>
               </div>
               <Switch id="device-enabled" checked={enabled} onCheckedChange={setEnabled} />
+            </div>
+          )}
+
+          {isEdit && (device?.vendor === "essl" || device?.vendor === "zkteco") && (
+            <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2.5">
+              <div>
+                <Label htmlFor="device-serial-push">Push by serial number</Label>
+                <p className="text-xs text-muted-foreground">
+                  For ADMS firmware that takes only a host and port ({ADMS_HOST}). The serial
+                  number is printed on the device, so leave this off when the device can use its
+                  token address.
+                </p>
+              </div>
+              <Switch id="device-serial-push" checked={serialPush} onCheckedChange={setSerialPush} />
             </div>
           )}
 

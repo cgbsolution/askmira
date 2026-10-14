@@ -68,7 +68,10 @@ export interface EmployeeSummary {
   work_email: string;
   designation: string | null;
   department_id: string | null;
+  location_id?: string | null;
   manager_id: string | null;
+  /** A second, dotted-line manager: informational, no approval rights. */
+  dotted_line_manager_id?: string | null;
   photo_url: string | null;
   status: EmploymentStatus;
 }

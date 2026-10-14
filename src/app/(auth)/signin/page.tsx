@@ -10,17 +10,20 @@ import { FormField } from "@/components/common/FormField";
 import { IconInput, PasswordInput } from "@/components/common/IconInput";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError } from "@/lib/api";
 
 function SignInForm() {
-  const { login } = useAuth();
+  const { login, completeMfa } = useAuth();
   const params = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [code, setCode] = useState("");
 
   // `?expired=1` is set by the API client when a 401 forces a sign-out, so the
   // user is told why they landed back here.
@@ -36,11 +39,79 @@ function SignInForm() {
     setError(null);
     try {
       // `next` is checked by safeNextPath inside login: only a local path is followed.
-      await login(email, password, params.get("next"));
+      const challenge = await login(email, password, params.get("next"));
+      if (challenge) {
+        setMfaToken(challenge.mfaToken);
+        setIsSubmitting(false);
+      }
     } catch (failure) {
       setError(failure instanceof ApiError ? failure.detail : "Could not sign you in.");
       setIsSubmitting(false);
     }
+  }
+
+  async function handleCode(event: React.FormEvent) {
+    event.preventDefault();
+    if (!mfaToken) return;
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      await completeMfa(mfaToken, code, params.get("next"));
+    } catch (failure) {
+      setError(failure instanceof ApiError ? failure.detail : "Could not sign you in.");
+      if (failure instanceof ApiError && failure.status === 401 && /too long/i.test(failure.detail)) {
+        setMfaToken(null);
+      }
+      setIsSubmitting(false);
+    }
+  }
+
+  if (mfaToken) {
+    return (
+      <>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Two-step sign-in</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Enter the six-digit code from your authenticator app, or one of your recovery codes.
+          </p>
+        </div>
+        <form onSubmit={handleCode} className="space-y-5">
+          <FormField htmlFor="mfa-code" label="Code" required>
+            <Input
+              id="mfa-code"
+              autoComplete="one-time-code"
+              inputMode="text"
+              autoFocus
+              required
+              maxLength={16}
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              placeholder="123456"
+            />
+          </FormField>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <Button type="submit" className="w-full" disabled={isSubmitting || !code.trim()}>
+            {isSubmitting && <Loader2 className="animate-spin" />} Verify and sign in
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full"
+            onClick={() => {
+              setMfaToken(null);
+              setCode("");
+              setError(null);
+            }}
+          >
+            Use a different account
+          </Button>
+        </form>
+      </>
+    );
   }
 
   return (

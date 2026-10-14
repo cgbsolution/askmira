@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import React from "react";
 
 import { GROUP_LABEL, resolvePage } from "@/lib/access";
+import { useT } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 /**
@@ -39,6 +40,7 @@ export function PageShell({
   className?: string;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const resolved = resolvePage(usePathname());
   const section = resolved?.section;
   const Icon = icon ?? resolved?.page.icon ?? section?.icon;
@@ -82,7 +84,7 @@ export function PageShell({
               {label && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-card/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-primary shadow-sm ring-1 ring-mint-200 dark:ring-mint-800">
                   <span aria-hidden className="size-1.5 rounded-full bg-accent" />
-                  {label}
+                  {t(label)}
                 </span>
               )}
               <h1
@@ -91,10 +93,10 @@ export function PageShell({
                   tier === "tier2" && "font-display font-semibold sm:text-[28px]",
                 )}
               >
-                {title}
+                {t(title)}
               </h1>
               {description && (
-                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{t(description)}</p>
               )}
             </div>
           </div>

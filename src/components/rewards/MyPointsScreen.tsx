@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
+import { type CatalogueItem, CatalogueChooser } from "@/components/rewards/Catalogue";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import type { AwardPointsResult, LedgerType, RewardStatement } from "@/lib/types/rewards";
@@ -229,6 +230,8 @@ function RedeemDialog({
   onOpenChange: (open: boolean) => void;
   onDone: () => void;
 }) {
+  const catalogue = useApiQuery<CatalogueItem[]>(open ? "/rewards/catalogue" : null);
+  const items = catalogue.data ?? [];
   const [points, setPoints] = useState("");
   const [description, setDescription] = useState("");
   const [sku, setSku] = useState("");
@@ -273,6 +276,16 @@ function RedeemDialog({
             expiring go first.
           </DialogDescription>
         </DialogHeader>
+        {items.length > 0 ? (
+          <CatalogueChooser
+            items={items}
+            balance={balance}
+            onRedeemed={() => {
+              onDone();
+              onOpenChange(false);
+            }}
+          />
+        ) : (
         <div className="grid gap-4">
           <FormField htmlFor="redeem-points" label="Points" error={amount > balance ? "More than your balance." : undefined}>
             <Input id="redeem-points" inputMode="numeric" value={points} onChange={(e) => setPoints(e.target.value.replace(/\D/g, ""))} />
@@ -284,13 +297,16 @@ function RedeemDialog({
             <Input id="redeem-sku" value={sku} onChange={(e) => setSku(e.target.value)} />
           </FormField>
         </div>
+        )}
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={isBusy || invalid}>
-            {isBusy && <Loader2 className="animate-spin" />} Redeem
-          </Button>
+          {items.length === 0 && (
+            <Button onClick={submit} disabled={isBusy || invalid}>
+              {isBusy && <Loader2 className="animate-spin" />} Redeem
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

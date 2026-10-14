@@ -64,6 +64,27 @@ export interface CompanyDocument {
   /** Published to employees (policy lookup). */
   is_employee_visible: boolean;
   created_at: string;
+  /** Every employee must read and acknowledge it. */
+  requires_acknowledgement: boolean;
+  /** The caller's own state, where acknowledgement is required; else null. */
+  acknowledged_by_me: boolean | null;
+}
+
+export interface AcknowledgementRegisterRow {
+  employee_id: string;
+  employee_code: string;
+  employee_name: string;
+  acknowledged_at: string | null;
+  typed_name: string | null;
+}
+
+export interface AcknowledgementRegister {
+  document_id: string;
+  title: string;
+  content_sha256: string | null;
+  acknowledged: number;
+  pending: number;
+  rows: AcknowledgementRegisterRow[];
 }
 
 export type LetterCategory =

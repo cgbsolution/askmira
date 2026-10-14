@@ -7,6 +7,7 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { BreakdownTable } from "@/components/payroll/BreakdownTable";
+import { GradesPanel } from "@/components/payroll/GradesPanel";
 import { apiMessage, COMPONENT_TYPE_LABEL, isAmount } from "@/components/payroll/labels";
 import { NewComponentDialog } from "@/components/payroll/NewComponentDialog";
 import { NewStructureDialog } from "@/components/payroll/NewStructureDialog";
@@ -104,6 +105,7 @@ export default function SalaryStructuresPage() {
         <TabsList>
           <TabsTrigger value="structures">Structures</TabsTrigger>
           <TabsTrigger value="components">Components</TabsTrigger>
+          <TabsTrigger value="grades">Grades and bands</TabsTrigger>
         </TabsList>
 
         <TabsContent value="structures" className="mt-4">
@@ -223,6 +225,10 @@ export default function SalaryStructuresPage() {
               )}
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="grades" className="mt-4">
+          <GradesPanel />
         </TabsContent>
 
         <TabsContent value="components" className="mt-4">

@@ -19,6 +19,7 @@ import {
   StatusBadge,
 } from "@/components/hiring/labels";
 import { sourceLabel } from "@/components/hiring/PipelineBoard";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -84,8 +85,24 @@ export function CandidateDownloadButton({
 /** Contact, experience, salary (HR only), source and resume text. */
 export function CandidateOverview({ profile }: { profile: Profile }) {
   const c = profile.candidate;
+  const former = c.former_employee;
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+      {former && (
+        <Alert variant={former.is_rehire_eligible === false ? "destructive" : "default"} className="lg:col-span-2">
+          <AlertTitle>
+            Worked here before ({former.employee_code}
+            {former.date_of_exit ? `, left ${former.date_of_exit}` : ""})
+          </AlertTitle>
+          <AlertDescription>
+            {former.is_rehire_eligible === false
+              ? `Marked not eligible for rehire: ${former.rehire_note ?? "no reason recorded"}.`
+              : former.is_rehire_eligible === true
+                ? "Marked eligible for rehire."
+                : "No rehire decision was recorded when they left."}
+          </AlertDescription>
+        </Alert>
+      )}
       <Card tier="tier1">
         <CardHeader>
           <CardTitle>Details</CardTitle>

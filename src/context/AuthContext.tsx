@@ -13,7 +13,13 @@ interface AuthContextValue {
   tenant: Tenant | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string, next?: string | null) => Promise<void>;
+  /**
+   * Signs in. With two-step sign-in on, resolves to the token for the second
+   * step instead of signing in; finish with `completeMfa`.
+   */
+  login: (email: string, password: string, next?: string | null) => Promise<{ mfaToken: string } | null>;
+  /** The second step: the token from `login` and a code from the authenticator app. */
+  completeMfa: (mfaToken: string, code: string, next?: string | null) => Promise<void>;
   signup: (input: SignupInput) => Promise<void>;
   logout: () => Promise<void>;
   /** Re-read the signed-in user and workspace from the server. */
@@ -87,9 +93,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (email: string, password: string, next?: string | null) => {
-      const response = await post<AuthResponse>(
+      const response = await post<AuthResponse | { mfa_required: true; mfa_token: string }>(
         "/auth/login",
         { email, password },
+        { skipAuthRedirect: true },
+      );
+      if ("mfa_required" in response && response.mfa_required) {
+        return { mfaToken: response.mfa_token };
+      }
+      accept(response as AuthResponse);
+      router.push(safeNextPath(next));
+      return null;
+    },
+    [accept, router],
+  );
+
+  const completeMfa = useCallback(
+    async (mfaToken: string, code: string, next?: string | null) => {
+      const response = await post<AuthResponse>(
+        "/auth/login/mfa",
+        { mfa_token: mfaToken, code },
         { skipAuthRedirect: true },
       );
       accept(response);
@@ -129,13 +152,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading,
       isAuthenticated: Boolean(user),
       login,
+      completeMfa,
       signup,
       logout,
       reloadSession,
       hasRole,
       hasModule,
     }),
-    [user, tenant, isLoading, login, signup, logout, reloadSession, hasRole, hasModule],
+    [user, tenant, isLoading, login, completeMfa, signup, logout, reloadSession, hasRole, hasModule],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

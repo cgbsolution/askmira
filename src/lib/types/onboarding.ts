@@ -45,6 +45,8 @@ export interface TemplateTaskInput {
   due_offset_days: number;
   task_type: OnboardingTaskType;
   document_type: OnboardingDocumentType | null;
+  /** A FORM task's statutory form (FORM11_STD, FORM2_STD, FORMF_STD, ESI_DECL_STD). */
+  form_code?: string | null;
   is_mandatory: boolean;
 }
 
@@ -68,6 +70,7 @@ export interface OnboardingTemplateTask {
   due_offset_days: number;
   task_type: OnboardingTaskType;
   document_type: string | null;
+  form_code?: string | null;
   sort_order: number;
   is_mandatory: boolean;
 }
@@ -154,6 +157,9 @@ export interface OnboardingTask {
   completed_at: string | null;
   note: string | null;
   document_id: string | null;
+  /** A FORM task: the statutory form it generates, and the issued form to sign. */
+  form_code?: string | null;
+  form_letter_id?: string | null;
   document_title: string | null;
   /** Whether the caller may mark it done (or upload for it). */
   can_complete: boolean;

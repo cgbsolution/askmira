@@ -1,6 +1,19 @@
 "use client";
 
-import { Building2, Download, EyeOff, Loader2, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
+import {
+  Building2,
+  CheckCircle2,
+  ClipboardList,
+  Download,
+  EyeOff,
+  Loader2,
+  PenLine,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -35,6 +48,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
+
+import { AcknowledgementRegisterSheet, AcknowledgePolicyDialog } from "./PolicyAcknowledgement";
 import { del, downloadFile, patch, post } from "@/lib/api";
 import type { CompanyDocument } from "@/lib/types/docs";
 import { cn, formatDay } from "@/lib/utils";
@@ -128,6 +143,7 @@ function CompanyDocumentDialog({
   const [validUntil, setValidUntil] = useState("");
   const [remark, setRemark] = useState("");
   const [published, setPublished] = useState(true);
+  const [requiresAck, setRequiresAck] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -142,6 +158,7 @@ function CompanyDocumentDialog({
     setValidUntil(document?.valid_until ?? "");
     setRemark(document?.remark ?? "");
     setPublished(document?.is_employee_visible ?? true);
+    setRequiresAck(document?.requires_acknowledgement ?? false);
     setFile(null);
     setErrors({});
     setServerError(null);
@@ -155,6 +172,7 @@ function CompanyDocumentDialog({
     if (!editing && !file) found.file = "Choose a file.";
     else if (file && file.size > MAX_BYTES) found.file = "The file is larger than 10 MB.";
     if (issuedOn && validUntil && validUntil < issuedOn) found.valid = "The expiry date cannot be before the issue date.";
+    if (requiresAck && !published) found.ack = "A document everyone must acknowledge has to be published.";
     setErrors(found);
     setServerError(null);
     if (Object.keys(found).length) return;
@@ -170,6 +188,7 @@ function CompanyDocumentDialog({
           issued_on: issuedOn || null,
           valid_until: validUntil || null,
           is_employee_visible: published,
+          requires_acknowledgement: requiresAck,
         });
         toast.success(`"${title.trim()}" updated`);
       } else if (file) {
@@ -177,6 +196,7 @@ function CompanyDocumentDialog({
         form.set("document_type", type.trim());
         form.set("title", title.trim());
         form.set("is_employee_visible", published ? "true" : "false");
+        form.set("requires_acknowledgement", requiresAck ? "true" : "false");
         if (number.trim()) form.set("document_number", number.trim());
         if (remark.trim()) form.set("remark", remark.trim());
         if (issuedOn) form.set("issued_on", issuedOn);
@@ -298,6 +318,20 @@ function CompanyDocumentDialog({
             </div>
             <Switch checked={published} onCheckedChange={setPublished} aria-label="Published to employees" />
           </div>
+          <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
+            <div>
+              <p className="text-sm font-medium">Every employee must acknowledge it</p>
+              <p className="text-xs text-muted-foreground">
+                Everyone is asked to read it and confirm by typing their name. HR sees who has.
+              </p>
+              {errors.ack && <p className="pt-1 text-xs text-destructive">{errors.ack}</p>}
+            </div>
+            <Switch
+              checked={requiresAck}
+              onCheckedChange={setRequiresAck}
+              aria-label="Every employee must acknowledge it"
+            />
+          </div>
           <DialogFooter>
             <Button type="button" variant="outline" disabled={isSaving} onClick={() => onOpenChange(false)}>
               Cancel
@@ -333,6 +367,8 @@ export function CompanyDocumentsPanel({
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<CompanyDocument | null>(null);
   const [deleting, setDeleting] = useState<CompanyDocument | null>(null);
+  const [acknowledging, setAcknowledging] = useState<CompanyDocument | null>(null);
+  const [registerFor, setRegisterFor] = useState<CompanyDocument | null>(null);
 
   const all = data ?? [];
   const counts = countBy(all, (row) => row.document_type);
@@ -441,6 +477,17 @@ export function CompanyDocumentsPanel({
                         <EyeOff /> HR only
                       </Badge>
                     )}
+                    {row.requires_acknowledgement && isHr && (
+                      <Badge variant="accent">Acknowledgement required</Badge>
+                    )}
+                    {row.requires_acknowledgement && row.acknowledged_by_me === false && (
+                      <Badge variant="warning">Please acknowledge</Badge>
+                    )}
+                    {row.acknowledged_by_me === true && (
+                      <Badge variant="success">
+                        <CheckCircle2 /> Acknowledged
+                      </Badge>
+                    )}
                   </div>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{row.document_number ?? "—"}</TableCell>
@@ -470,6 +517,26 @@ export function CompanyDocumentsPanel({
                     >
                       <Download />
                     </Button>
+                    {row.acknowledged_by_me === false && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Acknowledge ${row.title}`}
+                        onClick={() => setAcknowledging(row)}
+                      >
+                        <PenLine />
+                      </Button>
+                    )}
+                    {isHr && row.requires_acknowledgement && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`Who acknowledged ${row.title}`}
+                        onClick={() => setRegisterFor(row)}
+                      >
+                        <ClipboardList />
+                      </Button>
+                    )}
                     {isHr && (
                       <>
                         <Button variant="ghost" size="icon-sm" aria-label={`Edit ${row.title}`} onClick={() => setEditing(row)}>
@@ -507,6 +574,12 @@ export function CompanyDocumentsPanel({
           onSaved={reload}
         />
       )}
+      <AcknowledgePolicyDialog
+        document={acknowledging}
+        onClose={() => setAcknowledging(null)}
+        onDone={reload}
+      />
+      <AcknowledgementRegisterSheet document={registerFor} onClose={() => setRegisterFor(null)} />
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}

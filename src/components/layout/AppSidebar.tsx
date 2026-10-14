@@ -32,6 +32,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
+import { useT } from "@/lib/i18n";
 import {
   GROUP_LABEL,
   NAV,
@@ -57,6 +58,7 @@ const ROW = "relative h-11 gap-3 rounded-xl px-1.5 font-medium text-sidebar-fore
  * move around a module.
  */
 export function AppSidebar() {
+  const t = useT();
   const { user, tenant, logout } = useAuth();
   const { isMobile, setOpenMobile, state } = useSidebar();
   const pathname = usePathname();
@@ -142,7 +144,7 @@ export function AppSidebar() {
         {groups.map((group) => (
           <SidebarGroup key={group.key} className="px-3 py-1">
             <SidebarGroupLabel className="px-2 text-[10px] font-bold uppercase tracking-[0.15em] text-sidebar-muted">
-              {group.label}
+              {t(group.label)}
             </SidebarGroupLabel>
             <SidebarMenu className="gap-0.5">
               {group.items.map(({ section, pages }) => (
@@ -202,12 +204,12 @@ export function AppSidebar() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profile" onClick={closeOnMobile}>
-                      <UserCircle2 /> My profile
+                      <UserCircle2 /> {t("My profile")}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem variant="destructive" onClick={() => void logout()}>
-                    <LogOut /> Sign out
+                    <LogOut /> {t("Sign out")}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -270,12 +272,13 @@ function SectionItem({
   onOpenChange: (open: boolean) => void;
   onNavigate: () => void;
 }) {
+  const t = useT();
   const { state, isMobile } = useSidebar();
 
   if (pages.length === 1) {
     return (
       <SidebarMenuItem>
-        <SidebarMenuButton asChild isActive={inSection} tooltip={section.name} className={ROW}>
+        <SidebarMenuButton asChild isActive={inSection} tooltip={t(section.name)} className={ROW}>
           <Link
             href={pages[0].path}
             onClick={onNavigate}
@@ -283,7 +286,7 @@ function SectionItem({
           >
             {inSection && <ActiveBar />}
             <NavChip icon={section.icon} active={inSection} />
-            <span>{section.name}</span>
+            <span>{t(section.name)}</span>
           </Link>
         </SidebarMenuButton>
       </SidebarMenuItem>
@@ -295,13 +298,13 @@ function SectionItem({
       <SidebarMenuItem>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <SidebarMenuButton isActive={inSection} aria-label={section.name} className={ROW}>
+            <SidebarMenuButton isActive={inSection} aria-label={t(section.name)} className={ROW}>
               <NavChip icon={section.icon} active={inSection} />
-              <span>{section.name}</span>
+              <span>{t(section.name)}</span>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="right" align="start" sideOffset={12} className="min-w-52">
-            <DropdownMenuLabel>{section.name}</DropdownMenuLabel>
+            <DropdownMenuLabel>{t(section.name)}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {pages.map((page) => {
               const current = page.path === activePage;
@@ -312,7 +315,7 @@ function SectionItem({
                     aria-current={current ? "page" : undefined}
                     className={cn(current && "font-semibold text-primary")}
                   >
-                    {page.name}
+                    {t(page.name)}
                   </Link>
                 </DropdownMenuItem>
               );
@@ -334,7 +337,7 @@ function SectionItem({
           <SidebarMenuButton isActive={rowActive} className={cn(ROW, inSection && "font-semibold")}>
             {rowActive && <ActiveBar />}
             <NavChip icon={section.icon} active={inSection} />
-            <span className="truncate">{section.name}</span>
+            <span className="truncate">{t(section.name)}</span>
             <ChevronRight className="ml-auto mr-1 text-sidebar-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
           </SidebarMenuButton>
         </CollapsibleTrigger>
@@ -360,7 +363,7 @@ function SectionItem({
                       onClick={onNavigate}
                       aria-current={current ? "page" : undefined}
                     >
-                      <span>{page.name}</span>
+                      <span>{t(page.name)}</span>
                     </Link>
                   </SidebarMenuSubButton>
                 </SidebarMenuSubItem>

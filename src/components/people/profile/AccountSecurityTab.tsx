@@ -16,6 +16,8 @@ import { useAuth } from "@/context/AuthContext";
 import { post } from "@/lib/api";
 import { formatDateTime, humanizeRole } from "@/lib/utils";
 
+import { TwoStepCard } from "./TwoStepCard";
+
 /** Mirrors the backend rule in app/schemas/auth.py: ten characters, a letter and a digit. */
 function passwordProblem(value: string): string | null {
   if (value.length < 10) return "At least 10 characters.";
@@ -153,6 +155,7 @@ export function AccountSecurityTab() {
         </CardContent>
       </Card>
       <ChangePasswordCard />
+      <TwoStepCard />
     </div>
   );
 }

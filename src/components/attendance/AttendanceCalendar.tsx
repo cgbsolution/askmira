@@ -54,6 +54,7 @@ import { cn, formatDay, formatDays, parseISODate, toISODate } from "@/lib/utils"
 import { KIND_LABELS } from "./AttendanceRequestDialog";
 import { AttendanceMap } from "./AttendanceMap";
 import { PunchLocation } from "./location";
+import { PunchPhoto } from "./PunchPhoto";
 import {
   formatClock,
   formatMinutes,
@@ -581,7 +582,10 @@ function DayDetail({
                       <span className="font-medium tabular-nums">{formatClock(punch.punched_at)}</span>
                       <span className="text-muted-foreground">{punch.source.replace("_", " ")}</span>
                     </span>
-                    <PunchLocation punch={punch} />
+                    <span className="flex flex-wrap items-center gap-2">
+                      <PunchLocation punch={punch} />
+                      <PunchPhoto punch={punch} />
+                    </span>
                   </li>
                 ))}
               </ul>

@@ -870,6 +870,10 @@ export interface ExitRecord {
   accepted_by_name: string | null;
   withdrawn_at: string | null;
   awaiting_acceptance: boolean;
+  /** HR only; null for anybody else. */
+  is_rehire_eligible?: boolean | null;
+  rehire_note?: string | null;
+  has_interview?: boolean;
 }
 
 export interface ExitCreateInput {

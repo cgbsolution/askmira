@@ -55,6 +55,9 @@ export default function RunPayslipPage() {
             <Badge variant={data.is_published ? "success" : "muted"}>
               {data.is_published ? "Published to the employee" : "Not published"}
             </Badge>
+            {data.is_supplementary && (
+              <Badge variant="accent">Top-up: pays extra lines, not the salary again</Badge>
+            )}
           </div>
           <PayslipTrace payslip={data} />
         </>

@@ -14,6 +14,8 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import type { ApprovalInbox } from "@/lib/types/approvals";
 import { cn, formatDate, formatDateTime, parseISODate } from "@/lib/utils";
 
+import { DelegationCard } from "./DelegationCard";
+
 const ALL = "__all__";
 
 /**
@@ -54,6 +56,8 @@ export function ApprovalsScreen() {
           </AlertDescription>
         </Alert>
       )}
+
+      <DelegationCard />
 
       <DataPanel
         title="Waiting on you"

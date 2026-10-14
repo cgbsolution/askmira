@@ -23,6 +23,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { downloadFile, post } from "@/lib/api";
 import type { OnboardingTask } from "@/lib/types/onboarding";
 
+import { FormTaskAction } from "./FormTaskAction";
+
 /** The vault takes PDF, PNG and JPEG, checked again from the bytes on the server. */
 const ACCEPT = "application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg";
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -49,6 +51,10 @@ export function TaskActions({
   const [open, setOpen] = useState(false);
 
   if (!task.can_complete) return null;
+
+  if (task.task_type === "form" && task.form_code) {
+    return <FormTaskAction task={task} onChanged={onChanged} size={size} />;
+  }
 
   const label =
     task.task_type === "document_upload"

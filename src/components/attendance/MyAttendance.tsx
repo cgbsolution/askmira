@@ -30,6 +30,8 @@ import { formatDate, formatDay, toISODate } from "@/lib/utils";
 import { AttendanceCalendar } from "./AttendanceCalendar";
 import { AttendanceRequestDialog, KIND_LABELS } from "./AttendanceRequestDialog";
 import { PunchCard } from "./PunchCard";
+import { KioskPinCard } from "./KioskPinCard";
+import { MyShiftSwaps } from "./ShiftSwaps";
 import {
   errorDetail,
   formatClock,
@@ -116,6 +118,8 @@ export function MyAttendance() {
           setTarget({ kind, date, day, isLocked, today: serverToday })
         }
       />
+      <MyShiftSwaps />
+      <KioskPinCard />
       <MyRegularisations
         rows={regularisations.data}
         error={regularisations.error}

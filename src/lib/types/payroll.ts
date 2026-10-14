@@ -83,6 +83,10 @@ export interface PayrollRun {
   paid_by_name: string | null;
   created_at: string;
   caller_may_approve: boolean;
+  /** Off-cycle, bonus and arrear runs: who and what they pay, and why. */
+  employee_scope: string[];
+  included_sources: string[] | null;
+  reason: string | null;
 }
 
 export interface PayrollRunInput {
@@ -90,6 +94,16 @@ export interface PayrollRunInput {
   period_year: number;
   period_month: number;
   payment_date?: string | null;
+  run_type?: RunType;
+  employee_ids?: string[];
+  included_sources?: string[];
+  reason?: string | null;
+}
+
+/** An input source a supplementary run can draw on. */
+export interface InputSourceOption {
+  key: string;
+  label: string;
 }
 
 export interface PayslipLine {
@@ -179,6 +193,8 @@ export interface Payslip {
   payment_date: string | null;
   is_published: boolean;
   published_at: string | null;
+  /** An off-cycle top-up for a month the regular run already paid. */
+  is_supplementary: boolean;
   working_days: string;
   paid_days: string;
   lop_days: string;
@@ -268,7 +284,8 @@ export type RuleType =
   | "tds"
   | "gratuity"
   | "bonus"
-  | "labour_welfare_fund";
+  | "labour_welfare_fund"
+  | "tds_non_salary";
 
 export interface RuleSet {
   id: string;

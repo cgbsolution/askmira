@@ -1,9 +1,10 @@
 "use client";
 
-import { BookOpen, CalendarClock, Download, FileBarChart, Loader2, Play, Trash2 } from "lucide-react";
+import { BookOpen, CalendarClock, Download, FileBarChart, Loader2, Pin, Play, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { AnalyticsAsk } from "@/components/ai/AnalyticsAsk";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -41,6 +42,7 @@ import type { Catalogue, ReportCadence, ReportResult, ReportSchedule, SavedRepor
 import { formatDateTime } from "@/lib/utils";
 
 import { ReportBuilder } from "./ReportBuilder";
+import { ReportChart } from "./ReportChart";
 import { ReportResultTable } from "./ReportResultTable";
 
 function detail(caught: unknown, fallback: string): string {
@@ -67,6 +69,7 @@ export function ReportsScreen() {
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="library">Library</TabsTrigger>
+          <TabsTrigger value="ask">Ask</TabsTrigger>
           <TabsTrigger value="mine">Saved reports</TabsTrigger>
           <TabsTrigger value="build">Build</TabsTrigger>
           <TabsTrigger value="schedules">Schedules</TabsTrigger>
@@ -78,6 +81,9 @@ export function ReportsScreen() {
               setTab("mine");
             }}
           />
+        </TabsContent>
+        <TabsContent value="ask" className="mt-4">
+          <AnalyticsAsk />
         </TabsContent>
         <TabsContent value="mine" className="mt-4">
           <SavedTab reports={reports} />
@@ -164,6 +170,19 @@ function SavedTab({ reports }: { reports: ReturnType<typeof useApiQuery<SavedRep
   const [deleting, setDeleting] = useState<SavedReport | null>(null);
   const [scheduling, setScheduling] = useState<SavedReport | null>(null);
   const [exporting, setExporting] = useState<string | null>(null);
+  const [pinning, setPinning] = useState<string | null>(null);
+
+  const pin = async (report: SavedReport) => {
+    setPinning(report.id);
+    try {
+      await post("/reports/dashboard", { report_id: report.id });
+      toast.success(`${report.name} is on your analytics dashboard.`);
+    } catch (caught) {
+      toast.error(detail(caught, "Could not pin the report."));
+    } finally {
+      setPinning(null);
+    }
+  };
 
   const exportCsv = async (report: SavedReport) => {
     setExporting(report.id);
@@ -235,6 +254,9 @@ function SavedTab({ reports }: { reports: ReturnType<typeof useApiQuery<SavedRep
                       <Button size="sm" variant="outline" onClick={() => setScheduling(report)}>
                         <CalendarClock /> Schedule
                       </Button>
+                      <Button size="sm" variant="outline" disabled={pinning === report.id} onClick={() => pin(report)}>
+                        {pinning === report.id ? <Loader2 className="animate-spin" /> : <Pin />} Pin
+                      </Button>
                       {mine && (
                         <Button size="sm" variant="ghost" aria-label={`Delete ${report.name}`} onClick={() => setDeleting(report)}>
                           <Trash2 />
@@ -280,7 +302,10 @@ function RunSheet({ report, onOpenChange }: { report: SavedReport | null; onOpen
           ) : error ? (
             <ErrorState message={error.detail} onRetry={reload} />
           ) : data ? (
-            <ReportResultTable result={data} />
+            <div className="grid gap-5">
+              {report && <ReportChart result={data} chartType={report.chart_type} />}
+              <ReportResultTable result={data} />
+            </div>
           ) : null}
         </div>
       </SheetContent>

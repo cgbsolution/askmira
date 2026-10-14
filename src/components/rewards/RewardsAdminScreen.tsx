@@ -37,6 +37,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
+import { CatalogueAdmin } from "@/components/rewards/Catalogue";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post, put } from "@/lib/api";
 import type {
@@ -77,6 +78,7 @@ export function RewardsAdminScreen() {
         <TabsList className="flex-wrap">
           <TabsTrigger value="liability">Liability</TabsTrigger>
           <TabsTrigger value="budgets">Budgets</TabsTrigger>
+          <TabsTrigger value="catalogue">Catalogue</TabsTrigger>
           <TabsTrigger value="redemptions">Redemptions</TabsTrigger>
           <TabsTrigger value="ledger">Employee ledger</TabsTrigger>
           <TabsTrigger value="policy">Value, expiry &amp; tax</TabsTrigger>
@@ -87,6 +89,9 @@ export function RewardsAdminScreen() {
         </TabsContent>
         <TabsContent value="budgets" className="mt-4">
           <BudgetsTab />
+        </TabsContent>
+        <TabsContent value="catalogue" className="mt-4">
+          <CatalogueAdmin />
         </TabsContent>
         <TabsContent value="redemptions" className="mt-4">
           <RedemptionsTab />

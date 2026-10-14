@@ -56,6 +56,7 @@ import type {
 import { formatDate, formatDateRange, formatDay } from "@/lib/utils";
 
 import { KIND_LABELS } from "./AttendanceRequestDialog";
+import { CoverageTab } from "./CoverageTab";
 import {
   currentMonthBounds,
   errorDetail,
@@ -66,12 +67,13 @@ import {
   StatusBadge,
   TableSkeleton,
 } from "./shared";
+import { SwapQueue } from "./ShiftSwaps";
 import { TeamToday } from "./TeamToday";
 
 /**
  * Attendance review for managers and HR (their reporting line, or everyone for HR).
  */
-const TABS = ["today", "regularisations", "exceptions"];
+const TABS = ["today", "regularisations", "swaps", "coverage", "exceptions"];
 
 export function AttendanceReview({ initialTab }: { initialTab?: string }) {
   const [pendingCount, setPendingCount] = useState<number | null>(null);
@@ -88,6 +90,8 @@ export function AttendanceReview({ initialTab }: { initialTab?: string }) {
             </span>
           )}
         </TabsTrigger>
+        <TabsTrigger value="swaps">Shift swaps</TabsTrigger>
+        <TabsTrigger value="coverage">Coverage</TabsTrigger>
         <TabsTrigger value="exceptions">Exceptions</TabsTrigger>
       </TabsList>
       <TabsContent value="today" className="mt-4">
@@ -95,6 +99,12 @@ export function AttendanceReview({ initialTab }: { initialTab?: string }) {
       </TabsContent>
       <TabsContent value="regularisations" className="mt-4">
         <RegularisationQueue onCount={setPendingCount} />
+      </TabsContent>
+      <TabsContent value="swaps" className="mt-4">
+        <SwapQueue />
+      </TabsContent>
+      <TabsContent value="coverage" className="mt-4">
+        <CoverageTab />
       </TabsContent>
       <TabsContent value="exceptions" className="mt-4">
         <ExceptionsReport />

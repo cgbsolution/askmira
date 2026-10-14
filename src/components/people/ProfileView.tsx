@@ -15,8 +15,11 @@ import { PersonCell } from "@/components/common/PersonCell";
 import { DocumentsPanel } from "@/components/docs/DocumentsPanel";
 import { LettersPanel } from "@/components/docs/LettersPanel";
 import { CompensationPanel } from "@/components/people/CompensationPanel";
+import { CustomFieldsCard } from "@/components/people/CustomFields";
+import { CustomTablesSection } from "@/components/people/CustomTables";
 import { ContactDetailsDialog } from "@/components/people/ContactDetailsDialog";
 import { EmployeeForm } from "@/components/people/EmployeeForm";
+import { EmployeeTimeline } from "@/components/people/EmployeeTimeline";
 import {
   EMPLOYMENT_TYPE,
   GENDER,
@@ -43,6 +46,8 @@ import {
 import { ResignationCard } from "@/components/people/profile/ResignationCard";
 import { type EditMode, SectionEditDialog } from "@/components/people/profile/SectionEditDialog";
 import { DetailItem, EmploymentStatusBadge } from "@/components/people/StatusBadges";
+import { HourlyRatesCard } from "@/components/people/HourlyRatesCard";
+import { TotalRewardsCard } from "@/components/people/TotalRewardsCard";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,6 +106,9 @@ export function ProfileView({
   const org = useOrgReference();
   const record = useApiQuery<EmployeeRecord>(recordPath ?? `/employees/${params.id}`);
   const employee = record.data;
+  const dottedManager = useApiQuery<EmployeeRecord>(
+    employee?.dotted_line_manager_id ? `/employees/${employee.dotted_line_manager_id}` : null,
+  );
   const manager = useApiQuery<EmployeeRecord>(
     employee?.manager_id ? `/employees/${employee.manager_id}` : null,
   );
@@ -275,6 +283,7 @@ export function ProfileView({
             <TabsTrigger value="attendance">Attendance</TabsTrigger>
           )}
           {seesHistory && !isSelf && <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>}
+          {(seesHistory || isSelf) && <TabsTrigger value="timeline">Timeline</TabsTrigger>}
           {extraTabs.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
               {tab.label}
@@ -302,6 +311,19 @@ export function ProfileView({
                   )
                 ) : null}
               </DetailItem>
+              {employee.dotted_line_manager_id && (
+                <DetailItem label="Dotted-line manager">
+                  {dottedManager.data ? (
+                    <Link className="text-primary hover:underline" href={`/people/${dottedManager.data.id}`}>
+                      {personName(dottedManager.data)}
+                    </Link>
+                  ) : dottedManager.isLoading ? (
+                    "…"
+                  ) : (
+                    "Not visible"
+                  )}
+                </DetailItem>
+              )}
               <DetailItem label="Work email">{employee.work_email}</DetailItem>
               <DetailItem label="Joined">{day(employee.date_of_joining)}</DetailItem>
             </CardContent>
@@ -392,6 +414,16 @@ export function ProfileView({
               <DetailItem label="Date of exit">{day(employee.date_of_exit)}</DetailItem>
             </CardContent>
           </Card>
+          {(isHr || isSelf) && (
+            <div className="mt-6">
+              <CustomFieldsCard values={employee.custom_fields ?? {}} />
+            </div>
+          )}
+          {(isHr || isSelf) && (
+            <div className="mt-6">
+              <CustomTablesSection employeeId={employee.id} />
+            </div>
+          )}
           {!isSelf && seesHistory && (
             <EmployeeAssetsCard employeeId={employee.id} className="mt-6" />
           )}
@@ -403,8 +435,10 @@ export function ProfileView({
         </TabsContent>
 
         {seesPay && (
-          <TabsContent value="compensation" className="mt-4">
+          <TabsContent value="compensation" className="mt-4 grid gap-6">
+            <TotalRewardsCard employeeId={employee.id} isSelf={isSelf} />
             <CompensationPanel employeeId={employee.id} isSelf={isSelf} />
+            {isHr && !isSelf && <HourlyRatesCard employeeId={employee.id} />}
           </TabsContent>
         )}
 
@@ -453,6 +487,11 @@ export function ProfileView({
         {seesHistory && !isSelf && (
           <TabsContent value="lifecycle" className="mt-4">
             <LifecycleTimeline employeeId={employee.id} />
+          </TabsContent>
+        )}
+        {(seesHistory || isSelf) && (
+          <TabsContent value="timeline" className="mt-4">
+            <EmployeeTimeline employeeId={employee.id} />
           </TabsContent>
         )}
 

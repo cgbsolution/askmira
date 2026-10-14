@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import React from "react";
 
+import { Tr } from "@/lib/i18n/Tr";
 import { cn } from "@/lib/utils";
 
 /**
@@ -37,8 +38,14 @@ export function EmptyState({
         <Icon className="size-6" />
       </span>
       <div className="max-w-md">
-        <p className="font-medium text-foreground">{title}</p>
-        {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+        <p className="font-medium text-foreground">
+          <Tr text={title} />
+        </p>
+        {description && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            <Tr text={description} />
+          </p>
+        )}
       </div>
       {action}
     </div>

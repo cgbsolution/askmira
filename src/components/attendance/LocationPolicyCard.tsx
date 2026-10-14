@@ -1,9 +1,10 @@
 "use client";
 
-import { Loader2, MapPin } from "lucide-react";
+import { Camera, Loader2, MapPin } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { FormField } from "@/components/common/FormField";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -47,27 +48,55 @@ const MODES: { value: LocationMode; label: string; detail: string }[] = [
   },
 ];
 
+const PHOTO_MODES: { value: LocationMode; label: string; detail: string }[] = [
+  {
+    value: "required",
+    label: "Required",
+    detail:
+      "A punch from the web or the app needs a photo taken there and then. It stops a colleague punching for someone else. Devices and imports are unaffected.",
+  },
+  {
+    value: "optional",
+    label: "Optional",
+    detail: "The punch screen offers the camera; a punch without a photo is still recorded.",
+  },
+  {
+    value: "off",
+    label: "Off",
+    detail: "No photo is asked for.",
+  },
+];
+
 /**
  * The workspace's rule for recording where people punch.
  *
  * A punch with a location is compared with the work locations below: inside
  * one it reads "At Bengaluru HQ", outside all of them it is recorded, flagged
  * for HR and shows how far away it was. Devices and imports are unaffected.
+ *
+ * The photo rule sits beside it. A photo is shown to the person, their
+ * reporting line and HR; nothing scores or matches the face.
  */
 export function LocationPolicyCard() {
   const { data, error, isLoading, reload } = useApiQuery<AttendanceSettings>("/attendance/settings");
   const [mode, setMode] = useState<LocationMode>("optional");
+  const [photoMode, setPhotoMode] = useState<LocationMode>("off");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (data) setMode(data.location_mode);
+    if (data) {
+      setMode(data.location_mode);
+      setPhotoMode(data.photo_mode);
+    }
   }, [data]);
+
+  const unchanged = !data || (data.location_mode === mode && data.photo_mode === photoMode);
 
   const save = async () => {
     setIsSaving(true);
     try {
-      await put<AttendanceSettings>("/attendance/settings", { location_mode: mode });
-      toast.success(`Punch location is now ${mode}`);
+      await put<AttendanceSettings>("/attendance/settings", { location_mode: mode, photo_mode: photoMode });
+      toast.success(`Punch location is now ${mode}, punch photo ${photoMode}`);
       reload();
     } catch (caught) {
       toast.error(errorDetail(caught, "Could not save the location rule."));
@@ -77,19 +106,20 @@ export function LocationPolicyCard() {
   };
 
   const chosen = MODES.find((option) => option.value === mode);
+  const chosenPhoto = PHOTO_MODES.find((option) => option.value === photoMode);
 
   return (
     <Card tier="tier1">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <MapPin className="size-4 text-primary" /> Punch location
+          <MapPin className="size-4 text-primary" /> Punch location and photo
         </CardTitle>
         <CardDescription>
-          Whether a punch records where it was made. Locations are checked against the work
-          locations below.
+          Whether a punch records where it was made, and a photo of who made it. Locations are
+          checked against the work locations below.
         </CardDescription>
         <CardAction>
-          <Button onClick={() => void save()} disabled={isSaving || !data || data.location_mode === mode}>
+          <Button onClick={() => void save()} disabled={isSaving || unchanged}>
             {isSaving && <Loader2 className="animate-spin" />} Save
           </Button>
         </CardAction>
@@ -100,20 +130,43 @@ export function LocationPolicyCard() {
         ) : error ? (
           <LoadError error={error} onRetry={reload} />
         ) : (
-          <div className="grid gap-2 sm:max-w-md">
-            <Select value={mode} onValueChange={(value) => setMode(value as LocationMode)}>
-              <SelectTrigger aria-label="Punch location rule" className="h-11 w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {MODES.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {chosen && <p className="text-xs text-muted-foreground">{chosen.detail}</p>}
+          <div className="grid gap-5 md:grid-cols-2">
+            <FormField htmlFor="punch-location-rule" label="Location" hint={chosen?.detail}>
+              <Select value={mode} onValueChange={(value) => setMode(value as LocationMode)}>
+                <SelectTrigger id="punch-location-rule" className="h-11 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MODES.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField
+              htmlFor="punch-photo-rule"
+              hint={chosenPhoto?.detail}
+              label={
+                <span className="flex items-center gap-1.5">
+                  <Camera className="size-3.5" /> Photo
+                </span>
+              }
+            >
+              <Select value={photoMode} onValueChange={(value) => setPhotoMode(value as LocationMode)}>
+                <SelectTrigger id="punch-photo-rule" className="h-11 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PHOTO_MODES.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
           </div>
         )}
       </CardContent>

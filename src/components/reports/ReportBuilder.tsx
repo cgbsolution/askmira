@@ -28,6 +28,7 @@ import { ApiError, post } from "@/lib/api";
 import type {
   Catalogue,
   CatalogueField,
+  ChartType,
   DataType,
   Filter,
   Operator,
@@ -36,6 +37,8 @@ import type {
   Selection,
 } from "@/lib/types/reports";
 
+import { CHART_TYPE_LABEL, ChartTypeSelect } from "./ChartTypeSelect";
+import { ReportChart } from "./ReportChart";
 import { ReportResultTable } from "./ReportResultTable";
 
 const NONE = "__none__";
@@ -95,6 +98,7 @@ export function ReportBuilder({ catalogue, onSaved }: { catalogue: Catalogue; on
   const [groupBy, setGroupBy] = useState<string[]>([]);
   const [limit, setLimit] = useState("100");
   const [result, setResult] = useState<ReportResult | null>(null);
+  const [chartType, setChartType] = useState<ChartType>("bar");
   const [running, setRunning] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -342,6 +346,9 @@ export function ReportBuilder({ catalogue, onSaved }: { catalogue: Catalogue; on
             <FormField htmlFor="builder-limit" label="Rows">
               <Input id="builder-limit" className="w-28" inputMode="numeric" value={limit} onChange={(e) => setLimit(e.target.value.replace(/\D/g, ""))} />
             </FormField>
+            <FormField htmlFor="builder-chart" label="Show as">
+              <ChartTypeSelect id="builder-chart" value={chartType} onChange={setChartType} />
+            </FormField>
             <Button onClick={run} disabled={running || selections.length === 0}>
               {running ? <Loader2 className="animate-spin" /> : <Play />} Preview
             </Button>
@@ -353,8 +360,9 @@ export function ReportBuilder({ catalogue, onSaved }: { catalogue: Catalogue; on
       </DataPanel>
 
       {result && (
-        <DataPanel title="Preview">
-          <div className="p-5">
+        <DataPanel title="Preview" description={CHART_TYPE_LABEL[chartType]}>
+          <div className="grid gap-5 p-5">
+            <ReportChart result={result} chartType={chartType} />
             <ReportResultTable result={result} />
           </div>
         </DataPanel>
@@ -364,6 +372,7 @@ export function ReportBuilder({ catalogue, onSaved }: { catalogue: Catalogue; on
         open={saving}
         onOpenChange={setSaving}
         definition={definition}
+        chartType={chartType}
         onSaved={() => {
           onSaved();
           toast.success("Report saved. Find it under My reports.");
@@ -396,11 +405,13 @@ function SaveDialog({
   open,
   onOpenChange,
   definition,
+  chartType,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   definition: () => unknown;
+  chartType: ChartType;
   onSaved: () => void;
 }) {
   const [name, setName] = useState("");
@@ -423,8 +434,7 @@ function SaveDialog({
         name: name.trim(),
         description: description.trim() || null,
         definition: definition(),
-        // Results are shown as tables; a chart preference nothing renders is not offered.
-        chart_type: "table",
+        chart_type: chartType,
         visibility,
       });
       onSaved();

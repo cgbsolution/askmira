@@ -4,6 +4,8 @@ import { CalendarClock, ExternalLink, FileText, LinkIcon, SearchX } from "lucide
 import React from "react";
 
 import { DocumentUploadForm } from "@/components/careers/DocumentUploadForm";
+import { PortalBackgroundChecks } from "@/components/careers/PortalBackgroundChecks";
+import { PortalOffers } from "@/components/careers/PortalOffers";
 import { PublicMessage } from "@/components/careers/PublicMessage";
 import { RescheduleRequestDialog } from "@/components/careers/RescheduleRequestDialog";
 import { usePublicQuery } from "@/components/careers/usePublicQuery";
@@ -64,6 +66,9 @@ export function CandidatePortalView({ token }: { token: string }) {
           Your applications with {data.organisation}
         </p>
       </header>
+
+      <PortalOffers token={token} candidateName={data.candidate.name} />
+      <PortalBackgroundChecks token={token} candidateName={data.candidate.name} />
 
       <Card tier="tier2">
         <CardHeader>

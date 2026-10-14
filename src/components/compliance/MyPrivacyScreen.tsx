@@ -34,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, downloadFile, post } from "@/lib/api";
+import { useLocale } from "@/lib/i18n";
 import {
   NOTICE_LANGUAGES,
   REQUEST_STATUS_LABEL,
@@ -221,7 +222,10 @@ function ChoicesTab() {
 }
 
 function NoticeTab() {
-  const [language, setLanguage] = useState("en");
+  const { locale } = useLocale();
+  const [language, setLanguage] = useState<string>(locale);
+  // The notice opens in the portal's language; the menu still offers every other.
+  useEffect(() => setLanguage(locale), [locale]);
   const { data, error, isLoading, reload } = useApiQuery<Notice>(`/dpdp/me/notice?language=${language}`);
 
   return (

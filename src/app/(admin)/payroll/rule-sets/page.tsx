@@ -10,6 +10,7 @@ import { PageShell } from "@/components/common/PageShell";
 import { RequireRole } from "@/components/common/RequireRole";
 import { apiMessage, formatMoment, RULE_TYPE_LABEL } from "@/components/payroll/labels";
 import { NewRuleSetDialog } from "@/components/payroll/NewRuleSetDialog";
+import { StatutoryUpdates } from "@/components/payroll/StatutoryUpdates";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -206,6 +207,10 @@ export default function RuleSetsPage() {
         }
         onConfirm={approve}
       />
+
+      <div className="mt-6">
+        <StatutoryUpdates onDrafted={reload} />
+      </div>
     </PageShell>
   );
 }

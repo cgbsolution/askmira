@@ -17,6 +17,7 @@ import {
   timestampOrDash,
   useExitRoles,
 } from "@/components/exits/common";
+import { ExitInterviewPanel } from "@/components/exits/ExitInterviewPanel";
 import { LettersPanel } from "@/components/exits/LettersPanel";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DatePicker } from "@/components/common/DatePicker";
@@ -236,6 +237,18 @@ function ExitDetail({
       />
 
       {isHr && !isOwnExit && <LettersPanel exitId={record.id} version={childVersion} />}
+
+      {isHr && !isOwnExit && record.status !== "cancelled" && (
+        <ExitInterviewPanel
+          exitId={record.id}
+          viewer="hr"
+          rehire={{
+            eligible: record.is_rehire_eligible ?? null,
+            note: record.rehire_note ?? null,
+            onChanged: () => setChildVersion((current) => current + 1),
+          }}
+        />
+      )}
 
       <ReasonDialog
         open={dialog === "accept"}

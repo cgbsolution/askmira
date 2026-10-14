@@ -65,6 +65,9 @@ export interface RequisitionDetail extends RequisitionSummary {
   budget_ctc_max: string | null;
   justification: string | null;
   description: string | null;
+  description_ai_assisted?: boolean;
+  /** Each published wording: its version, date and whether it began as an AI draft. */
+  jd_versions?: { version: number; published_at: string; ai_generated: boolean }[];
   skills: string[];
   replacement_for_employee_id: string | null;
   target_joining_date: string | null;
@@ -102,6 +105,7 @@ export interface RequisitionInput {
   budget_ctc_max?: string | null;
   justification?: string | null;
   description?: string | null;
+  description_ai_assisted?: boolean;
   skills?: string[];
   target_joining_date?: string | null;
   target_close_date?: string | null;
@@ -153,6 +157,7 @@ export interface CandidateSummary {
   created_at: string;
   allowed_moves: CandidateStage[];
   possible_duplicate: boolean;
+  tags: string[];
 }
 
 export interface CandidateInput {
@@ -175,6 +180,26 @@ export interface CandidateCreateResult {
   note: string;
   matched_on: string | null;
   possible_duplicates: { id: string; full_name: string; stage: CandidateStage }[];
+}
+
+export type CandidateMessageStatus = "queued" | "sent" | "failed" | "dead_letter" | "cancelled";
+
+/** One email to a candidate. A private link in it shows as a placeholder, never itself. */
+export interface CandidateMessage {
+  id: string;
+  event_key: string;
+  to_address: string;
+  subject: string;
+  body: string;
+  status: CandidateMessageStatus;
+  attempt_count: number;
+  /** When a queued message goes (a held rejection, a retry). */
+  scheduled_for: string | null;
+  sent_at: string | null;
+  failure_reason: string | null;
+  /** Who wrote it; null for one AskMira sent on a hiring event. */
+  sent_by: string | null;
+  created_at: string;
 }
 
 export interface StageMoveResult {
@@ -240,11 +265,21 @@ export interface CandidateProfile {
     salary_hidden: boolean;
     stage: CandidateStage;
     source: string | null;
+    tags: string[];
     converted_employee_id: string | null;
     created_at: string;
     has_resume: boolean;
     resume_text: string | null;
     resume_note: string | null;
+    /** HR only: this person worked here before, and how they left. */
+    former_employee?: {
+      employee_id: string;
+      employee_code: string;
+      date_of_exit: string | null;
+      exit_type: string | null;
+      is_rehire_eligible: boolean | null;
+      rehire_note: string | null;
+    } | null;
   };
   requisition: { id: string; code: string; title: string; status: RequisitionStatus };
   allowed_moves: CandidateStage[];
@@ -1213,4 +1248,41 @@ export interface BookingResult {
   start_local: string;
   timezone: string;
   join_url: string | null;
+}
+
+export interface TagCount {
+  tag: string;
+  candidates: number;
+}
+
+export interface TalentPool {
+  id: string;
+  name: string;
+  description: string | null;
+  members: number;
+  created_at: string;
+}
+
+export interface TalentPoolMember {
+  candidate_id: string;
+  full_name: string;
+  email: string;
+  stage: CandidateStage;
+  tags: string[];
+  last_requisition: string;
+  total_experience_years: string | null;
+  note: string | null;
+  added_at: string;
+  /** Their talent-pool consent as it stands now; withdrawn means do not contact. */
+  consent: "granted" | "withdrawn";
+}
+
+export interface TalentPoolDetail {
+  pool: TalentPool;
+  members: TalentPoolMember[];
+}
+
+export interface PoolAddResult {
+  added: string[];
+  refused: Array<{ candidate_id: string; reason: string }>;
 }

@@ -23,8 +23,8 @@ import type { Form16Year } from "@/lib/types/tax";
  *
  * Computed from the year's approved payslips once the year has ended — before
  * then it would be a projection presented as a certificate, so the year says
- * why it is not ready instead. Part A comes from the employer's TRACES account
- * and is not produced here.
+ * why it is not ready instead. Part A comes from the employer's TRACES account;
+ * once HR uploads it, the download carries Part A before Part B.
  */
 export function Form16Panel() {
   const query = useApiQuery<Form16Year[]>("/tax/form-16");
@@ -32,8 +32,8 @@ export function Form16Panel() {
 
   return (
     <DataPanel
-      title="Form 16 (Part B)"
-      description="Your salary and the tax deducted from it for each financial year, from approved payroll. Part A is issued by your employer from the Income Tax department's TRACES portal."
+      title="Form 16"
+      description="Your salary and the tax deducted from it for each financial year, from approved payroll (Part B). Once HR uploads Part A from the Income Tax department's TRACES portal, the download includes it."
       isLoading={query.isLoading && !query.data}
       error={query.error?.detail}
       onRetry={query.reload}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Armchair, Info, Network, Search, TriangleAlert, Users } from "lucide-react";
+import { Armchair, Download, Info, Network, Printer, Search, TriangleAlert, Users } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -9,14 +9,16 @@ import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { EmployeeSummary } from "@/lib/types";
 import type { ChartNode, OrgChart } from "@/lib/types/people";
 
-import { POSITION_STATUS, personName } from "../labels";
+import { NONE, POSITION_STATUS, personName } from "../labels";
 import { useOrgReference } from "../useOrgReference";
 import { OrgTree, ancestorsOf, type TreeNode } from "./OrgTree";
 import { useWholeDirectory } from "./useWholeDirectory";
@@ -71,27 +73,78 @@ export function OrgChartScreen() {
   );
 }
 
+/** One CSV cell, quoted, and shown rather than run by a spreadsheet. */
+function csvCell(value: string | number | null | undefined): string {
+  let text = value === null || value === undefined ? "" : String(value);
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
 function PeopleChart() {
   const { people, error, isLoading, truncated, reload, limit } = useWholeDirectory();
   const org = useOrgReference();
   const [search, setSearch] = useState("");
+  const [department, setDepartment] = useState(NONE);
+  const [location, setLocation] = useState(NONE);
 
   const { roots, orphans, cycles } = useMemo(() => buildPeopleTree(people ?? []), [people]);
+  const byId = useMemo(() => new Map((people ?? []).map((p) => [p.id, p])), [people]);
 
+  const term = search.trim().toLowerCase();
+  const filtering = term.length >= 2 || department !== NONE || location !== NONE;
   const matches = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    if (term.length < 2 || !people) return new Set<string>();
+    if (!filtering || !people) return new Set<string>();
     return new Set(
       people
         .filter(
           (person) =>
-            personName(person).toLowerCase().includes(term) ||
-            (person.designation ?? "").toLowerCase().includes(term) ||
-            person.employee_code.toLowerCase().includes(term),
+            (term.length < 2 ||
+              personName(person).toLowerCase().includes(term) ||
+              (person.designation ?? "").toLowerCase().includes(term) ||
+              person.employee_code.toLowerCase().includes(term)) &&
+            (department === NONE || person.department_id === department) &&
+            (location === NONE || person.location_id === location),
         )
         .map((person) => person.id),
     );
-  }, [people, search]);
+  }, [people, term, department, location, filtering]);
+
+  const exportCsv = () => {
+    const spans = new Map<string, { direct: number; total: number }>();
+    const walk = (node: PersonNode) => {
+      spans.set(node.id, { direct: node.children.length, total: node.span });
+      node.children.forEach(walk);
+    };
+    roots.forEach(walk);
+    const rows = (people ?? []).filter((p) => !filtering || matches.has(p.id));
+    const header = ["Employee code", "Name", "Designation", "Department", "Location", "Manager", "Manager code", "Dotted-line manager", "Direct reports", "Everyone below"];
+    const lines = rows.map((p) => {
+      const manager = p.manager_id ? byId.get(p.manager_id) : undefined;
+      const dotted = p.dotted_line_manager_id ? byId.get(p.dotted_line_manager_id) : undefined;
+      const span = spans.get(p.id);
+      return [
+        p.employee_code,
+        personName(p),
+        p.designation,
+        p.department_id ? org.departmentName(p.department_id) : "",
+        p.location_id ? org.locationName(p.location_id) : "",
+        manager ? personName(manager) : "",
+        manager?.employee_code,
+        dotted ? personName(dotted) : "",
+        span?.direct ?? 0,
+        span?.total ?? 0,
+      ]
+        .map(csvCell)
+        .join(",");
+    });
+    const blob = new Blob([[header.map(csvCell).join(","), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "org-chart.csv";
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1_000);
+  };
 
   const forceOpen = useMemo(() => ancestorsOf(roots, matches), [roots, matches]);
 
@@ -127,22 +180,60 @@ function PeopleChart() {
             ? `${people.length.toLocaleString("en-IN")} active people, ${roots.length} at the top.`
             : undefined
         }
+        actions={
+          <>
+            <Button size="sm" variant="outline" onClick={exportCsv} disabled={!people?.length}>
+              <Download /> Export CSV
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => window.print()} disabled={!people?.length}>
+              <Printer /> Print
+            </Button>
+          </>
+        }
         toolbar={
-          <div className="relative w-full max-w-sm">
-            <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Find a person, title or employee code"
-              aria-label="Find a person"
-              className="pl-8"
-            />
-            {search.trim().length >= 2 && (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {matches.size} match{matches.size === 1 ? "" : "es"}
-              </p>
-            )}
-          </div>
+          <>
+            <div className="relative w-full max-w-sm">
+              <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Find a person, title or employee code"
+                aria-label="Find a person"
+                className="pl-8"
+              />
+              {filtering && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {matches.size} match{matches.size === 1 ? "" : "es"} highlighted
+                </p>
+              )}
+            </div>
+            <Select value={department} onValueChange={setDepartment}>
+              <SelectTrigger aria-label="Team" className="w-44">
+                <SelectValue placeholder="Team" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Every team</SelectItem>
+                {org.departments.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={location} onValueChange={setLocation}>
+              <SelectTrigger aria-label="Location" className="w-44">
+                <SelectValue placeholder="Location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>Every location</SelectItem>
+                {org.locations.map((l) => (
+                  <SelectItem key={l.id} value={l.id}>
+                    {l.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
         }
         isLoading={isLoading}
         error={error}
@@ -160,7 +251,13 @@ function PeopleChart() {
                 <PersonCell
                   name={personName(node.person)}
                   photoUrl={node.person.photo_url}
-                  subtitle={[node.person.designation, org.departmentName(node.person.department_id)]
+                  subtitle={[
+                    node.person.designation,
+                    org.departmentName(node.person.department_id),
+                    node.person.dotted_line_manager_id && byId.get(node.person.dotted_line_manager_id)
+                      ? `dotted line to ${personName(byId.get(node.person.dotted_line_manager_id)!)}`
+                      : null,
+                  ]
                     .filter((part) => part && part !== "—")
                     .join(" · ")}
                   size="sm"

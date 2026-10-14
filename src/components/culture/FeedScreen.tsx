@@ -1,10 +1,11 @@
 "use client";
 
-import { Award, Cake, Loader2, Megaphone, MoreHorizontal, Pin, PinOff, Send, Trash2 } from "lucide-react";
+import { Award, Cake, Loader2, Megaphone, MoreHorizontal, PartyPopper, Pin, PinOff, Send, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { DraftShoutoutButton } from "@/components/ai/DraftShoutoutButton";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
@@ -243,6 +244,14 @@ function Composer({ values, onPosted }: { values: CompanyValue[]; onPosted: () =
             maxLength={2000}
           />
         </FormField>
+        <div className="flex justify-end">
+          <DraftShoutoutButton
+            toEmployeeId={to?.id ?? null}
+            notes={message}
+            valueCode={valueTag === NO_VALUE ? null : valueTag}
+            onDraft={setMessage}
+          />
+        </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Select value={visibility} onValueChange={(next) => setVisibility(next as ShoutoutVisibility)}>
             <SelectTrigger className="w-52" aria-label="Who can see this">
@@ -319,10 +328,18 @@ function ShoutoutItem({
         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
           {shoutout.kind === "award" ? (
             <Award className="size-4 text-primary" aria-label="Award" />
+          ) : shoutout.kind === "milestone" ? (
+            <PartyPopper className="size-4 text-primary" aria-label="Work anniversary" />
           ) : shoutout.sender ? (
             <PersonCell name={shoutout.sender.name} photoUrl={shoutout.sender.photo_url} size="sm" />
           ) : null}
-          <span className="text-muted-foreground">{shoutout.kind === "award" ? "Award to" : "recognised"}</span>
+          <span className="text-muted-foreground">
+            {shoutout.kind === "award"
+              ? "Award to"
+              : shoutout.kind === "milestone"
+                ? `${shoutout.milestone_years}-year work anniversary:`
+                : "recognised"}
+          </span>
           <PersonCell
             name={shoutout.recipient.name}
             photoUrl={shoutout.recipient.photo_url}

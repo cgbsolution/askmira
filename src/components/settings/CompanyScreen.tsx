@@ -1,9 +1,15 @@
 "use client";
 
+import { AiSettingsPanel } from "@/components/ai/AiSettingsPanel";
 import { PageShell } from "@/components/common/PageShell";
+import { OperatorAccessPanel } from "@/components/operators/OperatorAccessPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { ApprovalRulesPanel } from "./ApprovalRulesPanel";
 import { AuditTrailPanel } from "./AuditTrailPanel";
+import { CustomFieldsPanel } from "./CustomFieldsPanel";
+import { IntegrationsPanel } from "./IntegrationsPanel";
+import { CustomTablesPanel } from "@/components/people/CustomTables";
 import { PermissionsPanel } from "./PermissionsPanel";
 import { SchedulerPanel } from "./SchedulerPanel";
 import { WorkspacePanel } from "./WorkspacePanel";
@@ -25,6 +31,11 @@ export function CompanyScreen() {
         <TabsList>
           <TabsTrigger value="workspace">Workspace</TabsTrigger>
           <TabsTrigger value="permissions">Permissions</TabsTrigger>
+          <TabsTrigger value="approvals">Approval rules</TabsTrigger>
+          <TabsTrigger value="fields">Custom fields</TabsTrigger>
+          <TabsTrigger value="integrations">Integrations</TabsTrigger>
+          <TabsTrigger value="ai">AI</TabsTrigger>
+          <TabsTrigger value="operators">Operators</TabsTrigger>
           <TabsTrigger value="audit">Audit trail</TabsTrigger>
           <TabsTrigger value="jobs">Background jobs</TabsTrigger>
         </TabsList>
@@ -34,6 +45,24 @@ export function CompanyScreen() {
         </TabsContent>
         <TabsContent value="permissions" className="mt-4">
           <PermissionsPanel />
+        </TabsContent>
+        <TabsContent value="approvals" className="mt-4">
+          <ApprovalRulesPanel />
+        </TabsContent>
+        <TabsContent value="fields" className="mt-4">
+          <div className="grid gap-6">
+            <CustomFieldsPanel />
+            <CustomTablesPanel />
+          </div>
+        </TabsContent>
+        <TabsContent value="integrations" className="mt-4">
+          <IntegrationsPanel />
+        </TabsContent>
+        <TabsContent value="ai" className="mt-4">
+          <AiSettingsPanel />
+        </TabsContent>
+        <TabsContent value="operators" className="mt-4">
+          <OperatorAccessPanel />
         </TabsContent>
         <TabsContent value="audit" className="mt-4">
           <AuditTrailPanel />

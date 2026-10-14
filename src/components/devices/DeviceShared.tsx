@@ -10,9 +10,16 @@ export const VENDOR_LABEL: Record<DeviceVendor, string> = {
   matrix: "Matrix",
   zkteco: "ZKTeco",
   generic: "Generic (push API)",
+  kiosk: "Kiosk (shared tablet)",
 };
 
-export const DEVICE_VENDORS: DeviceVendor[] = ["essl", "matrix", "zkteco", "generic"];
+export const DEVICE_VENDORS: DeviceVendor[] = ["essl", "matrix", "zkteco", "generic", "kiosk"];
+
+/** The page a kiosk tablet opens. The token in it is the kiosk's credential. */
+export function kioskUrl(token: string): string {
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  return `${origin}/kiosk/${encodeURIComponent(token)}`;
+}
 
 const STATUS: Record<DeviceStatus, ["success" | "warning" | "muted", string]> = {
   active: ["success", "Active"],
@@ -64,5 +71,16 @@ export function pushUrl(token: string): string {
 }
 
 export const PUSH_URL_PATTERN = `${API_BASE}/api/v1/devices/{token}/punches`;
+
+/**
+ * The server address for eSSL and ZKTeco devices speaking ADMS ("iclock"). The
+ * device adds `/iclock/cdata` itself, so this is the part before it.
+ */
+export function admsAddress(token: string): string {
+  return `${API_BASE}/api/v1/adms/${encodeURIComponent(token)}`;
+}
+
+/** For ADMS firmware that takes only a host and port, with serial-number push on. */
+export const ADMS_HOST = API_BASE;
 
 export const NO_LOCATION = "__none";

@@ -77,7 +77,7 @@ export function CandidatePortalLinkDialog({ candidateId }: { candidateId: string
           <DialogHeader>
             <DialogTitle>Candidate portal link</DialogTitle>
             <DialogDescription>
-              Shown once. Send it to the candidate now; it cannot be displayed again after you close this.
+              We have emailed it to the candidate. It is shown once here as well, in case they need it another way.
             </DialogDescription>
           </DialogHeader>
           {link && (
