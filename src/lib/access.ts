@@ -52,6 +52,12 @@ export interface NavPage {
   roles: Audience[];
   /** Guarded but not listed in the section navigation (a create form, say). */
   hidden?: boolean;
+  /**
+   * Who may open the page, where that is wider than who sees it in the menu: an
+   * approval rule can name anybody, so a decision queue opens for everyone and
+   * shows each person only what waits on them.
+   */
+  reach?: Audience[];
   /** For a page outside any section, which has no section icon to borrow. */
   icon?: LucideIcon;
 }
@@ -86,7 +92,10 @@ export const NAV: NavSection[] = [
     name: "Approvals",
     icon: Inbox,
     group: "me",
-    pages: [{ name: "Approvals", path: "/approvals", roles: EVERYONE }],
+    pages: [
+      { name: "Approvals", path: "/approvals", roles: EVERYONE },
+      { name: "Lifecycle approval", path: "/approvals/lifecycle", roles: EVERYONE, hidden: true },
+    ],
   },
   {
     key: "onboarding",
@@ -111,10 +120,10 @@ export const NAV: NavSection[] = [
     pages: [
       { name: "Time off", path: "/time", roles: EVERYONE },
       { name: "Attendance", path: "/time/attendance", roles: EVERYONE },
-      { name: "Attendance review", path: "/time/attendance-review", roles: MANAGERS },
+      { name: "Attendance review", path: "/time/attendance-review", roles: MANAGERS, reach: EVERYONE },
       { name: "Overtime", path: "/time/overtime", roles: EVERYONE },
       { name: "Timesheet", path: "/time/timesheets", roles: EVERYONE },
-      { name: "Timesheet approvals", path: "/time/timesheets/approvals", roles: MANAGERS },
+      { name: "Timesheet approvals", path: "/time/timesheets/approvals", roles: MANAGERS, reach: EVERYONE },
       { name: "Shifts & rosters", path: "/time/shifts", roles: HR },
     ],
   },
@@ -399,7 +408,7 @@ export function decideAccess(
   const resolved = resolvePage(pathname);
   if (!resolved) return "role";
   if (!moduleEnabled(tenant, resolved.section?.module)) return "module";
-  return roleAllows(user, resolved.page.roles) ? "allowed" : "role";
+  return roleAllows(user, resolved.page.reach ?? resolved.page.roles) ? "allowed" : "role";
 }
 
 /** The pages of a section this person may see, in navigation order. */

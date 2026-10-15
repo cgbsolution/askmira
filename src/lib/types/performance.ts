@@ -708,6 +708,8 @@ export interface OneOnOne {
   scheduled_on: string;
   start_time: string | null;
   duration_minutes: number;
+  /** Every this many weeks; null for a one-off. */
+  repeat_every_weeks: number | null;
   status: OneOnOneStatus;
   summary: string | null;
   completed_at: string | null;

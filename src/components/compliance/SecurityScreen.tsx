@@ -63,6 +63,7 @@ interface Policy {
   max_concurrent_sessions: number;
   enforce_ip_allowlist_for_privileged: boolean;
   ip_allowlist: string[];
+  require_two_step: "off" | "privileged" | "everyone";
 }
 
 interface ActiveSession {
@@ -312,6 +313,7 @@ function PolicyTab() {
   const [concurrent, setConcurrent] = useState("0");
   const [enforce, setEnforce] = useState(false);
   const [allowlist, setAllowlist] = useState("");
+  const [twoStep, setTwoStep] = useState<Policy["require_two_step"]>("off");
   const [probe, setProbe] = useState("");
   const [probeResult, setProbeResult] = useState<{ outcome: string; message: string } | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -323,6 +325,7 @@ function PolicyTab() {
     setConcurrent(String(data.max_concurrent_sessions));
     setEnforce(data.enforce_ip_allowlist_for_privileged);
     setAllowlist(data.ip_allowlist.join("\n"));
+    setTwoStep(data.require_two_step ?? "off");
   }, [data]);
 
   if (!isAdmin) {
@@ -344,6 +347,7 @@ function PolicyTab() {
         max_concurrent_sessions: Number(concurrent),
         enforce_ip_allowlist_for_privileged: enforce,
         ip_allowlist: entries,
+        require_two_step: twoStep,
       });
       toast.success("Session policy saved. It applies from the next request.");
       reload();
@@ -379,6 +383,24 @@ function PolicyTab() {
         </FormField>
         <FormField htmlFor="policy-concurrent" label="Sessions per person" hint="0 means no limit.">
           <Input id="policy-concurrent" inputMode="numeric" value={concurrent} onChange={(e) => setConcurrent(e.target.value.replace(/\D/g, ""))} />
+        </FormField>
+
+        <FormField
+          htmlFor="policy-two-step"
+          label="Two-step sign-in is required of"
+          className="sm:col-span-3"
+          hint="Anybody it applies to who has not set it up is sent to set it up at their next request, and cannot turn it off while this stands. The break-glass account is exempt."
+        >
+          <Select value={twoStep} onValueChange={(value) => setTwoStep(value as Policy["require_two_step"])}>
+            <SelectTrigger id="policy-two-step" className="w-full sm:w-80">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="off">Nobody — each person chooses</SelectItem>
+              <SelectItem value="privileged">Admins and sub-admins</SelectItem>
+              <SelectItem value="everyone">Everyone</SelectItem>
+            </SelectContent>
+          </Select>
         </FormField>
 
         <div className="flex items-start gap-3 sm:col-span-3">

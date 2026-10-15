@@ -28,6 +28,8 @@ export interface AuthUser {
   must_change_password: boolean;
   /** Somebody reports to them, so they see their team's pages and approvals. */
   is_manager: boolean;
+  /** The workspace requires two-step sign-in of them and it is not set up yet. */
+  two_step_required?: boolean;
   employee_id: string | null;
   last_login_at: string | null;
   created_at: string;

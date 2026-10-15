@@ -143,6 +143,7 @@ function FieldDialog({
   const [required, setRequired] = useState(field?.is_required ?? false);
   const [sensitive, setSensitive] = useState(field?.is_sensitive ?? false);
   const [order, setOrder] = useState(String(field?.display_order ?? 0));
+  const [tab, setTab] = useState(field?.tab ?? "");
   const [active, setActive] = useState(field?.is_active ?? true);
   const [busy, setBusy] = useState(false);
 
@@ -160,6 +161,7 @@ function FieldDialog({
       is_required: required,
       is_sensitive: sensitive,
       display_order: Number(order) || 0,
+      tab: tab.trim() || (field ? "" : null),
     };
     try {
       if (field) {
@@ -233,9 +235,19 @@ function FieldDialog({
               <Textarea id="cf-options" rows={4} value={options} onChange={(e) => setOptions(e.target.value)} />
             </FormField>
           )}
-          <FormField htmlFor="cf-order" label="Order on the profile" className="max-w-40">
-            <Input id="cf-order" type="number" min={0} max={10000} value={order} onChange={(e) => setOrder(e.target.value)} />
-          </FormField>
+          <div className="grid gap-3 sm:grid-cols-[10rem_1fr]">
+            <FormField htmlFor="cf-order" label="Order on the profile">
+              <Input id="cf-order" type="number" min={0} max={10000} value={order} onChange={(e) => setOrder(e.target.value)} />
+            </FormField>
+            <FormField
+              htmlFor="cf-tab"
+              label="Profile tab"
+              optional
+              hint="A tab of your own, like Safety or Uniform. Empty: More details, on the Employment tab."
+            >
+              <Input id="cf-tab" maxLength={40} value={tab} onChange={(e) => setTab(e.target.value)} />
+            </FormField>
+          </div>
           <div className="grid gap-3">
             <div className="flex items-center gap-2">
               <Switch id="cf-required" checked={required} onCheckedChange={setRequired} />

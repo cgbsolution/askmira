@@ -75,7 +75,23 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   async rewrites() {
-    return [{ source: "/api/v1/:path*", destination: `${apiTarget}/api/v1/:path*` }];
+    return [
+      { source: "/api/v1/:path*", destination: `${apiTarget}/api/v1/:path*` },
+      // OAuth discovery for MCP connectors (claude.ai, ChatGPT): they look for it at the
+      // root of the address they were given, which is this portal.
+      {
+        source: "/.well-known/oauth-protected-resource/:path*",
+        destination: `${apiTarget}/.well-known/oauth-protected-resource/:path*`,
+      },
+      {
+        source: "/.well-known/oauth-protected-resource",
+        destination: `${apiTarget}/.well-known/oauth-protected-resource`,
+      },
+      {
+        source: "/.well-known/oauth-authorization-server",
+        destination: `${apiTarget}/.well-known/oauth-authorization-server`,
+      },
+    ];
   },
 };
 

@@ -17,15 +17,26 @@ export type RunStatus =
 
 export type RunType = "regular" | "off_cycle" | "arrear" | "full_and_final" | "bonus";
 
+export interface DeductionCeiling {
+  wages: string;
+  deductions: string;
+  share_percent: string;
+  ceiling_percent: string;
+  ceiling: string;
+}
+
 export interface VarianceFlag {
   employee_id: string;
   employee_code: string;
   employee_name: string | null;
-  previous_net: string;
+  /** Null when the flag is only about the deductions ceiling. */
+  previous_net: string | null;
   current_net: string;
-  change_percent: string;
+  change_percent: string | null;
   /** Days before joining or after leaving: why a joining or leaving month swings. */
   not_employed_days: string;
+  /** Set when deductions that cannot wait pass the legal ceiling on their own. */
+  deduction_ceiling: DeductionCeiling | null;
   acknowledged: boolean;
   acknowledged_by_user_id: string | null;
   acknowledged_by_name: string | null;
@@ -285,7 +296,8 @@ export type RuleType =
   | "gratuity"
   | "bonus"
   | "labour_welfare_fund"
-  | "tds_non_salary";
+  | "tds_non_salary"
+  | "wage_deductions";
 
 export interface RuleSet {
   id: string;

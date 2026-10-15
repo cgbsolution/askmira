@@ -45,6 +45,7 @@ import { formatMoney, toISODate } from "@/lib/utils";
 import { ClaimsTable } from "./ClaimsTable";
 import { Fact } from "./common";
 import { FinancialYearSelect } from "./FinancialYearSelect";
+import { MyFlexiDeclaration } from "./FlexiDeclaration";
 import { QueryPanel } from "./QueryPanel";
 
 const MAX_BILL_BYTES = 5 * 1024 * 1024;
@@ -97,6 +98,8 @@ export function MyReimbursements() {
           </AlertDescription>
         </Alert>
       )}
+
+      <MyFlexiDeclaration year={year} onChanged={refresh} />
 
       <QueryPanel
         query={positions}

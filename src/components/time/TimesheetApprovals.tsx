@@ -24,8 +24,11 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { HR } from "@/lib/access";
+import { chainSummary } from "@/components/common/ApprovalChain";
+import { useAuth } from "@/context/AuthContext";
+import { HR, MANAGERS, roleAllows } from "@/lib/access";
 import { ApiError, patch, post } from "@/lib/api";
+import type { ApprovalStep } from "@/lib/types";
 import { formatDay, toISODate } from "@/lib/utils";
 
 import type { ProjectRow } from "./TimesheetScreen";
@@ -36,11 +39,19 @@ interface PendingWeek {
   employee_code: string;
   week_start: string;
   total_hours: string;
-  entries: { work_date: string; project: string | null; hours: string; description: string | null }[];
+  entries: { work_date: string; project: string | null; task: string | null; hours: string; description: string | null }[];
+  approval_chain: ApprovalStep[];
 }
 
 interface HoursReport {
-  projects: { code: string | null; name: string; billable: boolean; hours: string; people: { employee_code: string; name: string; hours: string }[] }[];
+  projects: {
+    code: string | null;
+    name: string;
+    billable: boolean;
+    hours: string;
+    tasks: { name: string; hours: string }[];
+    people: { employee_code: string; name: string; task: string | null; hours: string }[];
+  }[];
 }
 
 function failure(caught: unknown, fallback: string): string {
@@ -48,6 +59,15 @@ function failure(caught: unknown, fallback: string): string {
 }
 
 export function TimesheetApprovals() {
+  const { user } = useAuth();
+  if (!roleAllows(user, MANAGERS)) {
+    // Somebody an approval rule names, with no team of their own: their queue only.
+    return (
+      <PageShell title="Timesheet approvals" description="Weeks an approval rule has put in front of you.">
+        <Pending />
+      </PageShell>
+    );
+  }
   return (
     <PageShell title="Timesheet approvals" description="Weeks to approve, hours by project, and the projects people log against.">
       <Tabs defaultValue="pending">
@@ -114,12 +134,15 @@ function Pending() {
               <TableCell>
                 <p className="font-medium">{week.employee_name}</p>
                 <p className="text-xs text-muted-foreground">{week.employee_code}</p>
+                {chainSummary(week.approval_chain) && (
+                  <p className="text-xs text-muted-foreground">{chainSummary(week.approval_chain)}</p>
+                )}
               </TableCell>
               <TableCell>{formatDay(week.week_start, true)}</TableCell>
               <TableCell>
                 <p className="tabular-nums">{week.total_hours}</p>
                 <p className="text-xs text-muted-foreground">
-                  {[...new Set(week.entries.map((e) => e.project ?? "No project"))].join(", ")}
+                  {[...new Set(week.entries.map((e) => (e.project ? (e.task ? `${e.project} · ${e.task}` : e.project) : "No project")))].join(", ")}
                 </p>
               </TableCell>
               <TableCell className="min-w-48">
@@ -173,6 +196,7 @@ function Report() {
           <TableRow>
             <TableHead>Project</TableHead>
             <TableHead className="text-right">Hours</TableHead>
+            <TableHead>Tasks</TableHead>
             <TableHead>People</TableHead>
           </TableRow>
         </TableHeader>
@@ -186,6 +210,7 @@ function Report() {
                 </p>
               </TableCell>
               <TableCell className="text-right tabular-nums">{p.hours}</TableCell>
+              <TableCell className="text-sm">{p.tasks.map((t) => `${t.name} ${t.hours}`).join(", ")}</TableCell>
               <TableCell className="text-sm">{p.people.map((x) => `${x.name} ${x.hours}`).join(", ")}</TableCell>
             </TableRow>
           ))}
@@ -198,6 +223,7 @@ function Report() {
 function Projects() {
   const { data, error, isLoading, reload } = useApiQuery<ProjectRow[]>("/timesheets/projects?include_inactive=true");
   const [creating, setCreating] = useState(false);
+  const [addingTask, setAddingTask] = useState<ProjectRow | null>(null);
 
   const toggle = async (project: ProjectRow) => {
     try {
@@ -231,6 +257,7 @@ function Projects() {
             <TableRow>
               <TableHead>Project</TableHead>
               <TableHead>Client</TableHead>
+              <TableHead>Tasks</TableHead>
               <TableHead>Open for time</TableHead>
             </TableRow>
           </TableHeader>
@@ -243,6 +270,21 @@ function Projects() {
                 </TableCell>
                 <TableCell>{p.client ?? "—"}</TableCell>
                 <TableCell>
+                  <div className="flex flex-wrap items-center gap-1">
+                    {p.tasks.length === 0 && <span className="text-sm text-muted-foreground">None</span>}
+                    {p.tasks.map((t) => (
+                      <Badge key={t.id} variant={t.active ? "outline" : "muted"}>
+                        {t.name}
+                      </Badge>
+                    ))}
+                    <RequireRole roles={HR}>
+                      <Button size="sm" variant="ghost" onClick={() => setAddingTask(p)}>
+                        <Plus /> Task
+                      </Button>
+                    </RequireRole>
+                  </div>
+                </TableCell>
+                <TableCell>
                   <RequireRole roles={HR} fallback={p.active ? "Yes" : "No"}>
                     <Switch aria-label={`${p.name} open for time`} checked={p.active} onCheckedChange={() => void toggle(p)} />
                   </RequireRole>
@@ -252,6 +294,16 @@ function Projects() {
           </TableBody>
         </Table>
       </DataPanel>
+      {addingTask && (
+        <NewTaskDialog
+          project={addingTask}
+          onClose={() => setAddingTask(null)}
+          onCreated={() => {
+            setAddingTask(null);
+            reload();
+          }}
+        />
+      )}
       {creating && (
         <NewProjectDialog
           onClose={() => setCreating(false)}
@@ -314,6 +366,56 @@ function NewProjectDialog({ onClose, onCreated }: { onClose: () => void; onCreat
             Cancel
           </Button>
           <Button disabled={busy || !/^[A-Za-z0-9_-]+$/.test(code.trim()) || name.trim().length < 2} onClick={() => void save()}>
+            {busy && <Loader2 className="animate-spin" />} Add
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NewTaskDialog({
+  project,
+  onClose,
+  onCreated,
+}: {
+  project: ProjectRow;
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await post(`/timesheets/projects/${project.id}/tasks`, { name: name.trim() });
+      toast.success("Task added.");
+      onCreated();
+    } catch (caught) {
+      toast.error(failure(caught, "The task could not be added."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>New task on {project.code}</DialogTitle>
+          <DialogDescription>
+            Once a project has tasks, every hour logged on it names one, and reports split the project&apos;s hours by task.
+          </DialogDescription>
+        </DialogHeader>
+        <FormField htmlFor="task-name" label="Task">
+          <Input id="task-name" maxLength={160} value={name} onChange={(e) => setName(e.target.value)} />
+        </FormField>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={busy || name.trim().length < 2} onClick={() => void save()}>
             {busy && <Loader2 className="animate-spin" />} Add
           </Button>
         </DialogFooter>

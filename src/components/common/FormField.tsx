@@ -1,6 +1,7 @@
 import React from "react";
 
 import { Label } from "@/components/ui/label";
+import { Tr } from "@/lib/i18n/Tr";
 import { cn } from "@/lib/utils";
 
 /**
@@ -34,8 +35,12 @@ export function FormField({
   return (
     <div className={cn("grid content-start gap-1.5", className)} aria-describedby={describedBy}>
       <Label htmlFor={htmlFor}>
-        {label}
-        {optional && <span className="font-normal text-muted-foreground">(optional)</span>}
+        {typeof label === "string" ? <Tr text={label} /> : label}
+        {optional && (
+          <span className="font-normal text-muted-foreground">
+            (<Tr text="optional" />)
+          </span>
+        )}
         {required && (
           <span aria-hidden className="text-destructive">
             *
@@ -49,7 +54,7 @@ export function FormField({
         </p>
       ) : hint ? (
         <p id={`${htmlFor}-hint`} className="text-xs text-muted-foreground">
-          {hint}
+          {typeof hint === "string" ? <Tr text={hint} /> : hint}
         </p>
       ) : null}
     </div>

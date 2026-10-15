@@ -44,7 +44,7 @@ function grouped(secret: string): string {
  * Two-step sign-in: an authenticator app code after the password, and before
  * a payroll approval or a bank file release. Set up here, by the person.
  */
-export function TwoStepCard() {
+export function TwoStepCard({ onEnabled }: { onEnabled?: () => void } = {}) {
   const status = useApiQuery<MfaStatus>("/auth/mfa");
   const [setup, setSetup] = useState<Setup | null>(null);
   const [code, setCode] = useState("");
@@ -71,6 +71,7 @@ export function TwoStepCard() {
       setSetup(null);
       setRecovery(result.recovery_codes);
       status.reload();
+      onEnabled?.();
     } catch (caught) {
       toast.error(caught instanceof ApiError ? caught.detail : "That code did not work.");
     } finally {

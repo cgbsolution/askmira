@@ -27,6 +27,7 @@ import type { Attrition, HeadcountPoint, LeaveTrend, PersonSignals, Signal } fro
 import { AbsenceScoresPanel } from "./AbsenceScoresPanel";
 import { PerformancePanel } from "./PerformancePanel";
 import { PinnedReports } from "./PinnedReports";
+import { SignalRulesButton } from "./SignalRules";
 
 const WINDOWS = ["6", "12", "24"] as const;
 const SERIES_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
@@ -46,6 +47,10 @@ const SIGNAL_TONE: Record<Signal["kind"], "destructive" | "warning" | "muted"> =
   unpaid_absence: "warning",
   frequent_absence: "warning",
   pay_revision: "muted",
+  team_exits: "warning",
+  manager_change: "muted",
+  rating_drop: "warning",
+  no_role_change: "muted",
 };
 
 /**
@@ -291,6 +296,7 @@ function SignalsPanel() {
       tier="tier1"
       title="Signals"
       description="Rules, not predictions: each flag shows the rule it applied and the record behind it. Check it before acting on it."
+      actions={<SignalRulesButton onSaved={reload} />}
       isLoading={isLoading}
       error={error?.detail ?? null}
       onRetry={reload}

@@ -1,7 +1,8 @@
 "use client";
 
-import { CalendarClock, ExternalLink, FileText, LinkIcon, SearchX } from "lucide-react";
-import React from "react";
+import { CalendarClock, ExternalLink, FileText, LinkIcon, MessageCircle, SearchX } from "lucide-react";
+import React, { useState } from "react";
+import { toast } from "sonner";
 
 import { DocumentUploadForm } from "@/components/careers/DocumentUploadForm";
 import { PortalBackgroundChecks } from "@/components/careers/PortalBackgroundChecks";
@@ -22,8 +23,57 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { ApiError, post } from "@/lib/api";
 import type { CandidatePortal } from "@/lib/types/hiring";
 import { formatDay } from "@/lib/utils";
+
+/** The candidate's own WhatsApp choice. Only they can turn it on. */
+function WhatsAppChoice({
+  token,
+  whatsapp,
+  onChanged,
+}: {
+  token: string;
+  whatsapp: CandidatePortal["whatsapp"];
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  if (!whatsapp.phone_on_file) return null;
+
+  const toggle = async (optIn: boolean) => {
+    setBusy(true);
+    try {
+      await post(`/public/candidate/${encodeURIComponent(token)}/whatsapp`, { opt_in: optIn });
+      toast.success(optIn ? "WhatsApp updates are on." : "WhatsApp updates are off.");
+      onChanged();
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.detail : "That did not save.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="flex items-start gap-3 pt-6">
+        <MessageCircle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        <div className="flex-1 space-y-1">
+          <p className="text-sm font-medium text-foreground">Updates on WhatsApp</p>
+          <p className="text-xs text-muted-foreground">
+            Interview times, changes and decisions also sent to your phone. Email continues either way.
+          </p>
+        </div>
+        <Switch
+          aria-label="Updates on WhatsApp"
+          checked={whatsapp.opted_in}
+          disabled={busy}
+          onCheckedChange={(on) => void toggle(on)}
+        />
+      </CardContent>
+    </Card>
+  );
+}
 
 /** The candidate's own view: applications, interviews, documents — behind a one-time link token. */
 export function CandidatePortalView({ token }: { token: string }) {
@@ -66,6 +116,8 @@ export function CandidatePortalView({ token }: { token: string }) {
           Your applications with {data.organisation}
         </p>
       </header>
+
+      {data.whatsapp && <WhatsAppChoice token={token} whatsapp={data.whatsapp} onChanged={reload} />}
 
       <PortalOffers token={token} candidateName={data.candidate.name} />
       <PortalBackgroundChecks token={token} candidateName={data.candidate.name} />

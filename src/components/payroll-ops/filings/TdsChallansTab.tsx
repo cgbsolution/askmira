@@ -184,6 +184,9 @@ export function TdsChallansTab({ entities }: { entities: LegalEntity[] }) {
                       <TableRow key={row.id}>
                         <TableCell className="tabular-nums">
                           {row.bsr_code}
+                          <Badge variant="outline" className="ml-2">
+                            {row.form}
+                          </Badge>
                           {row.is_book_entry && (
                             <Badge variant="muted" className="ml-2">
                               Book entry
@@ -221,7 +224,7 @@ export function TdsChallansTab({ entities }: { entities: LegalEntity[] }) {
       />
       <MapChallanDialog
         row={mapping}
-        challans={challans.data ?? []}
+        challans={(challans.data ?? []).filter((challan) => challan.form === "24Q")}
         onClose={() => setMapping(null)}
         onMapped={() => {
           setMapping(null);
@@ -271,6 +274,7 @@ function AddChallanDialog({
   const [parts, setParts] = useState(emptyParts);
   const [total, setTotal] = useState("");
   const [bookEntry, setBookEntry] = useState(false);
+  const [form, setForm] = useState<"24Q" | "26Q">("24Q");
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
 
@@ -286,6 +290,7 @@ function AddChallanDialog({
     setParts(emptyParts);
     setTotal("");
     setBookEntry(false);
+    setForm("24Q");
     setError(null);
   };
 
@@ -322,6 +327,7 @@ function AddChallanDialog({
       late_fee: parts.late_fee.trim(),
       total_amount: total.trim(),
       is_book_entry: bookEntry,
+      form,
     };
     setIsBusy(true);
     try {
@@ -390,6 +396,17 @@ function AddChallanDialog({
                 value={depositDate}
                 onChange={(event) => setDepositDate(event.target.value)}
               />
+            </FormField>
+            <FormField htmlFor="challan-form-kind" label="Return">
+              <Select value={form} onValueChange={(value) => setForm(value as "24Q" | "26Q")}>
+                <SelectTrigger id="challan-form-kind" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="24Q">24Q: salary TDS</SelectItem>
+                  <SelectItem value="26Q">26Q: contractors and professionals</SelectItem>
+                </SelectContent>
+              </Select>
             </FormField>
             <FormField htmlFor="challan-serial" label="Challan serial">
               <Input

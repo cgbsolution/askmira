@@ -166,6 +166,7 @@ export function EmployeeForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [effectiveFrom, setEffectiveFrom] = useState("");
   const customFields = useCustomFields();
   // Once the workspace has grades, a record carries one of them.
   const payGrades = useApiQuery<{ code: string; name: string; active: boolean }[]>("/pay-grades");
@@ -222,6 +223,7 @@ export function EmployeeForm({
         setServerError("Nothing has changed.");
         return;
       }
+      if (effectiveFrom) (body as EmployeeInput & { changes_effective_from?: string }).changes_effective_from = effectiveFrom;
     } else {
       delete body.date_of_exit;
       body.custom_fields = filled;
@@ -391,6 +393,16 @@ export function EmployeeForm({
             />
           </FormField>
           {textField("designation", "Designation", { optional: true })}
+          {!isCreate && (
+            <FormField
+              htmlFor="emp-effective"
+              label="Job changes took effect on"
+              optional
+              hint="For correcting the past. Empty means today; a future change is raised as a lifecycle event."
+            >
+              <Input id="emp-effective" type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+            </FormField>
+          )}
           {grades.length > 0 ? (
             <FormField htmlFor="emp-grade" label="Grade" optional error={errors.grade}>
               <Select value={values.grade || NONE} onValueChange={(v) => set("grade", v === NONE ? "" : v)}>

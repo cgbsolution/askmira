@@ -183,7 +183,7 @@ export interface PerquisiteReport {
   employee_id: string;
   financial_year: string;
   assessments: TaxAssessment[];
-  payroll: { handed_over: boolean; note: string };
+  payroll: { handed_over: boolean; runs: string[]; events_waiting: number; note: string };
 }
 
 export interface ImportResult {

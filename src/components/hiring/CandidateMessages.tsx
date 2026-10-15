@@ -102,6 +102,7 @@ export function CandidateMessages({ candidateId, email }: { candidateId: string;
                 <TableCell>
                   <div className="font-medium text-foreground">{message.subject}</div>
                   <div className="text-xs text-muted-foreground">
+                    {message.channel === "whatsapp" ? "WhatsApp · " : "Email · "}
                     {EVENT_LABEL[message.event_key] ?? message.event_key}
                     {message.sent_by ? ` · by ${message.sent_by}` : " · automatic"}
                   </div>

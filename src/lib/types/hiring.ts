@@ -188,6 +188,8 @@ export type CandidateMessageStatus = "queued" | "sent" | "failed" | "dead_letter
 export interface CandidateMessage {
   id: string;
   event_key: string;
+  /** email, or whatsapp to the number in to_address. */
+  channel: "email" | "whatsapp";
   to_address: string;
   subject: string;
   body: string;
@@ -1199,6 +1201,7 @@ export interface ApplyResult {
 export interface CandidatePortal {
   candidate: { name: string; email: string };
   organisation: string;
+  whatsapp: { opted_in: boolean; phone_on_file: boolean };
   applications: {
     role: string;
     applied_on: string;

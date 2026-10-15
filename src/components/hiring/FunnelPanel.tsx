@@ -2,11 +2,13 @@
 
 import { AlertTriangle, Filter, TrendingDown } from "lucide-react";
 import React from "react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { type GroupBy, stageLabel } from "@/components/hiring/AnalyticsNames";
 import { percent } from "@/components/hiring/labels";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
 import {
   Table,
@@ -24,6 +26,25 @@ const GROUP_TITLE: Record<GroupBy, string> = {
   recruiter_id: "By recruiter",
   source: "By source",
 };
+
+const FUNNEL_CHART: ChartConfig = { count: { label: "Candidates", color: "var(--chart-1)" } };
+
+/** The funnel as a chart: candidates reaching each stage, in pipeline order. */
+export function FunnelChart({ stages }: { stages: FunnelStageRow[] }) {
+  if (stages.length === 0) return null;
+  const data = stages.map((row) => ({ stage: stageLabel(row.stage), count: row.count }));
+  return (
+    <ChartContainer config={FUNNEL_CHART} className="h-56 w-full">
+      <BarChart data={data} margin={{ left: 8, right: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis dataKey="stage" tickLine={false} axisLine={false} interval={0} fontSize={11} />
+        <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
+        <ChartTooltip content={<ChartTooltipContent />} />
+        <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+      </BarChart>
+    </ChartContainer>
+  );
+}
 
 /** One funnel as rows: stage, count, drop-off from the stage before, and a bar of the share. */
 export function FunnelStageTable({ stages, total }: { stages: FunnelStageRow[]; total: number }) {
@@ -135,6 +156,9 @@ export function FunnelPanel({
         </div>
       ) : funnel ? (
         <div className="grid gap-4 pb-5">
+          <div className="px-5 pt-2">
+            <FunnelChart stages={funnel.stages} />
+          </div>
           <div className="overflow-x-auto">
             <FunnelStageTable stages={funnel.stages} total={funnel.total_candidates} />
           </div>

@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { ClaimsReviewPanel } from "./ClaimsReviewPanel";
+import { FlexiDeclarationsPanel } from "./FlexiDeclaration";
 import { LoanApplicationsPanel } from "./LoanApplicationsPanel";
 import { LoanSchemesPanel } from "./LoanSchemesPanel";
 import { ReimbursementComponentsPanel } from "./ReimbursementComponentsPanel";
@@ -33,6 +34,7 @@ export function LoansAdmin() {
             <TabsTrigger value="schemes">Schemes</TabsTrigger>
             <TabsTrigger value="claims">Reimbursement claims</TabsTrigger>
             <TabsTrigger value="components">Reimbursement components</TabsTrigger>
+            <TabsTrigger value="flexi">Flexi benefit plans</TabsTrigger>
           </TabsList>
         </div>
         <TabsContent value="loans">
@@ -46,6 +48,9 @@ export function LoansAdmin() {
         </TabsContent>
         <TabsContent value="components">
           <ReimbursementComponentsPanel />
+        </TabsContent>
+        <TabsContent value="flexi">
+          <FlexiDeclarationsPanel />
         </TabsContent>
       </Tabs>
     </div>

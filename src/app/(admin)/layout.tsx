@@ -35,13 +35,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [isLoading, isAuthenticated, router, pathname]);
 
-  // A temporary password is replaced before anything else is opened.
+  // A temporary password is replaced before anything else is opened; then,
+  // where the workspace requires it, two-step sign-in is set up.
   const mustChangePassword = Boolean(user?.must_change_password);
+  const mustSetUpTwoStep = !mustChangePassword && Boolean(user?.two_step_required);
   useEffect(() => {
-    if (!isLoading && mustChangePassword) router.replace("/change-password");
-  }, [isLoading, mustChangePassword, router]);
+    if (isLoading) return;
+    if (mustChangePassword) router.replace("/change-password");
+    else if (mustSetUpTwoStep) router.replace("/two-step-setup");
+  }, [isLoading, mustChangePassword, mustSetUpTwoStep, router]);
 
-  if (isLoading || !isAuthenticated || mustChangePassword) {
+  if (isLoading || !isAuthenticated || mustChangePassword || mustSetUpTwoStep) {
     return (
       <div className="flex min-h-screen flex-col gap-4 p-8">
         <Skeleton className="h-10 w-64" />

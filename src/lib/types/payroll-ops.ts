@@ -127,6 +127,8 @@ export interface TdsChallan {
   tds_amount: string;
   total_amount: string;
   is_book_entry: boolean;
+  /** 24Q for salary TDS; 26Q for contractor and professional payments. */
+  form: "24Q" | "26Q";
 }
 
 export interface TdsChallanInput {
@@ -144,6 +146,7 @@ export interface TdsChallanInput {
   /** Must equal the sum of the parts; the API refuses otherwise. */
   total_amount: string;
   is_book_entry: boolean;
+  form: "24Q" | "26Q";
 }
 
 export interface UnmappedTds {

@@ -9,6 +9,7 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { CreateRunDialog } from "@/components/payroll/CreateRunDialog";
+import { PayslipProtectionSwitch } from "@/components/payroll/PayslipProtection";
 import { periodLabel, RUN_TYPE } from "@/components/payroll/labels";
 import { RunStatusBadge } from "@/components/payroll/RunStatusBadge";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +62,7 @@ export default function PayrollRunsPage() {
       description="Compute, review, approve and publish a month's pay. Nothing moves without a second person's sign-off."
       actions={<CreateRunDialog onCreated={(run) => router.push(`/payroll/runs/${run.id}`)} />}
     >
+      <PayslipProtectionSwitch />
       <DataPanel
         title="Runs"
         toolbar={

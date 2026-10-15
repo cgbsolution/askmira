@@ -50,6 +50,7 @@ export const RULE_TYPE_LABEL: Record<string, string> = {
   bonus: "Statutory bonus",
   labour_welfare_fund: "Labour Welfare Fund",
   tds_non_salary: "TDS on contractors (194C / 194J)",
+  wage_deductions: "Deductions ceiling (% of wages)",
 };
 
 export const COMPONENT_TYPE_LABEL: Record<string, string> = {

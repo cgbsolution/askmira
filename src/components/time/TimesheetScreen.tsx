@@ -16,6 +16,13 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post, put } from "@/lib/api";
 import { toISODate } from "@/lib/utils";
 
+export interface ProjectTask {
+  id: string;
+  project_id: string;
+  name: string;
+  active: boolean;
+}
+
 export interface ProjectRow {
   id: string;
   code: string;
@@ -23,12 +30,15 @@ export interface ProjectRow {
   client: string | null;
   billable: boolean;
   active: boolean;
+  tasks: ProjectTask[];
 }
 
 interface Entry {
   id?: string;
   work_date: string;
   project_id: string | null;
+  task_id: string | null;
+  task?: string | null;
   hours: string;
   description: string | null;
 }
@@ -43,6 +53,7 @@ interface Week {
 }
 
 const NO_PROJECT = "__none";
+const NO_TASK = "__none_task";
 const dayName = new Intl.DateTimeFormat("en-IN", { weekday: "short", day: "numeric", month: "short" });
 
 function mondayOf(day: Date): Date {
@@ -85,7 +96,13 @@ export function TimesheetScreen() {
       await put(`/timesheets/me?week_of=${weekOf}`, {
         entries: entries
           .filter((e) => Number(e.hours) > 0)
-          .map((e) => ({ work_date: e.work_date, project_id: e.project_id, hours: e.hours, description: e.description?.trim() || null })),
+          .map((e) => ({
+            work_date: e.work_date,
+            project_id: e.project_id,
+            task_id: e.project_id ? e.task_id : null,
+            hours: e.hours,
+            description: e.description?.trim() || null,
+          })),
       });
       if (andSubmit) {
         await post(`/timesheets/me/submit?week_of=${weekOf}`);
@@ -142,6 +159,7 @@ export function TimesheetScreen() {
                 <TableRow>
                   <TableHead className="w-40">Day</TableHead>
                   <TableHead>Project</TableHead>
+                  <TableHead>Task</TableHead>
                   <TableHead className="w-24">Hours</TableHead>
                   <TableHead>What</TableHead>
                   <TableHead className="w-12" />
@@ -167,7 +185,7 @@ export function TimesheetScreen() {
                     <TableCell>
                       <Select
                         value={entry.project_id ?? NO_PROJECT}
-                        onValueChange={(v) => setEntry(index, { project_id: v === NO_PROJECT ? null : v })}
+                        onValueChange={(v) => setEntry(index, { project_id: v === NO_PROJECT ? null : v, task_id: null })}
                         disabled={!editable}
                       >
                         <SelectTrigger aria-label="Project" className="w-full">
@@ -182,6 +200,15 @@ export function TimesheetScreen() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      <TaskSelect
+                        project={(projects.data ?? []).find((p) => p.id === entry.project_id)}
+                        value={entry.task_id}
+                        label={entry.task}
+                        disabled={!editable}
+                        onChange={(task_id) => setEntry(index, { task_id })}
+                      />
                     </TableCell>
                     <TableCell>
                       <Input
@@ -218,7 +245,9 @@ export function TimesheetScreen() {
             <div className="flex flex-wrap justify-between gap-2">
               <Button
                 variant="outline"
-                onClick={() => setEntries((c) => [...c, { work_date: days[0], project_id: null, hours: "", description: null }])}
+                onClick={() =>
+                  setEntries((c) => [...c, { work_date: days[0], project_id: null, task_id: null, hours: "", description: null }])
+                }
               >
                 <Plus /> Add a line
               </Button>
@@ -235,5 +264,40 @@ export function TimesheetScreen() {
         </CardContent>
       </Card>
     </PageShell>
+  );
+}
+
+/** The project's open tasks; nothing to choose for a project without any. */
+function TaskSelect({
+  project,
+  value,
+  label,
+  disabled,
+  onChange,
+}: {
+  project: ProjectRow | undefined;
+  value: string | null;
+  label?: string | null;
+  disabled: boolean;
+  onChange: (taskId: string | null) => void;
+}) {
+  const tasks = project?.tasks ?? [];
+  if (!project || tasks.length === 0) {
+    return <span className="text-sm text-muted-foreground">{label ?? "—"}</span>;
+  }
+  return (
+    <Select value={value ?? NO_TASK} onValueChange={(v) => onChange(v === NO_TASK ? null : v)} disabled={disabled}>
+      <SelectTrigger aria-label="Task" className="w-full">
+        <SelectValue placeholder="Choose a task" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NO_TASK}>Choose a task</SelectItem>
+        {tasks.map((t) => (
+          <SelectItem key={t.id} value={t.id}>
+            {t.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

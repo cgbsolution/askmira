@@ -32,8 +32,9 @@ import type { PayrollRun, VarianceFlag } from "@/lib/types/payroll";
 import { formatDays } from "@/lib/utils";
 
 /**
- * Net pay that moved beyond the threshold since last month. Each needs a person
- * to say why it is right before the run can be approved.
+ * Net pay that moved beyond the threshold since last month, and payslips whose
+ * deductions pass the legal ceiling on their own. Each needs a person to say
+ * why it is right before the run can be approved.
  */
 export function VariancePanel({
   run,
@@ -51,7 +52,7 @@ export function VariancePanel({
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!target) return;
-    if (note.trim().length < 3) return setError("Say why this change in net pay is correct.");
+    if (note.trim().length < 3) return setError("Say why this payslip is correct.");
     setSaving(true);
     setError(null);
     try {
@@ -74,12 +75,13 @@ export function VariancePanel({
     <>
       <DataPanel
         title="Variances"
-        description="Net pay that moved more than the review threshold against last month."
+        description="Net pay that moved more than the review threshold against last month, and deductions above the legal ceiling."
         isEmpty={run.variance_flags.length === 0}
         empty={{
           icon: CheckCircle2,
           title: "No variances",
-          description: "Nobody's net pay moved beyond the threshold, or there is no prior month to compare.",
+          description:
+            "Nobody's net pay moved beyond the threshold or past the deductions ceiling, or there is no prior month to compare.",
         }}
       >
         <div className="overflow-x-auto">
@@ -104,14 +106,22 @@ export function VariancePanel({
                         Not employed: {formatDays(flag.not_employed_days)} days
                       </Badge>
                     )}
+                    {flag.deduction_ceiling && (
+                      <Badge variant="warning" className="mt-1">
+                        Deductions {flag.deduction_ceiling.share_percent}% of wages, ceiling{" "}
+                        {flag.deduction_ceiling.ceiling_percent}%
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Money value={flag.previous_net} />
+                    {flag.previous_net === null ? "—" : <Money value={flag.previous_net} />}
                   </TableCell>
                   <TableCell className="text-right">
                     <Money value={flag.current_net} />
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">{flag.change_percent}%</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {flag.change_percent === null ? "—" : `${flag.change_percent}%`}
+                  </TableCell>
                   <TableCell className="max-w-sm whitespace-normal">
                     {flag.acknowledged ? (
                       <div className="text-sm">
@@ -142,9 +152,22 @@ export function VariancePanel({
             <DialogHeader>
               <DialogTitle>Acknowledge a variance</DialogTitle>
               <DialogDescription>
-                {target?.employee_name ?? target?.employee_code}: net pay moved{" "}
-                {target?.change_percent}%, from <Money value={target?.previous_net} /> to{" "}
-                <Money value={target?.current_net} />. Your note is kept with the run.
+                {target?.employee_name ?? target?.employee_code}:{" "}
+                {target?.change_percent !== null && target?.change_percent !== undefined ? (
+                  <>
+                    net pay moved {target.change_percent}%, from <Money value={target.previous_net} /> to{" "}
+                    <Money value={target.current_net} />.{" "}
+                  </>
+                ) : null}
+                {target?.deduction_ceiling ? (
+                  <>
+                    Deductions of <Money value={target.deduction_ceiling.deductions} /> are{" "}
+                    {target.deduction_ceiling.share_percent}% of wages, above the{" "}
+                    {target.deduction_ceiling.ceiling_percent}% legal ceiling; recoveries that could wait have
+                    already been held back.{" "}
+                  </>
+                ) : null}
+                Your note is kept with the run.
               </DialogDescription>
             </DialogHeader>
             <FormField htmlFor="variance-note" label="Why this is right" error={error}>

@@ -16,7 +16,7 @@ import { DocumentsPanel } from "@/components/docs/DocumentsPanel";
 import { LettersPanel } from "@/components/docs/LettersPanel";
 import { CompensationPanel } from "@/components/people/CompensationPanel";
 import { CustomFieldsCard } from "@/components/people/CustomFields";
-import { CustomTablesSection } from "@/components/people/CustomTables";
+import { CustomTablesSection, useCustomTabs } from "@/components/people/CustomTables";
 import { ContactDetailsDialog } from "@/components/people/ContactDetailsDialog";
 import { EmployeeForm } from "@/components/people/EmployeeForm";
 import { EmployeeTimeline } from "@/components/people/EmployeeTimeline";
@@ -47,6 +47,7 @@ import { ResignationCard } from "@/components/people/profile/ResignationCard";
 import { type EditMode, SectionEditDialog } from "@/components/people/profile/SectionEditDialog";
 import { DetailItem, EmploymentStatusBadge } from "@/components/people/StatusBadges";
 import { HourlyRatesCard } from "@/components/people/HourlyRatesCard";
+import { KioskBadgesCard } from "@/components/people/KioskBadgesCard";
 import { TotalRewardsCard } from "@/components/people/TotalRewardsCard";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { Badge } from "@/components/ui/badge";
@@ -123,6 +124,7 @@ export function ProfileView({
   const isAdmin = hasRole("admin");
   const isSelf = Boolean(employee && employee.id === user?.employee_id);
   const seesPrivate = isSelf || isHr;
+  const customTabs = useCustomTabs(Boolean(employee) && (isHr || isSelf));
   // Managing somebody else's team does not open this person's history: the API
   // allows it to HR and to people in this person's own reporting line.
   const seesHistory = isHr || Boolean(employee?.in_your_line);
@@ -284,6 +286,11 @@ export function ProfileView({
           )}
           {seesHistory && !isSelf && <TabsTrigger value="lifecycle">Lifecycle</TabsTrigger>}
           {(seesHistory || isSelf) && <TabsTrigger value="timeline">Timeline</TabsTrigger>}
+          {customTabs.map((name) => (
+            <TabsTrigger key={`custom:${name}`} value={`custom:${name}`}>
+              {name}
+            </TabsTrigger>
+          ))}
           {extraTabs.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
               {tab.label}
@@ -439,6 +446,7 @@ export function ProfileView({
             <TotalRewardsCard employeeId={employee.id} isSelf={isSelf} />
             <CompensationPanel employeeId={employee.id} isSelf={isSelf} />
             {isHr && !isSelf && <HourlyRatesCard employeeId={employee.id} />}
+            {isHr && !isSelf && hasModule("leave") && <KioskBadgesCard employeeId={employee.id} />}
           </TabsContent>
         )}
 
@@ -495,6 +503,12 @@ export function ProfileView({
           </TabsContent>
         )}
 
+        {customTabs.map((name) => (
+          <TabsContent key={`custom:${name}`} value={`custom:${name}`} className="mt-4 grid gap-6">
+            <CustomFieldsCard values={employee.custom_fields ?? {}} tab={name} />
+            <CustomTablesSection employeeId={employee.id} tab={name} />
+          </TabsContent>
+        ))}
         {extraTabs.map((tab) => (
           <TabsContent key={tab.value} value={tab.value} className="mt-4">
             {tab.content}

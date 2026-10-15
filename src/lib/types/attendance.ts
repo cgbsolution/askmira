@@ -5,6 +5,8 @@
  * Decimal figures (payable days, LOP) arrive as strings and stay strings.
  */
 
+import type { ApprovalStep } from "@/lib/types";
+
 export type PunchDirection = "in" | "out";
 export type PunchSource = "biometric" | "mobile_geo" | "web" | "manual" | "import" | "kiosk";
 
@@ -228,6 +230,8 @@ export interface Regularisation {
   decided_at: string | null;
   decision_note: string | null;
   created_at: string | null;
+  /** The approvers in order; empty on requests from before approval rules. */
+  approval_chain: ApprovalStep[];
 }
 
 export interface RegularisationQueueItem extends Regularisation {
@@ -311,6 +315,10 @@ export interface ShiftInput {
   min_headcount?: number | null;
   /** Courses (Learning) anyone working this shift must hold, valid on the day. */
   required_course_ids?: string[];
+  /** The plant or site it runs at; only people based there work it. */
+  location_id?: string | null;
+  /** The line or area within the site, for coverage by line. */
+  work_area?: string | null;
 }
 
 export interface ShiftCreateInput extends ShiftInput {
@@ -526,7 +534,16 @@ export interface Coverage {
   from: string;
   to: string;
   people: number;
-  shifts: { id: string; code: string; name: string; start_time: string; end_time: string; min_headcount: number | null }[];
+  shifts: {
+    id: string;
+    code: string;
+    name: string;
+    start_time: string;
+    end_time: string;
+    min_headcount: number | null;
+    location_name: string | null;
+    work_area: string | null;
+  }[];
   days: { date: string; shifts: CoverageCell[] }[];
   note: string;
 }

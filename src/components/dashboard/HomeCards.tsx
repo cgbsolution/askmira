@@ -6,19 +6,33 @@ import {
   CalendarHeart,
   CircleDollarSign,
   Inbox,
+  Link2,
   Palmtree,
+  Pencil,
+  Plus,
   PartyPopper,
   ShieldCheck,
+  Trash2,
   Users,
 } from "lucide-react";
 import Link from "next/link";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { PersonCell } from "@/components/common/PersonCell";
 import { Money } from "@/components/common/Money";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardAction,
@@ -30,11 +44,13 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import type { DashboardSummary, LeaveBalance } from "@/lib/types";
+import { ApiError, put } from "@/lib/api";
+import { Tr } from "@/lib/i18n/Tr";
+import type { DashboardSummary, LeaveBalance, WhoIsOut } from "@/lib/types";
 import type { ApprovalInbox } from "@/lib/types/approvals";
 import type { TeamToday } from "@/lib/types/attendance";
 import type { Celebrations } from "@/lib/types/people";
-import { formatDate, formatDay, formatDays } from "@/lib/utils";
+import { formatDate, formatDay, formatDays, toISODate } from "@/lib/utils";
 
 type BadgeVariant = React.ComponentProps<typeof Badge>["variant"];
 
@@ -401,7 +417,7 @@ export function CelebrationsCard() {
     <Card tier="tier2">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <PartyPopper className="size-4 text-primary" /> Celebrations
+          <PartyPopper className="size-4 text-primary" /> <Tr text="Celebrations" />
         </CardTitle>
         <CardDescription>Birthdays and work anniversaries, next 30 days.</CardDescription>
       </CardHeader>
@@ -441,6 +457,210 @@ export function CelebrationsCard() {
             ))}
           </ul>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface QuickLink {
+  label: string;
+  url: string;
+}
+
+/** The workspace's own links. Admins edit them here; https or a page inside AskMira only. */
+export function QuickLinksCard({ canEdit }: { canEdit: boolean }) {
+  const { data, reload } = useApiQuery<{ links: QuickLink[]; is_default: boolean }>("/dashboard/quick-links");
+  const [editing, setEditing] = useState(false);
+  const links = data?.links ?? [];
+  if (!data || (links.length === 0 && !canEdit)) return null;
+
+  return (
+    <Card tier="tier2">
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between gap-2 text-base">
+          <span className="flex items-center gap-2">
+            <Link2 className="size-4 text-primary" /> <Tr text="Quick links" />
+          </span>
+          {canEdit && (
+            <Button size="sm" variant="ghost" onClick={() => setEditing(true)} aria-label="Edit quick links">
+              <Pencil />
+            </Button>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {links.map((link) => (
+            <li key={`${link.label}-${link.url}`}>
+              <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+                {link.url.startsWith("/") ? (
+                  <Link href={link.url}>{link.label}</Link>
+                ) : (
+                  <a href={link.url} target="_blank" rel="noopener noreferrer">
+                    {link.label}
+                  </a>
+                )}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+      {canEdit && (
+        <QuickLinksDialog
+          open={editing}
+          links={links}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            reload();
+          }}
+        />
+      )}
+    </Card>
+  );
+}
+
+function QuickLinksDialog({
+  open,
+  links,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  links: QuickLink[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [rows, setRows] = useState<QuickLink[]>(links);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (open) setRows(links);
+  }, [open, links]);
+
+  const save = async (reset: boolean) => {
+    setBusy(true);
+    try {
+      await put("/dashboard/quick-links", { links: reset ? null : rows });
+      toast.success(reset ? "Back to the default links." : "Quick links saved.");
+      onSaved();
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.detail : "The links were not saved.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const valid = rows.every((row) => row.label.trim() && row.url.trim());
+  return (
+    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Quick links</DialogTitle>
+          <DialogDescription>
+            Shown on everyone&apos;s home page. A page here starts with /, anything else needs https://.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-2">
+          {rows.map((row, index) => (
+            <div key={index} className="flex gap-2">
+              <Input
+                aria-label={`Link ${index + 1} label`}
+                placeholder="Label"
+                maxLength={60}
+                value={row.label}
+                onChange={(event) =>
+                  setRows((prev) => prev.map((r, i) => (i === index ? { ...r, label: event.target.value } : r)))
+                }
+              />
+              <Input
+                aria-label={`Link ${index + 1} address`}
+                placeholder="/time or https://"
+                maxLength={500}
+                value={row.url}
+                onChange={(event) =>
+                  setRows((prev) => prev.map((r, i) => (i === index ? { ...r, url: event.target.value } : r)))
+                }
+              />
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label="Remove link"
+                onClick={() => setRows((prev) => prev.filter((_, i) => i !== index))}
+              >
+                <Trash2 />
+              </Button>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            disabled={rows.length >= 12}
+            onClick={() => setRows((prev) => [...prev, { label: "", url: "" }])}
+          >
+            <Plus /> Add a link
+          </Button>
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" disabled={busy} onClick={() => void save(true)}>
+            Reset to defaults
+          </Button>
+          <Button disabled={busy || !valid} onClick={() => void save(false)}>
+            Save
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Who is out today, for everyone. Why is shown only where the API allows it. */
+export function WhosOutTodayCard() {
+  const [today] = useState(() => toISODate(new Date()));
+  const { data, error, isLoading } = useApiQuery<WhoIsOut[]>(`/leave/who-is-out?start=${today}&end=${today}`);
+  const people = (data ?? []).filter((entry) => entry.status === "approved");
+  const shown = people.slice(0, 6);
+  return (
+    <Card tier="tier2">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Palmtree className="size-4 text-primary" /> <Tr text="Who's out today" />
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-10 w-full" />
+        ) : error ? (
+          <p className="text-sm text-muted-foreground">{error.detail}</p>
+        ) : people.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            <Tr text="Nobody is on approved leave today." />
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {shown.map((entry) => (
+              <li key={`${entry.employee_id}-${entry.start_date}`}>
+                <PersonCell
+                  name={entry.employee_name}
+                  photoUrl={entry.photo_url}
+                  subtitle={
+                    entry.is_half_day
+                      ? "Half day"
+                      : entry.start_date === entry.end_date
+                        ? "Today"
+                        : `Back after ${formatDay(entry.end_date)}`
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+        {people.length > shown.length && (
+          <p className="mt-3 text-xs text-muted-foreground">and {people.length - shown.length} more</p>
+        )}
+        <div className="mt-3">
+          <CardLink href="/time">Team calendar</CardLink>
+        </div>
       </CardContent>
     </Card>
   );

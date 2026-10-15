@@ -146,7 +146,84 @@ export function MyEsopScreen() {
           ))}
         </div>
       </DataPanel>
+      {(data?.grants ?? []).length > 0 && <WhatIf />}
     </PageShell>
+  );
+}
+
+interface Projection {
+  price_per_unit: string;
+  value_now: string;
+  value_when_fully_vested: string;
+  timeline: { date: string; value: string }[];
+  grants: { id: string; plan: string; spread_per_unit: string; vested_unexercised: number; unvested: number; value_now: string; value_when_fully_vested: string }[];
+  note: string;
+}
+
+/** What the options would be worth at a share price the person chooses, as they vest. */
+function WhatIf() {
+  const [price, setPrice] = useState("");
+  const [asked, setAsked] = useState<string | null>(null);
+  const { data, error, isLoading } = useApiQuery<Projection>(
+    asked ? `/esop/me/projection?price_per_unit=${encodeURIComponent(asked)}` : null,
+  );
+  const valid = /^\d+(\.\d{1,2})?$/.test(price.trim());
+
+  return (
+    <Card tier="tier2">
+      <CardHeader>
+        <CardTitle className="text-base">What if a share were worth…</CardTitle>
+        <CardDescription>Enter a price to see what your options would be worth now and as each tranche vests.</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <FormField htmlFor="esop-price" label="Price per share (₹)">
+            <Input id="esop-price" inputMode="decimal" className="w-40" value={price} onChange={(e) => setPrice(e.target.value)} />
+          </FormField>
+          <Button variant="outline" disabled={!valid} onClick={() => setAsked(price.trim())}>
+            {isLoading && <Loader2 className="animate-spin" />} Work it out
+          </Button>
+        </div>
+        {error && <p className="text-sm text-destructive">{error.detail}</p>}
+        {data && (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs text-muted-foreground">Vested and not yet exercised, now</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  <Money value={data.value_now} />
+                </p>
+              </div>
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs text-muted-foreground">Once everything has vested</p>
+                <p className="text-lg font-semibold tabular-nums">
+                  <Money value={data.value_when_fully_vested} />
+                </p>
+              </div>
+            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>On</TableHead>
+                  <TableHead className="text-right">Worth, at ₹{data.price_per_unit} a share</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.timeline.map((point) => (
+                  <TableRow key={point.date}>
+                    <TableCell>{formatDay(point.date, true)}</TableCell>
+                    <TableCell className="text-right">
+                      <Money value={point.value} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <p className="text-xs text-muted-foreground">{data.note}</p>
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

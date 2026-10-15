@@ -12,7 +12,9 @@ import {
   HolidaysCard,
   LeaveBalanceCard,
   PayrollCard,
+  QuickLinksCard,
   TeamTodayCard,
+  WhosOutTodayCard,
 } from "@/components/dashboard/HomeCards";
 import { PulseStat } from "@/components/dashboard/PulseStat";
 import { MyOpenTicketsCard } from "@/components/helpdesk/MyOpenTicketsCard";
@@ -184,6 +186,8 @@ export default function HomePage() {
         </div>
 
         <div className="flex flex-col gap-6">
+          <QuickLinksCard canEdit={hasRole("admin")} />
+          {timeOn && <WhosOutTodayCard />}
           <OnboardingProgressCard />
           {isEmployee && <MyOpenTicketsCard />}
           <CelebrationsCard />

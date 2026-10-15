@@ -23,6 +23,7 @@ import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
 import { IconInput } from "@/components/common/IconInput";
 import { TablePager, usePaged } from "@/components/common/TablePager";
+import { HandbookBuilder } from "@/components/docs/HandbookBuilder";
 import { apiMessage } from "@/components/people/labels";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -561,6 +562,11 @@ export function CompanyDocumentsPanel({
         </Table>
       </DataPanel>
 
+      {isHr && (
+        <div className="mt-6">
+          <HandbookBuilder onPublished={reload} />
+        </div>
+      )}
       {isHr && (
         <CompanyDocumentDialog
           document={editing}

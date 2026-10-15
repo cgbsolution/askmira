@@ -7,6 +7,7 @@ import React from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
+import { PayslipPasswordHint } from "@/components/payroll/PayslipProtection";
 import { PayslipTrace } from "@/components/payroll/PayslipTrace";
 import { DownloadButton } from "@/components/payroll-ops/shared";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export default function MyPayslipPage() {
         </>
       }
     >
+      <PayslipPasswordHint />
       {isLoading && !data ? (
         <Skeleton className="h-64 w-full" />
       ) : error || !data ? (

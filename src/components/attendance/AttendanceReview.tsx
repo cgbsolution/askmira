@@ -45,7 +45,10 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { chainSummary } from "@/components/common/ApprovalChain";
+import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
+import { MANAGERS, roleAllows } from "@/lib/access";
 import { patch } from "@/lib/api";
 import type {
   AttendanceExceptionKind,
@@ -77,9 +80,17 @@ const TABS = ["today", "regularisations", "swaps", "coverage", "exceptions"];
 
 export function AttendanceReview({ initialTab }: { initialTab?: string }) {
   const [pendingCount, setPendingCount] = useState<number | null>(null);
+  const { user } = useAuth();
+  // Somebody an approval rule names, with no team of their own: their queue only.
+  const reviewsTeam = roleAllows(user, MANAGERS);
+  const fallback = reviewsTeam ? "today" : "regularisations";
+
+  if (!reviewsTeam) {
+    return <RegularisationQueue onCount={setPendingCount} />;
+  }
 
   return (
-    <Tabs defaultValue={initialTab && TABS.includes(initialTab) ? initialTab : "today"}>
+    <Tabs defaultValue={initialTab && TABS.includes(initialTab) ? initialTab : fallback}>
       <TabsList>
         <TabsTrigger value="today">Team today</TabsTrigger>
         <TabsTrigger value="regularisations">
@@ -203,6 +214,9 @@ function RegularisationQueue({ onCount }: { onCount: (count: number) => void }) 
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <PersonCell name={row.employee_name} subtitle={row.employee_code} />
+                    {chainSummary(row.approval_chain) && (
+                      <p className="mt-1 text-xs text-muted-foreground">{chainSummary(row.approval_chain)}</p>
+                    )}
                     <Badge variant="outline">{KIND_LABELS[row.kind]}</Badge>
                     {row.period_locked && (
                       <Badge variant="warning">

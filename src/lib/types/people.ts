@@ -109,6 +109,8 @@ export interface CustomField {
   is_sensitive: boolean;
   display_order: number;
   is_active: boolean;
+  /** The profile tab it sits on; null for the Employment tab's "More details". */
+  tab: string | null;
 }
 
 export interface SalaryHistoryRow {

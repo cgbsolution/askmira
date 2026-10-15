@@ -53,6 +53,191 @@ interface Invoice {
   tds_note: string | null;
   status: "pending" | "approved" | "paid" | "cancelled";
   paid_on: string | null;
+  contractor_id: string;
+  challan_id: string | null;
+}
+
+interface ChallanPosition {
+  ready: boolean;
+  untied_invoices: number;
+  untied_tds: string;
+  challans: {
+    id: string;
+    bsr_code: string;
+    deposit_date: string;
+    challan_serial: string;
+    tds_amount: string;
+    tied: string;
+    unused: string;
+  }[];
+}
+
+const QUARTER_MONTHS: Record<string, number[]> = { "1": [4, 5, 6], "2": [7, 8, 9], "3": [10, 11, 12], "4": [1, 2, 3] };
+
+function inQuarter(day: string, year: string, quarter: string): boolean {
+  const [y, m] = day.split("-").map(Number);
+  const start = Number(year.slice(0, 4));
+  return QUARTER_MONTHS[quarter].includes(m) && y === (quarter === "4" ? start + 1 : start);
+}
+
+/** The quarter's 26Q challans, the invoices whose TDS each holds, and a statement per contractor. */
+function ChallanTies({
+  year,
+  quarter,
+  invoices,
+  contractors,
+  onChanged,
+}: {
+  year: string;
+  quarter: string;
+  invoices: Invoice[];
+  contractors: Contractor[];
+  onChanged: () => void;
+}) {
+  const valid = /^\d{4}-\d{2}$/.test(year);
+  const position = useApiQuery<ChallanPosition>(
+    valid ? `/contractors/form-26q/challans?financial_year=${year}&quarter=${quarter}` : null,
+  );
+  const [statementFor, setStatementFor] = useState("");
+  const due = invoices.filter(
+    (invoice) =>
+      (invoice.status === "approved" || invoice.status === "paid") &&
+      Number(invoice.tds_amount) > 0 &&
+      valid &&
+      inQuarter(invoice.invoice_date, year, quarter),
+  );
+
+  const link = async (invoice: Invoice, challanId: string) => {
+    try {
+      await post(`/contractors/invoices/${invoice.id}/challan`, { challan_id: challanId === "none" ? null : challanId });
+      toast.success(challanId === "none" ? "Unlinked." : "Tied to the challan.");
+      position.reload();
+      onChanged();
+    } catch (caught) {
+      toast.error(failure(caught, "That did not go through."));
+    }
+  };
+
+  const statement = async () => {
+    try {
+      await downloadFile(
+        `/contractors/${statementFor}/tds-statement?financial_year=${year}&quarter=${quarter}`,
+        `TDS-statement-${year}-Q${quarter}.pdf`,
+      );
+    } catch (caught) {
+      toast.error(failure(caught, "The statement could not be produced."));
+    }
+  };
+
+  if (!valid) return null;
+  const challans = position.data?.challans ?? [];
+  return (
+    <div className="space-y-4 border-t border-border p-5">
+      <div>
+        <p className="font-medium">Challans for this quarter</p>
+        <p className="text-sm text-muted-foreground">
+          Record 26Q deposits under Statutory filings → TDS challans, then tie each invoice&apos;s TDS to the
+          challan it went under. The working file carries the challan details.
+        </p>
+      </div>
+      {position.data && !position.data.ready && (
+        <Badge variant="warning">
+          {position.data.untied_invoices} invoice(s), ₹{position.data.untied_tds} of TDS not yet tied to a challan
+        </Badge>
+      )}
+      {challans.length > 0 && (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Challan</TableHead>
+              <TableHead className="text-right">Deposited</TableHead>
+              <TableHead className="text-right">Tied</TableHead>
+              <TableHead className="text-right">Unused</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {challans.map((challan) => (
+              <TableRow key={challan.id}>
+                <TableCell className="tabular-nums">
+                  {challan.bsr_code} · {challan.challan_serial} · {formatDay(challan.deposit_date, true)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Money value={challan.tds_amount} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Money value={challan.tied} />
+                </TableCell>
+                <TableCell className="text-right">
+                  <Money value={challan.unused} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      {due.length > 0 && (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Invoice</TableHead>
+              <TableHead className="text-right">TDS</TableHead>
+              <TableHead>Challan</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {due.map((invoice) => (
+              <TableRow key={invoice.id}>
+                <TableCell>
+                  {invoice.contractor_name} · {invoice.invoice_number}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Money value={invoice.tds_amount} />
+                </TableCell>
+                <TableCell>
+                  <Select value={invoice.challan_id ?? "none"} onValueChange={(value) => void link(invoice, value)}>
+                    <SelectTrigger className="w-64" aria-label={`Challan for ${invoice.invoice_number}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Not yet tied</SelectItem>
+                      {challans.map((challan) => (
+                        <SelectItem key={challan.id} value={challan.id}>
+                          {challan.bsr_code} · {challan.challan_serial}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+      <div className="flex flex-wrap items-end gap-3">
+        <FormField
+          htmlFor="tds-statement-for"
+          label="TDS statement for a contractor"
+          hint="Their deductions this quarter with the challans. Form 16A itself comes from TRACES."
+        >
+          <Select value={statementFor} onValueChange={setStatementFor}>
+            <SelectTrigger id="tds-statement-for" className="w-64">
+              <SelectValue placeholder="Choose a contractor" />
+            </SelectTrigger>
+            <SelectContent>
+              {contractors.map((contractor) => (
+                <SelectItem key={contractor.id} value={contractor.id}>
+                  {contractor.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
+        <Button variant="outline" disabled={!statementFor} onClick={() => void statement()}>
+          <Download /> Statement PDF
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 const SECTIONS: Record<string, string> = {
@@ -266,6 +451,13 @@ export function ContractorsScreen() {
                 <Download /> Download
               </Button>
             </div>
+            <ChallanTies
+              year={year}
+              quarter={quarter}
+              invoices={invoices.data ?? []}
+              contractors={contractors.data ?? []}
+              onChanged={invoices.reload}
+            />
           </DataPanel>
         </TabsContent>
       </Tabs>

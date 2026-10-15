@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tr } from "@/lib/i18n/Tr";
 
 /**
  * Confirmation for an action that is hard to take back.
@@ -59,13 +60,19 @@ export function ConfirmDialog({
     <Dialog open={open} onOpenChange={(next) => !isBusy && onOpenChange(next)}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
+          <DialogTitle>
+            <Tr text={title} />
+          </DialogTitle>
+          {description && (
+            <DialogDescription>
+              {typeof description === "string" ? <Tr text={description} /> : description}
+            </DialogDescription>
+          )}
         </DialogHeader>
         {children}
         <DialogFooter>
           <Button variant="outline" disabled={isBusy} onClick={() => onOpenChange(false)}>
-            {cancelLabel}
+            <Tr text={cancelLabel} />
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
@@ -73,7 +80,7 @@ export function ConfirmDialog({
             onClick={() => void confirm()}
           >
             {isBusy && <Loader2 className="animate-spin" />}
-            {confirmLabel}
+            <Tr text={confirmLabel} />
           </Button>
         </DialogFooter>
       </DialogContent>

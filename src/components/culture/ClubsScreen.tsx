@@ -36,7 +36,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { post } from "@/lib/api";
+import { ApiError, del, post } from "@/lib/api";
 import type { Club, ClubMember } from "@/lib/types/culture";
 import { formatDate } from "@/lib/utils";
 
@@ -158,7 +158,7 @@ export function ClubsScreen() {
                   <>
                     <Badge variant="secondary">Member</Badge>
                     <Button variant="outline" size="sm" onClick={() => setViewing(club)}>
-                      Members
+                      Open
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => setLeaving(club)}>
                       Leave
@@ -200,9 +200,87 @@ export function ClubsScreen() {
   );
 }
 
+interface ClubPost {
+  id: string;
+  author_name: string;
+  body: string;
+  created_at: string | null;
+  mine: boolean;
+}
+
+/** What the club's members say to each other. Members post; a public club is read by all. */
+function ClubPosts({ club }: { club: Club }) {
+  const { data, error, isLoading, reload } = useApiQuery<ClubPost[]>(`/culture/clubs/${club.id}/posts`);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const isMember = club.is_member;
+
+  const send = async () => {
+    setBusy(true);
+    try {
+      await post(`/culture/clubs/${club.id}/posts`, { body: text.trim() });
+      setText("");
+      reload();
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.detail : "The post did not go through.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async (id: string) => {
+    try {
+      await del(`/culture/club-posts/${id}`);
+      reload();
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.detail : "The post could not be removed.");
+    }
+  };
+
+  return (
+    <div className="grid gap-3">
+      <p className="text-sm font-medium text-foreground">Posts</p>
+      {isMember && (
+        <div className="grid gap-2">
+          <Textarea aria-label="Write a post" rows={3} maxLength={4000} value={text} onChange={(e) => setText(e.target.value)} />
+          <Button size="sm" className="w-fit" disabled={busy || !text.trim()} onClick={() => void send()}>
+            Post
+          </Button>
+        </div>
+      )}
+      {isLoading ? (
+        <Skeleton className="h-16 w-full" />
+      ) : error ? (
+        <ErrorState message={error.detail} onRetry={reload} />
+      ) : (data ?? []).length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nothing posted yet.</p>
+      ) : (
+        <ul className="grid gap-3">
+          {(data ?? []).map((item) => (
+            <li key={item.id} className="rounded-md border border-border p-3">
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span>
+                  {item.author_name}
+                  {item.created_at ? ` · ${formatDate(item.created_at)}` : ""}
+                </span>
+                {item.mine && (
+                  <Button size="sm" variant="ghost" onClick={() => void remove(item.id)}>
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <p className="mt-1 text-sm whitespace-pre-wrap text-foreground">{item.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function MembersSheet({ club, onOpenChange }: { club: Club | null; onOpenChange: (open: boolean) => void }) {
   const { data, error, isLoading, reload } = useApiQuery<ClubMember[]>(
-    club ? `/culture/clubs/${club.id}/members` : null,
+    club?.is_member ? `/culture/clubs/${club.id}/members` : null,
   );
 
   return (
@@ -214,8 +292,9 @@ function MembersSheet({ club, onOpenChange }: { club: Club | null; onOpenChange:
             {club?.is_private ? "A private club — only members see who is in it." : "Everyone in the club."}
           </SheetDescription>
         </SheetHeader>
-        <div className="px-4 pb-6">
-          {isLoading ? (
+        <div className="grid gap-6 px-4 pb-6">
+          {club && <ClubPosts club={club} />}
+          {!club?.is_member ? null : isLoading ? (
             <Skeleton className="h-24 w-full" />
           ) : error ? (
             <ErrorState message={error.detail} onRetry={reload} />

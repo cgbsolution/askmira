@@ -7,6 +7,7 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { NONE } from "@/components/people/labels";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -35,11 +36,13 @@ export function CoverageTab() {
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [location, setLocation] = useState(NONE);
   const [department, setDepartment] = useState(NONE);
+  const [area, setArea] = useState("");
   const weekEnd = new Date(weekStart.getTime() + 6 * 86_400_000);
 
   const query = new URLSearchParams({ from: toISODate(weekStart), to: toISODate(weekEnd) });
   if (location !== NONE) query.set("location_id", location);
   if (department !== NONE) query.set("department_id", department);
+  if (area.trim()) query.set("work_area", area.trim());
   const { data, error, isLoading, reload } = useApiQuery<Coverage>(`/attendance/coverage?${query}`);
 
   const move = (weeks: number) => setWeekStart((current) => new Date(current.getTime() + weeks * 7 * 86_400_000));
@@ -90,6 +93,13 @@ export function CoverageTab() {
               ))}
             </SelectContent>
           </Select>
+          <Input
+            aria-label="Line or area"
+            placeholder="Line or area"
+            className="w-40"
+            value={area}
+            onChange={(event) => setArea(event.target.value)}
+          />
         </>
       }
       isLoading={isLoading}
@@ -115,6 +125,11 @@ export function CoverageTab() {
               <TableRow key={shift.id}>
                 <TableCell>
                   <p className="font-medium">{shift.name}</p>
+                  {(shift.location_name || shift.work_area) && (
+                    <p className="text-xs text-muted-foreground">
+                      {[shift.location_name, shift.work_area].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground tabular-nums">
                     {shortTime(shift.start_time)}–{shortTime(shift.end_time)}
                     {shift.min_headcount ? ` · needs ${shift.min_headcount}` : ""}

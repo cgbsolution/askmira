@@ -44,6 +44,8 @@ interface TableDefinition {
   employee_editable: boolean;
   display_order: number;
   active: boolean;
+  /** The profile tab it sits on; null for the Employment tab. */
+  tab: string | null;
 }
 
 interface TableWithRows extends TableDefinition {
@@ -56,7 +58,7 @@ function failure(caught: unknown, fallback: string): string {
 }
 
 function asField(column: Column): CustomField {
-  return { id: column.key, key: column.key, label: column.label, field_type: column.field_type, options: column.options, is_required: column.is_required, is_sensitive: false, display_order: 0, is_active: true };
+  return { id: column.key, key: column.key, label: column.label, field_type: column.field_type, options: column.options, is_required: column.is_required, is_sensitive: false, display_order: 0, is_active: true, tab: null };
 }
 
 function show(column: Column, value: unknown): string {
@@ -67,11 +69,27 @@ function show(column: Column, value: unknown): string {
   return String(value);
 }
 
-/** The custom tables on one person's record, with their rows. */
-export function CustomTablesSection({ employeeId }: { employeeId: string }) {
+/**
+ * The admin-named tabs a viewer's profile shows, from the custom fields and
+ * tables placed on them, in the order of their first item.
+ */
+export function useCustomTabs(enabled: boolean): string[] {
+  const fields = useApiQuery<CustomField[]>(enabled ? "/org/custom-fields" : null);
+  const tables = useApiQuery<TableDefinition[]>(enabled ? "/org/custom-tables" : null);
+  const placed = [
+    ...(fields.data ?? []).filter((f) => f.is_active).map((f) => ({ tab: f.tab, order: f.display_order })),
+    ...(tables.data ?? []).filter((t) => t.active).map((t) => ({ tab: t.tab, order: t.display_order })),
+  ]
+    .filter((item): item is { tab: string; order: number } => Boolean(item.tab))
+    .sort((a, b) => a.order - b.order);
+  return [...new Set(placed.map((item) => item.tab))];
+}
+
+/** The custom tables on one person's record, with their rows: one tab's, or the untabbed. */
+export function CustomTablesSection({ employeeId, tab = null }: { employeeId: string; tab?: string | null }) {
   const { data, reload } = useApiQuery<TableWithRows[]>(`/employees/${employeeId}/custom-tables`);
   const [editing, setEditing] = useState<{ table: TableWithRows; rowId: string | null; values: Record<string, unknown> } | null>(null);
-  const tables = data ?? [];
+  const tables = (data ?? []).filter((table) => (table.tab ?? null) === tab);
   if (tables.length === 0) return null;
 
   const remove = async (rowId: string) => {
@@ -283,6 +301,7 @@ function TableDialog({ table, onClose, onSaved }: { table: TableDefinition | nul
   const [sensitive, setSensitive] = useState(table?.is_sensitive ?? false);
   const [editable, setEditable] = useState(table?.employee_editable ?? false);
   const [active, setActive] = useState(table?.active ?? true);
+  const [tab, setTab] = useState(table?.tab ?? "");
   const [busy, setBusy] = useState(false);
 
   const setColumn = (index: number, patchValue: Partial<Column>) => setColumns((c) => c.map((col, i) => (i === index ? { ...col, ...patchValue } : col)));
@@ -291,8 +310,24 @@ function TableDialog({ table, onClose, onSaved }: { table: TableDefinition | nul
     setBusy(true);
     const cols = columns.map((c) => ({ ...c, options: c.field_type === "select" || c.field_type === "multiselect" ? c.options ?? [] : null }));
     try {
-      if (table) await patch(`/org/custom-tables/${table.id}`, { label: label.trim(), columns: cols, is_sensitive: sensitive, employee_editable: editable, active });
-      else await post("/org/custom-tables", { key: key.trim(), label: label.trim(), columns: cols, is_sensitive: sensitive, employee_editable: editable });
+      if (table)
+        await patch(`/org/custom-tables/${table.id}`, {
+          label: label.trim(),
+          columns: cols,
+          is_sensitive: sensitive,
+          employee_editable: editable,
+          active,
+          tab: tab.trim(),
+        });
+      else
+        await post("/org/custom-tables", {
+          key: key.trim(),
+          label: label.trim(),
+          columns: cols,
+          is_sensitive: sensitive,
+          employee_editable: editable,
+          tab: tab.trim() || null,
+        });
       toast.success("Table saved.");
       onSaved();
     } catch (caught) {
@@ -318,6 +353,16 @@ function TableDialog({ table, onClose, onSaved }: { table: TableDefinition | nul
             <div className="grid gap-1.5">
               <Label htmlFor="ct-label">Label</Label>
               <Input id="ct-label" value={label} onChange={(e) => setLabel(e.target.value)} />
+            </div>
+            <div className="grid gap-1.5 sm:col-span-2">
+              <Label htmlFor="ct-tab">Profile tab (optional)</Label>
+              <Input
+                id="ct-tab"
+                maxLength={40}
+                placeholder="A tab of your own, like Safety. Empty: the Employment tab."
+                value={tab}
+                onChange={(e) => setTab(e.target.value)}
+              />
             </div>
           </div>
           <div className="grid gap-2">

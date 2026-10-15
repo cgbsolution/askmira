@@ -2,6 +2,7 @@
 
 import { Clock, Handshake, Megaphone } from "lucide-react";
 import React from "react";
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { Money } from "@/components/common/Money";
@@ -11,6 +12,14 @@ import {
   stageLabel,
 } from "@/components/hiring/AnalyticsNames";
 import { percent } from "@/components/hiring/labels";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 import {
   Table,
   TableBody,
@@ -104,6 +113,12 @@ export function AnalyticsTimingsPanel({ report, isLoading, error, onRetry }: Sec
   );
 }
 
+const SOURCE_CHART: ChartConfig = {
+  applied: { label: "Applied", color: "var(--chart-1)" },
+  offered: { label: "Offered", color: "var(--chart-2)" },
+  joined: { label: "Joined", color: "var(--chart-3)" },
+};
+
 /** Which sources bring people who get through, and what each hire from them cost. */
 export function AnalyticsSourcesPanel({ report, isLoading, error, onRetry }: SectionProps) {
   const section = report?.source_effectiveness;
@@ -118,6 +133,20 @@ export function AnalyticsSourcesPanel({ report, isLoading, error, onRetry }: Sec
       isEmpty={rows.length === 0}
       empty={{ icon: Megaphone, title: "No sources to compare yet" }}
     >
+      <div className="px-5 pt-2">
+        <ChartContainer config={SOURCE_CHART} className="h-56 w-full">
+          <BarChart data={rows} margin={{ left: 8, right: 8 }}>
+            <CartesianGrid vertical={false} />
+            <XAxis dataKey="source" tickLine={false} axisLine={false} interval={0} fontSize={11} />
+            <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <ChartLegend content={<ChartLegendContent />} />
+            <Bar dataKey="applied" fill="var(--color-applied)" radius={4} />
+            <Bar dataKey="offered" fill="var(--color-offered)" radius={4} />
+            <Bar dataKey="joined" fill="var(--color-joined)" radius={4} />
+          </BarChart>
+        </ChartContainer>
+      </div>
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>

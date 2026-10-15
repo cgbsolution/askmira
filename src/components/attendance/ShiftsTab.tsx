@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -29,6 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useOrgReference } from "@/components/people/useOrgReference";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post, put } from "@/lib/api";
 import type { Shift, ShiftCreateInput, ShiftInput, ShiftUpdateInput } from "@/lib/types/attendance";
@@ -49,6 +51,7 @@ export function ShiftsTab() {
   );
   const [editing, setEditing] = useState<Shift | "new" | null>(null);
   const [defaulting, setDefaulting] = useState<string | null>(null);
+  const org = useOrgReference();
   const shifts = [...(data ?? [])].sort(
     (a, b) =>
       Number(b.is_default) - Number(a.is_default) ||
@@ -130,6 +133,13 @@ export function ShiftsTab() {
                 <TableCell className="pl-5 font-medium">{shift.code}</TableCell>
                 <TableCell>
                   {shift.name}
+                  {(shift.work_area || shift.location_id) && (
+                    <span className="block text-xs text-muted-foreground">
+                      {[shift.location_id ? org.locationName(shift.location_id) : null, shift.work_area]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </span>
+                  )}
                   {shift.is_default && (
                     <Badge variant="success" className="ml-2">
                       Default
@@ -214,7 +224,11 @@ interface ShiftForm {
   allowance_name: string;
   min_headcount: string;
   required_course_ids: string[];
+  location_id: string;
+  work_area: string;
 }
+
+const ANY_SITE = "__any_site";
 
 const EMPTY_FORM: ShiftForm = {
   code: "",
@@ -233,6 +247,8 @@ const EMPTY_FORM: ShiftForm = {
   allowance_name: "",
   min_headcount: "",
   required_course_ids: [],
+  location_id: ANY_SITE,
+  work_area: "",
 };
 
 const NUMBER_FIELDS: { key: keyof ShiftForm; label: string }[] = [
@@ -291,6 +307,7 @@ function ShiftDialog({
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const courses = useApiQuery<{ id: string; title: string; active: boolean }[]>(target ? "/learning/courses" : null);
+  const org = useOrgReference();
 
   useEffect(() => {
     if (target === null) return;
@@ -317,6 +334,8 @@ function ShiftDialog({
       allowance_name: target.allowance_name ?? "",
       min_headcount: target.min_headcount ? String(target.min_headcount) : "",
       required_course_ids: target.required_course_ids ?? [],
+      location_id: target.location_id ?? ANY_SITE,
+      work_area: target.work_area ?? "",
     });
   }, [target]);
 
@@ -343,6 +362,8 @@ function ShiftDialog({
       allowance_name: form.allowance_name.trim() || null,
       min_headcount: form.min_headcount.trim() ? Number(form.min_headcount.trim()) : null,
       required_course_ids: form.required_course_ids,
+      location_id: form.location_id === ANY_SITE ? null : form.location_id,
+      work_area: form.work_area.trim() || null,
     };
     setIsSaving(true);
     setServerError(null);
@@ -461,6 +482,36 @@ function ShiftDialog({
               />
             </Field>
           </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="shift-site" label="Plant or site">
+              <Select value={form.location_id} onValueChange={(value) => set("location_id", value)}>
+                <SelectTrigger id="shift-site" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ANY_SITE}>Any location</SelectItem>
+                  {org.locations.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field id="shift-area" label="Line or area">
+              <Input
+                id="shift-area"
+                maxLength={80}
+                placeholder="Line 2, Packing…"
+                value={form.work_area}
+                onChange={(event) => set("work_area", event.target.value)}
+              />
+            </Field>
+          </div>
+          {form.location_id !== ANY_SITE && (
+            <p className="-mt-2 text-xs text-muted-foreground">Only people based at this site can be rostered on it.</p>
+          )}
 
           <Field id="shift-min-headcount" label="Fewest people needed (for coverage)" error={shown.min_headcount}>
             <Input

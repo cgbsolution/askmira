@@ -331,6 +331,7 @@ function ScheduleDialog({
   const [time, setTime] = useState("");
   const [duration, setDuration] = useState("30");
   const [agenda, setAgenda] = useState("");
+  const [repeat, setRepeat] = useState("none");
   const { busy, run } = useAction();
   const today = toISODate(new Date());
   const valid = withId && day && /^\d{1,3}$/.test(duration) && Number(duration) > 0 && Number(duration) <= 480;
@@ -380,6 +381,19 @@ function ScheduleDialog({
               />
             </FormField>
           </div>
+          <FormField htmlFor="oo-repeat" label="Repeats" hint="The next one is booked when this one is held or cancelled.">
+            <Select value={repeat} onValueChange={setRepeat}>
+              <SelectTrigger id="oo-repeat" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Does not repeat</SelectItem>
+                <SelectItem value="1">Every week</SelectItem>
+                <SelectItem value="2">Every two weeks</SelectItem>
+                <SelectItem value="4">Every four weeks</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormField>
           <FormField htmlFor="oo-agenda" label="Agenda" optional hint="One talking point per line.">
             <Textarea id="oo-agenda" rows={4} maxLength={4000} value={agenda} onChange={(e) => setAgenda(e.target.value)} />
           </FormField>
@@ -399,6 +413,7 @@ function ScheduleDialog({
                     scheduled_on: day,
                     start_time: time || null,
                     duration_minutes: Number(duration),
+                    repeat_every_weeks: repeat === "none" ? null : Number(repeat),
                     agenda: agenda
                       .split("\n")
                       .map((line) => line.trim())
@@ -460,7 +475,8 @@ export function OneOnOnePanel({ meetingId, onChanged }: { meetingId: string; onC
             {data.with_name} <StatusBadge status={data.status} />
           </CardTitle>
           <CardDescription>
-            {when(data)} · {data.duration_minutes} min ·{" "}
+            {when(data)} · {data.duration_minutes} min
+            {data.repeat_every_weeks ? ` · every ${data.repeat_every_weeks === 1 ? "week" : `${data.repeat_every_weeks} weeks`}` : ""} ·{" "}
             {data.my_side === "manager" ? `${data.with_name} reports to you` : `${data.with_name} is your manager`}
           </CardDescription>
         </CardHeader>

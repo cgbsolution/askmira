@@ -188,7 +188,17 @@ export interface LeaveTrend {
 }
 
 export interface Signal {
-  kind: "burnout_risk" | "no_leave" | "bridge_absences" | "unpaid_absence" | "frequent_absence" | "pay_revision";
+  kind:
+    | "burnout_risk"
+    | "no_leave"
+    | "bridge_absences"
+    | "unpaid_absence"
+    | "frequent_absence"
+    | "pay_revision"
+    | "team_exits"
+    | "manager_change"
+    | "rating_drop"
+    | "no_role_change";
   label: string;
   rule: string;
   evidence: string[];

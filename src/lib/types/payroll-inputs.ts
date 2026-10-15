@@ -100,6 +100,10 @@ export interface OvertimePolicy {
   quarterly_cap_minutes: number | null;
   count_rest_days: boolean;
   requires_approval: boolean;
+  /** Minutes in a week past which work is overtime (Factories Act: 2880). */
+  weekly_threshold_minutes: number | null;
+  /** Monday = 0 … Sunday = 6. */
+  week_starts_on: number;
   effective_from: string;
   effective_to: string | null;
   is_active: boolean;
@@ -118,6 +122,8 @@ export interface OvertimePolicyInput {
   quarterly_cap_minutes: number | null;
   count_rest_days: boolean;
   requires_approval: boolean;
+  weekly_threshold_minutes: number | null;
+  week_starts_on: number;
   effective_from: string;
 }
 
@@ -127,6 +133,8 @@ export interface OvertimeEntry {
   employee_code: string | null;
   employee_name: string | null;
   attendance_date: string;
+  /** "daily" past the shift, or "weekly" past the weekly threshold. */
+  kind: "daily" | "weekly";
   policy_id: string;
   policy_name: string | null;
   recorded_minutes: number;

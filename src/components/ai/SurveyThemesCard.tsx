@@ -43,8 +43,8 @@ const SENTIMENT: Record<Theme["sentiment"], "secondary" | "outline" | "destructi
  * Comment themes for one survey (EXP-04), for HR.
  *
  * Paraphrased and counted, never quoted; a theme raised by fewer people than
- * the survey's floor is folded into "Other themes". Every respondent has to
- * have agreed to AI analysis, because the comments cannot be told apart.
+ * the survey's floor is folded into "Other themes". Only comments whose writers
+ * ticked "AI may read this comment" are read, and that choice carries no name.
  */
 export function SurveyThemesCard({ surveyId }: { surveyId: string }) {
   return (
@@ -85,7 +85,7 @@ function ThemesInner({ surveyId }: { surveyId: string }) {
         <CardDescription>
           {summary
             ? `${summary.comment_count} comments · read ${summary.generated_at ? formatDate(summary.generated_at) : ""} · confidence ${summary.confidence_band}`
-            : "Themes in the free-text comments, counted and paraphrased by AI. No comment is shown."}
+            : "Themes in the comments their writers opened to AI, counted and paraphrased. No comment is shown."}
         </CardDescription>
         <CardAction>
           <Button variant="outline" size="sm" onClick={generate} disabled={busy}>

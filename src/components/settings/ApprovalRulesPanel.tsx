@@ -24,11 +24,27 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { KIND_LABELS } from "@/components/attendance/AttendanceRequestDialog";
+import { EVENT_TYPE } from "@/components/people/labels";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, patch, post } from "@/lib/api";
 import type { ManagedUser } from "@/lib/types/admin";
 
-type Process = "leave" | "expense";
+type Process = "leave" | "expense" | "regularisation" | "timesheet" | "lifecycle";
+
+const PROCESS_LABEL: Record<Process, string> = {
+  expense: "Expense claims",
+  leave: "Leave requests",
+  regularisation: "Attendance corrections",
+  timesheet: "Timesheets",
+  lifecycle: "Lifecycle changes (promotion, transfer …)",
+};
+
+/** The category condition's choices, for the processes whose categories are fixed. */
+const CATEGORY_CHOICES: Partial<Record<Process, Record<string, string>>> = {
+  regularisation: KIND_LABELS,
+  lifecycle: EVENT_TYPE,
+};
 type StepKind = "line_manager" | "skip_level" | "user" | "hr";
 
 interface Step {
@@ -100,8 +116,9 @@ export function ApprovalRulesPanel() {
       <Alert>
         <GitBranch />
         <AlertDescription>
-          With no rule, the line manager approves alone (HR when there is none). A step nobody can take — no manager,
-          a deactivated login — is skipped; a step on the requester themselves is skipped too.
+          With no rule, the line manager approves alone (HR when there is none); a lifecycle change goes to HR. A step
+          nobody can take — no manager, a deactivated login — is skipped; a step on the requester themselves is skipped
+          too. Anybody a rule names sees what waits on them under Approvals.
         </AlertDescription>
       </Alert>
       <DataPanel
@@ -116,7 +133,11 @@ export function ApprovalRulesPanel() {
         error={error?.detail ?? null}
         onRetry={reload}
         isEmpty={(data ?? []).length === 0}
-        empty={{ icon: GitBranch, title: "No rules yet", description: "Leave and expenses go to the line manager." }}
+        empty={{
+          icon: GitBranch,
+          title: "No rules yet",
+          description: "Requests go to the line manager, and lifecycle changes to HR.",
+        }}
       >
         <Table>
           <TableHeader>
@@ -133,9 +154,7 @@ export function ApprovalRulesPanel() {
                 <TableCell>
                   <div className="font-medium text-foreground">{rule.name}</div>
                   <div className="flex flex-wrap gap-1 pt-1">
-                    <Badge variant="outline" className="capitalize">
-                      {rule.process}
-                    </Badge>
+                    <Badge variant="outline">{PROCESS_LABEL[rule.process] ?? rule.process}</Badge>
                     <Badge variant="muted">Priority {rule.priority}</Badge>
                     {!rule.active && <Badge variant="warning">Off</Badge>}
                   </div>
@@ -145,7 +164,10 @@ export function ApprovalRulesPanel() {
                     rule.min_amount && `from ₹${rule.min_amount}`,
                     rule.max_amount && `up to ₹${rule.max_amount}`,
                     rule.min_days && `${rule.min_days}+ days`,
-                    rule.expense_categories.length > 0 && rule.expense_categories.join(", "),
+                    rule.expense_categories.length > 0 &&
+                      rule.expense_categories
+                        .map((c) => CATEGORY_CHOICES[rule.process]?.[c] ?? c)
+                        .join(", "),
                     rule.leave_type_ids.length > 0 && `${rule.leave_type_ids.length} leave type(s)`,
                     rule.department_ids.length > 0 && `${rule.department_ids.length} department(s)`,
                     rule.location_ids.length > 0 && `${rule.location_ids.length} location(s)`,
@@ -221,6 +243,7 @@ function RuleDialog({
   const [maxAmount, setMaxAmount] = useState(rule?.max_amount ?? "");
   const [minDays, setMinDays] = useState(rule?.min_days ?? "");
   const [categories, setCategories] = useState((rule?.expense_categories ?? []).join(", "));
+  const [picked, setPicked] = useState<Set<string>>(new Set(rule?.expense_categories ?? []));
   const [leaveTypeIds, setLeaveTypeIds] = useState<Set<string>>(new Set(rule?.leave_type_ids ?? []));
   const [deptIds, setDeptIds] = useState<Set<string>>(new Set(rule?.department_ids ?? []));
   const [locIds, setLocIds] = useState<Set<string>>(new Set(rule?.location_ids ?? []));
@@ -250,7 +273,9 @@ function RuleDialog({
               .split(",")
               .map((c) => c.trim().toLowerCase())
               .filter(Boolean)
-          : [],
+          : CATEGORY_CHOICES[process]
+            ? [...picked]
+            : [],
       leave_type_ids: process === "leave" ? [...leaveTypeIds] : [],
       department_ids: [...deptIds],
       location_ids: [...locIds],
@@ -289,8 +314,11 @@ function RuleDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="expense">Expense claims</SelectItem>
-                  <SelectItem value="leave">Leave requests</SelectItem>
+                  {(Object.keys(PROCESS_LABEL) as Process[]).map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {PROCESS_LABEL[key]}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </FormField>
@@ -311,7 +339,27 @@ function RuleDialog({
                 <Input id="rule-cats" value={categories} onChange={(e) => setCategories(e.target.value)} />
               </FormField>
             </div>
-          ) : (
+          ) : CATEGORY_CHOICES[process] ? (
+            <fieldset className="grid gap-1.5">
+              <legend className="mb-1 text-sm font-medium">
+                {process === "lifecycle" ? "Kinds of change" : "Kinds of correction"} (none = all)
+              </legend>
+              <div className="flex flex-wrap gap-3">
+                {Object.entries(CATEGORY_CHOICES[process] ?? {}).map(([value, label]) => (
+                  <div key={value} className="flex items-center gap-1.5">
+                    <Checkbox
+                      id={`rule-cat-${value}`}
+                      checked={picked.has(value)}
+                      onCheckedChange={(on) => setPicked((c) => toggle(c, value, on === true))}
+                    />
+                    <Label htmlFor={`rule-cat-${value}`} className="text-sm font-normal">
+                      {label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </fieldset>
+          ) : process === "timesheet" ? null : (
             <div className="grid gap-3 sm:grid-cols-3">
               <FormField htmlFor="rule-days" label="From days" optional>
                 <Input id="rule-days" inputMode="decimal" value={minDays} onChange={(e) => setMinDays(e.target.value)} />

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { FormField } from "@/components/common/FormField";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { post } from "@/lib/api";
 import type { MySurvey } from "@/lib/types/culture";
@@ -39,12 +41,14 @@ export function RespondDialog({
 }) {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [freeText, setFreeText] = useState("");
+  const [aiOk, setAiOk] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
     if (survey) {
       setAnswers({});
       setFreeText("");
+      setAiOk(false);
     }
   }, [survey]);
 
@@ -60,6 +64,7 @@ export function RespondDialog({
       await post(`/culture/surveys/${survey.id}/responses`, {
         answers,
         free_text: freeText.trim() || null,
+        comment_ai_ok: Boolean(freeText.trim()) && aiOk,
       });
       toast.success("Thank you. Your answers were recorded without your name.");
       onDone();
@@ -120,6 +125,15 @@ export function RespondDialog({
         >
           <Textarea id="survey-free-text" value={freeText} onChange={(e) => setFreeText(e.target.value)} rows={3} />
         </FormField>
+        {freeText.trim() && (
+          <div className="flex items-start gap-2">
+            <Checkbox id="survey-ai-ok" checked={aiOk} onCheckedChange={(on) => setAiOk(on === true)} />
+            <Label htmlFor="survey-ai-ok" className="text-sm font-normal text-muted-foreground">
+              AI may read this comment to summarise the survey&apos;s themes for HR. It goes without your name, nobody is
+              told whether you ticked this, and it is never quoted.
+            </Label>
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>

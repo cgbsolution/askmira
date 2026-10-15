@@ -94,6 +94,7 @@ export function NotificationSettingsScreen() {
         <TabsList>
           <TabsTrigger value="policy">Quiet hours &amp; limits</TabsTrigger>
           <TabsTrigger value="relay">Mail relay</TabsTrigger>
+          <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
           <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
 
@@ -102,6 +103,9 @@ export function NotificationSettingsScreen() {
         </TabsContent>
         <TabsContent value="relay" className="mt-4">
           <SmtpPanel onSaved={channels.reload} />
+        </TabsContent>
+        <TabsContent value="whatsapp" className="mt-4">
+          <WhatsAppPanel onSaved={channels.reload} />
         </TabsContent>
         <TabsContent value="templates" className="mt-4">
           <NotificationTemplatesPanel />
@@ -513,6 +517,97 @@ function SmtpPanel({ onSaved }: { onSaved: () => void }) {
           </div>
         </div>
       )}
+    </DataPanel>
+  );
+}
+
+interface WhatsAppSettings {
+  configured: boolean;
+  platform_connected: boolean;
+  enabled?: boolean;
+  phone_number_id?: string;
+  has_token?: boolean;
+}
+
+/** The workspace's own WhatsApp Business account (Meta Cloud API). */
+function WhatsAppPanel({ onSaved }: { onSaved: () => void }) {
+  const { data, error, isLoading, reload } = useApiQuery<WhatsAppSettings>("/notifications/admin/whatsapp");
+  const [enabled, setEnabled] = useState(false);
+  const [phoneNumberId, setPhoneNumberId] = useState("");
+  const [token, setToken] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!data) return;
+    setEnabled(Boolean(data.enabled));
+    setPhoneNumberId(data.phone_number_id ?? "");
+    setToken("");
+  }, [data]);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await put("/notifications/admin/whatsapp", {
+        enabled,
+        phone_number_id: phoneNumberId.trim(),
+        access_token: token.trim() ? token.trim() : null,
+      });
+      toast.success("WhatsApp settings saved.");
+      reload();
+      onSaved();
+    } catch (caught) {
+      toast.error(errorDetail(caught, "The settings were not saved."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <DataPanel
+      title="WhatsApp Business account"
+      description="Your own Meta WhatsApp Cloud API number. Messages go only to people (and candidates) who opted in, and only with templates Meta has approved."
+      isLoading={isLoading && !data}
+      error={error?.detail ?? null}
+      onRetry={reload}
+    >
+      <div className="grid gap-4 p-5 md:max-w-xl">
+        {data?.platform_connected && (
+          <Alert>
+            <AlertDescription>WhatsApp is already connected for every workspace on this platform.</AlertDescription>
+          </Alert>
+        )}
+        <div className="flex items-center gap-3">
+          <Switch id="wa-enabled" checked={enabled} onCheckedChange={setEnabled} />
+          <Label htmlFor="wa-enabled" className="text-sm font-normal">
+            Send WhatsApp messages through this account
+          </Label>
+        </div>
+        <FormField htmlFor="wa-phone-id" label="Phone number id" hint="From Meta Business Manager → WhatsApp → API setup.">
+          <Input
+            id="wa-phone-id"
+            inputMode="numeric"
+            value={phoneNumberId}
+            onChange={(event) => setPhoneNumberId(event.target.value)}
+          />
+        </FormField>
+        <FormField
+          htmlFor="wa-token"
+          label="Access token"
+          hint={data?.has_token ? "A token is saved. Leave blank to keep it." : "A permanent system-user token."}
+        >
+          <Input
+            id="wa-token"
+            type="password"
+            autoComplete="off"
+            value={token}
+            onChange={(event) => setToken(event.target.value)}
+          />
+        </FormField>
+        <Button className="w-fit" disabled={busy || !phoneNumberId.trim()} onClick={() => void save()}>
+          {busy && <Loader2 className="animate-spin" />}
+          Save
+        </Button>
+      </div>
     </DataPanel>
   );
 }

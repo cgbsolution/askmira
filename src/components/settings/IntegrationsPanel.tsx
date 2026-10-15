@@ -58,9 +58,12 @@ interface Delivery {
 
 const SCOPES: Record<string, string> = {
   "employees:read": "Directory",
-  "org:read": "Departments and locations",
-  "leave:read": "Leave",
+  "employees:write": "Add and update employees",
+  "org:read": "Departments, locations and holidays",
+  "leave:read": "Leave and balances",
   "attendance:read": "Attendance days",
+  "attendance:write": "Push attendance punches",
+  "hiring:read": "Open roles",
 };
 
 function failure(caught: unknown, fallback: string): string {
@@ -143,8 +146,11 @@ function McpCard() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Transport: Streamable HTTP. Authentication: the key as a Bearer token. Slack and Teams apps are not
-          built; their incoming webhooks work with the chat format below.
+          In claude.ai or ChatGPT, add a custom connector with just the address above: each person signs in to
+          AskMira and approves, and the assistant then reads as them, within what their role may see. They can
+          disconnect it under Profile → Account and security. With Claude Code or a script, use a key as a Bearer
+          token instead. Transport: Streamable HTTP. Slack and Teams apps are not built; their incoming webhooks
+          work with the chat format below.
         </p>
       </CardContent>
     </Card>
@@ -183,7 +189,7 @@ export function IntegrationsPanel() {
       <DataPanel
         tier="tier1"
         title="API keys"
-        description="Read-only keys for your own systems: send one as a Bearer token to /api/v1/ext/…"
+        description="Keys for your own systems: send one as a Bearer token to /api/v1/ext/…. A key can do only what its scopes name; changes are audited as the key."
         actions={
           <Button size="sm" onClick={() => setCreatingKey(true)}>
             <Plus /> New key
@@ -362,7 +368,7 @@ function NewKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreated: 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>New API key</DialogTitle>
-          <DialogDescription>Read-only. Give it only what the system using it needs.</DialogDescription>
+          <DialogDescription>Give it only what the system using it needs. Write scopes change records.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
           <FormField htmlFor="key-name" label="Name">

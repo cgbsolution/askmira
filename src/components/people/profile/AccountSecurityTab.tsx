@@ -16,6 +16,7 @@ import { useAuth } from "@/context/AuthContext";
 import { post } from "@/lib/api";
 import { formatDateTime, humanizeRole } from "@/lib/utils";
 
+import { ConnectedAppsCard } from "./ConnectedAppsCard";
 import { TwoStepCard } from "./TwoStepCard";
 
 /** Mirrors the backend rule in app/schemas/auth.py: ten characters, a letter and a digit. */
@@ -156,6 +157,7 @@ export function AccountSecurityTab() {
       </Card>
       <ChangePasswordCard />
       <TwoStepCard />
+      <ConnectedAppsCard />
     </div>
   );
 }

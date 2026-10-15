@@ -47,6 +47,7 @@ import { formatDate } from "@/lib/utils";
 import { minutesLabel } from "./OvertimeScreen";
 
 const ALL = "__all__";
+const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 function optionalInt(value: string): number | null {
   const trimmed = value.trim();
@@ -125,6 +126,9 @@ export function OvertimePolicyPanel() {
                 {policy.quarterly_cap_minutes
                   ? ` · ≤ ${minutesLabel(policy.quarterly_cap_minutes)}/quarter`
                   : ""}
+                {policy.weekly_threshold_minutes
+                  ? ` · past ${minutesLabel(policy.weekly_threshold_minutes)}/week (from ${WEEKDAYS[policy.week_starts_on]})`
+                  : ""}
               </TableCell>
               <TableCell className="whitespace-nowrap">
                 {formatDate(policy.effective_from)}
@@ -169,6 +173,8 @@ function NewPolicyDialog({ onCreated }: { onCreated: () => void }) {
   const [rounding, setRounding] = useState("0");
   const [dailyCap, setDailyCap] = useState("");
   const [quarterlyCap, setQuarterlyCap] = useState("");
+  const [weeklyHours, setWeeklyHours] = useState("");
+  const [weekStart, setWeekStart] = useState("6");
   const [restDays, setRestDays] = useState(true);
   const [approval, setApproval] = useState(true);
   const [from, setFrom] = useState(new Date().toISOString().slice(0, 10));
@@ -188,6 +194,9 @@ function NewPolicyDialog({ onCreated }: { onCreated: () => void }) {
     if (!/^\d+(\.\d{1,2})?$/.test(hours) || Number(hours) <= 0) {
       return setError("Enter the working hours in a day.");
     }
+    if (weeklyHours.trim() && (!/^\d+(\.\d{1,2})?$/.test(weeklyHours) || Number(weeklyHours) <= 0 || Number(weeklyHours) > 168)) {
+      return setError("Enter the weekly hours limit, like 48, or leave it empty.");
+    }
     setError(null);
     setIsSaving(true);
     try {
@@ -202,6 +211,8 @@ function NewPolicyDialog({ onCreated }: { onCreated: () => void }) {
         rounding_minutes: optionalInt(rounding) ?? 0,
         daily_cap_minutes: optionalInt(dailyCap),
         quarterly_cap_minutes: optionalInt(quarterlyCap),
+        weekly_threshold_minutes: weeklyHours.trim() ? Math.round(Number(weeklyHours) * 60) : null,
+        week_starts_on: Number.parseInt(weekStart, 10),
         count_rest_days: restDays,
         requires_approval: approval,
         effective_from: from,
@@ -304,6 +315,28 @@ function NewPolicyDialog({ onCreated }: { onCreated: () => void }) {
             </FormField>
             <FormField htmlFor="otp-quarterly" label="Quarterly limit (min)" optional>
               <Input id="otp-quarterly" inputMode="numeric" value={quarterlyCap} onChange={(e) => setQuarterlyCap(e.target.value)} />
+            </FormField>
+            <FormField
+              htmlFor="otp-weekly"
+              label="Overtime past this many hours a week"
+              optional
+              hint="The Factories Act's weekly limit is 48. Hours past it that no single day counted become weekly overtime."
+            >
+              <Input id="otp-weekly" inputMode="decimal" value={weeklyHours} onChange={(e) => setWeeklyHours(e.target.value)} />
+            </FormField>
+            <FormField htmlFor="otp-week-start" label="Week begins on">
+              <Select value={weekStart} onValueChange={setWeekStart}>
+                <SelectTrigger id="otp-week-start" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {WEEKDAYS.map((day, index) => (
+                    <SelectItem key={day} value={String(index)}>
+                      {day}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FormField>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">

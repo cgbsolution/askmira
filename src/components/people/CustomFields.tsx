@@ -26,15 +26,18 @@ function display(field: CustomField, value: unknown): string | null {
   return String(value);
 }
 
-/** The custom fields on one record, as the viewer may read them. */
-export function CustomFieldsCard({ values }: { values: Record<string, unknown> }) {
+/**
+ * The custom fields on one record, as the viewer may read them: those on one
+ * admin-named tab, or with no tab, the Employment tab's "More details".
+ */
+export function CustomFieldsCard({ values, tab = null }: { values: Record<string, unknown>; tab?: string | null }) {
   const { data } = useCustomFields();
-  const fields = data ?? [];
+  const fields = (data ?? []).filter((field) => (field.tab ?? null) === tab);
   if (fields.length === 0) return null;
   return (
     <Card tier="tier2">
       <CardHeader>
-        <CardTitle className="text-base">More details</CardTitle>
+        <CardTitle className="text-base">{tab ?? "More details"}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {fields.map((field) => (

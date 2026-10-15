@@ -64,6 +64,7 @@ export function ApplyForm({
   const [resume, setResume] = useState<File | null>(null);
   const [consentProcessing, setConsentProcessing] = useState(false);
   const [consentPool, setConsentPool] = useState(false);
+  const [consentWhatsApp, setConsentWhatsApp] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -125,6 +126,7 @@ export function ApplyForm({
     }
     form.append("consent_application_processing", consentProcessing ? "true" : "false");
     form.append("consent_talent_pool", consentPool ? "true" : "false");
+    form.append("consent_whatsapp", consentWhatsApp && fields.phone.trim() ? "true" : "false");
     form.append("notice_version", noticeVersion);
     form.append("website", fields.website);
     if (resume) form.append("resume", resume);
@@ -315,6 +317,20 @@ export function ApplyForm({
                 other suitable roles.
               </Label>
             </div>
+            {fields.phone.trim() && (
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="apply-consent-whatsapp"
+                  checked={consentWhatsApp}
+                  onCheckedChange={(value) => setConsentWhatsApp(value === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="apply-consent-whatsapp" className="font-normal leading-snug">
+                  Optional: also send me updates about this application on WhatsApp, to the phone
+                  number above. I can turn this off from my application link.
+                </Label>
+              </div>
+            )}
           </div>
 
           {serverError && (

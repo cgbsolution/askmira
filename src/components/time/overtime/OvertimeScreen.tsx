@@ -143,7 +143,10 @@ function EntriesTable({
               </TableCell>
             )}
             <TableCell className="whitespace-nowrap">
-              {formatDate(row.attendance_date)}
+              {row.kind === "weekly" ? `Week ending ${formatDate(row.attendance_date)}` : formatDate(row.attendance_date)}
+              {row.kind === "weekly" && (
+                <span className="block text-xs text-muted-foreground">Past the weekly limit</span>
+              )}
               {row.is_rest_day && (
                 <span className="block text-xs text-muted-foreground">Rest day</span>
               )}
