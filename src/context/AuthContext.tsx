@@ -20,7 +20,6 @@ interface AuthContextValue {
   login: (email: string, password: string, next?: string | null) => Promise<{ mfaToken: string } | null>;
   /** The second step: the token from `login` and a code from the authenticator app. */
   completeMfa: (mfaToken: string, code: string, next?: string | null) => Promise<void>;
-  signup: (input: SignupInput) => Promise<void>;
   logout: () => Promise<void>;
   /** Re-read the signed-in user and workspace from the server. */
   reloadSession: () => Promise<void>;
@@ -31,14 +30,6 @@ interface AuthContextValue {
   hasRole: (...roles: Audience[]) => boolean;
   /** True when the workspace has this module switched on. */
   hasModule: (module: string) => boolean;
-}
-
-export interface SignupInput {
-  company_name: string;
-  full_name: string;
-  email: string;
-  password: string;
-  phone?: string;
 }
 
 /** Cookies from the earlier client, which kept tokens where scripts could read them. */
@@ -121,15 +112,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [accept, router],
   );
 
-  const signup = useCallback(
-    async (input: SignupInput) => {
-      const response = await post<AuthResponse>("/auth/signup", input, { skipAuthRedirect: true });
-      accept(response);
-      router.push("/");
-    },
-    [accept, router],
-  );
-
   const logout = useCallback(async () => {
     // The server clears the httpOnly cookies; the page cannot do that itself.
     await post("/auth/logout", undefined, { skipAuthRedirect: true }).catch(() => undefined);
@@ -153,13 +135,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: Boolean(user),
       login,
       completeMfa,
-      signup,
       logout,
       reloadSession,
       hasRole,
       hasModule,
     }),
-    [user, tenant, isLoading, login, completeMfa, signup, logout, reloadSession, hasRole, hasModule],
+    [user, tenant, isLoading, login, completeMfa, logout, reloadSession, hasRole, hasModule],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

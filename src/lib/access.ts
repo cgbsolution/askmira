@@ -45,6 +45,8 @@ export const HR: Audience[] = ["admin", "sub_admin"];
 export const ADMIN: Audience[] = ["admin"];
 export const MANAGERS: Audience[] = [...HR, "manager"];
 export const EVERYONE: Audience[] = [...HR, "employee"];
+/** The platform owner only. Every other role is refused. */
+export const PLATFORM: Audience[] = ["super_admin"];
 
 export interface NavPage {
   name: string;
@@ -338,6 +340,13 @@ export const NAV: NavSection[] = [
       { name: "Security", path: "/compliance/security", roles: ADMIN },
       { name: "AI governance", path: "/compliance/ai", roles: ADMIN },
     ],
+  },
+  {
+    key: "platform",
+    name: "Platform",
+    icon: Building2,
+    group: "admin",
+    pages: [{ name: "Workspaces", path: "/platform", roles: PLATFORM }],
   },
   {
     key: "settings",

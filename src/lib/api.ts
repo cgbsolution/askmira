@@ -25,7 +25,7 @@ const CSRF_HEADER = "X-CSRF-Token";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /** Pages that must not bounce to sign-in on a 401 (they are the sign-in flow, or public). */
-const PUBLIC_PATH_PREFIXES = ["/signin", "/signup", "/careers", "/candidate", "/interview", "/kiosk"];
+const PUBLIC_PATH_PREFIXES = ["/signin", "/careers", "/candidate", "/interview", "/kiosk"];
 
 export class ApiError extends Error {
   constructor(

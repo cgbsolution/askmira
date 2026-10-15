@@ -155,6 +155,8 @@ export const hi: Record<string, string> = {
   Devices: "डिवाइस",
   Notifications: "सूचनाएँ",
   "Client workspaces": "क्लाइंट वर्कस्पेस",
+  Platform: "प्लेटफ़ॉर्म",
+  Workspaces: "वर्कस्पेस",
 
   // ── Employee pages: what each is for ───────────────────────────────────
   "Your payslips and salary history.": "आपकी वेतन पर्चियाँ और वेतन इतिहास।",

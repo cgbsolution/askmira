@@ -167,10 +167,7 @@ function SignInForm() {
       </form>
 
       <p className="mt-6 text-center text-sm text-muted-foreground">
-        New workspace?{" "}
-        <Link href="/signup" className="font-medium text-primary hover:underline">
-          Create one
-        </Link>
+        New organisation? Your AskMira account manager sets up your workspace and its first admin.
       </p>
     </>
   );
