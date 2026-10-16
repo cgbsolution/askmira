@@ -1,6 +1,18 @@
 "use client";
 
-import { Building2, Copy, KeyRound, Loader2, Plus, UserPlus } from "lucide-react";
+import {
+  Ban,
+  Building2,
+  Copy,
+  Eye,
+  KeyRound,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  RotateCcw,
+  UserPlus,
+} from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
@@ -18,13 +30,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { ApiError, post } from "@/lib/api";
+import { ApiError, get, post } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
-import { CreateWorkspaceDialog, type Issued } from "./CreateWorkspaceDialog";
+import { CreateWorkspaceDialog, type EditTarget, type Issued } from "./CreateWorkspaceDialog";
+import { type WorkspaceDetail, WorkspaceSheet } from "./WorkspaceSheet";
 
 interface Admin {
   id: string;
@@ -75,6 +94,16 @@ export function PlatformConsole() {
   const [addingTo, setAddingTo] = useState<Workspace | null>(null);
   const [suspending, setSuspending] = useState<Workspace | null>(null);
   const [issued, setIssued] = useState<Issued | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<EditTarget | null>(null);
+
+  const openEdit = async (workspaceId: string) => {
+    try {
+      setEditing(await get<WorkspaceDetail>(`/platform/workspaces/${workspaceId}`));
+    } catch (caught) {
+      toast.error(failure(caught, "Could not load the company's details."));
+    }
+  };
 
   const resetPassword = async (workspace: Workspace, admin: Admin) => {
     try {
@@ -201,18 +230,33 @@ export function PlatformConsole() {
                 </TableCell>
                 <TableCell className="text-right align-top">
                   <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setAddingTo(row)}>
-                      <UserPlus /> Add admin
+                    <Button size="sm" variant="outline" onClick={() => setViewingId(row.id)}>
+                      <Eye /> View
                     </Button>
-                    {row.is_own ? null : row.is_active ? (
-                      <Button size="sm" variant="outline" onClick={() => setSuspending(row)}>
-                        Suspend
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="outline" onClick={() => void reactivate(row)}>
-                        Reactivate
-                      </Button>
-                    )}
+                    <Button size="sm" variant="outline" onClick={() => void openEdit(row.id)}>
+                      <Pencil /> Edit
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="icon" variant="ghost" className="size-8" aria-label={`More for ${row.name}`}>
+                          <MoreHorizontal />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setAddingTo(row)}>
+                          <UserPlus /> Add admin
+                        </DropdownMenuItem>
+                        {row.is_own ? null : row.is_active ? (
+                          <DropdownMenuItem variant="destructive" onClick={() => setSuspending(row)}>
+                            <Ban /> Suspend
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onClick={() => void reactivate(row)}>
+                            <RotateCcw /> Reactivate
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </TableCell>
               </TableRow>
@@ -227,6 +271,24 @@ export function PlatformConsole() {
         onCreated={(result) => {
           setIssued(result);
           reload();
+        }}
+      />
+      <CreateWorkspaceDialog
+        open={editing !== null}
+        onOpenChange={(next) => !next && setEditing(null)}
+        editing={editing}
+        onSaved={() => {
+          setEditing(null);
+          setViewingId(null);
+          reload();
+        }}
+      />
+      <WorkspaceSheet
+        workspaceId={viewingId}
+        onClose={() => setViewingId(null)}
+        onEdit={(detail) => {
+          setViewingId(null);
+          setEditing(detail);
         }}
       />
       <AddAdminDialog
