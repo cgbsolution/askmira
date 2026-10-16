@@ -15,6 +15,7 @@ import { INDIAN_STATES } from "@/lib/states";
 import { formatDate } from "@/lib/utils";
 
 import type { CompanyDetails, EditTarget } from "./CreateWorkspaceDialog";
+import { LinkedProducts } from "./LinkedProducts";
 
 export interface WorkspaceDetail extends EditTarget {
   name: string;
@@ -210,6 +211,12 @@ export function WorkspaceSheet({
                     </div>
                   ))
                 )}
+              </Block>
+
+              <Separator />
+
+              <Block title="Linked products">
+                <LinkedProducts workspaceId={data.id} active={data.is_active} />
               </Block>
 
               <Separator />

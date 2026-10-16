@@ -5,6 +5,7 @@ import {
   Building2,
   CalendarClock,
   CircleDollarSign,
+  ExternalLink,
   FileText,
   Gift,
   GraduationCap,
@@ -25,7 +26,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import type { Audience, AuthUser, Tenant } from "@/lib/types";
+import type { Audience, AuthUser, ProductKey, Tenant } from "@/lib/types";
 
 /**
  * The web portal's information architecture and who may reach each part of it.
@@ -71,6 +72,11 @@ export interface NavSection {
   group: "me" | "company" | "operations" | "admin";
   /** Workspace module that must be switched on. Undefined = always available. */
   module?: string;
+  /**
+   * The separate product that takes this section over when it is linked to the
+   * workspace: the section becomes one launcher and its pages are retired there.
+   */
+  product?: ProductKey;
   pages: NavPage[];
 }
 
@@ -148,6 +154,7 @@ export const NAV: NavSection[] = [
     name: "Expenses",
     icon: Receipt,
     group: "me",
+    product: "expense",
     pages: [
       { name: "My claims", path: "/expenses", roles: EVERYONE },
       { name: "Travel & advances", path: "/expenses/travel", roles: EVERYONE },
@@ -278,6 +285,7 @@ export const NAV: NavSection[] = [
     icon: Briefcase,
     group: "company",
     module: "hiring",
+    product: "interview",
     pages: [
       { name: "Requisitions", path: "/hiring", roles: MANAGERS },
       { name: "Candidates", path: "/hiring/candidates", roles: MANAGERS },
@@ -370,6 +378,8 @@ const STANDALONE: NavPage[] = [
   { name: "My profile", path: "/profile", roles: EVERYONE, icon: UserCircle2 },
   { name: "Notifications", path: "/notifications", roles: EVERYONE, icon: Bell },
   { name: "Client workspaces", path: "/operator", roles: HR, icon: Building2 },
+  // Opens a linked product; the API decides who it admits.
+  { name: "Opening", path: "/launch", roles: EVERYONE, icon: ExternalLink },
 ];
 
 export function roleAllows(user: AuthUser | null, roles: Audience[]): boolean {
@@ -400,7 +410,22 @@ export function resolvePage(pathname: string): { page: NavPage; section?: NavSec
   return best;
 }
 
-export type AccessDecision = "allowed" | "role" | "module";
+/** Our separate products: what each is called and who the portal offers it to. */
+export const PRODUCTS: Record<ProductKey, { name: string; audience: Audience[] }> = {
+  interview: { name: "Interviews", audience: MANAGERS },
+  expense: { name: "Expenses", audience: EVERYONE },
+};
+
+/** The linked product that has taken this section over, if any. */
+export function linkedProduct(
+  section: NavSection | undefined,
+  tenant: Tenant | null,
+): ProductKey | undefined {
+  const product = section?.product;
+  return product && tenant?.linked_products?.[product] ? product : undefined;
+}
+
+export type AccessDecision = "allowed" | "role" | "module" | "product";
 
 /**
  * Whether the signed-in person may open a path.
@@ -416,6 +441,7 @@ export function decideAccess(
 ): AccessDecision {
   const resolved = resolvePage(pathname);
   if (!resolved) return "role";
+  if (linkedProduct(resolved.section, tenant)) return "product";
   if (!moduleEnabled(tenant, resolved.section?.module)) return "module";
   return roleAllows(user, resolved.page.reach ?? resolved.page.roles) ? "allowed" : "role";
 }

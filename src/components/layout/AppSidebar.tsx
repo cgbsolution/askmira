@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronRight, LogOut, MoreVertical, UserCircle2, type LucideIcon } from "lucide-react";
+import {
+  ChevronRight,
+  ExternalLink,
+  LogOut,
+  MoreVertical,
+  UserCircle2,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -36,11 +43,15 @@ import { useT } from "@/lib/i18n";
 import {
   GROUP_LABEL,
   NAV,
+  PRODUCTS,
+  linkedProduct,
   resolvePage,
+  roleAllows,
   visiblePages,
   type NavPage,
   type NavSection,
 } from "@/lib/access";
+import type { ProductKey } from "@/lib/types";
 import { cn, humanizeRole, initials } from "@/lib/utils";
 
 const GROUP_ORDER: NavSection["group"][] = ["me", "company", "operations", "admin"];
@@ -55,7 +66,8 @@ const ROW = "relative h-11 gap-3 rounded-xl px-1.5 font-medium text-sidebar-fore
  * appears only when the workspace has its module and the person can open at
  * least one of its pages. A section with one page is a link; with more, its
  * pages are listed under it — so the rail, not a bar on each page, is how you
- * move around a module.
+ * move around a module. A section a linked product has taken over is one row
+ * that opens the product in a new tab.
  */
 export function AppSidebar() {
   const t = useT();
@@ -78,10 +90,14 @@ export function AppSidebar() {
   }
 
   const groups = useMemo(() => {
-    const sections = NAV.map((section) => ({
-      section,
-      pages: visiblePages(section, user, tenant),
-    })).filter(({ pages }) => pages.length > 0);
+    const sections = NAV.map((section) => {
+      const product = linkedProduct(section, tenant);
+      if (product) {
+        const offered = roleAllows(user, PRODUCTS[product].audience);
+        return { section, pages: [] as NavPage[], launch: offered ? product : undefined };
+      }
+      return { section, pages: visiblePages(section, user, tenant), launch: undefined };
+    }).filter(({ pages, launch }) => pages.length > 0 || launch);
     return GROUP_ORDER.map((group) => ({
       key: group,
       label: GROUP_LABEL[group],
@@ -147,11 +163,12 @@ export function AppSidebar() {
               {t(group.label)}
             </SidebarGroupLabel>
             <SidebarMenu className="gap-0.5">
-              {group.items.map(({ section, pages }) => (
+              {group.items.map(({ section, pages, launch }) => (
                 <SectionItem
                   key={section.key}
                   section={section}
                   pages={pages}
+                  launch={launch}
                   inSection={section.key === activeSection}
                   activePage={activePage}
                   open={openSection === section.key}
@@ -258,6 +275,7 @@ function ActiveBar() {
 function SectionItem({
   section,
   pages,
+  launch,
   inSection,
   activePage,
   open,
@@ -266,6 +284,8 @@ function SectionItem({
 }: {
   section: NavSection;
   pages: NavPage[];
+  /** The linked product this row opens instead of listing pages. */
+  launch?: ProductKey;
   inSection: boolean;
   activePage: string | undefined;
   open: boolean;
@@ -274,6 +294,27 @@ function SectionItem({
 }) {
   const t = useT();
   const { state, isMobile } = useSidebar();
+
+  if (launch) {
+    const label = `${t(section.name)} · ${t(PRODUCTS[launch].name)}`;
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild tooltip={label} className={ROW}>
+          <Link
+            href={`/launch/${launch}`}
+            target="_blank"
+            rel="noopener"
+            onClick={onNavigate}
+            aria-label={`${label} (opens in a new tab)`}
+          >
+            <NavChip icon={section.icon} active={false} />
+            <span className="truncate">{t(section.name)}</span>
+            <ExternalLink className="mr-1 ml-auto size-3.5 text-sidebar-foreground/60" />
+          </Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  }
 
   if (pages.length === 1) {
     return (

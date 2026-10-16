@@ -43,7 +43,15 @@ export interface Tenant {
   data_region: string;
   /** Which modules this workspace has switched on. Drives nav gating. */
   enabled_modules: Record<string, boolean>;
+  /**
+   * Our separate products linked to this workspace, e.g. `{ interview: true }`.
+   * Each replaces a module: its section becomes a launcher.
+   */
+  linked_products?: Partial<Record<ProductKey, boolean>>;
 }
+
+/** The separate products a workspace can be linked to. */
+export type ProductKey = "interview" | "expense";
 
 export interface AuthResponse {
   access_token: string;

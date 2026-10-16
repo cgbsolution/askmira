@@ -11,7 +11,7 @@ import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from "@/components
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
-import { decideAccess } from "@/lib/access";
+import { decideAccess, linkedProduct, resolvePage } from "@/lib/access";
 
 /**
  * Whether the rail was left expanded last time. Only called once the session
@@ -67,7 +67,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <AppHeader />
           <div className="mx-auto w-full max-w-(--breakpoint-2xl) flex-1 p-4 md:p-6">
             <OperatorBanner />
-            {decision === "allowed" ? children : <AccessDenied reason={decision} />}
+            {decision === "allowed" ? (
+              children
+            ) : (
+              <AccessDenied
+                reason={decision}
+                product={linkedProduct(resolvePage(pathname)?.section, tenant)}
+              />
+            )}
           </div>
         </SidebarInset>
       </SidebarProvider>
