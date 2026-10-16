@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { ApprovalRulesPanel } from "./ApprovalRulesPanel";
 import { AuditTrailPanel } from "./AuditTrailPanel";
+import { CompanyLogoCard } from "./CompanyLogoCard";
 import { CustomFieldsPanel } from "./CustomFieldsPanel";
 import { IntegrationsPanel } from "./IntegrationsPanel";
 import { CustomTablesPanel } from "@/components/people/CustomTables";
@@ -41,7 +42,10 @@ export function CompanyScreen() {
         </TabsList>
 
         <TabsContent value="workspace" className="mt-4">
-          <WorkspacePanel />
+          <div className="grid gap-6">
+            <WorkspacePanel />
+            <CompanyLogoCard />
+          </div>
         </TabsContent>
         <TabsContent value="permissions" className="mt-4">
           <PermissionsPanel />

@@ -24,6 +24,8 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
+import { CreateWorkspaceDialog, type Issued } from "./CreateWorkspaceDialog";
+
 interface Admin {
   id: string;
   full_name: string;
@@ -39,6 +41,14 @@ interface Workspace {
   workspace: string;
   is_active: boolean;
   is_own: boolean;
+  logo_url: string | null;
+  legal_name: string | null;
+  pan: string | null;
+  gstin: string | null;
+  city: string | null;
+  state_code: string | null;
+  industry: string | null;
+  company_size: string | null;
   created_at: string | null;
   active_logins: number;
   employees: number;
@@ -47,11 +57,6 @@ interface Workspace {
   admins: Admin[];
 }
 
-interface Issued {
-  title: string;
-  email: string;
-  password: string;
-}
 
 function failure(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;
@@ -130,6 +135,16 @@ export function PlatformConsole() {
             {(data ?? []).map((row) => (
               <TableRow key={row.id} className={row.is_active ? undefined : "opacity-60"}>
                 <TableCell className="align-top">
+                  <div className="flex items-start gap-3">
+                  {row.logo_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={row.logo_url} alt="" className="size-9 rounded object-contain" />
+                  ) : (
+                    <span className="flex size-9 items-center justify-center rounded bg-muted text-muted-foreground">
+                      <Building2 className="size-4" />
+                    </span>
+                  )}
+                  <div>
                   <p className="font-medium">
                     {row.name}
                     {row.is_own ? (
@@ -144,9 +159,18 @@ export function PlatformConsole() {
                     ) : null}
                   </p>
                   <p className="font-mono text-xs text-muted-foreground">{row.workspace}</p>
+                  {row.legal_name && row.legal_name !== row.name ? (
+                    <p className="text-xs text-muted-foreground">{row.legal_name}</p>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground">
+                    {[row.city, row.state_code].filter(Boolean).join(", ")}
+                    {row.gstin ? ` · GSTIN ${row.gstin}` : row.pan ? ` · PAN ${row.pan}` : ""}
+                  </p>
                   {row.created_at ? (
                     <p className="text-xs text-muted-foreground">Created {formatDate(row.created_at)}</p>
                   ) : null}
+                  </div>
+                  </div>
                 </TableCell>
                 <TableCell className="align-top">
                   <div className="grid gap-1">
@@ -197,7 +221,7 @@ export function PlatformConsole() {
         </Table>
       </DataPanel>
 
-      <CreateDialog
+      <CreateWorkspaceDialog
         open={creating}
         onOpenChange={setCreating}
         onCreated={(result) => {
@@ -216,116 +240,6 @@ export function PlatformConsole() {
       <SuspendDialog workspace={suspending} onClose={() => setSuspending(null)} onDone={reload} />
       <IssuedDialog issued={issued} onClose={() => setIssued(null)} />
     </PageShell>
-  );
-}
-
-function CreateDialog({
-  open,
-  onOpenChange,
-  onCreated,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onCreated: (issued: Issued) => void;
-}) {
-  const [company, setCompany] = useState("");
-  const [workspace, setWorkspace] = useState("");
-  const [adminName, setAdminName] = useState("");
-  const [adminEmail, setAdminEmail] = useState("");
-  const [adminPhone, setAdminPhone] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  const reset = () => {
-    setCompany("");
-    setWorkspace("");
-    setAdminName("");
-    setAdminEmail("");
-    setAdminPhone("");
-  };
-
-  const create = async () => {
-    setSaving(true);
-    try {
-      const result = await post<{
-        workspace: { name: string };
-        admin: { email: string; temporary_password: string };
-      }>("/platform/workspaces", {
-        company_name: company.trim(),
-        workspace: workspace.trim() || null,
-        admin_full_name: adminName.trim(),
-        admin_email: adminEmail.trim(),
-        admin_phone: adminPhone.trim() || null,
-      });
-      onOpenChange(false);
-      reset();
-      onCreated({
-        title: `${result.workspace.name} is ready`,
-        email: result.admin.email,
-        password: result.admin.temporary_password,
-      });
-    } catch (caught) {
-      toast.error(failure(caught, "Could not create the organisation."));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>New organisation</DialogTitle>
-          <DialogDescription>
-            Creates the workspace and its first admin. You get a temporary password to give them; they
-            choose their own when they first sign in.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4">
-          <FormField label="Company name" htmlFor="ws-company" required>
-            <Input id="ws-company" value={company} onChange={(e) => setCompany(e.target.value)} />
-          </FormField>
-          <FormField
-            label="Workspace address"
-            htmlFor="ws-slug"
-            optional
-            hint="Lowercase letters, digits and hyphens. Made from the company name if left empty."
-          >
-            <Input id="ws-slug" value={workspace} onChange={(e) => setWorkspace(e.target.value.toLowerCase())} />
-          </FormField>
-          <FormField label="Admin's full name" htmlFor="ws-admin-name" required>
-            <Input id="ws-admin-name" value={adminName} onChange={(e) => setAdminName(e.target.value)} />
-          </FormField>
-          <FormField
-            label="Admin's work email"
-            htmlFor="ws-admin-email"
-            required
-            hint="Their login. An email can sign in to only one organisation."
-          >
-            <Input
-              id="ws-admin-email"
-              type="email"
-              value={adminEmail}
-              onChange={(e) => setAdminEmail(e.target.value)}
-            />
-          </FormField>
-          <FormField label="Admin's phone" htmlFor="ws-admin-phone" optional>
-            <Input id="ws-admin-phone" value={adminPhone} onChange={(e) => setAdminPhone(e.target.value)} />
-          </FormField>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={create}
-            disabled={saving || company.trim().length < 2 || adminName.trim().length < 2 || !adminEmail.trim()}
-          >
-            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-            Create organisation
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
