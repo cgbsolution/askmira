@@ -67,6 +67,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Server-rendered pages call the API directly; a relative URL has no origin there.
+  env: { ASKMIRA_SERVER_API_BASE: apiTarget },
   // Employee photos and document thumbnails are served from Supabase Storage.
   images: {
     remotePatterns: [{ protocol: "https", hostname: "*.supabase.co" }],

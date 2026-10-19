@@ -20,6 +20,20 @@
 const API_BASE = "";
 const API_V1 = "/api/v1";
 
+/**
+ * Pages rendered on the server (the public careers pages) have no origin for a
+ * relative URL to resolve against, so there the API is called directly, at the
+ * address the rewrite forwards to. Set in `next.config.ts` at build time.
+ */
+const SERVER_API_BASE = (process.env.ASKMIRA_SERVER_API_BASE ?? "http://localhost:8000").replace(
+  /\/+$/,
+  "",
+);
+
+function apiBase(): string {
+  return typeof window === "undefined" ? SERVER_API_BASE : API_BASE;
+}
+
 const CSRF_COOKIE = "askmira_csrf";
 const CSRF_HEADER = "X-CSRF-Token";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -93,7 +107,7 @@ async function rawFetch(path: string, init: RequestInit, timeout: number): Promi
     if (csrf) headers.set(CSRF_HEADER, csrf);
   }
   try {
-    return await fetch(`${API_BASE}${API_V1}${path}`, {
+    return await fetch(`${apiBase()}${API_V1}${path}`, {
       ...init,
       method,
       headers,

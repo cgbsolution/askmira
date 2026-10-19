@@ -1077,7 +1077,7 @@ export interface IncrementCandidate {
 
 export interface IncrementCandidates {
   rows: IncrementCandidate[];
-  departments: (Headroom & { department_id: string | null; department: string })[];
+  departments: (Headroom & { department_id: string | null; department_name: string })[];
 }
 
 export interface RecommendationResult {

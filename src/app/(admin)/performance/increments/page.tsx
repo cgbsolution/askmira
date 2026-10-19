@@ -162,7 +162,7 @@ function CycleView({ cycleId }: { cycleId: string }) {
           <div className="grid gap-3 md:grid-cols-3">
             <BudgetLine label="Company budget" state={detail.data.company_budget} />
             {(candidates.data?.departments ?? []).map((d) => (
-              <BudgetLine key={d.department_id ?? "none"} label={`${d.department} budget`} state={d.department} />
+              <BudgetLine key={d.department_id ?? "none"} label={`${d.department_name} budget`} state={d.department} />
             ))}
           </div>
           <div className="flex flex-wrap gap-2">
