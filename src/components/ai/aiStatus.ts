@@ -3,6 +3,7 @@
 import { useApiQuery } from "@/hooks/useApiQuery";
 
 export type AiFeature =
+  | "companion"
   | "assistant"
   | "recognition_drafts"
   | "survey_topics"

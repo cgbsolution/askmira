@@ -73,8 +73,9 @@ export function DatePicker({
           captionLayout="dropdown"
           disabled={hidden}
           onSelect={(date) => {
-            if (!date) return;
-            onChange(toISODate(date));
+            // Clicking the day that is already chosen reports "no date": keep the
+            // choice and close, rather than leave the calendar open over the form.
+            if (date) onChange(toISODate(date));
             setOpen(false);
           }}
         />

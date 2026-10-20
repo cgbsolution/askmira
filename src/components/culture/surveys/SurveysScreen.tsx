@@ -4,6 +4,7 @@ import { BarChart3, ClipboardList, Loader2, Lock, Plus, RefreshCw } from "lucide
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { NoEmployeeRecord, useHasEmployeeRecord } from "@/components/common/NoEmployeeRecord";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
@@ -44,7 +45,8 @@ export function SurveysScreen() {
   const isHr = hasRole("admin", "sub_admin");
   const isManager = hasRole("admin", "sub_admin", "manager");
 
-  const mine = useApiQuery<MySurvey[]>("/culture/surveys/mine");
+  const hasRecord = useHasEmployeeRecord();
+  const mine = useApiQuery<MySurvey[]>(hasRecord ? "/culture/surveys/mine" : null);
   const all = useApiQuery<SurveySummary[]>(isHr ? "/culture/surveys" : null);
 
   const [answering, setAnswering] = useState<MySurvey | null>(null);
@@ -104,9 +106,11 @@ export function SurveysScreen() {
             </AlertDescription>
           </Alert>
 
+          {!hasRecord ? <NoEmployeeRecord what="Surveys addressed to you" /> : null}
           <DataPanel
             tier="tier2"
             title="Surveys for you"
+            className={hasRecord ? undefined : "hidden"}
             isLoading={mine.isLoading}
             error={mine.error?.detail ?? null}
             onRetry={mine.reload}

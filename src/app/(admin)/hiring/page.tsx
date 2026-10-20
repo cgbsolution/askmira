@@ -41,8 +41,16 @@ const STATUS_FILTERS = Object.entries(REQUISITION_STATUS) as [RequisitionStatus,
 
 /** Requisitions: what the organisation is hiring for, and what waits on your signature. */
 export default function RequisitionsPage() {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const isManager = hasRole(...MANAGERS);
+  const isHr = hasRole("admin", "sub_admin");
+  // Every open role is listed so anyone can refer into it, but only HR and the
+  // role's own hiring team may open its detail (budget, approvals, candidates).
+  const canOpen = (row: RequisitionSummary) =>
+    isHr ||
+    (user?.employee_id != null &&
+      (row.hiring_manager_id === user.employee_id || row.recruiter_id === user.employee_id)) ||
+    (user != null && row.raised_by_user_id === user.id);
   const [status, setStatus] = useState<RequisitionStatus | "all">("all");
   const [mine, setMine] = useState(false);
   const [page, setPage] = useState(1);
@@ -162,11 +170,11 @@ export default function RequisitionsPage() {
               {rows.map((row) => (
                 <TableRow
                   key={row.id}
-                  className={isManager ? "cursor-pointer" : undefined}
-                  onClick={isManager ? () => setSelectedId(row.id) : undefined}
+                  className={isManager && canOpen(row) ? "cursor-pointer" : undefined}
+                  onClick={isManager && canOpen(row) ? () => setSelectedId(row.id) : undefined}
                 >
                   <TableCell>
-                    {isManager ? (
+                    {isManager && canOpen(row) ? (
                       <Button
                         variant="link"
                         className="h-auto p-0 font-medium text-foreground"
@@ -180,6 +188,11 @@ export default function RequisitionsPage() {
                     ) : (
                       <span className="font-medium text-foreground">{row.title}</span>
                     )}
+                    {isManager && !canOpen(row) ? (
+                      <p className="text-xs text-muted-foreground">
+                        Open for referrals; its details are with the hiring team.
+                      </p>
+                    ) : null}
                     <p className="font-mono text-xs text-muted-foreground">{row.code}</p>
                   </TableCell>
                   <TableCell>

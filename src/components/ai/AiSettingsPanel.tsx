@@ -15,6 +15,7 @@ import { ApiError, put } from "@/lib/api";
 import { type AiFeature, useAiStatus } from "./aiStatus";
 
 const FEATURE_LABEL: Record<AiFeature, string> = {
+  companion: "Ask Mira chat",
   assistant: "Policy assistant",
   recognition_drafts: "Shoutout drafting",
   survey_topics: "Survey comment themes",

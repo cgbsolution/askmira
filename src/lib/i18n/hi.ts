@@ -55,6 +55,7 @@ export const hi: Record<string, string> = {
   "Finance review": "वित्त समीक्षा",
   "Policies & rates": "नीतियाँ और दरें",
   "GST credits": "जीएसटी क्रेडिट",
+  "Ask Mira": "मीरा से पूछें",
   "Ask HR": "एचआर से पूछें",
   Learning: "प्रशिक्षण",
   "My courses": "मेरे पाठ्यक्रम",

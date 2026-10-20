@@ -4,6 +4,7 @@ import { Banknote, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { useHasEmployeeRecord } from "@/components/common/NoEmployeeRecord";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
@@ -66,8 +67,9 @@ function failure(caught: unknown, fallback: string): string {
 
 /** For the person: what they have earned this month and what they can draw now. */
 export function EarnedWageCard() {
-  const position = useApiQuery<Position>("/ewa/me");
-  const requests = useApiQuery<AdvanceRequest[]>("/ewa/requests");
+  const hasRecord = useHasEmployeeRecord();
+  const position = useApiQuery<Position>(hasRecord ? "/ewa/me" : null);
+  const requests = useApiQuery<AdvanceRequest[]>(hasRecord ? "/ewa/requests" : null);
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const data = position.data;

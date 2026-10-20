@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { AiSettingsPanel } from "@/components/ai/AiSettingsPanel";
+import { CompanionSettingsPanel } from "@/components/companion/CompanionSettingsPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { OperatorAccessPanel } from "@/components/operators/OperatorAccessPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,13 +25,24 @@ import { WorkspacePanel } from "./WorkspacePanel";
  * to look: what the workspace is configured as, who can do what, what has
  * happened, and whether the scheduled work is actually running.
  */
+const TABS = [
+  "workspace", "permissions", "approvals", "fields", "integrations", "ai", "operators", "audit", "jobs",
+];
+
 export function CompanyScreen() {
+  // `/settings?tab=ai` opens on that tab: other pages link straight to it.
+  const [tab, setTab] = useState("workspace");
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("tab");
+    if (wanted && TABS.includes(wanted)) setTab(wanted);
+  }, []);
+
   return (
     <PageShell
       title="Company"
       description="Workspace configuration, the permission matrix, the audit trail and the background jobs."
     >
-      <Tabs defaultValue="workspace">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="workspace">Workspace</TabsTrigger>
           <TabsTrigger value="permissions">Permissions</TabsTrigger>
@@ -63,7 +77,10 @@ export function CompanyScreen() {
           <IntegrationsPanel />
         </TabsContent>
         <TabsContent value="ai" className="mt-4">
-          <AiSettingsPanel />
+          <div className="grid gap-6">
+            <AiSettingsPanel />
+            <CompanionSettingsPanel />
+          </div>
         </TabsContent>
         <TabsContent value="operators" className="mt-4">
           <OperatorAccessPanel />

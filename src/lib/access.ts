@@ -19,6 +19,7 @@ import {
   Rocket,
   Settings,
   ShieldCheck,
+  Sparkles,
   Target,
   UserCircle2,
   Users,
@@ -94,6 +95,14 @@ export const NAV: NavSection[] = [
     icon: LayoutDashboard,
     group: "me",
     pages: [{ name: "Home", path: "/", roles: EVERYONE }],
+  },
+  {
+    // The workspace's own AI companion: it answers as the person asking.
+    key: "companion",
+    name: "Ask Mira",
+    icon: Sparkles,
+    group: "me",
+    pages: [{ name: "Ask Mira", path: "/ask-mira", roles: EVERYONE }],
   },
   {
     key: "approvals",

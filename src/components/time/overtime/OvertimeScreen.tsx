@@ -4,6 +4,7 @@ import { CalendarClock, Check, Loader2, RefreshCw, X } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { NoEmployeeRecord, useHasEmployeeRecord } from "@/components/common/NoEmployeeRecord";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
@@ -345,8 +346,10 @@ function ReviewPanel({ isHr }: { isHr: boolean }) {
 }
 
 function MinePanel() {
-  const query = useApiQuery<OvertimeEntry[]>("/attendance/overtime/mine");
+  const hasRecord = useHasEmployeeRecord();
+  const query = useApiQuery<OvertimeEntry[]>(hasRecord ? "/attendance/overtime/mine" : null);
   const rows = query.data ?? [];
+  if (!hasRecord) return <NoEmployeeRecord what="Overtime entries" />;
   return (
     <DataPanel
       title="My overtime"

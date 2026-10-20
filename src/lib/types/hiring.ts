@@ -30,6 +30,7 @@ export interface RequisitionSummary {
   location_id: string | null;
   hiring_manager_id: string | null;
   recruiter_id: string | null;
+  raised_by_user_id: string | null;
   openings: number;
   open_vacancies: number;
   employment_type: string;

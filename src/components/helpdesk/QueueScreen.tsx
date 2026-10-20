@@ -1,11 +1,14 @@
 "use client";
 
 import { Inbox, Search } from "lucide-react";
+import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -123,6 +126,28 @@ export function QueueScreen({ title, description }: { title: string; description
     search !== "";
 
   const activeCategories = (categories.data ?? []).filter((category) => category.active);
+
+  // Not HR and owning no category: there is no queue for this person, which is
+  // not a failure. Their own tickets are on My tickets.
+  if (queue.error?.status === 403) {
+    return (
+      <PageShell title={title} description={description}>
+        <Alert>
+          <Inbox />
+          <AlertTitle>No helpdesk queue for you</AlertTitle>
+          <AlertDescription>
+            <p>
+              A ticket queue is for HR and for the owners of helpdesk categories, such as an IT admin who
+              owns &ldquo;IT &amp; access&rdquo;. HR names category owners on the Categories page.
+            </p>
+            <Button asChild variant="link" className="h-auto p-0">
+              <Link href="/helpdesk">Go to my tickets</Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell

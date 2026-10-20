@@ -4,6 +4,7 @@ import { Award, BookOpen, Download, GraduationCap, Loader2, Plus, Trash2 } from 
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { NoEmployeeRecord, useHasEmployeeRecord } from "@/components/common/NoEmployeeRecord";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
@@ -93,9 +94,17 @@ async function downloadCertificate(row: Assignment) {
 
 /** The person's courses: to do, done, and their certificates. */
 export function MyLearningScreen() {
-  const { data, error, isLoading, reload } = useApiQuery<Assignment[]>("/learning/me");
+  const hasRecord = useHasEmployeeRecord();
+  const { data, error, isLoading, reload } = useApiQuery<Assignment[]>(hasRecord ? "/learning/me" : null);
   const [open, setOpen] = useState<Assignment | null>(null);
   const rows = data ?? [];
+  if (!hasRecord) {
+    return (
+      <PageShell title="My courses" description="Courses you have been asked to complete, and your certificates.">
+        <NoEmployeeRecord what="Courses and certificates" />
+      </PageShell>
+    );
+  }
   return (
     <PageShell title="My courses" description="Courses you have been asked to complete, and your certificates.">
       <DataPanel

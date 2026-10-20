@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, ClipboardList, Loader2, Plus, Send, Trash2 }
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { NoEmployeeRecord, useHasEmployeeRecord } from "@/components/common/NoEmployeeRecord";
 import { PageShell } from "@/components/common/PageShell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -71,7 +72,8 @@ function failure(caught: unknown, fallback: string): string {
 export function TimesheetScreen() {
   const [monday, setMonday] = useState(() => mondayOf(new Date()));
   const weekOf = toISODate(monday);
-  const { data, error, isLoading, reload } = useApiQuery<Week>(`/timesheets/me?week_of=${weekOf}`);
+  const hasRecord = useHasEmployeeRecord();
+  const { data, error, isLoading, reload } = useApiQuery<Week>(hasRecord ? `/timesheets/me?week_of=${weekOf}` : null);
   const projects = useApiQuery<ProjectRow[]>("/timesheets/projects");
   const [entries, setEntries] = useState<Entry[]>([]);
   const [busy, setBusy] = useState(false);
@@ -117,6 +119,14 @@ export function TimesheetScreen() {
       setBusy(false);
     }
   };
+
+  if (!hasRecord) {
+    return (
+      <PageShell title="Timesheet" description="Hours against projects, a week at a time. Your manager approves the week.">
+        <NoEmployeeRecord what="Timesheets" />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell title="Timesheet" description="Hours against projects, a week at a time. Your manager approves the week.">

@@ -4,6 +4,7 @@ import { Loader2, Plus, TrendingUp } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { NoEmployeeRecord, useHasEmployeeRecord } from "@/components/common/NoEmployeeRecord";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
@@ -128,7 +129,15 @@ function Figure({ label, value, money }: { label: string; value: string; money?:
 
 /** For the person: their grants. */
 export function MyEsopScreen() {
-  const { data, error, isLoading, reload } = useApiQuery<Portfolio>("/esop/me");
+  const hasRecord = useHasEmployeeRecord();
+  const { data, error, isLoading, reload } = useApiQuery<Portfolio>(hasRecord ? "/esop/me" : null);
+  if (!hasRecord) {
+    return (
+      <PageShell title="Stock options" description="Your grants, how they vest, and what they are worth at today's fair value.">
+        <NoEmployeeRecord what="Stock option grants" />
+      </PageShell>
+    );
+  }
   return (
     <PageShell title="Stock options" description="Your grants, how they vest, and what they are worth at today's fair value.">
       <DataPanel

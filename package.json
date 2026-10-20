@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "check:ui": "node scripts/check-ui.mjs"
+    "check:ui": "node scripts/check-ui.mjs",
+    "check:help": "node scripts/check-help.mjs"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.3",

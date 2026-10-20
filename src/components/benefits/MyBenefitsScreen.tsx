@@ -4,6 +4,7 @@ import { HeartPulse, Loader2, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { NoEmployeeRecord, useHasEmployeeRecord } from "@/components/common/NoEmployeeRecord";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
@@ -98,11 +99,20 @@ function failure(caught: unknown, fallback: string): string {
 }
 
 export function MyBenefitsScreen() {
-  const { data, error, isLoading, reload } = useApiQuery<MyPlan[]>("/benefits/me");
-  const events = useApiQuery<LifeEvent[]>("/benefits/life-events");
+  const hasRecord = useHasEmployeeRecord();
+  const { data, error, isLoading, reload } = useApiQuery<MyPlan[]>(hasRecord ? "/benefits/me" : null);
+  const events = useApiQuery<LifeEvent[]>(hasRecord ? "/benefits/life-events" : null);
   const [enrolling, setEnrolling] = useState<MyPlan | null>(null);
   const [changing, setChanging] = useState<MyPlan | null>(null);
   const plans = data ?? [];
+
+  if (!hasRecord) {
+    return (
+      <PageShell title="Benefits" description="Your group insurance, who it covers, and changes after a life event.">
+        <NoEmployeeRecord what="Benefit plans" />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell title="Benefits" description="Your group insurance, who it covers, and changes after a life event.">

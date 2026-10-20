@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 
+import { HelpButton } from "@/components/help/HelpPanel";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,8 @@ import { LOCALES, useLocale, useT } from "@/lib/i18n";
 import { humanizeRole, initials } from "@/lib/utils";
 
 /**
- * Top bar: navigation toggle, people search, theme, notifications, account.
+ * Top bar: navigation toggle, people search, help for the page, theme,
+ * notifications, account.
  *
  * Search goes to the directory with the term applied — the one search the
  * product can answer truthfully today. The bell links to the inbox; the unread
@@ -110,6 +112,8 @@ export function AppHeader() {
       </form>
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
+        <HelpButton className={round} />
+
         <Button
           variant="outline"
           size="icon"
