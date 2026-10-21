@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, post } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
@@ -49,6 +50,7 @@ export interface Connector {
  */
 export function ConnectorsScreen() {
   const { data, error, isLoading, reload } = useApiQuery<Connector[]>("/connectors");
+  const { reloadSession } = useAuth();
   const [busy, setBusy] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Connector | null>(null);
 
@@ -86,6 +88,8 @@ export function ConnectorsScreen() {
       await del(`/connectors/${target.key}`);
       toast.success(`${target.brand} disconnected`);
       reload();
+      // The built-in pages come back: re-read the workspace so the menu shows them.
+      await reloadSession();
     } catch (caught) {
       toast.error(caught instanceof ApiError ? caught.detail : "Could not disconnect.");
     }

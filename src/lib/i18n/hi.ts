@@ -52,6 +52,7 @@ export const hi: Record<string, string> = {
   Totals: "योग",
   "Hiring overview": "भर्ती अवलोकन",
   Jobs: "नौकरियाँ",
+  "Job openings": "रिक्तियाँ",
   Benefits: "लाभ",
   "Benefits admin": "लाभ प्रशासन",
   "Stock options": "स्टॉक विकल्प",

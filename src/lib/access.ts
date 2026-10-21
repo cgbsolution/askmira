@@ -326,7 +326,7 @@ export const NAV: NavSection[] = [
     ],
     linkedPages: [
       { name: "Hiring overview", path: "/linked/interview/overview", roles: MANAGERS },
-      { name: "Jobs", path: "/linked/interview/jobs", roles: MANAGERS },
+      { name: "Job openings", path: "/linked/interview/jobs", roles: MANAGERS },
       { name: "Candidates", path: "/linked/interview/candidates", roles: MANAGERS },
       { name: "Interviews", path: "/linked/interview/interviews", roles: MANAGERS },
     ],

@@ -70,8 +70,8 @@ const VIEWS: Record<Product, Record<string, ViewConfig>> = {
       description: "Jobs, candidates and interviews in AnytimeHire at a glance.",
     },
     jobs: {
-      title: "Jobs",
-      description: "Jobs in AnytimeHire with their openings, applicants and interviews held. Open a job to see its candidates and their résumés.",
+      title: "Job openings",
+      description: "Job openings in AnytimeHire with their openings, applicants and interviews held. Open a job to see its candidates and their résumés.",
       statuses: ["open", "draft", "inactive", "finished"],
       search: "Job title or department",
     },

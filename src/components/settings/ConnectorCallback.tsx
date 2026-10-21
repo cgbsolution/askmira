@@ -9,6 +9,7 @@ import { PageShell } from "@/components/common/PageShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/context/AuthContext";
 import { ApiError, post } from "@/lib/api";
 
 import type { Connector } from "./ConnectorsScreen";
@@ -20,6 +21,7 @@ import type { Connector } from "./ConnectorsScreen";
  */
 export function ConnectorCallback() {
   const router = useRouter();
+  const { reloadSession } = useAuth();
   const [result, setResult] = useState<{ ok: true; connector: Connector } | { ok: false; message: string } | null>(
     null,
   );
@@ -38,7 +40,9 @@ export function ConnectorCallback() {
       return;
     }
     post<Connector>(`/connectors/${product}/complete`, { code, state })
-      .then((connector) => {
+      .then(async (connector) => {
+        // The workspace now uses the product: re-read it so the menu switches over at once.
+        await reloadSession();
         setResult({ ok: true, connector });
         window.setTimeout(() => router.replace("/settings/connectors"), 1500);
       })
@@ -48,7 +52,7 @@ export function ConnectorCallback() {
           message: caught instanceof ApiError ? caught.detail : "Could not finish connecting. Press Connect again.",
         }),
       );
-  }, [router]);
+  }, [router, reloadSession]);
 
   return (
     <PageShell title="Connecting" description="Finishing the connection with the product.">
