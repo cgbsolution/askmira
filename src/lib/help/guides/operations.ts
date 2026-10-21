@@ -595,6 +595,14 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
           "Press Disconnect and confirm. The product forgets this workspace's key; nothing is deleted on either side.",
         ],
       },
+      {
+        title: "If a product moves to a new domain",
+        steps: [
+          "Press Change address on the product and enter its new web address and server (API) address.",
+          "AskMira checks the server address answers as that product before saving. A connection keeps working; you do not need to connect again.",
+          "Use the standard address puts it back on the product's usual address.",
+        ],
+      },
     ],
     tips: [
       "The key a product issues reaches only your organisation there, never another company's.",
