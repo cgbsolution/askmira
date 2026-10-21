@@ -5,7 +5,6 @@ import Link from "next/link";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -71,55 +70,43 @@ export function CompanionScreen() {
 }
 
 function Gate({ status, onChange }: { status: CompanionStatus; onChange: () => void }) {
-  if (status.reason === "not_configured") {
-    return (
-      <EmptyState
-        icon={Sparkles}
-        tier="tier2"
-        title={`${status.name} is not available on this server`}
-        description="This server has no AI provider configured."
-      />
-    );
-  }
-  if (status.reason === "disabled") {
-    return (
-      <EmptyState
-        icon={Sparkles}
-        tier="tier2"
-        title={`${status.name} is not switched on for your workspace`}
-        description={
-          status.can_configure
-            ? "Turn on AI features and “Ask Mira chat” under Settings → Company, on the AI tab."
-            : "An admin can turn it on under Settings → Company, on the AI tab."
-        }
-        action={
-          status.can_configure ? (
-            <Button asChild>
-              <Link href="/settings?tab=ai">Open settings</Link>
-            </Button>
-          ) : undefined
-        }
-      />
-    );
-  }
-  if (status.reason === "no_consent") {
-    return (
-      <Alert>
-        <ShieldCheck />
-        <AlertTitle>You have not agreed to the AI assistant</AlertTitle>
-        <AlertDescription>
-          <p>
-            Your messages, and the names of the tools you may use, are sent to an AI provider outside
-            India. What {status.name} looks up for you stays in AskMira. Nothing is sent until you agree.
-          </p>
+  return (
+    <div className="grid gap-4">
+      {status.mode === "direct" ? <DirectModeNote status={status} /> : null}
+      <Chat status={status} onSent={onChange} />
+    </div>
+  );
+}
+
+/** Without AI the chat still answers, by matching words to a lookup. Says why, and how to get AI. */
+function DirectModeNote({ status }: { status: CompanionStatus }) {
+  const why =
+    status.reason === "not_configured"
+      ? "This server has no AI provider configured"
+      : status.reason === "disabled"
+        ? "AI is switched off for your workspace"
+        : "You have not agreed to the AI assistant";
+  return (
+    <Alert>
+      <ShieldCheck />
+      <AlertTitle>Quick lookups, without AI</AlertTitle>
+      <AlertDescription>
+        <p>
+          {why}, so {status.name} matches your words to a lookup instead. Ask short, direct
+          questions like the ones below. Nothing you type leaves AskMira.
+        </p>
+        {status.reason === "disabled" && status.can_configure ? (
           <Button asChild variant="link" className="h-auto p-0">
-            <Link href="/compliance/privacy">Review it under My privacy</Link>
+            <Link href="/settings?tab=ai">Turn on AI under Settings → Company → AI</Link>
           </Button>
-        </AlertDescription>
-      </Alert>
-    );
-  }
-  return <Chat status={status} onSent={onChange} />;
+        ) : status.reason === "no_consent" ? (
+          <Button asChild variant="link" className="h-auto p-0">
+            <Link href="/compliance/privacy">Agree to it under My privacy for free-form questions</Link>
+          </Button>
+        ) : null}
+      </AlertDescription>
+    </Alert>
+  );
 }
 
 function Chat({ status, onSent }: { status: CompanionStatus; onSent: () => void }) {
@@ -353,13 +340,15 @@ function Thread({
 }
 
 function Welcome({ status, onPick }: { status: CompanionStatus; onPick: (text: string) => void }) {
+  // The server's examples cover every lookup this person has; the two questions
+  // only a model answers are added when AI is planning.
   const suggestions = [
-    status.tools.some((t) => t.key === "who_is_out") ? "Who is on leave this week?" : null,
-    status.tools.some((t) => t.key === "my_record") ? "How many leaves do I have left?" : null,
     status.tools.some((t) => t.key === "policy_question") ? "What is the work-from-home policy?" : null,
-    status.tools.some((t) => t.key === "search_people") ? "Who is in the finance team?" : null,
     status.tools.some((t) => t.key === "report_question") ? "How many people joined this year?" : null,
-  ].filter((s): s is string => s !== null);
+    ...status.examples,
+  ]
+    .filter((s): s is string => s !== null)
+    .slice(0, 8);
 
   return (
     <div className="grid gap-4 py-6">
@@ -372,7 +361,10 @@ function Welcome({ status, onPick }: { status: CompanionStatus; onPick: (text: s
         <div className="grid gap-1">
           <p className="text-sm font-medium">{status.name}</p>
           <p className="text-sm leading-6 text-muted-foreground">
-            {status.greeting || `Hi! I'm ${status.name}, your company's AI companion. Ask me anything about work.`}
+            {status.greeting ||
+              (status.mode === "ai"
+                ? `Hi! I'm ${status.name}, your company's AI companion. Ask me anything about work.`
+                : `Hi! I'm ${status.name}. Ask me about leave, people, hiring or expenses — across your linked products.`)}
           </p>
         </div>
       </div>

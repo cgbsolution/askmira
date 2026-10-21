@@ -3,11 +3,16 @@ import type { ReportResult } from "@/lib/types/reports";
 /** What the chat screen needs before it shows anything. */
 export interface CompanionStatus {
   available: boolean;
+  /** "ai": a model plans each turn. "direct": words are matched to a lookup here; nothing leaves AskMira. */
+  mode: "ai" | "direct";
+  /** Why a model is not planning, in direct mode. */
   reason: "not_configured" | "disabled" | "no_consent" | null;
   /** What this workspace calls its companion. */
   name: string;
   greeting: string;
   tools: { key: string; title: string }[];
+  /** Questions this person can ask, one per tool they have. */
+  examples: string[];
   daily_limit: number;
   sent_today: number;
   can_configure: boolean;
