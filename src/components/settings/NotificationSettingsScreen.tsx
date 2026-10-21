@@ -29,6 +29,7 @@ import type {
   SmtpSettings,
 } from "@/lib/types/notifications";
 
+import { EmailDesignPanel } from "./EmailDesignPanel";
 import { NotificationTemplatesPanel } from "./NotificationTemplatesPanel";
 import { errorDetail, formatDateTime } from "./settingsShared";
 
@@ -95,7 +96,8 @@ export function NotificationSettingsScreen() {
           <TabsTrigger value="policy">Quiet hours &amp; limits</TabsTrigger>
           <TabsTrigger value="relay">Mail relay</TabsTrigger>
           <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
-          <TabsTrigger value="templates">Templates</TabsTrigger>
+          <TabsTrigger value="design">Email design</TabsTrigger>
+          <TabsTrigger value="templates">Emails &amp; messages</TabsTrigger>
         </TabsList>
 
         <TabsContent value="policy" className="mt-4">
@@ -106,6 +108,9 @@ export function NotificationSettingsScreen() {
         </TabsContent>
         <TabsContent value="whatsapp" className="mt-4">
           <WhatsAppPanel onSaved={channels.reload} />
+        </TabsContent>
+        <TabsContent value="design" className="mt-4">
+          <EmailDesignPanel />
         </TabsContent>
         <TabsContent value="templates" className="mt-4">
           <NotificationTemplatesPanel />

@@ -45,7 +45,6 @@ import type { WelcomeEmail } from "@/lib/types/admin";
 import { formatDate } from "@/lib/utils";
 
 import { CreateWorkspaceDialog, type EditTarget, type Issued } from "./CreateWorkspaceDialog";
-import { ProductConnections } from "./ProductConnections";
 import { type WorkspaceDetail, WorkspaceSheet } from "./WorkspaceSheet";
 
 interface Admin {
@@ -267,8 +266,6 @@ export function PlatformConsole() {
           </TableBody>
         </Table>
       </DataPanel>
-
-      <ProductConnections />
 
       <CreateWorkspaceDialog
         open={creating}

@@ -400,6 +400,9 @@ export const NAV: NavSection[] = [
       { name: "Users & roles", path: "/settings/users", roles: ADMIN },
       { name: "Modules", path: "/settings/modules", roles: ADMIN },
       { name: "Sign-in & SSO", path: "/settings/sso", roles: ADMIN },
+      { name: "Connectors", path: "/settings/connectors", roles: ADMIN },
+      // Where a product sends the admin back after Allow.
+      { name: "Connecting", path: "/settings/connectors/callback", roles: ADMIN, hidden: true },
       { name: "Devices", path: "/settings/devices", roles: HR },
       { name: "Notifications", path: "/settings/notifications", roles: ADMIN },
     ],

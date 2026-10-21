@@ -570,6 +570,48 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     ],
   },
 
+  "/settings/connectors": {
+    summary:
+      "Connect the other products your company uses — AnytimeHire for hiring, ExpenseGenie for expenses — with one click. Each connection belongs to this workspace alone.",
+    tasks: [
+      {
+        title: "Connect a product",
+        steps: [
+          "Press Connect on the product.",
+          "Sign in to the product as an admin of your organisation there, check the request names your AskMira workspace, and press Allow.",
+          "You come back here connected; your people are sent across at once.",
+        ],
+      },
+      {
+        title: "Keep people in step",
+        steps: [
+          "People are sent across every night. Press Sync people now after a big change.",
+          "Anyone skipped is listed with the reason (for example, their email belongs to another organisation there).",
+        ],
+      },
+      {
+        title: "Disconnect",
+        steps: [
+          "Press Disconnect and confirm. The product forgets this workspace's key; nothing is deleted on either side.",
+        ],
+      },
+    ],
+    tips: [
+      "The key a product issues reaches only your organisation there, never another company's.",
+      "Once connected, Expenses and Hiring show the product's records, and Ask Mira can answer from them.",
+    ],
+  },
+
+  "/settings/connectors/callback": {
+    summary: "Finishing a connection after you pressed Allow in the product. You are taken back to Connectors.",
+    tasks: [
+      {
+        title: "If it says not connected",
+        steps: ["Go back to Connectors and press Connect again; a connect link is good for 15 minutes."],
+      },
+    ],
+  },
+
   "/settings/devices": {
     summary: "Biometric and attendance devices, what they have sent, and punches that need a person attached.",
     tasks: [
@@ -599,8 +641,27 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         steps: ["Open Mail relay (Save relay, then Send a test to myself) or WhatsApp, and enter the account details."],
       },
       {
-        title: "Change a message's wording",
-        steps: ["Open Templates and press Override a message, or Edit on one you changed."],
+        title: "Put your logo and colours on every email",
+        steps: [
+          "Open Email design and upload the company logo.",
+          "Pick the brand colour, and write a sign-off and a footer (address, HR contact).",
+          "Watch the preview, press Send me a test, then Save design.",
+        ],
+      },
+      {
+        title: "Change what an email says",
+        steps: [
+          "Open Emails & messages and find the message by searching or by area.",
+          "Press Edit, change the subject and message, and insert values such as {employee_name}.",
+          "Check the preview, send yourself a test, and press Save new version. Use the built-in wording undoes it.",
+        ],
+      },
+      {
+        title: "Let managers approve from the email",
+        steps: [
+          "Open Email design and keep Approve or reject from the email switched on.",
+          "Approval emails (leave, missed punch, timesheets, claims, assets) then carry Approve and Reject; the manager adds a comment and confirms.",
+        ],
       },
     ],
   },

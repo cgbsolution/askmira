@@ -75,6 +75,59 @@ export interface NotificationTemplate {
   updated_at: string | null;
 }
 
+/** A workspace's own active version of one message on one channel. */
+export interface CustomWording {
+  subject: string | null;
+  body: string;
+  version: number;
+  updated_at: string | null;
+}
+
+/** One email AskMira can send, with its built-in wording and the workspace's own. */
+export interface EmailCatalogueItem {
+  event_key: string;
+  group: string;
+  audience: "employee" | "candidate";
+  urgent: boolean;
+  /** The approver's copy carries Approve / Reject buttons. */
+  approval_buttons: boolean;
+  default_subject: string;
+  default_body: string;
+  placeholders: string[];
+  custom: Partial<Record<"email" | "in_app" | "push", CustomWording>>;
+}
+
+/** Settings → Notifications → Email design. The logo is the company logo. */
+export interface EmailDesign {
+  accent_colour: string;
+  show_logo: boolean;
+  sign_off: string;
+  footer_text: string;
+  approve_from_email: boolean;
+  company_name: string;
+  has_logo: boolean;
+}
+
+export type EmailDesignInput = Omit<EmailDesign, "company_name" | "has_logo">;
+
+/** The brand colour emails use until a workspace picks one (the server's default). */
+export const DEFAULT_EMAIL_ACCENT = "#14595C";
+
+export interface EmailPreview {
+  subject: string;
+  html: string;
+  text: string;
+}
+
+export interface EmailTestResult {
+  ok: boolean;
+  error: string | null;
+  sent_to: string | null;
+  /** False when no mail relay is set up: the test went to the server log. */
+  delivered: boolean;
+  relay: string;
+}
+
 export interface NotificationPreference {
   event_key: string;
   channel: Channel;

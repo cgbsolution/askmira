@@ -1,7 +1,7 @@
 "use client";
 
-import { FileText, Loader2, Plus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { FileText, Loader2, RotateCcw, Save, Search, Send } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { DataPanel } from "@/components/common/DataPanel";
@@ -9,14 +9,6 @@ import { FormField } from "@/components/common/FormField";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -25,271 +17,441 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { put } from "@/lib/api";
-import type {
-  Channel,
-  NotificationEvent,
-  NotificationTemplate,
-} from "@/lib/types/notifications";
+import { post, put } from "@/lib/api";
+import type { EmailCatalogueItem, EmailTestResult } from "@/lib/types/notifications";
 
+import { EmailPreviewFrame } from "./EmailPreviewFrame";
 import { errorDetail, formatDateTime } from "./settingsShared";
 
-/** WhatsApp bodies come from Meta-approved templates, so they are not edited here. */
-const EDITABLE_CHANNELS: Channel[] = ["email", "in_app", "push"];
+type EditableChannel = "email" | "in_app" | "push";
 
-const CHANNEL_LABEL: Record<Channel, string> = {
+const CHANNEL_LABEL: Record<EditableChannel, string> = {
   email: "Email",
   in_app: "In-app",
   push: "Mobile push",
-  whatsapp: "WhatsApp",
 };
 
+const ALL = "__all";
+
+function changedChannels(item: EmailCatalogueItem): EditableChannel[] {
+  return (Object.keys(item.custom) as EditableChannel[]).filter((channel) => item.custom[channel]);
+}
+
 /**
- * Notification templates.
+ * Settings → Notifications → Emails and messages.
  *
- * Saving writes a new version and retires the current one rather than
- * overwriting it, so the wording that went out with last month's payslip
- * notice is still recoverable. An event with no template here falls back to
- * the shipped default.
+ * Every message AskMira can send, in its built-in wording until the workspace
+ * writes its own. Saving writes the next version and retires the current one,
+ * so what last month's email said stays on record; "Use the built-in wording"
+ * retires the workspace's version without deleting it.
  */
 export function NotificationTemplatesPanel() {
-  const templates = useApiQuery<NotificationTemplate[]>("/notifications/admin/templates");
-  const events = useApiQuery<NotificationEvent[]>("/notifications/events");
-  const [editing, setEditing] = useState<NotificationTemplate | null>(null);
-  const [creating, setCreating] = useState(false);
+  const catalogue = useApiQuery<EmailCatalogueItem[]>("/notifications/admin/emails");
+  const [search, setSearch] = useState("");
+  const [group, setGroup] = useState(ALL);
+  const [show, setShow] = useState<"all" | "changed" | "builtin">("all");
+  const [editing, setEditing] = useState<EmailCatalogueItem | null>(null);
 
-  const rows = templates.data ?? [];
+  const items = useMemo(() => catalogue.data ?? [], [catalogue.data]);
+  const groups = useMemo(() => [...new Set(items.map((item) => item.group))].sort(), [items]);
+  const rows = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return items
+      .filter((item) => group === ALL || item.group === group)
+      .filter((item) => {
+        const changed = changedChannels(item).length > 0;
+        return show === "all" || (show === "changed" ? changed : !changed);
+      })
+      .filter((item) => {
+        if (!needle) return true;
+        const own = item.custom.email;
+        return [item.event_key, item.default_subject, item.default_body, own?.subject, own?.body]
+          .filter(Boolean)
+          .some((text) => String(text).toLowerCase().includes(needle));
+      })
+      .sort((a, b) => a.group.localeCompare(b.group) || a.event_key.localeCompare(b.event_key));
+  }, [items, group, show, search]);
+
+  // Keep the open editor on the latest catalogue after a save.
+  useEffect(() => {
+    if (!editing) return;
+    const fresh = items.find((item) => item.event_key === editing.event_key);
+    if (fresh && fresh !== editing) setEditing(fresh);
+  }, [items, editing]);
+
+  const changedCount = items.filter((item) => changedChannels(item).length > 0).length;
 
   return (
     <>
       <DataPanel
-        title="Templates"
-        description="Each save creates the next version; the previous one is kept, inactive."
-        actions={
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus /> Override a message
-          </Button>
+        tier="tier1"
+        title="Emails and messages"
+        description={`Every message AskMira sends: ${items.length} in all, ${changedCount} in your own words. Each save is a new version; nothing is overwritten.`}
+        toolbar={
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full sm:w-72">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                aria-label="Search messages"
+                placeholder="Search subject, wording or event"
+                className="pl-9"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+            <Select value={group} onValueChange={setGroup}>
+              <SelectTrigger aria-label="Area" className="w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Every area</SelectItem>
+                {groups.map((name) => (
+                  <SelectItem key={name} value={name}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={show} onValueChange={(value) => setShow(value as typeof show)}>
+              <SelectTrigger aria-label="Which messages" className="w-48">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All messages</SelectItem>
+                <SelectItem value="changed">In your own words</SelectItem>
+                <SelectItem value="builtin">Built-in wording</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         }
-        isLoading={templates.isLoading}
-        error={templates.error?.detail ?? null}
-        onRetry={templates.reload}
+        isLoading={catalogue.isLoading}
+        error={catalogue.error?.detail ?? null}
+        onRetry={catalogue.reload}
         isEmpty={rows.length === 0}
         empty={{
           icon: FileText,
-          title: "No overrides — every message uses its shipped wording",
-          description:
-            "Override one only where your wording has to differ; a template you never revisit is one that goes stale.",
+          title: "No message matches",
+          description: "Clear the search or pick another area.",
         }}
       >
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Event</TableHead>
-              <TableHead>Channel</TableHead>
-              <TableHead>Subject</TableHead>
-              <TableHead>Version</TableHead>
+              <TableHead>Message</TableHead>
+              <TableHead>Area</TableHead>
+              <TableHead>Wording</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="font-mono text-xs">{row.event_key}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{CHANNEL_LABEL[row.channel] ?? row.channel}</Badge>
-                  <div className="mt-1 text-[11px] text-muted-foreground">{row.locale}</div>
-                </TableCell>
-                <TableCell className="max-w-xs truncate text-sm">
-                  {row.subject ?? <span className="text-muted-foreground">No subject</span>}
-                </TableCell>
-                <TableCell className="text-sm">
-                  v{row.version}
-                  {row.updated_at && (
-                    <div className="text-[11px] text-muted-foreground">
-                      {formatDateTime(row.updated_at)}
+            {rows.map((item) => {
+              const own = item.custom.email;
+              const changed = changedChannels(item);
+              return (
+                <TableRow key={item.event_key}>
+                  <TableCell className="max-w-md">
+                    <div className="truncate text-sm font-medium">
+                      {own?.subject || item.default_subject || item.event_key}
                     </div>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="outline" size="sm" onClick={() => setEditing(row)}>
-                    Edit
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
+                    <div className="truncate font-mono text-[11px] text-muted-foreground">
+                      {item.event_key}
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {item.approval_buttons ? <Badge variant="secondary">Approve / Reject buttons</Badge> : null}
+                      {item.audience === "candidate" ? <Badge variant="outline">To candidates</Badge> : null}
+                      {item.urgent ? <Badge variant="outline">Urgent</Badge> : null}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{item.group}</TableCell>
+                  <TableCell className="text-sm">
+                    {changed.length ? (
+                      <div className="space-y-1">
+                        {changed.map((channel) => (
+                          <Badge key={channel} variant="default">
+                            {CHANNEL_LABEL[channel]} · v{item.custom[channel]?.version}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">Built-in</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button variant="outline" size="sm" onClick={() => setEditing(item)}>
+                      Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </DataPanel>
 
-      <TemplateDialog
-        open={creating || editing !== null}
-        editing={editing}
-        events={events.data ?? []}
-        onOpenChange={(open) => {
-          if (!open) {
-            setCreating(false);
-            setEditing(null);
-          }
-        }}
-        onSaved={templates.reload}
+      <MessageEditor
+        item={editing}
+        onOpenChange={(open) => !open && setEditing(null)}
+        onSaved={catalogue.reload}
       />
     </>
   );
 }
 
-function TemplateDialog({
-  open,
-  editing,
-  events,
+function MessageEditor({
+  item,
   onOpenChange,
   onSaved,
 }: {
-  open: boolean;
-  editing: NotificationTemplate | null;
-  events: NotificationEvent[];
+  item: EmailCatalogueItem | null;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }) {
-  const [eventKey, setEventKey] = useState("");
-  const [channel, setChannel] = useState<Channel>("email");
+  const [channel, setChannel] = useState<EditableChannel>("email");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [isBusy, setIsBusy] = useState(false);
+  const [busy, setBusy] = useState<"save" | "test" | "reset" | null>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+
+  const own = item?.custom[channel] ?? null;
+  const itemKey = item?.event_key ?? null;
+  const ownVersion = own?.version ?? 0;
 
   useEffect(() => {
-    if (!open) return;
-    setEventKey(editing?.event_key ?? events[0]?.event_key ?? "");
-    setChannel(editing?.channel ?? "email");
-    setSubject(editing?.subject ?? "");
-    setBody(editing?.body ?? "");
-  }, [open, editing, events]);
+    if (!item) return;
+    const current = item.custom[channel];
+    setSubject(current?.subject ?? item.default_subject);
+    setBody(current?.body ?? item.default_body);
+    // Reload the wording when the message, the channel or the saved version changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemKey, channel, ownVersion]);
 
-  const urgent = useMemo(
-    () => events.find((event) => event.event_key === eventKey)?.urgent ?? false,
-    [events, eventKey],
-  );
+  useEffect(() => {
+    if (itemKey) setChannel("email");
+  }, [itemKey]);
 
-  const submit = async () => {
-    setIsBusy(true);
+  const insert = (name: string) => {
+    const token = `{${name}}`;
+    const field = bodyRef.current;
+    if (!field) {
+      setBody((current) => current + token);
+      return;
+    }
+    const start = field.selectionStart ?? body.length;
+    const end = field.selectionEnd ?? body.length;
+    setBody(body.slice(0, start) + token + body.slice(end));
+    requestAnimationFrame(() => {
+      field.focus();
+      field.setSelectionRange(start + token.length, start + token.length);
+    });
+  };
+
+  const save = async () => {
+    if (!item) return;
+    setBusy("save");
     try {
       await put("/notifications/admin/templates", {
-        event_key: eventKey,
+        event_key: item.event_key,
         channel,
-        locale: editing?.locale ?? "en-IN",
+        locale: "en-IN",
         subject: channel === "email" ? subject.trim() || null : null,
         body: body.trim(),
       });
-      toast.success("Saved as a new version.");
+      toast.success(`Saved as version ${ownVersion + 1}.`);
       onSaved();
-      onOpenChange(false);
     } catch (caught) {
-      toast.error(errorDetail(caught, "Could not save the template."));
+      toast.error(errorDetail(caught, "Could not save the message."));
     } finally {
-      setIsBusy(false);
+      setBusy(null);
     }
   };
 
+  const reset = async () => {
+    if (!item) return;
+    setBusy("reset");
+    try {
+      await post("/notifications/admin/templates/reset", {
+        event_key: item.event_key,
+        channel,
+        locale: "en-IN",
+      });
+      toast.success("Back to the built-in wording. Your versions are kept in the history.");
+      onSaved();
+    } catch (caught) {
+      toast.error(errorDetail(caught, "Could not go back to the built-in wording."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const sendTest = async () => {
+    if (!item) return;
+    setBusy("test");
+    try {
+      const result = await post<EmailTestResult>("/notifications/admin/emails/test", {
+        event_key: item.event_key,
+        subject,
+        body,
+      });
+      if (!result.ok) toast.error(result.error ?? "The test email could not be sent.");
+      else if (!result.delivered)
+        toast.warning("No mail relay is set up, so the test went to the server log, not an inbox.");
+      else toast.success(`Test email sent to ${result.sent_to}.`);
+    } catch (caught) {
+      toast.error(errorDetail(caught, "The test email could not be sent."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const unchanged =
+    body.trim() === (own?.body ?? item?.default_body ?? "").trim() &&
+    (channel !== "email" || subject.trim() === (own?.subject ?? item?.default_subject ?? "").trim());
+
   return (
-    <Dialog open={open} onOpenChange={(next) => !isBusy && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>
-            {editing ? `Edit ${editing.event_key} (v${editing.version})` : "Override a message"}
-          </DialogTitle>
-          <DialogDescription>
-            Saving writes version {editing ? editing.version + 1 : 1} and retires the current one.
-            Nothing is overwritten.
-          </DialogDescription>
-        </DialogHeader>
+    <Sheet open={item !== null} onOpenChange={(open) => busy === null && onOpenChange(open)}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-6xl">
+        {item ? (
+          <>
+            <SheetHeader>
+              <SheetTitle>{item.default_subject || item.event_key}</SheetTitle>
+              <SheetDescription>
+                <span className="font-mono text-xs">{item.event_key}</span> · {item.group}
+                {own
+                  ? ` · your version ${own.version}${own.updated_at ? `, saved ${formatDateTime(own.updated_at)}` : ""}`
+                  : " · built-in wording"}
+              </SheetDescription>
+            </SheetHeader>
 
-        <div className="grid gap-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField htmlFor="template-event" label="Event">
-              <Select
-                value={eventKey}
-                onValueChange={setEventKey}
-                disabled={editing !== null}
-              >
-                <SelectTrigger id="template-event" className="w-full">
-                  <SelectValue placeholder="Choose an event" />
-                </SelectTrigger>
-                <SelectContent>
-                  {events.map((event) => (
-                    <SelectItem key={event.event_key} value={event.event_key}>
-                      {event.event_key}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-            <FormField htmlFor="template-channel" label="Channel">
-              <Select
-                value={channel}
-                onValueChange={(next) => setChannel(next as Channel)}
-                disabled={editing !== null}
-              >
-                <SelectTrigger id="template-channel" className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {EDITABLE_CHANNELS.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {CHANNEL_LABEL[option]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </FormField>
-          </div>
+            <div className="grid gap-6 px-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+              <div className="space-y-4">
+                <Tabs value={channel} onValueChange={(value) => setChannel(value as EditableChannel)}>
+                  <TabsList>
+                    {(Object.keys(CHANNEL_LABEL) as EditableChannel[]).map((key) => (
+                      <TabsTrigger key={key} value={key}>
+                        {CHANNEL_LABEL[key]}
+                        {item.custom[key] ? " (edited)" : ""}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
 
-          {urgent && (
-            <Alert>
-              <AlertTitle>This is an urgent event</AlertTitle>
-              <AlertDescription>
-                It bypasses quiet hours and the hourly cap, so the wording should earn the
-                interruption.
-              </AlertDescription>
-            </Alert>
-          )}
+                {item.urgent ? (
+                  <Alert>
+                    <AlertTitle>An urgent message</AlertTitle>
+                    <AlertDescription>
+                      It is sent even in quiet hours, so the wording should earn the interruption.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
+                {item.approval_buttons && channel === "email" ? (
+                  <Alert>
+                    <AlertTitle>Approve and Reject are added for you</AlertTitle>
+                    <AlertDescription>
+                      The approver&apos;s copy carries the buttons under your wording, unless your
+                      company turned them off under Email design.
+                    </AlertDescription>
+                  </Alert>
+                ) : null}
 
-          {channel === "email" && (
-            <FormField htmlFor="template-subject" label="Subject" optional>
-              <Input
-                id="template-subject"
-                value={subject}
-                onChange={(event) => setSubject(event.target.value)}
-                placeholder="Your payslip for {{ month }} is ready"
-              />
-            </FormField>
-          )}
+                {channel === "email" ? (
+                  <FormField htmlFor="message-subject" label="Subject">
+                    <Input
+                      id="message-subject"
+                      value={subject}
+                      maxLength={512}
+                      onChange={(event) => setSubject(event.target.value)}
+                    />
+                  </FormField>
+                ) : null}
 
-          <FormField
-            htmlFor="template-body"
-            label="Message"
-            hint="Placeholders in double braces are filled from the event, for example {{ employee_name }}."
-          >
-            <Textarea
-              id="template-body"
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              rows={8}
-              className="font-mono text-xs"
-            />
-          </FormField>
-        </div>
+                <FormField
+                  htmlFor="message-body"
+                  label="Message"
+                  hint="A blank line starts a paragraph · a line starting “- ” is a bullet · **words** are bold · web addresses become links."
+                >
+                  <Textarea
+                    id="message-body"
+                    ref={bodyRef}
+                    rows={10}
+                    maxLength={8000}
+                    value={body}
+                    onChange={(event) => setBody(event.target.value)}
+                    className="font-mono text-xs"
+                  />
+                </FormField>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>
-            Cancel
-          </Button>
-          <Button onClick={submit} disabled={isBusy || !eventKey || body.trim().length === 0}>
-            {isBusy && <Loader2 className="animate-spin" />} Save new version
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+                {item.placeholders.length ? (
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-medium">Insert a value</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {item.placeholders.map((name) => (
+                        <Button
+                          key={name}
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 font-mono text-xs"
+                          onClick={() => insert(name)}
+                        >
+                          {`{${name}}`}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Filled in for each person when the message is sent.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+
+              {channel === "email" ? (
+                <EmailPreviewFrame eventKey={item.event_key} subject={subject} body={body} />
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">
+                    {channel === "push" ? "On the phone" : "In the bell"}
+                  </p>
+                  <div className="rounded-lg border border-border bg-card p-4">
+                    <p className="text-sm font-medium">{item.default_subject || "AskMira"}</p>
+                    <p className="mt-1 text-sm whitespace-pre-line text-muted-foreground">{body}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    In-app and push messages are plain text; placeholders are filled in when sent.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <SheetFooter className="flex-row flex-wrap gap-2 border-t border-border">
+              <Button onClick={() => void save()} disabled={busy !== null || !body.trim() || unchanged}>
+                {busy === "save" ? <Loader2 className="animate-spin" /> : <Save />} Save new version
+              </Button>
+              {channel === "email" ? (
+                <Button variant="outline" onClick={() => void sendTest()} disabled={busy !== null || !body.trim()}>
+                  {busy === "test" ? <Loader2 className="animate-spin" /> : <Send />} Send me a test
+                </Button>
+              ) : null}
+              {own && item.default_body ? (
+                <Button variant="ghost" onClick={() => void reset()} disabled={busy !== null}>
+                  {busy === "reset" ? <Loader2 className="animate-spin" /> : <RotateCcw />} Use the built-in wording
+                </Button>
+              ) : null}
+            </SheetFooter>
+          </>
+        ) : null}
+      </SheetContent>
+    </Sheet>
   );
 }
