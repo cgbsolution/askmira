@@ -21,11 +21,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { ApiError, del, patch, post } from "@/lib/api";
 import { INDIAN_STATES } from "@/lib/states";
+import type { WelcomeEmail } from "@/lib/types/admin";
 
 export interface Issued {
   title: string;
   email: string;
   password: string;
+  /** For a new admin: what became of their welcome email. */
+  welcome?: WelcomeEmail | null;
 }
 
 const COMPANY_TYPES: Record<string, string> = {
@@ -266,6 +269,7 @@ export function CreateWorkspaceDialog({
       const result = await post<{
         workspace: { id: string; name: string };
         admin: { email: string; temporary_password: string };
+        welcome_email: WelcomeEmail | null;
       }>("/platform/workspaces", body);
 
       if (logo) {
@@ -288,6 +292,7 @@ export function CreateWorkspaceDialog({
         title: `${result.workspace.name} is ready`,
         email: result.admin.email,
         password: result.admin.temporary_password,
+        welcome: result.welcome_email,
       });
     } catch (caught) {
       toast.error(caught instanceof ApiError ? caught.detail : "Could not create the organisation.");

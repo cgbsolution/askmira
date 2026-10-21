@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound, Link2, Plus, ShieldAlert, UserCog, Users } from "lucide-react";
+import { KeyRound, Link2, Loader2, Mail, Plus, ShieldAlert, UserCog, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -12,7 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import type { ManagedUser } from "@/lib/types/admin";
+import { post } from "@/lib/api";
+import type { ManagedUser, WelcomeEmail } from "@/lib/types/admin";
 import type { UserRole } from "@/lib/types";
 
 import { LinkEmployeeDialog } from "./LinkEmployeeDialog";
@@ -20,7 +21,7 @@ import { NewUserDialog } from "./NewUserDialog";
 import { ResetPasswordDialog } from "./ResetPasswordDialog";
 import { RoleChangeDialog } from "./RoleChangeDialog";
 import { ActiveChangeDialog } from "./ActiveChangeDialog";
-import { ROLE_LABEL, formatDateTime } from "./settingsShared";
+import { ROLE_LABEL, errorDetail, formatDateTime } from "./settingsShared";
 
 /**
  * Settings → Users & roles.
@@ -40,6 +41,29 @@ export function UsersScreen() {
   const [changingActive, setChangingActive] = useState<ManagedUser | null>(null);
   const [linking, setLinking] = useState<ManagedUser | null>(null);
   const [resetting, setResetting] = useState<ManagedUser | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
+
+  const resendWelcome = async (row: ManagedUser) => {
+    setResendingId(row.id);
+    try {
+      const welcome = await post<WelcomeEmail>(`/admin/users/${row.id}/welcome-email`, {});
+      if (welcome.status === "sent") {
+        toast.success(`Welcome email sent to ${welcome.sent_to}`, {
+          description: "Any earlier set-password link no longer works.",
+        });
+      } else if (welcome.status === "queued") {
+        toast.info(`Welcome email to ${welcome.sent_to} is queued`, { description: welcome.detail });
+      } else {
+        toast.warning(`The welcome email did not reach ${welcome.sent_to}`, {
+          description: welcome.detail,
+        });
+      }
+    } catch (caught) {
+      toast.error(errorDetail(caught, "Could not send the welcome email."));
+    } finally {
+      setResendingId(null);
+    }
+  };
 
   const rows = useMemo(() => {
     const all = data ?? [];
@@ -171,9 +195,25 @@ export function UsersScreen() {
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {row.last_login_at ? formatDateTime(row.last_login_at) : "Never"}
+                    {row.invite_pending && row.is_active && (
+                      <Badge variant="warning" className="ml-2">
+                        Password not set
+                      </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
+                      {row.invite_pending && row.is_active && !row.is_you && (
+                        <ActionButton
+                          blocked={null}
+                          onClick={() => void resendWelcome(row)}
+                          label="Resend the welcome email"
+                          disabled={resendingId === row.id}
+                        >
+                          {resendingId === row.id ? <Loader2 className="animate-spin" /> : <Mail />}{" "}
+                          Resend welcome
+                        </ActionButton>
+                      )}
                       <ActionButton
                         blocked={null}
                         onClick={() => setLinking(row)}
@@ -254,12 +294,15 @@ function ActionButton({
   onClick,
   label,
   destructive = false,
+  disabled = false,
   children,
 }: {
   blocked: string | null;
   onClick: () => void;
   label: string;
   destructive?: boolean;
+  /** Busy rather than refused: no tooltip. */
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   const button = (
@@ -267,7 +310,7 @@ function ActionButton({
       variant={destructive ? "outline" : "outline"}
       size="sm"
       aria-label={label}
-      disabled={blocked !== null}
+      disabled={blocked !== null || disabled}
       onClick={onClick}
       className={destructive && !blocked ? "text-destructive" : undefined}
     >

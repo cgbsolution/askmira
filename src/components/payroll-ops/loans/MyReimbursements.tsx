@@ -5,6 +5,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/common/FormField";
+import { NoEmployeeRecord, useHasEmployeeRecord } from "@/components/common/NoEmployeeRecord";
 import { Money } from "@/components/common/Money";
 import {
   apiErrorMessage,
@@ -382,4 +383,10 @@ function SubmitClaimDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+/** Expenses → Salary reimbursements: the person's own, or why there is nothing to show. */
+export function MySalaryReimbursements() {
+  const hasRecord = useHasEmployeeRecord();
+  return hasRecord ? <MyReimbursements /> : <NoEmployeeRecord what="Salary reimbursements" />;
 }

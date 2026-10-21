@@ -64,6 +64,8 @@ export interface NavPage {
   reach?: Audience[];
   /** For a page outside any section, which has no section icon to borrow. */
   icon?: LucideIcon;
+  /** Workspace module this one page needs, where its section needs none (or another). */
+  module?: string;
 }
 
 export interface NavSection {
@@ -75,10 +77,16 @@ export interface NavSection {
   module?: string;
   /**
    * The separate product that takes this section over when it is linked to the
-   * workspace: the section becomes one launcher and its pages are retired there.
+   * workspace: its built-in pages are retired there, and `linkedPages` take
+   * their place, alongside a launcher.
    */
   product?: ProductKey;
   pages: NavPage[];
+  /**
+   * The section's pages while its product is linked: the product's own records,
+   * read live as the person (claims, jobs…), plus anything AskMira still owns.
+   */
+  linkedPages?: NavPage[];
 }
 
 export const GROUP_LABEL: Record<NavSection["group"], string> = {
@@ -153,7 +161,7 @@ export const NAV: NavSection[] = [
     pages: [
       { name: "Payslips", path: "/pay", roles: EVERYONE },
       { name: "Tax declarations", path: "/pay/tax", roles: EVERYONE },
-      { name: "Loans & reimbursements", path: "/pay/loans", roles: EVERYONE },
+      { name: "Loans & encashment", path: "/pay/loans", roles: EVERYONE },
       { name: "Benefits", path: "/pay/benefits", roles: EVERYONE },
       { name: "Stock options", path: "/pay/stock-options", roles: EVERYONE },
     ],
@@ -171,6 +179,16 @@ export const NAV: NavSection[] = [
       { name: "Finance review", path: "/expenses/review", roles: HR },
       { name: "Policies & rates", path: "/expenses/policies", roles: HR },
       { name: "GST credits", path: "/expenses/gst", roles: HR },
+      // Reimbursement components of the salary structure, paid through payroll.
+      { name: "Salary reimbursements", path: "/expenses/reimbursements", roles: EVERYONE, module: "payroll" },
+    ],
+    linkedPages: [
+      { name: "My claims", path: "/linked/expense/mine", roles: EVERYONE },
+      // Whoever ExpenseGenie routes a claim to approves it, not only managers.
+      { name: "Waiting for me", path: "/linked/expense/approvals", roles: EVERYONE },
+      { name: "Company claims", path: "/linked/expense/company", roles: HR },
+      { name: "Totals", path: "/linked/expense/totals", roles: EVERYONE },
+      { name: "Salary reimbursements", path: "/expenses/reimbursements", roles: EVERYONE, module: "payroll" },
     ],
   },
   {
@@ -306,6 +324,12 @@ export const NAV: NavSection[] = [
       { name: "Job boards", path: "/hiring/job-boards", roles: HR },
       { name: "Careers site", path: "/hiring/careers-site", roles: ADMIN },
     ],
+    linkedPages: [
+      { name: "Hiring overview", path: "/linked/interview/overview", roles: MANAGERS },
+      { name: "Jobs", path: "/linked/interview/jobs", roles: MANAGERS },
+      { name: "Candidates", path: "/linked/interview/candidates", roles: MANAGERS },
+      { name: "Interviews", path: "/linked/interview/interviews", roles: MANAGERS },
+    ],
   },
   {
     key: "payroll",
@@ -414,7 +438,9 @@ export function resolvePage(pathname: string): { page: NavPage; section?: NavSec
       best = { page, section };
     }
   };
-  NAV.forEach((section) => section.pages.forEach((page) => consider(page, section)));
+  NAV.forEach((section) =>
+    [...section.pages, ...(section.linkedPages ?? [])].forEach((page) => consider(page, section)),
+  );
   STANDALONE.forEach((page) => consider(page));
   return best;
 }
@@ -450,9 +476,18 @@ export function decideAccess(
 ): AccessDecision {
   const resolved = resolvePage(pathname);
   if (!resolved) return "role";
-  if (linkedProduct(resolved.section, tenant)) return "product";
-  if (!moduleEnabled(tenant, resolved.section?.module)) return "module";
-  return roleAllows(user, resolved.page.reach ?? resolved.page.roles) ? "allowed" : "role";
+  const { page, section } = resolved;
+  const inLinked = Boolean(section?.linkedPages?.some((p) => p.path === page.path));
+  const linkedOnly = inLinked && !section?.pages.some((p) => p.path === page.path);
+  if (linkedProduct(section, tenant)) {
+    // Linked: only the section's linked pages open; its built-in ones are retired.
+    if (!inLinked) return "product";
+  } else {
+    if (linkedOnly) return "module";
+    if (!moduleEnabled(tenant, section?.module)) return "module";
+  }
+  if (!moduleEnabled(tenant, page.module)) return "module";
+  return roleAllows(user, page.reach ?? page.roles) ? "allowed" : "role";
 }
 
 /** The pages of a section this person may see, in navigation order. */
@@ -461,8 +496,12 @@ export function visiblePages(
   user: AuthUser | null,
   tenant: Tenant | null,
 ): NavPage[] {
-  if (!moduleEnabled(tenant, section.module)) return [];
-  return section.pages.filter((page) => !page.hidden && roleAllows(user, page.roles));
+  const linked = linkedProduct(section, tenant);
+  if (!linked && !moduleEnabled(tenant, section.module)) return [];
+  const pages = linked ? (section.linkedPages ?? []) : section.pages;
+  return pages.filter(
+    (page) => !page.hidden && moduleEnabled(tenant, page.module) && roleAllows(user, page.roles),
+  );
 }
 
 export function sectionByKey(key: string): NavSection | undefined {

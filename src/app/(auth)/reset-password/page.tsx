@@ -16,6 +16,8 @@ import { passwordProblem } from "@/lib/password";
 function ResetPasswordForm() {
   const params = useSearchParams();
   const token = params.get("token") ?? "";
+  // Arrived from a new login's welcome email rather than Forgot password.
+  const isWelcome = params.get("welcome") === "1";
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -60,10 +62,13 @@ function ResetPasswordForm() {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Set a new password</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          {isWelcome ? "Welcome to AskMira" : "Set a new password"}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          At least 10 characters, with a letter and a digit. Every device signed in to your account
-          is signed out.
+          {isWelcome
+            ? "Choose the password you will sign in with: at least 10 characters, with a letter and a digit."
+            : "At least 10 characters, with a letter and a digit. Every device signed in to your account is signed out."}
         </p>
       </div>
 
@@ -71,8 +76,12 @@ function ResetPasswordForm() {
         <div className="space-y-5">
           <Alert variant="success">
             <CheckCircle2 />
-            <AlertTitle>Password changed</AlertTitle>
-            <AlertDescription>Sign in with your new password.</AlertDescription>
+            <AlertTitle>{isWelcome ? "Password set" : "Password changed"}</AlertTitle>
+            <AlertDescription>
+              {isWelcome
+                ? "Sign in with your work email and the password you just chose."
+                : "Sign in with your new password."}
+            </AlertDescription>
           </Alert>
           <Button asChild className="h-12 w-full font-semibold">
             <Link href="/signin">Go to sign in</Link>
@@ -82,7 +91,7 @@ function ResetPasswordForm() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <FormField
             htmlFor="password"
-            label="New password"
+            label={isWelcome ? "Password" : "New password"}
             required
             error={submitted ? problem : null}
           >
@@ -93,12 +102,12 @@ function ResetPasswordForm() {
               required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="New password"
+              placeholder={isWelcome ? "Your password" : "New password"}
             />
           </FormField>
           <FormField
             htmlFor="confirm"
-            label="Confirm new password"
+            label={isWelcome ? "Confirm password" : "Confirm new password"}
             required
             error={submitted && mismatch ? "The two passwords do not match." : null}
           >
@@ -125,7 +134,7 @@ function ResetPasswordForm() {
 
           <Button type="submit" className="h-12 w-full font-semibold" disabled={isSubmitting}>
             {isSubmitting && <Loader2 className="animate-spin" />}
-            Set new password
+            {isWelcome ? "Set my password" : "Set new password"}
           </Button>
         </form>
       )}

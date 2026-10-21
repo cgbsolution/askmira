@@ -39,10 +39,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
+import { WelcomeEmailNotice } from "@/components/settings/WelcomeEmailNotice";
 import { ApiError, get, post } from "@/lib/api";
+import type { WelcomeEmail } from "@/lib/types/admin";
 import { formatDate } from "@/lib/utils";
 
 import { CreateWorkspaceDialog, type EditTarget, type Issued } from "./CreateWorkspaceDialog";
+import { ProductConnections } from "./ProductConnections";
 import { type WorkspaceDetail, WorkspaceSheet } from "./WorkspaceSheet";
 
 interface Admin {
@@ -265,6 +268,8 @@ export function PlatformConsole() {
         </Table>
       </DataPanel>
 
+      <ProductConnections />
+
       <CreateWorkspaceDialog
         open={creating}
         onOpenChange={setCreating}
@@ -322,10 +327,13 @@ function AddAdminDialog({
     if (!workspace) return;
     setSaving(true);
     try {
-      const result = await post<{ admin: { email: string; temporary_password: string } }>(
-        `/platform/workspaces/${workspace.id}/admins`,
-        { full_name: name.trim(), email: email.trim() },
-      );
+      const result = await post<{
+        admin: { email: string; temporary_password: string };
+        welcome_email: WelcomeEmail | null;
+      }>(`/platform/workspaces/${workspace.id}/admins`, {
+        full_name: name.trim(),
+        email: email.trim(),
+      });
       setName("");
       setEmail("");
       onClose();
@@ -333,6 +341,7 @@ function AddAdminDialog({
         title: `New admin for ${workspace.name}`,
         email: result.admin.email,
         password: result.admin.temporary_password,
+        welcome: result.welcome_email,
       });
     } catch (caught) {
       toast.error(failure(caught, "Could not add the admin."));
@@ -440,8 +449,13 @@ function IssuedDialog({ issued, onClose }: { issued: Issued | null; onClose: () 
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{issued?.title}</DialogTitle>
-          <DialogDescription>Give these to the admin yourself. The password is shown only now.</DialogDescription>
+          <DialogDescription>
+            {issued?.welcome?.status === "sent"
+              ? "They were emailed their sign-in page and a link to set a password. The password below is a fallback, shown only now."
+              : "Give these to the admin yourself. The password is shown only now."}
+          </DialogDescription>
         </DialogHeader>
+        {issued?.welcome && <WelcomeEmailNotice welcome={issued.welcome} />}
         <Alert>
           <KeyRound />
           <AlertTitle>Sign-in details</AlertTitle>

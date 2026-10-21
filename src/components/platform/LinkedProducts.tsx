@@ -83,7 +83,7 @@ export function LinkedProducts({ workspaceId, active }: { workspaceId: string; a
                   {linked ? (
                     <Badge variant="secondary">Linked</Badge>
                   ) : !product.configured ? (
-                    <Badge variant="outline">Not configured on this server</Badge>
+                    <Badge variant="outline">Not connected — connect it under Product connections</Badge>
                   ) : (
                     <Badge variant="outline">Not linked</Badge>
                   )}

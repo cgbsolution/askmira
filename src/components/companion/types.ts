@@ -39,6 +39,8 @@ export type CompanionCard =
       source?: string;
       /** Where to open that product: the portal's launch page. */
       open?: string;
+      /** Per row: where to open that row in the product (a job's candidates, with résumés). */
+      links?: (string | null)[];
     }
   | {
       type: "policy";

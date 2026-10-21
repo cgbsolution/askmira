@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ArrowRight,
   CalendarOff,
   Camera,
   Clock,
@@ -21,7 +22,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
@@ -358,10 +359,19 @@ export function PunchCard({
     );
 
   return (
-    <Card tier="tier1" className="gap-0 py-0">
-      <CardContent className={cn("grid gap-5 p-5", !compact && "lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-8 lg:p-6")}>
+    // Laid out by the card's own width, so Home's narrower column and the
+    // attendance page share one component: stacked when narrow, clock and
+    // button over the progress bar at medium, all three in a row when wide.
+    <Card tier="tier1" className="@container/punch gap-0 py-0">
+      <CardContent
+        className={cn(
+          "grid gap-5 p-5",
+          "@md/punch:grid-cols-[minmax(0,1fr)_auto] @md/punch:gap-x-6",
+          "@4xl/punch:grid-cols-[auto_minmax(0,1fr)_auto] @4xl/punch:items-center @4xl/punch:gap-8 @4xl/punch:p-6",
+        )}
+      >
         {/* Clock */}
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-col gap-1">
           <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <Clock className="size-3.5" /> {dayFormat.format(new Date(now))}
           </p>
@@ -380,7 +390,7 @@ export function PunchCard({
         </div>
 
         {/* Progress through the shift */}
-        <div className="flex min-w-0 flex-col gap-2">
+        <div className="flex min-w-0 flex-col gap-2 @md/punch:col-span-2 @md/punch:row-start-2 @4xl/punch:col-span-1 @4xl/punch:col-start-2 @4xl/punch:row-start-1">
           {isLoading ? (
             <Skeleton className="h-12 w-full" />
           ) : error ? (
@@ -412,7 +422,7 @@ export function PunchCard({
         </div>
 
         {/* Punch */}
-        <div className="flex flex-col items-stretch gap-2 lg:max-w-60 lg:items-end">
+        <div className="flex flex-col items-stretch gap-2 @md/punch:col-start-2 @md/punch:row-start-1 @md/punch:max-w-64 @md/punch:items-end @4xl/punch:col-start-3">
           <Button
             onClick={() => void punch()}
             disabled={isPunching || isLoading || error !== null}
@@ -425,7 +435,7 @@ export function PunchCard({
           </Button>
           {locationLine}
           {photoMode !== "off" && (
-            <div className="flex items-center gap-2 lg:justify-end">
+            <div className="flex items-center gap-2 @md/punch:justify-end">
               {photo ? (
                 <>
                   <Badge variant="success">
@@ -457,7 +467,7 @@ export function PunchCard({
             </div>
           )}
           {shareLocation && (
-            <p className="text-xs text-muted-foreground lg:text-right">
+            <p className="text-xs text-muted-foreground @md/punch:text-right">
               {live.position
                 ? livePlace
                   ? livePlace.beyond <= 0
@@ -471,7 +481,7 @@ export function PunchCard({
       </CardContent>
 
       {(holiday || leave || weekOff || period?.has_no_shift || locationProblem) && (
-        <CardContent className="grid gap-3 px-5 pb-5 lg:px-6">
+        <CardContent className="grid gap-3 px-5 pb-5 @4xl/punch:px-6">
           {locationProblem && (
             <Alert variant="warning">
               <MapPinOff />
@@ -572,11 +582,20 @@ export function PunchCard({
       )}
 
       {compact && (
-        <CardContent className="px-5 pb-4">
-          <Button asChild variant="link" className="h-auto px-0">
-            <Link href="/time/attendance">Open my attendance</Link>
+        <CardFooter className="justify-between gap-3 border-t px-5 py-2.5 [.border-t]:pt-2.5">
+          <p className="truncate text-xs text-muted-foreground tabular-nums">
+            {isLoading || error
+              ? "Today's punches"
+              : shown.length === 0
+                ? "No punches today"
+                : `${shown.length} punch${shown.length === 1 ? "" : "es"} today`}
+          </p>
+          <Button asChild variant="ghost" size="sm" className="shrink-0">
+            <Link href="/time/attendance">
+              My attendance <ArrowRight />
+            </Link>
           </Button>
-        </CardContent>
+        </CardFooter>
       )}
     </Card>
   );

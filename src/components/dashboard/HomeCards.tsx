@@ -5,6 +5,7 @@ import {
   Cake,
   CalendarHeart,
   CircleDollarSign,
+  ExternalLink,
   Inbox,
   Link2,
   Palmtree,
@@ -50,7 +51,7 @@ import type { DashboardSummary, LeaveBalance, WhoIsOut } from "@/lib/types";
 import type { ApprovalInbox } from "@/lib/types/approvals";
 import type { TeamToday } from "@/lib/types/attendance";
 import type { Celebrations } from "@/lib/types/people";
-import { formatDate, formatDay, formatDays, toISODate } from "@/lib/utils";
+import { cn, formatDate, formatDay, formatDays, toISODate } from "@/lib/utils";
 
 type BadgeVariant = React.ComponentProps<typeof Badge>["variant"];
 
@@ -75,7 +76,7 @@ export function LeaveBalanceCard() {
     .slice(0, 4);
 
   return (
-    <Card tier="tier2">
+    <Card tier="tier2" className="h-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Palmtree className="size-4 text-primary" /> Leave balance
@@ -85,25 +86,29 @@ export function LeaveBalanceCard() {
           <CardLink href="/time">Apply</CardLink>
         </CardAction>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="flex flex-1 flex-col gap-4">
         {isLoading ? (
           Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-8 w-full" />)
         ) : error ? (
           <p className="text-sm text-muted-foreground">{error.detail}</p>
         ) : rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No leave policy covers you yet. HR sets policies under Time off → Setup.
-          </p>
+          <EmptyState
+            icon={Palmtree}
+            tier="tier2"
+            className="my-auto px-0 py-4"
+            title="No leave policy covers you yet"
+            description="HR sets policies under Time off → Setup."
+          />
         ) : (
           rows.map((row) => {
             const quota = Number(row.annual_quota_days ?? 0);
             const available = Number(row.available);
             const percent = quota > 0 ? Math.min(100, Math.max(0, (available / quota) * 100)) : 0;
             return (
-              <div key={row.leave_type_id} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium">{row.leave_type_name}</span>
-                  <span className="tabular-nums text-muted-foreground">
+              <div key={row.leave_type_id} className="space-y-1.5">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="truncate font-medium">{row.leave_type_name}</span>
+                  <span className="shrink-0 tabular-nums text-muted-foreground">
                     <span className="font-semibold text-foreground">{formatDays(row.available)}</span>
                     {quota > 0 && ` of ${formatDays(row.annual_quota_days)}`}
                   </span>
@@ -118,6 +123,9 @@ export function LeaveBalanceCard() {
   );
 }
 
+const HOLIDAY_MONTH = new Intl.DateTimeFormat("en-IN", { month: "short" });
+const HOLIDAY_WEEKDAY = new Intl.DateTimeFormat("en-IN", { weekday: "long" });
+
 /** The holidays that apply to me — my state's and my office's, not every state's. */
 export function HolidaysCard({
   holidays,
@@ -127,40 +135,51 @@ export function HolidaysCard({
   isLoading: boolean;
 }) {
   return (
-    <Card tier="tier2">
+    <Card tier="tier2" className="h-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
-          <CalendarHeart className="size-4 text-primary" /> Upcoming holidays
+          <CalendarHeart className="size-4 text-primary" /> Holidays
         </CardTitle>
         <CardDescription>Next 90 days, for your location.</CardDescription>
         <CardAction>
           <CardLink href="/time">Calendar</CardLink>
         </CardAction>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-1 flex-col">
         {isLoading ? (
           <div className="space-y-2">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-11 w-full" />
+            <Skeleton className="h-11 w-full" />
           </div>
         ) : holidays.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No holidays in the next 90 days.</p>
+          <EmptyState
+            icon={CalendarHeart}
+            tier="tier2"
+            className="my-auto px-0 py-4"
+            title="No holidays coming up"
+            description="Nothing on your location's calendar for the next 90 days."
+          />
         ) : (
-          <ul className="space-y-2">
-            {holidays.map((holiday) => (
-              <li
-                key={`${holiday.holiday_date}-${holiday.name}`}
-                className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm"
-              >
-                <span className="font-medium">{holiday.name}</span>
-                <span className="whitespace-nowrap text-muted-foreground">
-                  {new Intl.DateTimeFormat("en-IN", { weekday: "short" }).format(
-                    new Date(`${holiday.holiday_date}T00:00:00`),
-                  )}
-                  , {formatDay(holiday.holiday_date)}
-                </span>
-              </li>
-            ))}
+          <ul className="space-y-3">
+            {holidays.map((holiday) => {
+              const date = new Date(`${holiday.holiday_date}T00:00:00`);
+              return (
+                <li key={`${holiday.holiday_date}-${holiday.name}`} className="flex items-center gap-3">
+                  <span className="flex size-11 shrink-0 flex-col items-center justify-center rounded-lg border border-border bg-muted/40 leading-none">
+                    <span className="text-[10px] font-medium uppercase text-muted-foreground">
+                      {HOLIDAY_MONTH.format(date)}
+                    </span>
+                    <span className="mt-0.5 text-base font-semibold tabular-nums">{date.getDate()}</span>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">{holiday.name}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {HOLIDAY_WEEKDAY.format(date)}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </CardContent>
@@ -236,13 +255,13 @@ export function TeamTodayCard() {
     { label: "Not in yet", value: counts.not_in ?? 0, emphasis: (counts.not_in ?? 0) > 0 },
     { label: "On leave", value: counts.on_leave ?? 0 },
     {
-      label: "Remote / on duty",
+      label: "WFH / on duty",
       value: (counts.work_from_home ?? 0) + (counts.on_duty ?? 0),
     },
     { label: "Late", value: counts.late ?? 0, emphasis: (counts.late ?? 0) > 0 },
   ];
   return (
-    <Card tier="tier1">
+    <Card tier="tier1" className="@container/team">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Users className="size-4 text-primary" /> Team today
@@ -260,16 +279,17 @@ export function TeamTodayCard() {
         ) : error ? (
           <p className="text-sm text-muted-foreground">{error.detail}</p>
         ) : (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 @md/team:grid-cols-3 @lg/team:grid-cols-5">
             {tiles.map((tile) => (
-              <div key={tile.label} className="rounded-md border border-border px-3 py-2">
-                <p className="text-xs text-muted-foreground">{tile.label}</p>
+              <div key={tile.label} className="min-w-0 rounded-lg border border-border px-2.5 py-2.5">
+                <p className="truncate text-xs text-muted-foreground" title={tile.label}>
+                  {tile.label}
+                </p>
                 <p
-                  className={
-                    tile.emphasis
-                      ? "text-lg font-semibold tabular-nums text-destructive"
-                      : "text-lg font-semibold tabular-nums"
-                  }
+                  className={cn(
+                    "mt-1 text-2xl font-semibold tabular-nums",
+                    tile.emphasis && "text-destructive",
+                  )}
                 >
                   {tile.value}
                 </p>
@@ -299,19 +319,22 @@ const RUN_VARIANTS: Record<string, BadgeVariant> = {
 /** The latest real payroll run, or an honest "none yet". HR only. */
 export function PayrollCard({ run }: { run: DashboardSummary["latest_payroll_run"] }) {
   return (
-    <Card tier="tier1">
+    <Card tier="tier1" className="h-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <CircleDollarSign className="size-4 text-primary" /> Payroll
+          {run && (
+            <Badge variant={RUN_VARIANTS[run.status] ?? "muted"} className="capitalize">
+              {run.status.replace("_", " ")}
+            </Badge>
+          )}
         </CardTitle>
         <CardDescription>
           {run ? `${MONTHS[run.period_month - 1]} ${run.period_year} run` : "No payroll run yet."}
         </CardDescription>
         <CardAction>
           {run ? (
-            <Badge variant={RUN_VARIANTS[run.status] ?? "muted"} className="capitalize">
-              {run.status.replace("_", " ")}
-            </Badge>
+            <CardLink href={`/payroll/runs/${run.id}`}>Open run</CardLink>
           ) : (
             <CardLink href="/payroll">Start a run</CardLink>
           )}
@@ -319,25 +342,21 @@ export function PayrollCard({ run }: { run: DashboardSummary["latest_payroll_run
       </CardHeader>
       <CardContent>
         {run ? (
-          <div className="grid grid-cols-3 gap-3 text-sm">
-            <div>
-              <p className="text-xs text-muted-foreground">People</p>
-              <p className="font-semibold tabular-nums">{run.employee_count}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Net pay</p>
-              <p className="font-semibold">
-                <Money value={run.total_net} />
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Pay date</p>
-              <p className="font-semibold">{run.payment_date ? formatDay(run.payment_date) : "—"}</p>
-            </div>
-            <div className="col-span-3">
-              <CardLink href={`/payroll/runs/${run.id}`}>Open run</CardLink>
-            </div>
-          </div>
+          <dl className="grid gap-2">
+            {[
+              { label: "People", value: <span className="tabular-nums">{run.employee_count}</span> },
+              { label: "Net pay", value: <Money value={run.total_net} /> },
+              { label: "Pay date", value: run.payment_date ? formatDay(run.payment_date) : "—" },
+            ].map((fact) => (
+              <div
+                key={fact.label}
+                className="flex items-center justify-between gap-3 rounded-md bg-muted/60 px-3 py-2.5 text-sm"
+              >
+                <dt className="text-muted-foreground">{fact.label}</dt>
+                <dd className="font-semibold">{fact.value}</dd>
+              </div>
+            ))}
+          </dl>
         ) : (
           <p className="text-sm text-muted-foreground">
             Figures appear here once a run is computed — nothing on this card is estimated.
@@ -365,7 +384,7 @@ const FILING_VARIANTS: Record<string, BadgeVariant> = {
 /** Where last month's statutory returns stand, from the filing records. HR only. */
 export function ComplianceCard({ filings }: { filings: DashboardSummary["filings"] }) {
   return (
-    <Card tier="tier1">
+    <Card tier="tier1" className="h-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <ShieldCheck className="size-4 text-primary" /> Statutory returns
@@ -430,9 +449,13 @@ export function CelebrationsCard() {
         ) : error ? (
           <p className="text-sm text-muted-foreground">{error.detail}</p>
         ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {data?.note || "Nothing to celebrate in the next 30 days."}
-          </p>
+          <EmptyState
+            icon={PartyPopper}
+            tier="tier2"
+            className="px-0 py-4"
+            title="Nothing to celebrate yet"
+            description={data?.note || "No birthdays or anniversaries in the next 30 days."}
+          />
         ) : (
           <ul className="space-y-3">
             {items.map((item) => (
@@ -475,29 +498,34 @@ export function QuickLinksCard({ canEdit }: { canEdit: boolean }) {
   if (!data || (links.length === 0 && !canEdit)) return null;
 
   return (
-    <Card tier="tier2">
+    <Card tier="tier2" className="@container/links">
       <CardHeader>
-        <CardTitle className="flex items-center justify-between gap-2 text-base">
-          <span className="flex items-center gap-2">
-            <Link2 className="size-4 text-primary" /> <Tr text="Quick links" />
-          </span>
-          {canEdit && (
-            <Button size="sm" variant="ghost" onClick={() => setEditing(true)} aria-label="Edit quick links">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Link2 className="size-4 text-primary" /> <Tr text="Quick links" />
+        </CardTitle>
+        <CardDescription>Shortcuts for everyone in the workspace.</CardDescription>
+        {canEdit && (
+          <CardAction>
+            <Button size="icon" variant="ghost" className="size-8" onClick={() => setEditing(true)} aria-label="Edit quick links">
               <Pencil />
             </Button>
-          )}
-        </CardTitle>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent>
-        <ul className="grid gap-2 sm:grid-cols-2">
+        <ul className="grid gap-2 @sm/links:grid-cols-2">
           {links.map((link) => (
             <li key={`${link.label}-${link.url}`}>
-              <Button variant="outline" size="sm" className="w-full justify-start" asChild>
+              <Button variant="outline" size="sm" className="w-full justify-between" asChild>
                 {link.url.startsWith("/") ? (
-                  <Link href={link.url}>{link.label}</Link>
+                  <Link href={link.url}>
+                    <span className="truncate">{link.label}</span>
+                    <ArrowRight className="text-muted-foreground" />
+                  </Link>
                 ) : (
                   <a href={link.url} target="_blank" rel="noopener noreferrer">
-                    {link.label}
+                    <span className="truncate">{link.label}</span>
+                    <ExternalLink className="text-muted-foreground" />
                   </a>
                 )}
               </Button>
@@ -626,6 +654,10 @@ export function WhosOutTodayCard() {
         <CardTitle className="flex items-center gap-2 text-base">
           <Palmtree className="size-4 text-primary" /> <Tr text="Who's out today" />
         </CardTitle>
+        <CardDescription>People on approved leave.</CardDescription>
+        <CardAction>
+          <CardLink href="/time">Calendar</CardLink>
+        </CardAction>
       </CardHeader>
       <CardContent>
         {isLoading ? (
@@ -633,9 +665,13 @@ export function WhosOutTodayCard() {
         ) : error ? (
           <p className="text-sm text-muted-foreground">{error.detail}</p>
         ) : people.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            <Tr text="Nobody is on approved leave today." />
-          </p>
+          <EmptyState
+            icon={Palmtree}
+            tier="tier2"
+            className="px-0 py-4"
+            title="Everyone is in"
+            description="Nobody is on approved leave today."
+          />
         ) : (
           <ul className="space-y-3">
             {shown.map((entry) => (
@@ -658,9 +694,6 @@ export function WhosOutTodayCard() {
         {people.length > shown.length && (
           <p className="mt-3 text-xs text-muted-foreground">and {people.length - shown.length} more</p>
         )}
-        <div className="mt-3">
-          <CardLink href="/time">Team calendar</CardLink>
-        </div>
       </CardContent>
     </Card>
   );

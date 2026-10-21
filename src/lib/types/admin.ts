@@ -50,12 +50,26 @@ export interface ManagedUser {
   is_you: boolean;
   /** The break-glass account, which survives an SSO lockout and may not be disabled. */
   is_break_glass: boolean;
+  /** Still on the password they were given; their welcome email can be resent. */
+  invite_pending: boolean;
+}
+
+/** What became of a login's welcome email. */
+export interface WelcomeEmail {
+  /** `no_relay`: no mail relay is set up, so it was only logged on the server. */
+  status: "sent" | "queued" | "failed" | "no_relay";
+  detail: string;
+  sent_to: string;
+  /** When its set-password link stops working; null when the company signs in with SSO. */
+  link_expires_at: string | null;
 }
 
 export interface ManagedUserCreated {
   user: ManagedUser;
   /** Shown once, never retrievable again — only its hash is stored. */
   temporary_password: string;
+  /** Null when the admin chose not to send one. */
+  welcome_email: WelcomeEmail | null;
 }
 
 export interface RolePermission {

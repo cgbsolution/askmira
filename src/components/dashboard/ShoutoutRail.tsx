@@ -18,7 +18,7 @@ export function ShoutoutRail({ count, isLoading }: { count?: number; isLoading: 
   return (
     <Card
       tier="tier2"
-      className="relative isolate min-h-[320px] overflow-hidden border-transparent bg-gradient-to-b from-brand-500 to-brand-700 text-sidebar-foreground"
+      className="relative isolate overflow-hidden border-transparent bg-gradient-to-b from-brand-500 to-brand-700 text-sidebar-foreground"
     >
       {/* Concentric rings, purely decorative — they give the flat gradient a
           focal point without introducing an image asset. */}
@@ -38,7 +38,7 @@ export function ShoutoutRail({ count, isLoading }: { count?: number; isLoading: 
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="relative flex flex-1 flex-col items-center justify-center gap-3 pb-8 text-center">
+      <CardContent className="relative flex flex-1 flex-col items-center justify-center gap-3 pb-2 text-center">
         {isLoading ? (
           <>
             <Skeleton className="size-14 rounded-full bg-sidebar-foreground/15" />

@@ -31,7 +31,7 @@ export function MyOpenTicketsCard({ className }: { className?: string }) {
   return (
     <Card tier="tier2" className={className}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex items-center gap-2 text-base">
           <LifeBuoy className="size-4 text-primary" /> My tickets
         </CardTitle>
         <CardDescription>

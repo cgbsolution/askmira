@@ -94,7 +94,12 @@ export function AppSidebar() {
       const product = linkedProduct(section, tenant);
       if (product) {
         const offered = roleAllows(user, PRODUCTS[product].audience);
-        return { section, pages: [] as NavPage[], launch: offered ? product : undefined };
+        // The product's records as pages, then the launcher to do the work there.
+        return {
+          section,
+          pages: visiblePages(section, user, tenant),
+          launch: offered ? product : undefined,
+        };
       }
       return { section, pages: visiblePages(section, user, tenant), launch: undefined };
     }).filter(({ pages, launch }) => pages.length > 0 || launch);
@@ -284,7 +289,7 @@ function SectionItem({
 }: {
   section: NavSection;
   pages: NavPage[];
-  /** The linked product this row opens instead of listing pages. */
+  /** The linked product this row opens when it has no pages to list. */
   launch?: ProductKey;
   inSection: boolean;
   activePage: string | undefined;
@@ -295,7 +300,8 @@ function SectionItem({
   const t = useT();
   const { state, isMobile } = useSidebar();
 
-  if (launch) {
+  // A linked product with no pages for this person: the row opens the product.
+  if (launch && pages.length === 0) {
     const label = `${t(section.name)} · ${t(PRODUCTS[launch].name)}`;
     return (
       <SidebarMenuItem>

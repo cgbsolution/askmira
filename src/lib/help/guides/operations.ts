@@ -523,16 +523,24 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       {
         title: "Give someone a login",
         steps: [
-          "Press Add login, enter their email and role, and link their employee record.",
-          "Copy the one-time password and send it to them securely.",
+          "Press Add login, pick their employee record (it fills in their work email), and choose a role.",
+          "Leave Email them their sign-in details ticked: they get their sign-in page, a link to set their own password and their onboarding checklist at that work email.",
+          "If the email did not go, copy the one-time password and send it to them securely.",
         ],
+      },
+      {
+        title: "Resend a welcome email",
+        steps: ["Someone marked Password not set has not chosen a password yet. Press Resend welcome; the new link replaces the old one."],
       },
       {
         title: "Change a role or reset a password",
         steps: ["Use Role to change the role, Password to issue a new one, Relink to change the employee record, and Disable or Enable to stop or allow sign-in."],
       },
     ],
-    tips: ["A manager is not a role: anybody with direct reports gets the manager's pages."],
+    tips: [
+      "A manager is not a role: anybody with direct reports gets the manager's pages.",
+      "Welcome emails need a mail relay, set under Settings → Notifications.",
+    ],
   },
 
   "/settings/modules": {

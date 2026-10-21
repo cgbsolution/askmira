@@ -15,10 +15,9 @@ import { ApplyLoanDialog } from "./ApplyLoanDialog";
 import { LoanDetailSheet } from "./LoanDetailSheet";
 import { LoansTable } from "./LoansTable";
 import { MyEncashment } from "./MyEncashment";
-import { MyReimbursements } from "./MyReimbursements";
 import { QueryPanel } from "./QueryPanel";
 
-/** The signed-in person's own loans, reimbursements and leave encashment. */
+/** The signed-in person's own loans and leave encashment. Salary reimbursements are under Expenses. */
 export function MyLoansArea() {
   const { user, isLoading } = useAuth();
 
@@ -30,7 +29,7 @@ export function MyLoansArea() {
         <EmptyState
           icon={UserX}
           title="Your login is not linked to an employee record"
-          description="Loans, reimbursements and leave encashment belong to an employee record. Ask your admin to link your account to yours."
+          description="Loans and leave encashment belong to an employee record. Ask your admin to link your account to yours."
         />
       </Card>
     );
@@ -41,15 +40,11 @@ export function MyLoansArea() {
       <div className="no-scrollbar overflow-x-auto">
         <TabsList>
           <TabsTrigger value="loans">My loans</TabsTrigger>
-          <TabsTrigger value="reimbursements">Reimbursements</TabsTrigger>
           <TabsTrigger value="encashment">Leave encashment</TabsTrigger>
         </TabsList>
       </div>
       <TabsContent value="loans">
         <MyLoansPanel />
-      </TabsContent>
-      <TabsContent value="reimbursements">
-        <MyReimbursements />
       </TabsContent>
       <TabsContent value="encashment">
         <MyEncashment />

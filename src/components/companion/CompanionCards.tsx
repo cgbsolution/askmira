@@ -51,6 +51,7 @@ export function CompanionCardView({ card }: { card: CompanionCard }) {
                   {card.columns.map((column) => (
                     <TableHead key={column}>{column}</TableHead>
                   ))}
+                  {card.links ? <TableHead /> : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -61,6 +62,17 @@ export function CompanionCardView({ card }: { card: CompanionCard }) {
                         {cell === null || cell === undefined || cell === "" ? "—" : String(cell)}
                       </TableCell>
                     ))}
+                    {card.links ? (
+                      <TableCell className="whitespace-nowrap text-right">
+                        {card.links[index] ? (
+                          <Button asChild variant="link" size="sm" className="h-auto p-0">
+                            <Link href={card.links[index]} target="_blank" rel="noopener">
+                              <ExternalLink /> Open
+                            </Link>
+                          </Button>
+                        ) : null}
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 ))}
               </TableBody>

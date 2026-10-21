@@ -436,18 +436,11 @@ export const ME_GUIDES: Record<string, PageGuide> = {
   },
 
   "/pay/loans": {
-    summary: "Your loans and repayments, reimbursement claims, leave encashment and pay you have already earned.",
+    summary: "Your loans and repayments, leave encashment and pay you have already earned.",
     tasks: [
       {
         title: "Apply for a loan",
         steps: ["In My loans, press Apply for a loan, choose the scheme, amount and months, and submit it."],
-      },
-      {
-        title: "Claim a reimbursement",
-        steps: [
-          "Open Reimbursements and press New claim.",
-          "Choose the component (for example fuel or phone), enter the amount, attach bills, and submit it to HR.",
-        ],
       },
       {
         title: "Request leave encashment",
@@ -461,7 +454,55 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         ],
       },
     ],
-    tips: ["Loan repayments are deducted in payroll on the schedule shown under My loans."],
+    tips: [
+      "Loan repayments are deducted in payroll on the schedule shown under My loans.",
+      "Salary reimbursements (fuel, phone and the like) are under Expenses → Salary reimbursements.",
+    ],
+  },
+
+  "/expenses/reimbursements": {
+    summary:
+      "Reimbursement components of your salary — fuel, phone and the like: what each allows this year, what you have claimed, and new claims against bills.",
+    tasks: [
+      {
+        title: "Claim a reimbursement",
+        steps: [
+          "Pick the financial year, then press New claim.",
+          "Choose the component (for example fuel or phone), enter the amount, attach bills, and submit it to HR.",
+        ],
+      },
+    ],
+    tips: [
+      "What HR accepts is paid with your salary in the next payroll run.",
+      "These come from your salary structure; other business expenses are claimed under Expenses.",
+    ],
+    related: [{ label: "Loans & encashment", href: "/pay/loans" }],
+  },
+
+  "/linked/[product]/[view]": {
+    summary:
+      "Records from a product your company uses alongside AskMira — ExpenseGenie for expenses, AnytimeHire for hiring — read live, as you see them there.",
+    tasks: [
+      {
+        title: "Narrow the list",
+        steps: [
+          "Choose a status, pick dates, or type in Search and press Search.",
+          "Press Refresh to read it again from the product.",
+        ],
+      },
+      {
+        title: "Do the work in the product",
+        steps: [
+          "Press Open ExpenseGenie or Open AnytimeHire at the top; you are signed in there with your AskMira login.",
+          "On a hiring row, press Open to go straight to that job's candidates and their résumés.",
+        ],
+      },
+    ],
+    tips: [
+      "Nothing is copied into AskMira: each page asks the product as you, so you see exactly what your role there allows.",
+      "Ask Mira can answer the same questions in chat.",
+    ],
+    related: [{ label: "Ask Mira", href: "/ask-mira" }],
   },
 
   "/pay/benefits": {

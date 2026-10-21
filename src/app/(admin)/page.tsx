@@ -91,7 +91,10 @@ export default function HomePage() {
   const show = (value: number | undefined) => (isLoading ? "—" : (value ?? 0));
 
   return (
-    <div className="flex flex-col gap-6">
+    // Breakpoints are container queries on the page body, not the viewport:
+    // the sidebar takes 260px when open, and the layout should follow the
+    // width the cards actually get.
+    <div className="@container/main flex flex-col gap-6">
       {/* ── Greeting (Tier 2) ──────────────────────────────────────────── */}
       <section className="relative overflow-hidden rounded-2xl border border-mint-200 bg-gradient-to-br from-mint-50 via-card to-mustard-50 p-5 sm:p-6 dark:border-mint-900 dark:from-mint-900/30 dark:via-card dark:to-mustard-950/30">
         <span
@@ -103,7 +106,7 @@ export default function HomePage() {
           className="pointer-events-none absolute -bottom-20 -left-10 size-48 rounded-full bg-mustard-200/40 blur-3xl dark:bg-mustard-800/10"
         />
 
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-center @3xl/main:justify-between">
           <div className="flex min-w-0 items-center gap-4">
             <Avatar className="size-12 ring-4 ring-card sm:size-14">
               <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground sm:text-base">
@@ -124,7 +127,7 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex shrink-0 flex-wrap gap-2">
             {isEmployee && timeOn && (
               <Button variant="outline" size="lg" asChild>
                 <Link href="/time">
@@ -142,50 +145,58 @@ export default function HomePage() {
       </section>
 
       {/* ── Pulse ──────────────────────────────────────────────────────── */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <PulseStat label="Headcount" value={show(summary?.headcount)} icon={Users} />
+      <div className="grid grid-cols-2 gap-4 @4xl/main:grid-cols-4">
+        <PulseStat
+          label="Headcount"
+          value={show(summary?.headcount)}
+          icon={Users}
+          hint="Active, on notice and on leave"
+        />
         <PulseStat
           label="New hires"
           value={show(summary?.new_hires_30d)}
           icon={UserPlus}
-          hint="Last 30 days"
+          hint="Joined in the last 30 days"
         />
         <PulseStat
           label="On leave today"
           value={show(summary?.on_leave_today)}
           icon={CalendarClock}
+          hint="People on approved leave"
         />
         <PulseStat
           label="Awaiting approval"
           value={show(summary?.pending_approvals)}
           icon={ListChecks}
+          hint="In your approvals inbox"
           emphasis={pending > 0}
         />
       </div>
 
-      {/* ── My day: punch, leave, holidays ────────────────────────────── */}
-      {isEmployee && timeOn && (
-        <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr_1fr]">
-          <PunchCard compact />
-          <LeaveBalanceCard />
-          <HolidaysCard holidays={summary?.upcoming_holidays ?? []} isLoading={isLoading} />
-        </div>
-      )}
-
-      {/* ── Work waiting, team, and the culture rail ───────────────────── */}
-      <div className="grid gap-6 lg:grid-cols-[1.35fr_1fr]">
-        <div className="flex flex-col gap-6">
+      {/* ── Two columns: my day and the work waiting on the left; people
+          and the culture rail on the right ─────────────────────────────── */}
+      <div className="grid grid-cols-1 items-start gap-6 @4xl/main:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <div className="@container/work flex min-w-0 flex-col gap-6">
+          {isEmployee && timeOn && (
+            <>
+              <PunchCard compact />
+              <div className="grid grid-cols-1 gap-6 @xl/work:grid-cols-2">
+                <LeaveBalanceCard />
+                <HolidaysCard holidays={summary?.upcoming_holidays ?? []} isLoading={isLoading} />
+              </div>
+            </>
+          )}
           <ApprovalsCard />
           {isManager && timeOn && <TeamTodayCard />}
           {isHr && hasModule("payroll") && (
-            <div className="grid gap-6 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-6 @2xl/work:grid-cols-2">
               <PayrollCard run={summary?.latest_payroll_run ?? null} />
               <ComplianceCard filings={summary?.filings ?? []} />
             </div>
           )}
         </div>
 
-        <div className="flex flex-col gap-6">
+        <div className="flex min-w-0 flex-col gap-6">
           <QuickLinksCard canEdit={hasRole("admin")} />
           {timeOn && <WhosOutTodayCard />}
           <OnboardingProgressCard />

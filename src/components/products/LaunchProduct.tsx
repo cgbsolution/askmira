@@ -20,7 +20,7 @@ function isProduct(value: string): value is ProductKey {
  * Opens a linked product. Asks the API for a one-time sign-in link (good for a
  * minute) and goes straight there, so the person never types a password twice.
  */
-export function LaunchProduct({ product }: { product: string }) {
+export function LaunchProduct({ product, to }: { product: string; to?: string }) {
   // `retry` only where trying again can help: a refusal (not linked, not for
   // you) will not change in a minute; a dropped connection may.
   const [error, setError] = useState<{ message: string; retry: boolean } | null>(null);
@@ -34,7 +34,9 @@ export function LaunchProduct({ product }: { product: string }) {
     }
     setError(null);
     try {
-      const { url } = await post<{ url: string }>(`/products/${product}/launch`);
+      // `to`: a page inside the product to land on (an Ask Mira row's "Open"); the API checks it.
+      const query = to ? `?to=${encodeURIComponent(to)}` : "";
+      const { url } = await post<{ url: string }>(`/products/${product}/launch${query}`);
       window.location.replace(url);
     } catch (caught) {
       if (caught instanceof ApiError) {
@@ -43,7 +45,7 @@ export function LaunchProduct({ product }: { product: string }) {
         setError({ message: "Could not reach AskMira. Check your connection and try again.", retry: true });
       }
     }
-  }, [product]);
+  }, [product, to]);
 
   useEffect(() => {
     if (started.current) return;
