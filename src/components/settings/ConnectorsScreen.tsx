@@ -21,8 +21,10 @@ export interface Connector {
   name: string;
   brand: string;
   description: string;
-  /** Whether this AskMira server knows where the product is. */
+  /** Whether Connect can be used on this AskMira server. */
   available: boolean;
+  /** Why not: where the product is unknown, or no key to store its key safely with. */
+  unavailable_reason: "address" | "server_key" | null;
   connected: boolean;
   /** "connectors": connected here. "platform": linked by the platform the older way. */
   via: "connectors" | "platform" | null;
@@ -193,6 +195,11 @@ function ConnectorCard({
         ) : connector.available ? (
           <p className="text-sm text-muted-foreground">
             Press Connect, sign in to {connector.brand} as an admin of your organisation there, and press Allow.
+          </p>
+        ) : connector.unavailable_reason === "server_key" ? (
+          <p className="text-sm text-muted-foreground">
+            This AskMira server cannot store connection keys safely yet: its encryption key (SECRET_ENCRYPTION_KEY) is
+            not set. Ask your AskMira provider to set it.
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
