@@ -6,10 +6,10 @@ import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { DatePicker } from "@/components/common/DatePicker";
-import { EmployeePicker, employeeDisplayName } from "@/components/common/EmployeePicker";
 import { FormField } from "@/components/common/FormField";
 import { pluralCount, useOnboardingRoles } from "@/components/onboarding/shared";
 import { apiErrorMessage, InlineProblem } from "@/components/payroll-ops/shared";
+import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,7 +29,6 @@ import {
 } from "@/components/ui/select";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
-import type { EmployeeSummary } from "@/lib/types";
 import type {
   OnboardingPlanDetail,
   OnboardingTemplate,
@@ -37,8 +36,9 @@ import type {
 } from "@/lib/types/onboarding";
 
 /**
- * Start onboarding for one person: pick the checklist and a buddy. Due dates
- * come from the joining date, and every assignee is told by the server.
+ * Start onboarding for somebody already on record — a converted offer whose
+ * checklist did not start, or a person brought in by import. A new joiner is
+ * added with `AddJoinerDialog` instead, which does this as its last step.
  */
 export function StartOnboardingDialog({
   onStarted,
@@ -50,9 +50,9 @@ export function StartOnboardingDialog({
   const templates = useApiQuery<OnboardingTemplate[]>(open ? "/onboarding/templates" : null);
   const active = (templates.data ?? []).filter((template) => template.active);
 
-  const [employee, setEmployee] = useState<EmployeeSummary | null>(null);
+  const [employee, setEmployee] = useState<PickedEmployee | null>(null);
   const [templateId, setTemplateId] = useState("");
-  const [buddy, setBuddy] = useState<EmployeeSummary | null>(null);
+  const [buddy, setBuddy] = useState<PickedEmployee | null>(null);
   const [joiningDate, setJoiningDate] = useState("");
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,16 +111,15 @@ export function StartOnboardingDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="accent">
-          <Rocket /> Start onboarding
+        <Button variant="outline">
+          <Rocket /> Existing employee
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Start onboarding</DialogTitle>
+          <DialogTitle>Start onboarding for an existing employee</DialogTitle>
           <DialogDescription>
-            The checklist is copied onto this person with due dates from their joining date.
-            The new joiner, their manager, buddy and task owners are each told what is theirs.
+            For someone already on record. To add somebody new, use Add new joiner.
           </DialogDescription>
         </DialogHeader>
 
@@ -136,15 +135,15 @@ export function StartOnboardingDialog({
           <div className="grid gap-4">
             <FormField
               htmlFor="onboarding-employee"
-              label="New joiner"
-              error={touched && !employee ? "Choose who is joining." : null}
+              label="Employee"
+              error={touched && !employee ? "Choose who to onboard." : null}
             >
               <EmployeePicker
                 id="onboarding-employee"
                 value={employee}
                 onChange={setEmployee}
                 excludeId={ownEmployeeId}
-                invalid={touched && !employee}
+                placeholder="Search by name or code"
                 disabled={isSubmitting}
               />
             </FormField>
@@ -184,15 +183,16 @@ export function StartOnboardingDialog({
               htmlFor="onboarding-buddy"
               label="Buddy"
               optional
-              hint="A colleague who shows them around. Without one, buddy tasks wait for HR to assign."
-              error={buddyIsJoiner ? "The new joiner cannot be their own buddy." : null}
+              hint="A colleague who shows them around."
+              error={buddyIsJoiner ? "Nobody is their own buddy." : null}
             >
               <EmployeePicker
                 id="onboarding-buddy"
                 value={buddy}
                 onChange={setBuddy}
                 excludeId={employee?.id ?? null}
-                invalid={buddyIsJoiner}
+                placeholder="Choose a buddy"
+                allowClear
                 disabled={isSubmitting}
               />
             </FormField>
@@ -201,18 +201,14 @@ export function StartOnboardingDialog({
               htmlFor="onboarding-joining"
               label="Joining date"
               optional
-              hint={
-                employee
-                  ? `Leave blank to use ${employeeDisplayName(employee)}'s date of joining on record.`
-                  : "Leave blank to use the employee's date of joining on record."
-              }
+              hint="Leave blank to use the date of joining on their record."
             >
               <DatePicker
                 id="onboarding-joining"
                 value={joiningDate}
                 onChange={setJoiningDate}
                 disabled={isSubmitting}
-                placeholder="From the employee record"
+                placeholder="From their record"
               />
             </FormField>
 

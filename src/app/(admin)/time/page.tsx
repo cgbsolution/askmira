@@ -98,7 +98,7 @@ export default function TimePage() {
   return (
     <TooltipProvider delayDuration={200}>
       <PageShell
-        title="Time off"
+        title="Leave"
         description="Balances, requests and approvals — and who is out when."
         actions={
           hasEmployee || isHr ? (

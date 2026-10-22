@@ -1,4 +1,4 @@
-export const metadata = { title: "Time off" };
+export const metadata = { title: "Leave" };
 
 export default function TimeLayout({ children }: { children: React.ReactNode }) {
   return children;

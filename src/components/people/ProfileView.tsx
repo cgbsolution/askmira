@@ -612,7 +612,7 @@ export function ProfileView({
         open={deactivating}
         onOpenChange={setDeactivating}
         title={`Deactivate ${name}?`}
-        description="The record stays for payroll and audit history but leaves the directory, and their login is switched off. To free their email for another login, delete it in Settings → Users. To record a resignation or exit, use People → Exits instead."
+        description="The record stays for payroll and audit history but leaves the directory, and their login is switched off. To free their email for another login, delete it in Settings → Users. To record a resignation or exit, use Employees → Exits instead."
         confirmLabel="Deactivate"
         destructive
         onConfirm={deactivate}

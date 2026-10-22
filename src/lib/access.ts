@@ -3,11 +3,11 @@ import {
   Bell,
   Briefcase,
   Building2,
-  CalendarClock,
+  CalendarDays,
   CircleDollarSign,
+  Clock,
   ExternalLink,
   FileText,
-  Gift,
   GraduationCap,
   Heart,
   Inbox,
@@ -66,13 +66,25 @@ export interface NavPage {
   icon?: LucideIcon;
   /** Workspace module this one page needs, where its section needs none (or another). */
   module?: string;
+  /**
+   * About the person's own record — their payslips, their attendance. Left out
+   * of the menu for a login with no employee record, which would only find an
+   * empty page there. Still guarded by `roles` like any other page.
+   */
+  self?: boolean;
+  /**
+   * For a hidden page: the listed page the menu highlights while it is open
+   * (Payroll setup while a salary structure is being edited, say).
+   */
+  parent?: string;
 }
 
 export interface NavSection {
   key: string;
   name: string;
   icon: LucideIcon;
-  group: "me" | "company" | "operations" | "admin";
+  /** `main` is the list itself; `admin` sits under its own heading at the foot. */
+  group: "main" | "admin";
   /** Workspace module that must be switched on. Undefined = always available. */
   module?: string;
   /**
@@ -90,18 +102,75 @@ export interface NavSection {
 }
 
 export const GROUP_LABEL: Record<NavSection["group"], string> = {
-  me: "Me",
-  company: "Company",
-  operations: "Operations",
+  main: "Workspace",
   admin: "Admin",
 };
 
+/**
+ * Payroll's set-up pages, changed a few times a year rather than every month:
+ * listed on Payroll setup instead of in the menu, so the menu keeps to the
+ * monthly cycle.
+ */
+export const PAYROLL_SETUP: { name: string; path: string; description: string }[] = [
+  {
+    name: "Salary structures",
+    path: "/payroll/structures",
+    description: "Components, CTC templates built from them, and how any CTC resolves.",
+  },
+  {
+    name: "Statutory",
+    path: "/payroll/statutory",
+    description: "PF elections, ESI coverage, work locations, statutory bonus and registers.",
+  },
+  {
+    name: "Rule sets",
+    path: "/payroll/rule-sets",
+    description: "Effective-dated statutory rules. Payroll computes only against approved versions.",
+  },
+  {
+    name: "Accounting",
+    path: "/payroll/accounting",
+    description: "Payslip lines mapped to your ledgers, and each run exported as a journal.",
+  },
+  {
+    name: "Gratuity & encashment",
+    path: "/payroll/gratuity",
+    description: "Gratuity accrual and payouts at exit, and leave encashment.",
+  },
+  {
+    name: "Benefits",
+    path: "/payroll/benefits",
+    description: "Group plans, who is covered, changes to approve, and files for the insurer.",
+  },
+  {
+    name: "Contractors",
+    path: "/payroll/contractors",
+    description: "Consultants paid against invoices, with TDS under 194C and 194J.",
+  },
+  {
+    name: "Earned wage access",
+    path: "/payroll/ewa",
+    description: "Advances on pay already earned, recovered in the same month's payroll.",
+  },
+  {
+    name: "Stock options",
+    path: "/payroll/esop",
+    description: "Grants, vesting schedules and the perquisite they create.",
+  },
+];
+
+/**
+ * The menu, by HR module — Onboarding, Employees, Attendance, Leave, Payroll —
+ * the way HR thinks of the work, rather than by whose page it is. Each module
+ * lists only the pages the person may open, so an employee's Attendance holds
+ * their own days and HR's adds the review and the rosters.
+ */
 export const NAV: NavSection[] = [
   {
     key: "home",
     name: "Home",
     icon: LayoutDashboard,
-    group: "me",
+    group: "main",
     pages: [{ name: "Home", path: "/", roles: EVERYONE }],
   },
   {
@@ -109,68 +178,127 @@ export const NAV: NavSection[] = [
     key: "companion",
     name: "Ask Mira",
     icon: Sparkles,
-    group: "me",
+    group: "main",
     pages: [{ name: "Ask Mira", path: "/ask-mira", roles: EVERYONE }],
   },
   {
     key: "approvals",
     name: "Approvals",
     icon: Inbox,
-    group: "me",
+    group: "main",
     pages: [
       { name: "Approvals", path: "/approvals", roles: EVERYONE },
-      { name: "Lifecycle approval", path: "/approvals/lifecycle", roles: EVERYONE, hidden: true },
+      {
+        name: "Lifecycle approval",
+        path: "/approvals/lifecycle",
+        roles: EVERYONE,
+        hidden: true,
+        parent: "/approvals",
+      },
     ],
   },
   {
     key: "onboarding",
     name: "Onboarding",
     icon: Rocket,
-    group: "me",
+    group: "main",
     pages: [
-      { name: "My onboarding", path: "/onboarding", roles: EVERYONE },
-      { name: "My tasks", path: "/onboarding/tasks", roles: EVERYONE },
       { name: "New joiners", path: "/onboarding/plans", roles: HR },
+      // HR see their own onboarding, while they have one, on Home.
+      { name: "My onboarding", path: "/onboarding", roles: ["employee"], self: true },
+      { name: "My tasks", path: "/onboarding/tasks", roles: EVERYONE },
       { name: "Asset assignment", path: "/onboarding/assets", roles: HR },
       { name: "Document entry", path: "/onboarding/documents", roles: HR },
       { name: "Checklists", path: "/onboarding/templates", roles: HR },
     ],
   },
   {
-    key: "time",
-    name: "Time",
-    icon: CalendarClock,
-    group: "me",
+    key: "people",
+    name: "Employees",
+    icon: Users,
+    group: "main",
+    module: "core_hr",
+    pages: [
+      { name: "Directory", path: "/people", roles: EVERYONE },
+      { name: "Org chart", path: "/people/org-chart", roles: EVERYONE },
+      { name: "Import employees", path: "/people/import", roles: HR },
+      { name: "Positions", path: "/people/positions", roles: HR },
+      { name: "Lifecycle events", path: "/people/lifecycle", roles: HR },
+      { name: "Profile changes", path: "/people/change-requests", roles: HR },
+      { name: "Exits", path: "/people/exits", roles: MANAGERS },
+      { name: "Clearance tasks", path: "/people/clearance", roles: EVERYONE },
+      { name: "Add employee", path: "/people/new", roles: HR, hidden: true, parent: "/people" },
+    ],
+  },
+  {
+    key: "attendance",
+    name: "Attendance",
+    icon: Clock,
+    group: "main",
     module: "leave",
     pages: [
-      { name: "Time off", path: "/time", roles: EVERYONE },
-      { name: "Attendance", path: "/time/attendance", roles: EVERYONE },
+      { name: "My attendance", path: "/time/attendance", roles: EVERYONE, self: true },
       { name: "Attendance review", path: "/time/attendance-review", roles: MANAGERS, reach: EVERYONE },
-      { name: "Overtime", path: "/time/overtime", roles: EVERYONE },
-      { name: "Timesheet", path: "/time/timesheets", roles: EVERYONE },
+      { name: "Overtime", path: "/time/overtime", roles: EVERYONE, self: true },
+      { name: "Timesheet", path: "/time/timesheets", roles: EVERYONE, self: true },
       { name: "Timesheet approvals", path: "/time/timesheets/approvals", roles: MANAGERS, reach: EVERYONE },
       { name: "Shifts & rosters", path: "/time/shifts", roles: HR },
+    ],
+  },
+  {
+    key: "time",
+    name: "Leave",
+    icon: CalendarDays,
+    group: "main",
+    module: "leave",
+    pages: [{ name: "Leave", path: "/time", roles: EVERYONE }],
+  },
+  {
+    key: "payroll",
+    name: "Payroll",
+    icon: CircleDollarSign,
+    group: "main",
+    module: "payroll",
+    pages: [
+      { name: "Payroll runs", path: "/payroll", roles: HR },
+      { name: "Salaries", path: "/payroll/salaries", roles: HR },
+      { name: "Adjustments", path: "/payroll/adjustments", roles: HR },
+      { name: "Arrears", path: "/payroll/arrears", roles: HR },
+      { name: "Loans", path: "/payroll/loans", roles: HR },
+      { name: "Tax proofs", path: "/payroll/tax-proofs", roles: HR },
+      { name: "Return filings", path: "/payroll/filings", roles: HR },
+      { name: "Bank files", path: "/payroll/disbursements", roles: HR },
+      { name: "Full & final", path: "/payroll/settlements", roles: HR },
+      { name: "Payroll setup", path: "/payroll/setup", roles: HR },
+      // Set up once and changed rarely: reached from Payroll setup.
+      ...PAYROLL_SETUP.map((page) => ({
+        name: page.name,
+        path: page.path,
+        roles: HR,
+        hidden: true,
+        parent: "/payroll/setup",
+      })),
     ],
   },
   {
     key: "pay",
     name: "My pay",
     icon: Wallet,
-    group: "me",
+    group: "main",
     module: "payroll",
     pages: [
-      { name: "Payslips", path: "/pay", roles: EVERYONE },
-      { name: "Tax declarations", path: "/pay/tax", roles: EVERYONE },
-      { name: "Loans & encashment", path: "/pay/loans", roles: EVERYONE },
-      { name: "Benefits", path: "/pay/benefits", roles: EVERYONE },
-      { name: "Stock options", path: "/pay/stock-options", roles: EVERYONE },
+      { name: "Payslips", path: "/pay", roles: EVERYONE, self: true },
+      { name: "Tax declarations", path: "/pay/tax", roles: EVERYONE, self: true },
+      { name: "Loans & encashment", path: "/pay/loans", roles: EVERYONE, self: true },
+      { name: "Benefits", path: "/pay/benefits", roles: EVERYONE, self: true },
+      { name: "Stock options", path: "/pay/stock-options", roles: EVERYONE, self: true },
     ],
   },
   {
     key: "expenses",
     name: "Expenses",
     icon: Receipt,
-    group: "me",
+    group: "main",
     product: "expense",
     pages: [
       { name: "My claims", path: "/expenses", roles: EVERYONE },
@@ -192,107 +320,10 @@ export const NAV: NavSection[] = [
     ],
   },
   {
-    key: "assistant",
-    name: "Ask HR",
-    icon: MessageCircleQuestion,
-    group: "me",
-    pages: [{ name: "Ask HR", path: "/assistant", roles: EVERYONE }],
-  },
-  {
-    key: "learning",
-    name: "Learning",
-    icon: GraduationCap,
-    group: "me",
-    pages: [
-      { name: "My courses", path: "/learning", roles: EVERYONE },
-      { name: "Courses", path: "/learning/admin", roles: HR },
-    ],
-  },
-  {
-    key: "docs",
-    name: "Documents",
-    icon: FileText,
-    group: "me",
-    pages: [
-      { name: "My documents", path: "/docs", roles: EVERYONE },
-      { name: "Letters", path: "/docs/letters", roles: HR },
-      { name: "Templates", path: "/docs/templates", roles: HR },
-    ],
-  },
-  {
-    key: "assets",
-    name: "Assets",
-    icon: Laptop,
-    group: "me",
-    pages: [
-      { name: "My assets", path: "/assets", roles: EVERYONE },
-      { name: "Asset register", path: "/assets/inventory", roles: HR },
-      { name: "Asset requests", path: "/assets/requests", roles: MANAGERS },
-      { name: "Categories", path: "/assets/categories", roles: HR },
-    ],
-  },
-  {
-    key: "helpdesk",
-    name: "Helpdesk",
-    icon: LifeBuoy,
-    group: "me",
-    pages: [
-      { name: "My tickets", path: "/helpdesk", roles: EVERYONE },
-      { name: "Ticket queue", path: "/helpdesk/queue", roles: HR },
-      // A category owner outside HR works their tickets here, linked from My tickets.
-      { name: "My ticket queue", path: "/helpdesk/assigned", roles: EVERYONE, hidden: true },
-      { name: "Categories", path: "/helpdesk/categories", roles: ADMIN },
-    ],
-  },
-  {
-    key: "people",
-    name: "People",
-    icon: Users,
-    group: "company",
-    module: "core_hr",
-    pages: [
-      { name: "Directory", path: "/people", roles: EVERYONE },
-      { name: "Org chart", path: "/people/org-chart", roles: EVERYONE },
-      { name: "Positions", path: "/people/positions", roles: HR },
-      { name: "Lifecycle events", path: "/people/lifecycle", roles: HR },
-      { name: "Exits", path: "/people/exits", roles: MANAGERS },
-      { name: "Clearance tasks", path: "/people/clearance", roles: EVERYONE },
-      { name: "Profile changes", path: "/people/change-requests", roles: HR },
-      { name: "Add employee", path: "/people/new", roles: HR, hidden: true },
-    ],
-  },
-  {
-    key: "culture",
-    name: "Culture",
-    icon: Heart,
-    group: "company",
-    module: "culture",
-    pages: [
-      { name: "Feed", path: "/culture", roles: EVERYONE },
-      { name: "Clubs", path: "/culture/clubs", roles: EVERYONE },
-      { name: "Awards", path: "/culture/awards", roles: EVERYONE },
-      { name: "Surveys", path: "/culture/surveys", roles: EVERYONE },
-      { name: "Announcements", path: "/culture/announcements", roles: EVERYONE },
-      { name: "Polls and events", path: "/culture/polls", roles: EVERYONE },
-      { name: "Culture admin", path: "/culture/admin", roles: HR },
-    ],
-  },
-  {
-    key: "rewards",
-    name: "Rewards",
-    icon: Gift,
-    group: "company",
-    module: "rewards",
-    pages: [
-      { name: "My points", path: "/rewards", roles: EVERYONE },
-      { name: "Rewards admin", path: "/rewards/admin", roles: HR },
-    ],
-  },
-  {
     key: "performance",
     name: "Performance",
     icon: Target,
-    group: "company",
+    group: "main",
     pages: [
       { name: "My reviews", path: "/performance", roles: EVERYONE },
       { name: "Goals", path: "/performance/goals", roles: EVERYONE },
@@ -307,10 +338,94 @@ export const NAV: NavSection[] = [
     ],
   },
   {
+    key: "learning",
+    name: "Learning",
+    icon: GraduationCap,
+    group: "main",
+    pages: [
+      { name: "My courses", path: "/learning", roles: EVERYONE, self: true },
+      { name: "Courses", path: "/learning/admin", roles: HR },
+    ],
+  },
+  {
+    key: "culture",
+    name: "Culture",
+    icon: Heart,
+    group: "main",
+    // Culture and Rewards are separate modules sharing one menu entry, so each
+    // page names its own.
+    pages: [
+      { name: "Feed", path: "/culture", roles: EVERYONE, module: "culture" },
+      { name: "Announcements", path: "/culture/announcements", roles: EVERYONE, module: "culture" },
+      { name: "Awards", path: "/culture/awards", roles: EVERYONE, module: "culture" },
+      { name: "Surveys", path: "/culture/surveys", roles: EVERYONE, module: "culture" },
+      { name: "Polls and events", path: "/culture/polls", roles: EVERYONE, module: "culture" },
+      { name: "Clubs", path: "/culture/clubs", roles: EVERYONE, module: "culture" },
+      { name: "My points", path: "/rewards", roles: EVERYONE, module: "rewards", self: true },
+      { name: "Culture admin", path: "/culture/admin", roles: HR, module: "culture" },
+      { name: "Rewards admin", path: "/rewards/admin", roles: HR, module: "rewards" },
+    ],
+  },
+  {
+    key: "docs",
+    name: "Documents",
+    icon: FileText,
+    group: "main",
+    pages: [
+      { name: "My documents", path: "/docs", roles: EVERYONE, self: true },
+      { name: "Letters", path: "/docs/letters", roles: HR },
+      { name: "Templates", path: "/docs/templates", roles: HR },
+    ],
+  },
+  {
+    key: "reports",
+    name: "Reports",
+    icon: BarChart3,
+    group: "main",
+    pages: [
+      { name: "Analytics", path: "/reports/dashboard", roles: MANAGERS },
+      { name: "Reports", path: "/reports", roles: HR },
+      { name: "BI connector", path: "/reports/bi", roles: ADMIN },
+    ],
+  },
+  // ── On the right-hand rail (`QUICK_ACCESS`) ─────────────────────────────
+  {
+    key: "assistant",
+    name: "Ask HR",
+    icon: MessageCircleQuestion,
+    group: "main",
+    pages: [{ name: "Ask HR", path: "/assistant", roles: EVERYONE }],
+  },
+  {
+    key: "assets",
+    name: "Assets",
+    icon: Laptop,
+    group: "main",
+    pages: [
+      { name: "My assets", path: "/assets", roles: EVERYONE, self: true },
+      { name: "Asset register", path: "/assets/inventory", roles: HR },
+      { name: "Asset requests", path: "/assets/requests", roles: MANAGERS },
+      { name: "Categories", path: "/assets/categories", roles: HR },
+    ],
+  },
+  {
+    key: "helpdesk",
+    name: "Helpdesk",
+    icon: LifeBuoy,
+    group: "main",
+    pages: [
+      { name: "My tickets", path: "/helpdesk", roles: EVERYONE },
+      { name: "Ticket queue", path: "/helpdesk/queue", roles: HR },
+      // A category owner outside HR works their tickets here, linked from My tickets.
+      { name: "My ticket queue", path: "/helpdesk/assigned", roles: EVERYONE, hidden: true },
+      { name: "Categories", path: "/helpdesk/categories", roles: ADMIN },
+    ],
+  },
+  {
     key: "hiring",
     name: "Hiring",
     icon: Briefcase,
-    group: "company",
+    group: "main",
     module: "hiring",
     product: "interview",
     pages: [
@@ -331,63 +446,18 @@ export const NAV: NavSection[] = [
       { name: "Interviews", path: "/linked/interview/interviews", roles: MANAGERS },
     ],
   },
-  {
-    key: "payroll",
-    name: "Payroll",
-    icon: CircleDollarSign,
-    group: "operations",
-    module: "payroll",
-    pages: [
-      { name: "Payroll runs", path: "/payroll", roles: HR },
-      { name: "Salaries", path: "/payroll/salaries", roles: HR },
-      { name: "Adjustments", path: "/payroll/adjustments", roles: HR },
-      { name: "Salary structures", path: "/payroll/structures", roles: HR },
-      { name: "Statutory", path: "/payroll/statutory", roles: HR },
-      { name: "Rule sets", path: "/payroll/rule-sets", roles: HR },
-      { name: "Return filings", path: "/payroll/filings", roles: HR },
-      { name: "Bank files", path: "/payroll/disbursements", roles: HR },
-      { name: "Accounting", path: "/payroll/accounting", roles: HR },
-      { name: "Arrears", path: "/payroll/arrears", roles: HR },
-      { name: "Loans", path: "/payroll/loans", roles: HR },
-      { name: "Full & final", path: "/payroll/settlements", roles: HR },
-      { name: "Gratuity & encashment", path: "/payroll/gratuity", roles: HR },
-      { name: "Tax proofs", path: "/payroll/tax-proofs", roles: HR },
-      { name: "Benefits", path: "/payroll/benefits", roles: HR },
-      { name: "Contractors", path: "/payroll/contractors", roles: HR },
-      { name: "Earned wage access", path: "/payroll/ewa", roles: HR },
-      { name: "Stock options", path: "/payroll/esop", roles: HR },
-    ],
-  },
-  {
-    key: "reports",
-    name: "Reports",
-    icon: BarChart3,
-    group: "operations",
-    pages: [
-      { name: "Analytics", path: "/reports/dashboard", roles: MANAGERS },
-      { name: "Reports", path: "/reports", roles: HR },
-      { name: "BI connector", path: "/reports/bi", roles: ADMIN },
-    ],
-  },
+  // ── Admin ───────────────────────────────────────────────────────────────
   {
     key: "compliance",
     name: "Compliance",
     icon: ShieldCheck,
-    group: "operations",
+    group: "admin",
     pages: [
-      { name: "My privacy", path: "/compliance/privacy", roles: EVERYONE },
       { name: "Data protection", path: "/compliance", roles: ADMIN },
       { name: "Retention", path: "/compliance/retention", roles: ADMIN },
       { name: "Security", path: "/compliance/security", roles: ADMIN },
       { name: "AI governance", path: "/compliance/ai", roles: ADMIN },
     ],
-  },
-  {
-    key: "platform",
-    name: "Platform",
-    icon: Building2,
-    group: "admin",
-    pages: [{ name: "Workspaces", path: "/platform", roles: PLATFORM }],
   },
   {
     key: "settings",
@@ -407,11 +477,20 @@ export const NAV: NavSection[] = [
       { name: "Notifications", path: "/settings/notifications", roles: ADMIN },
     ],
   },
+  {
+    key: "platform",
+    name: "Platform",
+    icon: Building2,
+    group: "admin",
+    pages: [{ name: "Workspaces", path: "/platform", roles: PLATFORM }],
+  },
 ];
 
 /** Signed-in pages that belong to no section but still need a guard. */
 const STANDALONE: NavPage[] = [
   { name: "My profile", path: "/profile", roles: EVERYONE, icon: UserCircle2 },
+  // On the account menu, beside My profile.
+  { name: "My privacy", path: "/compliance/privacy", roles: EVERYONE, icon: ShieldCheck },
   { name: "Notifications", path: "/notifications", roles: EVERYONE, icon: Bell },
   { name: "Client workspaces", path: "/operator", roles: HR, icon: Building2 },
   // Opens a linked product; the API decides who it admits.
@@ -502,8 +581,13 @@ export function visiblePages(
   const linked = linkedProduct(section, tenant);
   if (!linked && !moduleEnabled(tenant, section.module)) return [];
   const pages = linked ? (section.linkedPages ?? []) : section.pages;
+  const hasRecord = Boolean(user?.employee_id);
   return pages.filter(
-    (page) => !page.hidden && moduleEnabled(tenant, page.module) && roleAllows(user, page.roles),
+    (page) =>
+      !page.hidden &&
+      (hasRecord || !page.self) &&
+      moduleEnabled(tenant, page.module) &&
+      roleAllows(user, page.roles),
   );
 }
 
@@ -512,7 +596,7 @@ export function visiblePages(
  * bottom: the companion, the hubs a linked product can take over, and the
  * self-service desks people reach for from any page.
  */
-export const QUICK_ACCESS = ["companion", "expenses", "helpdesk", "hiring", "assets"];
+export const QUICK_ACCESS = ["companion", "assistant", "expenses", "helpdesk", "hiring", "assets"];
 
 /** A section as a navigation rail shows it. */
 export interface RailEntry {

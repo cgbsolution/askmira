@@ -8,7 +8,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       {
         title: "Run payroll for a month",
         steps: [
-          "Make sure attendance for the month is locked (Time → Shifts & rosters → Periods & payroll lock → Lock for payroll).",
+          "Make sure attendance for the month is locked (Attendance → Shifts & rosters → Periods & payroll lock → Lock for payroll).",
           "Press New run, choose the month and legal entity, and open it.",
           "Compute the run, then review payslips and the variances against last month.",
           "Acknowledge each variance you accept, then submit for approval.",
@@ -82,6 +82,21 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         steps: ["Press Import CSV, download the template, fill it and upload it."],
       },
     ],
+  },
+
+  "/payroll/setup": {
+    summary: "Payroll's set-up pages in one place: structures, statutory rules, accounting and the pay programmes.",
+    tasks: [
+      {
+        title: "Open a set-up page",
+        steps: [
+          "Pick a card: Salary structures, Statutory, Rule sets, Accounting, Gratuity & encashment, Benefits, Contractors, Earned wage access or Stock options.",
+          "While you are on one, Payroll setup stays highlighted in the menu.",
+        ],
+      },
+    ],
+    tips: ["The monthly work (runs, salaries, adjustments, filings, bank files) stays in the Payroll menu."],
+    related: [{ label: "Payroll runs", href: "/payroll" }],
   },
 
   "/payroll/structures": {

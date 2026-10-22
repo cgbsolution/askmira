@@ -63,7 +63,7 @@ const STATUS_BADGE: Record<string, { label: string; variant: "success" | "outlin
 };
 
 /**
- * Compliance → My privacy.
+ * The account menu → My privacy.
  *
  * Every person's own view under the DPDP Act: what is held about them and why,
  * the choices they have (and the processing where they have none, shown too —

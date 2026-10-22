@@ -97,7 +97,7 @@ export function LeaveBalanceCard() {
             tier="tier2"
             className="my-auto px-0 py-4"
             title="No leave policy covers you yet"
-            description="HR sets policies under Time off → Setup."
+            description="HR sets policies under Leave → Setup."
           />
         ) : (
           rows.map((row) => {

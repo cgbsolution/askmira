@@ -11,6 +11,7 @@ import {
   LogOut,
   Moon,
   Search,
+  ShieldCheck,
   Sun,
   UserCircle2,
 } from "lucide-react";
@@ -188,6 +189,11 @@ function UserMenu() {
         <DropdownMenuItem asChild className="gap-3 rounded-lg px-3 py-2 font-medium">
           <Link href="/profile">
             <UserCircle2 /> {t("My profile")}
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild className="gap-3 rounded-lg px-3 py-2 font-medium">
+          <Link href="/compliance/privacy">
+            <ShieldCheck /> {t("My privacy")}
           </Link>
         </DropdownMenuItem>
         {hasRole(...HR) ? (

@@ -75,7 +75,7 @@ export const ME_GUIDES: Record<string, PageGuide> = {
     ],
     tips: [
       "Mira works without AI too: it then matches your words to a lookup, so ask short, direct questions like “Who is on leave this week?” or “My pending expense claims”. Nothing you type leaves AskMira.",
-      "For free-form questions and policy answers, AI must be on for your workspace and you must agree to “AI assistant” under Compliance → My privacy; nothing is sent to the AI provider until you do.",
+      "For free-form questions and policy answers, AI must be on for your workspace and you must agree to “AI assistant” under My privacy in your account menu; nothing is sent to the AI provider until you do.",
       "Mira can tell you your leave balance, latest payslip, attendance and manager; who is on leave; find colleagues; list departments and offices; and answer policy questions from what HR published.",
       "Where your company uses the separate interview or expense tool, Mira can also show the jobs, candidates, interviews and expense claims you may see there.",
       "Mira never sees what it looks up for you, and never states a fact it did not look up.",

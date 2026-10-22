@@ -713,3 +713,54 @@ export interface Celebrations {
   items: Celebration[];
   note: string;
 }
+
+// ── Import from a spreadsheet (`/employees/import`) ─────────────────────────
+
+export type ImportRowOutcome = "ready" | "skip" | "error";
+
+export interface ImportRow {
+  /** The row number in the file, as Excel shows it. */
+  line: number;
+  employee_code: string | null;
+  name: string | null;
+  status: EmploymentStatus | null;
+  date_of_joining: string | null;
+  date_of_exit: string | null;
+  designation: string | null;
+  department: string | null;
+  location: string | null;
+  manager: string | null;
+  outcome: ImportRowOutcome;
+  errors: string[];
+  warnings: string[];
+  employee_id: string | null;
+}
+
+export interface ImportPreview {
+  filename: string;
+  source: string;
+  header_row: number;
+  total_rows: number;
+  ready_current: number;
+  ready_leavers: number;
+  skipped: number;
+  errors: number;
+  with_warnings: number;
+  new_departments: string[];
+  new_locations: { name: string; state_code: string }[];
+  columns_used: { header: string; field: string; section: string }[];
+  columns_ignored: string[];
+  can_create_org: boolean;
+  rows: ImportRow[];
+}
+
+export interface ImportResult {
+  filename: string;
+  created: number;
+  created_leavers: number;
+  skipped: number;
+  failed: number;
+  departments_created: string[];
+  locations_created: string[];
+  rows: ImportRow[];
+}

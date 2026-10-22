@@ -63,7 +63,7 @@ function detail(caught: unknown, fallback: string): string {
 }
 
 /**
- * Rewards → Rewards admin.
+ * Culture → Rewards admin.
  *
  * Unredeemed points are a liability on the balance sheet, so this is a finance
  * screen as much as a culture one: what is owed, how it moved, what budgets

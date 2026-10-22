@@ -36,7 +36,7 @@ interface SeatNode extends TreeNode {
 }
 
 /**
- * People → Org chart.
+ * Employees → Org chart.
  *
  * Two charts, because they answer different questions. Reporting lines — who
  * manages whom — comes from the directory and every role may see it. Positions
@@ -344,7 +344,7 @@ function PositionsChart() {
         empty={{
           icon: Network,
           title: "No positions defined",
-          description: "Positions are created under People → Positions.",
+          description: "Positions are created under Employees → Positions.",
         }}
       >
         <OrgTree

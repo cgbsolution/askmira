@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Loader2, Plus, Search, Users } from "lucide-react";
+import { Download, Loader2, Plus, Search, Upload, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -115,12 +115,17 @@ export function DirectoryView() {
 
   return (
     <PageShell
-      title="People"
+      title="Employees"
       description="Everyone in the company — names, roles, departments and work contacts."
       actions={
         <RequireRole roles={HR}>
           <Button variant="outline" onClick={() => void exportCsv()} disabled={exporting}>
             {exporting ? <Loader2 className="animate-spin" /> : <Download />} Export CSV
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/people/import">
+              <Upload /> Import
+            </Link>
           </Button>
           <Button variant="accent" asChild>
             <Link href="/people/new">

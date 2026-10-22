@@ -64,7 +64,7 @@ export function LifecycleTimeline({ employeeId }: { employeeId: string }) {
         empty={{
           icon: History,
           title: "No lifecycle events yet",
-          description: "Events raised under People → Lifecycle events appear here.",
+          description: "Events raised under Employees → Lifecycle events appear here.",
         }}
       >
         <ol className="grid gap-0 p-5">

@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, MoreVertical, UserCircle2 } from "lucide-react";
+import { LogOut, MoreVertical, ShieldCheck, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -41,11 +41,12 @@ import {
 } from "@/lib/access";
 import { humanizeRole, initials } from "@/lib/utils";
 
-const GROUP_ORDER: NavSection["group"][] = ["me", "company", "operations", "admin"];
+const GROUP_ORDER: NavSection["group"][] = ["main", "admin"];
 
 /**
  * The nav rail from FRD 5.13: solid Deep Teal, Marigold on the active item.
  *
+ * One list of HR modules, the admin ones under their own heading at the foot.
  * Built from `lib/access.ts`, the same map the route guard reads. A section
  * appears only when the workspace has its module and the person can open at
  * least one of its pages. A section with one page is a link; with more, its
@@ -62,7 +63,8 @@ export function AppSidebar() {
 
   const resolved = resolvePage(pathname);
   const activeSection = resolved?.section?.key;
-  const activePage = resolved?.page.path;
+  // A page left out of the menu lights up the one it is reached from.
+  const activePage = resolved?.page.parent ?? resolved?.page.path;
 
   // One section unfolded at a time, and the one you are in unfolds by itself.
   // Adjusted during render rather than in an effect, so there is no frame where
@@ -139,9 +141,11 @@ export function AppSidebar() {
       >
         {groups.map((group) => (
           <SidebarGroup key={group.key} className="px-3 py-1">
-            <SidebarGroupLabel className="px-2 text-[10px] font-bold uppercase tracking-[0.15em] text-sidebar-muted">
-              {t(group.label)}
-            </SidebarGroupLabel>
+            {group.key === "admin" && (
+              <SidebarGroupLabel className="px-2 text-[10px] font-bold uppercase tracking-[0.15em] text-sidebar-muted">
+                {t(group.label)}
+              </SidebarGroupLabel>
+            )}
             <SidebarMenu className="gap-0.5">
               {group.items.map(({ section, pages, launch }) => (
                 <RailSection
@@ -202,6 +206,11 @@ export function AppSidebar() {
                   <DropdownMenuItem asChild>
                     <Link href="/profile" onClick={closeOnMobile}>
                       <UserCircle2 /> {t("My profile")}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/compliance/privacy" onClick={closeOnMobile}>
+                      <ShieldCheck /> {t("My privacy")}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

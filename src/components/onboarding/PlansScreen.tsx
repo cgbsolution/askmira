@@ -6,6 +6,7 @@ import React, { useCallback, useState } from "react";
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
+import { AddJoinerDialog } from "@/components/onboarding/JoinerWizard";
 import { PlanDetailSheet } from "@/components/onboarding/PlanDetailSheet";
 import {
   dayOrDash,
@@ -67,12 +68,15 @@ export function PlansScreen() {
       title="New joiners"
       description="Onboarding for everyone joining: checklists, owners, what is overdue and who is stuck."
       actions={
-        <StartOnboardingDialog
-          onStarted={(plan) => {
-            refresh();
-            setOpenPlanId(plan.id);
-          }}
-        />
+        <>
+          <StartOnboardingDialog
+            onStarted={(plan) => {
+              refresh();
+              setOpenPlanId(plan.id);
+            }}
+          />
+          <AddJoinerDialog onAdded={refresh} onOpenPlan={setOpenPlanId} />
+        </>
       }
     >
       <DataPanel
@@ -86,7 +90,7 @@ export function PlansScreen() {
           title: filtered ? "No plans match these filters" : "No onboarding plans yet",
           description: filtered
             ? "Try another status or department."
-            : "Start onboarding for a new joiner to give them, their manager, buddy and IT a dated checklist.",
+            : "Add a new joiner: their record, a dated checklist for them, their manager, buddy and IT, and their login, in three steps.",
         }}
         toolbar={
           <>

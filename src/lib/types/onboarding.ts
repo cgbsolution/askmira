@@ -5,6 +5,10 @@
  * portal never derives one of its own.
  */
 
+import type { EmploymentStatus } from "@/lib/types";
+import type { ManagedUserCreated } from "@/lib/types/admin";
+import type { EmployeeInput } from "@/lib/types/people";
+
 export type OnboardingOwnerType = "new_joiner" | "manager" | "hr" | "it" | "buddy" | "finance";
 
 export type OnboardingTaskType =
@@ -99,6 +103,33 @@ export interface PlanCreateInput {
   template_id: string;
   buddy_employee_id: string | null;
   joining_date: string | null;
+}
+
+/** A new joiner in one go: their record, checklist and login (`POST /onboarding/joiners`). */
+export interface JoinerCreateInput {
+  employee: EmployeeInput & {
+    employee_code: string;
+    first_name: string;
+    work_email: string;
+    date_of_joining: string;
+  };
+  /** Null adds the person without starting a checklist. */
+  template_id: string | null;
+  buddy_employee_id: string | null;
+  /** Admins only. */
+  create_login: boolean;
+  send_welcome_email: boolean;
+}
+
+export interface JoinerCreated {
+  employee_id: string;
+  employee_code: string;
+  employee_name: string;
+  status: EmploymentStatus;
+  plan_id: string | null;
+  checklist_name: string | null;
+  /** Carries the one-time password; null when no login was asked for. */
+  login: ManagedUserCreated | null;
 }
 
 export interface PlanProgress {

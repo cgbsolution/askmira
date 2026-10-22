@@ -25,7 +25,7 @@ import { formatDate } from "@/lib/utils";
 const ALL = "__all__";
 
 /**
- * People → Profile changes (HR).
+ * Employees → Profile changes (HR).
  *
  * Sensitive changes employees asked for: legal name, date of birth, PAN and
  * the other identifiers, the salary account, addresses and nominees. Approving

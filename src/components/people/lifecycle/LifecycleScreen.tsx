@@ -8,7 +8,7 @@ import { EventsTab } from "./EventsTab";
 import { ProbationTab } from "./ProbationTab";
 
 /**
- * People → Lifecycle events.
+ * Employees → Lifecycle events.
  *
  * Confirmations, transfers, promotions and the rest are events, not field
  * edits: each is previewed, approved, and applied on its effective date as one

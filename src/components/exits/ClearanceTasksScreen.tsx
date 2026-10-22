@@ -12,7 +12,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import type { ClearanceTask } from "@/lib/types/payroll-ops";
 
 /**
- * People → Clearance tasks. What waits on you when a colleague leaves: items
+ * Employees → Clearance tasks. What waits on you when a colleague leaves: items
  * that name you as the owner (collecting a laptop, a handover), and — for a
  * line manager — the manager items of people leaving your team. Reachable by
  * everyone, because the owner of an item is often not a manager.

@@ -44,7 +44,7 @@ function detail(caught: unknown, fallback: string): string {
 }
 
 /**
- * Rewards → My points.
+ * Culture → My points.
  *
  * A points balance is money the company owes, so it is shown in rupees beside
  * the points, with the lots that are about to expire and the tax position for

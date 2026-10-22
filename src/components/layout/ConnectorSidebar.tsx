@@ -75,7 +75,7 @@ export function ConnectorSidebar() {
 
   const resolved = resolvePage(pathname);
   const activeSection = resolved?.section?.key;
-  const activePage = resolved?.page.path;
+  const activePage = resolved?.page.parent ?? resolved?.page.path;
 
   // As in the navigation: one section unfolded at a time, the current one by itself.
   const [openSection, setOpenSection] = useState(activeSection);

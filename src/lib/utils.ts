@@ -75,6 +75,11 @@ export function toISODate(date: Date): string {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
+/** Today on this device's calendar, as "YYYY-MM-DD". */
+export function todayISO(): string {
+  return toISODate(new Date());
+}
+
 /** "6 Apr" or "6 Apr 2026", for a calendar date string. */
 export function formatDay(value: string, withYear = false): string {
   return new Intl.DateTimeFormat("en-IN", {

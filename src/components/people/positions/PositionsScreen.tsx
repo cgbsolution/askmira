@@ -9,7 +9,7 @@ import { ScenariosTab } from "./ScenariosTab";
 import { VacanciesTab } from "./VacanciesTab";
 
 /**
- * People → Positions.
+ * Employees → Positions.
  *
  * A position is a seat that exists whether or not anybody sits in it, which is
  * what lets the org chart show vacancies and the budget show the cost of the

@@ -313,7 +313,7 @@ export function EmployeeForm({
           <p className="text-xs text-muted-foreground">
             A change to location, department, manager, designation or grade saved here takes effect
             today and is added to their lifecycle history. For a later date, or one that needs
-            approval, raise it under People → Lifecycle events.
+            approval, raise it under Employees → Lifecycle events.
           </p>
         )}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -456,7 +456,7 @@ export function EmployeeForm({
             hint={
               record?.status === "exited"
                 ? undefined
-                : "Leaving is recorded under People → Exits, which runs clearance and the settlement."
+                : "Leaving is recorded under Employees → Exits, which runs clearance and the settlement."
             }
           >
             <Select value={values.status} onValueChange={(v) => set("status", v as EmploymentStatus)}>
