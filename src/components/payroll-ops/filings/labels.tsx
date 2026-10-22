@@ -5,6 +5,7 @@ import type { FilingStatus, ReturnType } from "@/lib/types/payroll-ops";
 
 export const RETURN_LABEL: Record<ReturnType, string> = {
   pf_ecr: "PF ECR",
+  pf_ecr_arrear: "PF arrear ECR",
   esic: "ESIC return",
   professional_tax: "Professional Tax challan",
   tds_24q: "TDS 24Q",

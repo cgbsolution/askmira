@@ -92,6 +92,10 @@ export interface PayrollRun {
   published_by_name: string | null;
   paid_at: string | null;
   paid_by_name: string | null;
+  /** A run discarded before approval: when, by whom and why. */
+  cancelled_at?: string | null;
+  cancelled_by_name?: string | null;
+  cancel_reason?: string | null;
   created_at: string;
   caller_may_approve: boolean;
   /** Off-cycle, bonus and arrear runs: who and what they pay, and why. */

@@ -61,7 +61,7 @@ export interface IssuedDocument {
 
 // ── Filings (prompt 10) ─────────────────────────────────────────────────────
 
-export type ReturnType = "pf_ecr" | "esic" | "professional_tax" | "tds_24q";
+export type ReturnType = "pf_ecr" | "pf_ecr_arrear" | "esic" | "professional_tax" | "tds_24q";
 export type FilingStatus = "blocked" | "generated" | "filed" | "rejected";
 
 export interface FilingException {
@@ -226,6 +226,17 @@ export interface BankAccountInput {
   verification_method: VerificationMethod;
 }
 
+/** A salary HR held out of a file, paid later from a supplementary batch. */
+export interface HeldSalary {
+  payslip_id: string;
+  employee_id: string;
+  employee_code: string;
+  employee_name: string;
+  amount: string;
+  reason: string;
+  paid_in_batch_id: string | null;
+}
+
 export interface DisbursementBatch {
   id: string;
   payroll_run_id: string;
@@ -245,6 +256,7 @@ export interface DisbursementBatch {
   approved_at: string | null;
   released_at: string | null;
   validation_exceptions: DisbursementException[];
+  held: HeldSalary[];
   notes: string | null;
 }
 
@@ -265,12 +277,16 @@ export interface BatchPrepareInput {
   payroll_run_id: string;
   bank_profile_id: string;
   value_date: string;
+  /** Salaries kept out of this file, each with why. */
+  hold?: { employee_code: string; reason: string }[];
 }
 
 export interface ReconcileOutcome {
   credited: number;
   failed: { line_id: string; employee_id: string; amount: string; reason: string }[];
   unmatched: string[];
+  /** Last digits of accounts whose credit was already reissued: left as they were. */
+  already_reissued?: string[];
   /** People in HR notified about failed credits. */
   notified: number;
   /** Rows of an imported file that could not be read. */
@@ -402,6 +418,8 @@ export interface EmployeeSalary {
   effective_from: string;
   effective_to: string | null;
   revision_reason: string | null;
+  /** On a revision: months payroll already paid at the earlier salary ("2026-08"). */
+  paid_months_affected?: string[];
 }
 
 export interface ReliefYears {
@@ -623,6 +641,10 @@ export interface ReimbursementClaim {
   verification_note: string | null;
   verified_at: string | null;
   created_at: string;
+  /** Set once an approved payroll run has paid the claim. */
+  paid_in_run_id?: string | null;
+  /** That run's pay month, "October 2026". */
+  paid_period?: string | null;
 }
 
 export interface ClaimVerifyInput {

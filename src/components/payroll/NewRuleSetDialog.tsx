@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Plus } from "lucide-react";
+import { Copy, Loader2, Plus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
@@ -25,7 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { post } from "@/lib/api";
+import { get, post } from "@/lib/api";
 import type { RuleSet, RuleSetInput, RuleType } from "@/lib/types/payroll";
 
 const STATE_TYPES: RuleType[] = ["professional_tax", "labour_welfare_fund"];
@@ -45,8 +45,30 @@ export function NewRuleSetDialog({ onCreated }: { onCreated: () => void }) {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [copying, setCopying] = useState(false);
 
   const isState = STATE_TYPES.includes(ruleType);
+
+  // Most changes are a tweak of the version in force: start from its rules rather
+  // than typing the JSON again.
+  const copyCurrent = async () => {
+    setCopying(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({ rule_type: ruleType, jurisdiction });
+      const rows = await get<RuleSet[]>(`/payroll/rule-sets?${params}`);
+      const latest = [...rows].sort((a, b) => b.effective_from.localeCompare(a.effective_from))[0];
+      if (!latest) {
+        setError(`There is no ${RULE_TYPE_LABEL[ruleType] ?? ruleType} version for ${jurisdiction} yet to start from.`);
+        return;
+      }
+      setRulesText(JSON.stringify(latest.rules, null, 2));
+    } catch (caught) {
+      setError(apiMessage(caught, "Could not read the version in force."));
+    } finally {
+      setCopying(false);
+    }
+  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -154,6 +176,11 @@ export function NewRuleSetDialog({ onCreated }: { onCreated: () => void }) {
             <Input id="rs-source" value={source} onChange={(event) => setSource(event.target.value)} />
           </FormField>
           <FormField htmlFor="rs-rules" label="Rules (JSON)">
+            <div>
+              <Button type="button" variant="outline" size="sm" disabled={copying} onClick={() => void copyCurrent()}>
+                {copying ? <Loader2 className="animate-spin" /> : <Copy />} Start from the current version
+              </Button>
+            </div>
             <Textarea
               id="rs-rules"
               className="min-h-40 text-xs"

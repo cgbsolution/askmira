@@ -3,6 +3,7 @@
 import {
   CheckCircle2,
   FileUp,
+  HandCoins,
   Loader2,
   RefreshCw,
   Repeat,
@@ -238,7 +239,7 @@ function BatchBody({
           <div className="sm:col-span-4">
             <dt className="text-xs text-muted-foreground">Supplementary batch</dt>
             <dd className="mt-0.5 text-foreground">
-              Reissues failed credits from an earlier batch.
+              Pays particular credits from an earlier salary file: credits the bank returned, or salaries that were held.
             </dd>
           </div>
         )}
@@ -335,18 +336,36 @@ function BatchBody({
               </p>
             </div>
             {isHr && (
-              <Button
-                size="sm"
-                onClick={() =>
-                  onPrepareAgain({
-                    payroll_run_id: batch.payroll_run_id,
-                    bank_profile_id: batch.bank_profile_id,
-                    value_date: batch.value_date ?? undefined,
-                  })
-                }
-              >
-                <Repeat /> Prepare again
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    onPrepareAgain({
+                      payroll_run_id: batch.payroll_run_id,
+                      bank_profile_id: batch.bank_profile_id,
+                      value_date: batch.value_date ?? undefined,
+                      hold: Array.from(
+                        new Set(batch.validation_exceptions.map((item) => item.subject)),
+                      ).map((code) => ({ employee_code: code, reason: "" })),
+                    })
+                  }
+                >
+                  <HandCoins /> Hold these, pay the rest
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    onPrepareAgain({
+                      payroll_run_id: batch.payroll_run_id,
+                      bank_profile_id: batch.bank_profile_id,
+                      value_date: batch.value_date ?? undefined,
+                    })
+                  }
+                >
+                  <Repeat /> Prepare again
+                </Button>
+              </div>
             )}
           </div>
           <div className="overflow-hidden rounded-md border border-border">
@@ -393,6 +412,14 @@ function BatchBody({
             </Table>
           </div>
         </div>
+      )}
+
+      {/* ── Held salaries ───────────────────────────────────────────────── */}
+      {(batch.held ?? []).length > 0 && (
+        <>
+          <Separator />
+          <HeldSalaries batch={batch} canPay={isHr} onPaid={onUpdated} />
+        </>
       )}
 
       {/* ── Reconciliation ──────────────────────────────────────────────── */}
@@ -494,6 +521,112 @@ function BatchBody({
         confirmLabel="Mark released"
         onConfirm={release}
       />
+    </div>
+  );
+}
+
+function HeldSalaries({
+  batch,
+  canPay,
+  onPaid,
+}: {
+  batch: DisbursementBatch;
+  canPay: boolean;
+  onPaid: (batch: DisbursementBatch) => void;
+}) {
+  const [valueDate, setValueDate] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPaying, setIsPaying] = useState(false);
+  const waiting = batch.held.filter((item) => !item.paid_in_batch_id);
+  const sent = batch.status === "released" || batch.status === "acknowledged";
+
+  const pay = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError(null);
+    if (!valueDate) {
+      setError("Choose the value date for the held salaries.");
+      return;
+    }
+    setIsPaying(true);
+    try {
+      const created = await post<DisbursementBatch>(`/disbursement/batches/${batch.id}/pay-held`, {
+        value_date: valueDate,
+      });
+      toast.success("A batch for the held salaries is waiting for approval");
+      onPaid(created);
+    } catch (caught) {
+      setError(apiErrorMessage(caught, "The held salaries could not be prepared."));
+    } finally {
+      setIsPaying(false);
+    }
+  };
+
+  return (
+    <div className="grid gap-3">
+      <div>
+        <p className="text-sm font-medium text-foreground">
+          Held out of this file{" "}
+          <span className="text-muted-foreground tabular-nums">({batch.held.length})</span>
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Not in the file, so everyone else was paid on time. They are paid from a supplementary
+          batch once their bank accounts are in.
+        </p>
+      </div>
+      <div className="overflow-hidden rounded-md border border-border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Employee</TableHead>
+              <TableHead className="text-right">Amount</TableHead>
+              <TableHead>Why it is held</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {batch.held.map((item) => (
+              <TableRow key={item.payslip_id}>
+                <TableCell>
+                  <span className="text-foreground">{item.employee_name}</span>
+                  <span className="block text-xs text-muted-foreground">{item.employee_code}</span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Money value={item.amount} />
+                </TableCell>
+                <TableCell className="whitespace-normal">{item.reason}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {item.paid_in_batch_id ? "Paid from a supplementary batch" : "Held"}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+      {canPay && waiting.length > 0 && sent && (
+        <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void pay(event)} noValidate>
+          <FormField htmlFor="held-value-date" label="Value date">
+            <Input
+              id="held-value-date"
+              type="date"
+              required
+              min={toISODate(new Date())}
+              value={valueDate}
+              onChange={(event) => setValueDate(event.target.value)}
+            />
+          </FormField>
+          <Button type="submit" size="sm" disabled={isPaying}>
+            {isPaying ? <Loader2 className="animate-spin" /> : <HandCoins />}
+            Pay held salaries
+          </Button>
+        </form>
+      )}
+      {canPay && waiting.length > 0 && !sent && (
+        <p className="text-xs text-muted-foreground">
+          This file has not gone to the bank yet. If their accounts are in now, regenerate the file
+          without the hold instead, so they are paid with everyone else.
+        </p>
+      )}
+      {error && <InlineProblem>{error}</InlineProblem>}
     </div>
   );
 }
@@ -661,6 +794,12 @@ function ReconcilePanel({
                 </TableBody>
               </Table>
             </div>
+          )}
+          {(outcome.already_reissued ?? []).length > 0 && (
+            <p className="text-muted-foreground">
+              {(outcome.already_reissued ?? []).length} row(s) matched a credit already reissued
+              in a supplementary batch, so they were left as they were and will not be paid again.
+            </p>
           )}
           {outcome.unmatched.length > 0 && (
             <div>

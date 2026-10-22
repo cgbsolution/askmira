@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -62,6 +63,8 @@ export function PrepareBatchDialog({
   const [runId, setRunId] = useState("");
   const [profileId, setProfileId] = useState("");
   const [valueDate, setValueDate] = useState("");
+  const [holdCodes, setHoldCodes] = useState<string[]>([]);
+  const [holdReason, setHoldReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [seeded, setSeeded] = useState(false);
@@ -72,6 +75,8 @@ export function PrepareBatchDialog({
     setRunId(initial?.payroll_run_id ?? "");
     setProfileId(initial?.bank_profile_id ?? (profiles.length === 1 ? profiles[0].id : ""));
     setValueDate(initial?.value_date ?? "");
+    setHoldCodes((initial?.hold ?? []).map((item) => item.employee_code));
+    setHoldReason(initial?.hold?.[0]?.reason ?? "");
     setError(null);
   }
   if (!open && seeded) setSeeded(false);
@@ -83,10 +88,17 @@ export function PrepareBatchDialog({
       setError("Choose a payroll run, a bank profile and the value date.");
       return;
     }
+    if (holdCodes.length > 0 && holdReason.trim().length < 3) {
+      setError("Say why these salaries are held.");
+      return;
+    }
     const body: BatchPrepareInput = {
       payroll_run_id: runId,
       bank_profile_id: profileId,
       value_date: valueDate,
+      ...(holdCodes.length > 0
+        ? { hold: holdCodes.map((code) => ({ employee_code: code, reason: holdReason.trim() })) }
+        : {}),
     };
     setIsBusy(true);
     try {
@@ -175,6 +187,21 @@ export function PrepareBatchDialog({
             />
             <p className="text-xs text-muted-foreground">The date the bank should credit salaries.</p>
           </FormField>
+          {holdCodes.length > 0 && (
+            <FormField htmlFor="prepare-hold-reason" label={`Hold ${holdCodes.length} salary(ies)`}>
+              <p className="text-sm text-foreground">{holdCodes.join(", ")}</p>
+              <Textarea
+                id="prepare-hold-reason"
+                value={holdReason}
+                placeholder="Why they are held, e.g. bank details not given yet"
+                onChange={(event) => setHoldReason(event.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Left out of this file so everyone else is paid on time. Once their bank accounts are
+                in, pay them from the file with Pay held salaries.
+              </p>
+            </FormField>
+          )}
           {error && <InlineProblem>{error}</InlineProblem>}
         </form>
         <DialogFooter>

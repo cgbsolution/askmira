@@ -1,10 +1,11 @@
 "use client";
 
-import { FileWarning, Loader2, ShieldCheck, Users } from "lucide-react";
+import { Ban, FileWarning, Loader2, ShieldCheck, Users } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { DetailField } from "@/components/payroll-ops/disbursements/common";
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { Money } from "@/components/common/Money";
 import { FormField } from "@/components/common/FormField";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -32,6 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -100,6 +102,9 @@ export function ArrearBatchDialog({
 function BatchBody({ batch, onApproved }: { batch: ArrearBatch; onApproved: () => void }) {
   const { user, hasRole } = useAuth();
   const isAdmin = hasRole("admin");
+  const isPayroll = hasRole("admin", "sub_admin");
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
   const [employee, setEmployee] = useState<EmployeeSummary | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
@@ -149,6 +154,31 @@ function BatchBody({ batch, onApproved }: { batch: ArrearBatch; onApproved: () =
       setApproveError(apiErrorMessage(caught, "The batch could not be approved."));
     } finally {
       setIsApproving(false);
+    }
+  };
+
+  // A batch worked out wrongly is discarded before a run pays it, rather than
+  // approved and corrected later.
+  const canCancel =
+    isPayroll &&
+    (batch.status === "pending_approval" || batch.status === "approved") &&
+    !batch.paid_in_run_id;
+
+  const cancel = async () => {
+    if (cancelReason.trim().length < 3) {
+      toast.error("Say why these arrears are being cancelled.");
+      throw new Error("reason required");
+    }
+    try {
+      await post<ArrearBatch>(`/arrears/batches/${batch.id}/cancel`, {
+        reason: cancelReason.trim(),
+      });
+      toast.success("Arrear batch cancelled. Nothing on it will be paid.");
+      setCancelReason("");
+      onApproved();
+    } catch (caught) {
+      toast.error(apiErrorMessage(caught, "The batch could not be cancelled."));
+      throw caught;
     }
   };
 
@@ -276,6 +306,36 @@ function BatchBody({ batch, onApproved }: { batch: ArrearBatch; onApproved: () =
       )}
 
       {approvalBlock && <div className="rounded-md border border-border p-4">{approvalBlock}</div>}
+
+      {canCancel && (
+        <div>
+          <Button variant="outline" size="sm" onClick={() => setCancelOpen(true)}>
+            <Ban /> Cancel batch
+          </Button>
+        </div>
+      )}
+      <ConfirmDialog
+        open={cancelOpen}
+        onOpenChange={(open) => {
+          setCancelOpen(open);
+          if (!open) setCancelReason("");
+        }}
+        title="Cancel this arrear batch?"
+        description="Nothing on it is paid. Use this when the batch was worked out on the wrong salary record; raise the revision again once it is right."
+        confirmLabel="Cancel batch"
+        cancelLabel="Keep batch"
+        destructive
+        onConfirm={cancel}
+      >
+        <FormField htmlFor="arrear-cancel-reason" label="Reason">
+          <Textarea
+            id="arrear-cancel-reason"
+            value={cancelReason}
+            maxLength={500}
+            onChange={(event) => setCancelReason(event.target.value)}
+          />
+        </FormField>
+      </ConfirmDialog>
 
       <FormField htmlFor="arrear-lines-employee" label="Employee" className="w-full max-w-md">
         <EmployeePicker id="arrear-lines-employee" value={employee} onChange={setEmployee} />

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { BreakdownTable } from "@/components/payroll/BreakdownTable";
-import { apiMessage, isAmount } from "@/components/payroll/labels";
+import { apiMessage, isAmount, periodLabel } from "@/components/payroll/labels";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,6 +33,7 @@ import type {
   SalaryOverview,
   SalaryStructure,
 } from "@/lib/types/payroll";
+import type { EmployeeSalary } from "@/lib/types/payroll-ops";
 
 /**
  * Assign or revise one employee's salary, with the resolved breakdown shown
@@ -114,8 +115,24 @@ export function AssignSalaryDialog({
         effective_from: effectiveFrom,
         revision_reason: reason.trim() || null,
       };
-      await post(`/employees/${employee.employee_id}/salary`, body);
-      toast.success(current ? "Salary revised." : "Salary assigned.");
+      const saved = await post<EmployeeSalary>(`/employees/${employee.employee_id}/salary`, body);
+      const paid = saved?.paid_months_affected ?? [];
+      if (paid.length) {
+        // Months already paid at the earlier salary are trued up by arrears,
+        // which are raised separately. Say so now, not at the next payslip.
+        const [first, last] = [paid[0], paid[paid.length - 1]].map((period) => {
+          const [year, month] = period.split("-").map(Number);
+          return periodLabel(year, month);
+        });
+        toast.warning(current ? "Salary revised." : "Salary assigned.", {
+          description:
+            `Payroll already paid ${paid.length === 1 ? first : `${first} to ${last}`} at the ` +
+            "earlier salary. Raise the arrears under Payroll → Arrears to pay the difference.",
+          duration: 15000,
+        });
+      } else {
+        toast.success(current ? "Salary revised." : "Salary assigned.");
+      }
       onSaved();
       onClose();
     } catch (caught) {

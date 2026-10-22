@@ -68,6 +68,11 @@ export function ClaimsTable({
             </TableCell>
             <TableCell>
               <ClaimStatusBadge status={claim.status} />
+              {claim.paid_period && (
+                <span className="mt-1 block text-xs text-muted-foreground">
+                  Paid with {claim.paid_period} payroll
+                </span>
+              )}
               {claim.verification_note && (
                 <span className="mt-1 block max-w-56 text-xs text-muted-foreground italic">
                   “{claim.verification_note}”

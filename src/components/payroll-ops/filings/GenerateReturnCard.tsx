@@ -32,6 +32,8 @@ import type {
 
 const ENDPOINT: Record<ReturnType, string> = {
   pf_ecr: "/filings/pf-ecr",
+  // Arrears paid with the chosen month's payroll, on the EPFO's separate arrear ECR.
+  pf_ecr_arrear: "/filings/pf-ecr-arrear",
   esic: "/filings/esic",
   professional_tax: "/filings/professional-tax",
   tds_24q: "/filings/tds-24q",

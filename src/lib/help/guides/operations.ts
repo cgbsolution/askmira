@@ -138,11 +138,18 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
   },
 
   "/payroll/filings": {
-    summary: "PF ECR, ESIC, PT and TDS 24Q return files, TDS challans and Form 16 Part A.",
+    summary: "PF ECR, PF arrear ECR, ESIC, PT and TDS 24Q return files, TDS challans and Form 16 Part A.",
     tasks: [
       {
         title: "Prepare a return file",
         steps: ["In Returns, choose the return, legal entity, month and year, and press Validate and generate; open it to download the file."],
+      },
+      {
+        title: "File PF on arrears",
+        steps: [
+          "After a month's payroll pays salary arrears, choose PF arrear ECR for that month.",
+          "Upload it on the EPFO portal as an arrear ECR, separately from the month's regular ECR.",
+        ],
       },
       {
         title: "Record a TDS challan",
@@ -165,8 +172,18 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
           "A second person checks it; then download it for the bank.",
         ],
       },
+      {
+        title: "Pay everyone when one person has no bank account yet",
+        steps: [
+          "Open the blocked file and press Hold these, pay the rest; say why the salaries are held.",
+          "Once their accounts are in, open the sent file and press Pay held salaries.",
+        ],
+      },
     ],
-    tips: ["Employee accounts lists each person's bank account."],
+    tips: [
+      "Employee accounts lists each person's bank account.",
+      "A run has one salary file. Credits the bank returns are paid again from a supplementary batch, to the account on the employee's profile then.",
+    ],
   },
 
   "/payroll/accounting": {

@@ -140,7 +140,19 @@ export default function PayrollRunPage() {
         </CardContent>
       </Card>
 
-      {run.error_log && (
+      {run.status === "cancelled" && (
+        <Alert>
+          <AlertTriangle />
+          <AlertTitle>This run was cancelled</AlertTitle>
+          <AlertDescription>
+            {formatMoment(run.cancelled_at ?? null)}
+            {run.cancelled_by_name ? ` by ${run.cancelled_by_name}` : ""}
+            {run.cancel_reason ? `: ${run.cancel_reason}` : "."} Nothing on it was paid.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {run.error_log && run.status !== "cancelled" && (
         <Alert variant="destructive">
           <AlertTriangle />
           <AlertTitle>The last compute failed</AlertTitle>

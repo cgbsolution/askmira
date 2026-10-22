@@ -6,8 +6,20 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-function Select(props: React.ComponentProps<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root data-slot="select" {...props} />;
+function Select({
+  onValueChange,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  // Radix reports "" when a value is set before its option has rendered (a
+  // choice made as a list arrives), which would clear that choice. No option
+  // can have the empty value, so "" is never something a person picked.
+  return (
+    <SelectPrimitive.Root
+      data-slot="select"
+      onValueChange={onValueChange && ((value) => value !== "" && onValueChange(value))}
+      {...props}
+    />
+  );
 }
 
 function SelectGroup(props: React.ComponentProps<typeof SelectPrimitive.Group>) {
