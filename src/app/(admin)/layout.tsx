@@ -7,6 +7,7 @@ import { AccessDenied } from "@/components/common/AccessDenied";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { OperatorBanner } from "@/components/operators/OperatorBanner";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { ConnectorRailProvider, ConnectorSidebar } from "@/components/layout/ConnectorSidebar";
 import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -61,23 +62,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <TooltipProvider delayDuration={200}>
-      <SidebarProvider defaultOpen={sidebarWasOpen()}>
-        <AppSidebar />
-        <SidebarInset className="min-w-0">
-          <AppHeader />
-          <div className="mx-auto w-full max-w-(--breakpoint-2xl) flex-1 p-4 md:p-6">
-            <OperatorBanner />
-            {decision === "allowed" ? (
-              children
-            ) : (
-              <AccessDenied
-                reason={decision}
-                product={linkedProduct(resolvePage(pathname)?.section, tenant)}
-              />
-            )}
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
+      {/* Two rails, each with its own state: navigation on the left, quick access on the right. */}
+      <ConnectorRailProvider>
+        <SidebarProvider defaultOpen={sidebarWasOpen()} className="min-w-0 flex-1">
+          <AppSidebar />
+          <SidebarInset className="min-w-0">
+            <AppHeader />
+            <div className="mx-auto w-full max-w-(--breakpoint-2xl) flex-1 p-4 md:p-6">
+              <OperatorBanner />
+              {decision === "allowed" ? (
+                children
+              ) : (
+                <AccessDenied
+                  reason={decision}
+                  product={linkedProduct(resolvePage(pathname)?.section, tenant)}
+                />
+              )}
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+        <ConnectorSidebar />
+      </ConnectorRailProvider>
     </TooltipProvider>
   );
 }

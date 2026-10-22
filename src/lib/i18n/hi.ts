@@ -19,6 +19,9 @@ export const hi: Record<string, string> = {
   "Account menu": "खाता मेनू",
   "Switch to dark theme": "डार्क थीम पर जाएँ",
   "Switch to light theme": "लाइट थीम पर जाएँ",
+  "Quick access": "त्वरित पहुँच",
+  "Open quick access": "त्वरित पहुँच खोलें",
+  "Close quick access": "त्वरित पहुँच बंद करें",
   "Something went wrong.": "कुछ गलत हो गया।",
   "Try again": "फिर से प्रयास करें",
 

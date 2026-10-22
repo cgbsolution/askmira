@@ -7,6 +7,7 @@ import {
   Check,
   ChevronDown,
   Languages,
+  LayoutGrid,
   LogOut,
   Moon,
   Search,
@@ -18,6 +19,7 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 
 import { HelpButton } from "@/components/help/HelpPanel";
+import { useConnectorRail } from "@/components/layout/ConnectorSidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,7 +40,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { HR } from "@/lib/access";
 import { LOCALES, useLocale, useT } from "@/lib/i18n";
-import { humanizeRole, initials } from "@/lib/utils";
+import { cn, humanizeRole, initials } from "@/lib/utils";
 
 /**
  * Top bar: navigation toggle, people search, help for the page, theme,
@@ -51,6 +53,7 @@ import { humanizeRole, initials } from "@/lib/utils";
 export function AppHeader() {
   const t = useT();
   const { toggleSidebar } = useSidebar();
+  const quickAccess = useConnectorRail();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const [term, setTerm] = useState("");
@@ -112,6 +115,17 @@ export function AppHeader() {
       </form>
 
       <div className="ml-auto flex items-center gap-2 sm:gap-3">
+        {/* On a phone the quick-access rail is a drawer, with no strip to click. */}
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={quickAccess.toggleSidebar}
+          aria-label={t("Quick access")}
+          className={cn(round, "md:hidden")}
+        >
+          <LayoutGrid />
+        </Button>
+
         <HelpButton className={round} />
 
         <Button
