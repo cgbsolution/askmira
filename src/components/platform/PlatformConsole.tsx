@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlertTriangle,
   Ban,
   Building2,
   Copy,
@@ -11,6 +12,7 @@ import {
   Pencil,
   Plus,
   RotateCcw,
+  Trash2,
   UserPlus,
 } from "lucide-react";
 import React, { useState } from "react";
@@ -34,13 +36,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { WelcomeEmailNotice } from "@/components/settings/WelcomeEmailNotice";
-import { ApiError, get, post } from "@/lib/api";
+import { ApiError, del, get, post } from "@/lib/api";
 import type { WelcomeEmail } from "@/lib/types/admin";
 import { formatDate } from "@/lib/utils";
 
@@ -95,6 +98,7 @@ export function PlatformConsole() {
   const [creating, setCreating] = useState(false);
   const [addingTo, setAddingTo] = useState<Workspace | null>(null);
   const [suspending, setSuspending] = useState<Workspace | null>(null);
+  const [deleting, setDeleting] = useState<Workspace | null>(null);
   const [issued, setIssued] = useState<Issued | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditTarget | null>(null);
@@ -257,6 +261,14 @@ export function PlatformConsole() {
                             <RotateCcw /> Reactivate
                           </DropdownMenuItem>
                         )}
+                        {row.is_own ? null : (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem variant="destructive" onClick={() => setDeleting(row)}>
+                              <Trash2 /> Delete organisation
+                            </DropdownMenuItem>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -302,6 +314,7 @@ export function PlatformConsole() {
         }}
       />
       <SuspendDialog workspace={suspending} onClose={() => setSuspending(null)} onDone={reload} />
+      <DeleteDialog workspace={deleting} onClose={() => setDeleting(null)} onDone={reload} />
       <IssuedDialog issued={issued} onClose={() => setIssued(null)} />
     </PageShell>
   );
@@ -423,6 +436,106 @@ function SuspendDialog({
           <Button variant="destructive" onClick={suspend} disabled={saving || reason.trim().length < 3}>
             {saving ? <Loader2 className="size-4 animate-spin" /> : null}
             Suspend
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Deleting closes the organisation for good without erasing it: its audit
+ * trail is insert-only and its payroll and statutory records must be kept.
+ * The address is typed out, so it is never one stray click.
+ */
+function DeleteDialog({
+  workspace,
+  onClose,
+  onDone,
+}: {
+  workspace: Workspace | null;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [confirm, setConfirm] = useState("");
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const confirmed = workspace !== null && confirm.trim().toLowerCase() === workspace.workspace;
+
+  const close = () => {
+    setConfirm("");
+    setReason("");
+    onClose();
+  };
+
+  const remove = async () => {
+    if (!workspace) return;
+    setSaving(true);
+    try {
+      await del(`/platform/workspaces/${workspace.id}`, {
+        body: { confirm: confirm.trim(), reason: reason.trim() },
+      });
+      toast.success(`${workspace.name} is deleted.`);
+      close();
+      onDone();
+    } catch (caught) {
+      toast.error(failure(caught, "Could not delete."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={workspace !== null} onOpenChange={(next) => !next && close()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Delete {workspace?.name}?</DialogTitle>
+          <DialogDescription>This cannot be undone from AskMira.</DialogDescription>
+        </DialogHeader>
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertTitle>What happens</AlertTitle>
+          <AlertDescription>
+            <p>
+              Everyone in it is signed out and cannot sign in again. Its API keys, directory sync, MCP connections,
+              attendance devices and careers page stop working.
+            </p>
+            <p>
+              It leaves this list, and its people&apos;s emails and the address{" "}
+              <span className="font-mono">{workspace?.workspace}</span> can be used again.
+            </p>
+            <p>Its payroll, statutory and audit records are kept, out of reach, for as long as the law requires.</p>
+          </AlertDescription>
+        </Alert>
+        <div className="grid gap-4">
+          <FormField label="Reason" htmlFor="delete-reason" required hint="Recorded in their audit trail and yours.">
+            <Input id="delete-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+          </FormField>
+          <FormField
+            label={
+              <>
+                Type <span className="font-mono">{workspace?.workspace}</span> to confirm
+              </>
+            }
+            htmlFor="delete-confirm"
+            required
+          >
+            <Input
+              id="delete-confirm"
+              autoComplete="off"
+              className="font-mono"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
+          </FormField>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={close}>
+            Cancel
+          </Button>
+          <Button variant="destructive" onClick={remove} disabled={saving || !confirmed || reason.trim().length < 3}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+            Delete organisation
           </Button>
         </DialogFooter>
       </DialogContent>

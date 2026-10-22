@@ -466,6 +466,13 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         steps: ["Use Add an admin to give another admin a login, or Suspend to stop sign-ins."],
       },
       {
+        title: "Delete an organisation",
+        steps: [
+          "Open the row's menu, choose Delete organisation, give a reason and type its address to confirm.",
+          "Everyone is signed out for good and it leaves the list; its records are kept as the law requires.",
+        ],
+      },
+      {
         title: "Link the interview or expense tool",
         steps: ["Open the workspace's Linked products and link the product; people are synced every night."],
       },
