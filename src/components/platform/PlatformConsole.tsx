@@ -8,6 +8,7 @@ import {
   Eye,
   KeyRound,
   Loader2,
+  Mail,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -43,7 +44,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { WelcomeEmailNotice } from "@/components/settings/WelcomeEmailNotice";
-import { ApiError, del, get, post } from "@/lib/api";
+import { ApiError, del, get, patch, post } from "@/lib/api";
 import type { WelcomeEmail } from "@/lib/types/admin";
 import { formatDate } from "@/lib/utils";
 
@@ -99,6 +100,7 @@ export function PlatformConsole() {
   const [addingTo, setAddingTo] = useState<Workspace | null>(null);
   const [suspending, setSuspending] = useState<Workspace | null>(null);
   const [deleting, setDeleting] = useState<Workspace | null>(null);
+  const [changingEmail, setChangingEmail] = useState<{ workspace: Workspace; admin: Admin } | null>(null);
   const [issued, setIssued] = useState<Issued | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditTarget | null>(null);
@@ -222,6 +224,14 @@ export function PlatformConsole() {
                         >
                           <KeyRound className="size-3.5" /> Reset password
                         </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2"
+                          onClick={() => setChangingEmail({ workspace: row, admin })}
+                        >
+                          <Mail className="size-3.5" /> Change email
+                        </Button>
                       </div>
                     ))}
                     {row.admins.length === 0 ? <span className="text-sm text-muted-foreground">No admin</span> : null}
@@ -315,6 +325,14 @@ export function PlatformConsole() {
       />
       <SuspendDialog workspace={suspending} onClose={() => setSuspending(null)} onDone={reload} />
       <DeleteDialog workspace={deleting} onClose={() => setDeleting(null)} onDone={reload} />
+      <ChangeEmailDialog
+        target={changingEmail}
+        onClose={() => setChangingEmail(null)}
+        onChanged={(result) => {
+          setIssued(result);
+          reload();
+        }}
+      />
       <IssuedDialog issued={issued} onClose={() => setIssued(null)} />
     </PageShell>
   );
@@ -436,6 +454,83 @@ function SuspendDialog({
           <Button variant="destructive" onClick={suspend} disabled={saving || reason.trim().length < 3}>
             {saving ? <Loader2 className="size-4 animate-spin" /> : null}
             Suspend
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * For an admin login given the wrong email. The login is issued afresh to the
+ * new address: links sent to the old one stop working, and a new temporary
+ * password is shown once.
+ */
+function ChangeEmailDialog({
+  target,
+  onClose,
+  onChanged,
+}: {
+  target: { workspace: Workspace; admin: Admin } | null;
+  onClose: () => void;
+  onChanged: (issued: Issued) => void;
+}) {
+  const [email, setEmail] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const close = () => {
+    setEmail("");
+    onClose();
+  };
+
+  const change = async () => {
+    if (!target) return;
+    setSaving(true);
+    try {
+      const result = await patch<{
+        admin: { email: string; temporary_password: string };
+        welcome_email: WelcomeEmail | null;
+      }>(`/platform/workspaces/${target.workspace.id}/admins/${target.admin.id}`, { email: email.trim() });
+      close();
+      onChanged({
+        title: `New sign-in details for ${target.admin.full_name}`,
+        email: result.admin.email,
+        password: result.admin.temporary_password,
+        welcome: result.welcome_email,
+      });
+    } catch (caught) {
+      toast.error(failure(caught, "Could not change the email."));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={target !== null} onOpenChange={(next) => !next && close()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Change {target?.admin.full_name}&apos;s email</DialogTitle>
+          <DialogDescription>
+            Now <span className="font-mono">{target?.admin.email}</span>. The new address gets a fresh welcome email and
+            temporary password; anything sent to the old one stops working.
+          </DialogDescription>
+        </DialogHeader>
+        <FormField label="New work email" htmlFor="change-admin-email" required>
+          <Input
+            id="change-admin-email"
+            type="email"
+            autoComplete="off"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </FormField>
+        <DialogFooter>
+          <Button variant="outline" onClick={close}>
+            Cancel
+          </Button>
+          <Button onClick={change} disabled={saving || !email.trim()}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+            Change email
           </Button>
         </DialogFooter>
       </DialogContent>

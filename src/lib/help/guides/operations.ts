@@ -466,6 +466,13 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         steps: ["Use Add an admin to give another admin a login, or Suspend to stop sign-ins."],
       },
       {
+        title: "Fix an admin's email",
+        steps: [
+          "Use Change email next to the admin and give the right address.",
+          "They get a new welcome email and temporary password; links sent to the wrong address stop working.",
+        ],
+      },
+      {
         title: "Delete an organisation",
         steps: [
           "Open the row's menu, choose Delete organisation, give a reason and type its address to confirm.",
