@@ -1,12 +1,11 @@
 "use client";
 
-import { ChevronDown, Download, FileSpreadsheet, Loader2, Upload, Users } from "lucide-react";
+import { ChevronDown, Download, Loader2, Upload, Users } from "lucide-react";
 import Link from "next/link";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/common/FormField";
-import { PageShell } from "@/components/common/PageShell";
 import { TablePager, usePaged } from "@/components/common/TablePager";
 import { StatTile } from "@/components/expenses/ReviewCommon";
 import { EMPLOYMENT_STATUS, apiMessage } from "@/components/people/labels";
@@ -48,12 +47,13 @@ function form(file: File, extra: Record<string, string> = {}): FormData {
 }
 
 /**
- * /people/import — bring employees in from a spreadsheet: AskMira's template,
- * or another HR system's export as it comes (factoHR's Employee Detail report
- * is read directly). The file is checked first and nothing is saved until
- * Import; the check and the import read it the same way on the server.
+ * Add employees → "Many from Excel": bring people in from a spreadsheet —
+ * AskMira's template, or another HR system's export as it comes (factoHR's
+ * Employee Detail report is read directly). The file is checked first and
+ * nothing is saved until Import; the check and the import read it the same
+ * way on the server.
  */
-export function ImportEmployeesScreen() {
+export function ImportEmployeesPanel() {
   const [step, setStep] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(0);
@@ -128,17 +128,6 @@ export function ImportEmployeesScreen() {
   const toImport = preview ? preview.ready_current + (includeLeavers ? preview.ready_leavers : 0) : 0;
 
   return (
-    <PageShell
-      title="Import employees"
-      description="From a spreadsheet: the AskMira template, or your old HR system's export as it is."
-      icon={FileSpreadsheet}
-      actions={
-        <Button variant="outline" disabled={busy === "template"} onClick={() => void template()}>
-          {busy === "template" ? <Loader2 className="animate-spin" /> : <Download />}
-          Download template
-        </Button>
-      }
-    >
       <Card tier="tier1">
         <CardContent className="grid gap-6">
           {/* Done, every step shows its tick. */}
@@ -175,19 +164,21 @@ export function ImportEmployeesScreen() {
                   </Button>
                 </div>
               </div>
-              <div className="grid content-start gap-2 rounded-xl bg-muted/60 p-4 text-sm">
-                <p className="font-semibold">Files that work</p>
-                <ul className="grid list-disc gap-1.5 pl-5 text-muted-foreground">
-                  <li>The AskMira template: Download template above.</li>
-                  <li>factoHR&apos;s Employee Detail report, exactly as exported.</li>
-                  <li>
-                    Any sheet with an Emp Code column: other columns are matched by their names.
-                  </li>
-                </ul>
+              <div className="grid content-start gap-3 rounded-xl bg-muted/60 p-4 text-sm">
                 <p className="text-muted-foreground">
-                  People who have left come in as exited, with their leaving date, for history
-                  and reports. Nobody is given a login.
+                  Upload your factoHR Employee Detail file as it is, or fill in our template.
                 </p>
+                <div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busy === "template"}
+                    onClick={() => void template()}
+                  >
+                    {busy === "template" ? <Loader2 className="animate-spin" /> : <Download />}
+                    Download template
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -195,28 +186,22 @@ export function ImportEmployeesScreen() {
           {step === 1 && preview && (
             <div className="grid gap-5">
               <p className="text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">{preview.filename}</span>, read as{" "}
-                {preview.source}, headings on row {preview.header_row}. {preview.total_rows} rows.
+                <span className="font-medium text-foreground">{preview.filename}</span> ·{" "}
+                {preview.total_rows} rows. Nothing is saved yet.
               </p>
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-                <StatTile label="To add" value={preview.ready_current} hint="Working here" tone="success" />
+              <div className="grid gap-3 sm:grid-cols-3">
                 <StatTile
-                  label="Who have left"
-                  value={preview.ready_leavers}
-                  hint="Added as exited"
+                  label="Will be added"
+                  value={preview.ready_current + preview.ready_leavers}
+                  hint={`${preview.ready_current} working here, ${preview.ready_leavers} who have left`}
+                  tone="success"
                 />
                 <StatTile label="Already in AskMira" value={preview.skipped} hint="Left as they are" />
                 <StatTile
                   label="Can't be added"
                   value={preview.errors}
-                  hint="See Problems below"
+                  hint={preview.errors ? "See Problems below" : "None"}
                   tone={preview.errors ? "destructive" : "default"}
-                />
-                <StatTile
-                  label="Added with notes"
-                  value={preview.with_warnings}
-                  hint="A value left out"
-                  tone={preview.with_warnings ? "warning" : "default"}
                 />
               </div>
 
@@ -336,7 +321,6 @@ export function ImportEmployeesScreen() {
           )}
         </CardContent>
       </Card>
-    </PageShell>
   );
 }
 

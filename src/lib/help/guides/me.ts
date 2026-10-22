@@ -481,7 +481,7 @@ export const ME_GUIDES: Record<string, PageGuide> = {
 
   "/linked/[product]/[view]": {
     summary:
-      "Records from a product your company uses alongside AskMira — ExpenseGenie for expenses, AnytimeHire for hiring — read live, as you see them there.",
+      "Records from a product your company uses alongside AskMira — ExpenseGenie for expenses, AnytimeHire for hiring, CGB Helpdesk for IT tickets and assets — read live, as you see them there.",
     tasks: [
       {
         title: "Narrow the list",
@@ -491,10 +491,19 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         ],
       },
       {
+        title: "Raise an IT ticket",
+        steps: [
+          "On Helpdesk → My tickets, press Raise a ticket.",
+          "Choose the category and priority, pick the device if it is about one you hold, write a subject and what happens, then press Raise ticket.",
+          "The ticket opens: replies from the IT team show there, and you can answer them.",
+        ],
+      },
+      {
         title: "Do the work in the product",
         steps: [
-          "Press Open ExpenseGenie or Open AnytimeHire at the top; you are signed in there with your AskMira login.",
+          "Press Open ExpenseGenie, Open AnytimeHire or Open CGB Helpdesk at the top; you are signed in there with your AskMira login.",
           "On a hiring row, press Open to go straight to that job's candidates and their résumés.",
+          "On a ticket row, press View to read the ticket and reply.",
         ],
       },
     ],
@@ -503,6 +512,29 @@ export const ME_GUIDES: Record<string, PageGuide> = {
       "Ask Mira can answer the same questions in chat.",
     ],
     related: [{ label: "Ask Mira", href: "/ask-mira" }],
+  },
+
+  "/linked/[product]/[view]/[id]": {
+    summary:
+      "One CGB Helpdesk ticket: what was asked, the conversation with the IT team, and where it stands — read live from the helpdesk.",
+    tasks: [
+      {
+        title: "Reply to the IT team",
+        steps: ["Write in Reply and press Send.", "The IT team sees it in CGB Helpdesk and by email."],
+      },
+      {
+        title: "Add a file, reopen it or work it",
+        steps: [
+          "Press Open in CGB Helpdesk; you are signed in there with your AskMira login.",
+          "Attach files, reopen a closed ticket, or — for the IT team — pick it up, put it on hold or close it there.",
+        ],
+      },
+    ],
+    tips: [
+      "Press Refresh to see new replies.",
+      "A closed ticket takes no more replies until it is reopened in CGB Helpdesk.",
+    ],
+    related: [{ label: "My tickets", href: "/linked/helpdesk/tickets" }],
   },
 
   "/pay/benefits": {

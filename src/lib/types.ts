@@ -51,7 +51,7 @@ export interface Tenant {
 }
 
 /** The separate products a workspace can be linked to. */
-export type ProductKey = "interview" | "expense";
+export type ProductKey = "interview" | "expense" | "helpdesk";
 
 export interface AuthResponse {
   access_token: string;

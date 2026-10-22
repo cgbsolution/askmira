@@ -1,12 +1,13 @@
 "use client";
 
-import { Rocket } from "lucide-react";
+import { Rocket, UserPlus } from "lucide-react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import React, { useCallback, useState } from "react";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
-import { AddJoinerDialog } from "@/components/onboarding/JoinerWizard";
 import { PlanDetailSheet } from "@/components/onboarding/PlanDetailSheet";
 import {
   dayOrDash,
@@ -48,7 +49,9 @@ const ANY = "__any";
 export function PlansScreen() {
   const [status, setStatus] = useState<OnboardingPlanStatus | typeof ANY>("in_progress");
   const [department, setDepartment] = useState<string>(ANY);
-  const [openPlanId, setOpenPlanId] = useState<string | null>(null);
+  // `?plan=` opens a plan straight away: Add employees links here once it starts one.
+  const linked = useSearchParams().get("plan");
+  const [openPlanId, setOpenPlanId] = useState<string | null>(linked);
 
   const params = new URLSearchParams();
   if (status !== ANY) params.set("status", status);
@@ -75,7 +78,11 @@ export function PlansScreen() {
               setOpenPlanId(plan.id);
             }}
           />
-          <AddJoinerDialog onAdded={refresh} onOpenPlan={setOpenPlanId} />
+          <Button variant="accent" asChild>
+            <Link href="/onboarding/new">
+              <UserPlus /> Add employees
+            </Link>
+          </Button>
         </>
       }
     >
@@ -90,7 +97,7 @@ export function PlansScreen() {
           title: filtered ? "No plans match these filters" : "No onboarding plans yet",
           description: filtered
             ? "Try another status or department."
-            : "Add a new joiner: their record, a dated checklist for them, their manager, buddy and IT, and their login, in three steps.",
+            : "Add people under Onboarding → Add employees.",
         }}
         toolbar={
           <>

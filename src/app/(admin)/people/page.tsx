@@ -3,7 +3,7 @@ import React, { Suspense } from "react";
 import { DirectoryView } from "@/components/people/DirectoryView";
 import { Skeleton } from "@/components/ui/skeleton";
 
-export const metadata = { title: "People" };
+export const metadata = { title: "Employees" };
 
 export default function PeoplePage() {
   return (

@@ -10,6 +10,7 @@ import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { CompanionCardView } from "@/components/companion/CompanionCards";
 import type { CompanionCard } from "@/components/companion/types";
+import { RaiseHelpdeskTicketDialog } from "@/components/products/helpdesk/RaiseHelpdeskTicketDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { HR, roleAllows } from "@/lib/access";
 
-type Product = "expense" | "interview";
+type Product = "expense" | "interview" | "helpdesk";
 
 interface ViewConfig {
   title: string;
@@ -30,9 +31,17 @@ interface ViewConfig {
   dates?: boolean;
   /** Totals: HR may switch between their own and the whole company. */
   scopeToggle?: boolean;
+  /** The page has a Raise a ticket button (CGB Helpdesk). */
+  raise?: boolean;
 }
 
-const BRAND: Record<Product, string> = { expense: "ExpenseGenie", interview: "AnytimeHire" };
+const BRAND: Record<Product, string> = {
+  expense: "ExpenseGenie",
+  interview: "AnytimeHire",
+  helpdesk: "CGB Helpdesk",
+};
+
+const TICKET_STATUSES = ["new", "open", "in_progress", "hold", "closed"];
 
 const VIEWS: Record<Product, Record<string, ViewConfig>> = {
   expense: {
@@ -88,15 +97,68 @@ const VIEWS: Record<Product, Record<string, ViewConfig>> = {
       dates: true,
     },
   },
+  helpdesk: {
+    tickets: {
+      title: "My tickets",
+      description:
+        "Your IT tickets in CGB Helpdesk, as they stand there now. Open one to read the replies and answer.",
+      statuses: TICKET_STATUSES,
+      search: "Subject or category",
+      dates: true,
+      raise: true,
+    },
+    overview: {
+      title: "Helpdesk overview",
+      description: "Your tickets by status and the assets you hold. IT staff also see their queues.",
+    },
+    assigned: {
+      title: "Assigned to me",
+      description: "Tickets CGB Helpdesk has assigned to you. Work them in CGB Helpdesk; reply here or there.",
+      statuses: TICKET_STATUSES,
+      search: "Subject, category or person",
+      dates: true,
+    },
+    queue: {
+      title: "Unassigned queue",
+      description: "The company's tickets nobody has picked up yet. Pick them up in CGB Helpdesk.",
+      statuses: TICKET_STATUSES,
+      search: "Subject, category or person",
+      dates: true,
+    },
+    all: {
+      title: "All tickets",
+      description: "Every ticket raised by the company's people in CGB Helpdesk. For helpdesk admins.",
+      statuses: TICKET_STATUSES,
+      search: "Subject, category or person",
+      dates: true,
+    },
+    assets: {
+      title: "My assets",
+      description: "The laptops, monitors and other assets CGB Helpdesk shows as yours now.",
+    },
+    register: {
+      title: "Asset register",
+      description: "The company's assets in CGB Helpdesk and who holds each. For IT and HR.",
+      statuses: ["in_use", "spare", "retired"],
+      search: "Asset code, type or model",
+    },
+  },
+};
+
+/** "in_progress" → "In progress". */
+const optionLabel = (value: string) => {
+  const text = value.replace(/_/g, " ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
 const ALL = "all";
 
 /**
- * A linked product's records as a portal page (Expenses or Hiring when the
- * workspace uses ExpenseGenie or AnytimeHire). Read live from the product as
- * the person signed in; nothing is copied into AskMira. The work itself —
- * filing, approving, scheduling — happens in the product.
+ * A linked product's records as a portal page (Expenses, Hiring, Helpdesk or
+ * Assets when the workspace uses ExpenseGenie, AnytimeHire or CGB Helpdesk).
+ * Read live from the product as the person signed in; nothing is copied into
+ * AskMira. The work itself — filing, approving, scheduling, fixing — happens in
+ * the product; a helpdesk ticket can also be raised and answered from here.
  */
 export function LinkedProductView({ product, view }: { product: string; view: string }) {
   const config = (VIEWS as Record<string, Record<string, ViewConfig>>)[product]?.[view];
@@ -139,6 +201,7 @@ export function LinkedProductView({ product, view }: { product: string; view: st
       tier={product === "expense" ? "tier1" : "tier2"}
       actions={
         <div className="flex flex-wrap gap-2">
+          {config.raise ? <RaiseHelpdeskTicketDialog /> : null}
           <Button variant="outline" onClick={reload} disabled={isLoading}>
             <RefreshCw /> Refresh
           </Button>
@@ -177,7 +240,7 @@ export function LinkedProductView({ product, view }: { product: string; view: st
                       <SelectItem value={ALL}>All</SelectItem>
                       {config.statuses.map((value) => (
                         <SelectItem key={value} value={value}>
-                          {value.charAt(0).toUpperCase() + value.slice(1)}
+                          {optionLabel(value)}
                         </SelectItem>
                       ))}
                     </SelectContent>

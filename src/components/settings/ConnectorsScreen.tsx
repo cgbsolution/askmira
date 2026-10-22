@@ -25,10 +25,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, post, put } from "@/lib/api";
+import type { ProductKey } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
 export interface Connector {
-  key: "interview" | "expense";
+  key: ProductKey;
   name: string;
   brand: string;
   description: string;
@@ -58,8 +59,8 @@ export interface Connector {
 }
 
 /**
- * Settings → Connectors. The workspace's admin connects AnytimeHire and
- * ExpenseGenie: Connect opens the product, an admin of the organisation there
+ * Settings → Connectors. The workspace's admin connects AnytimeHire,
+ * ExpenseGenie and CGB Helpdesk: Connect opens the product, an admin of the organisation there
  * signs in and presses Allow, and the product issues a key for this workspace
  * alone. People are sent across at once and every night after.
  */

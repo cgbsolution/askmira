@@ -8,17 +8,14 @@ export const ONBOARDING_HR_GUIDES: Record<string, PageGuide> = {
       {
         title: "Add a new joiner",
         steps: [
-          "Press Add new joiner.",
-          "Basic details: employee code, name, work email and contact details. Press Next.",
-          "Job details: date of joining, employment type, designation, department, manager, location and probation. Press Next.",
-          "Onboarding: the checklist (the default is chosen for you), a buddy, and, for admins, their login. Press Add joiner.",
-          "Their record, checklist and login are created together. View their onboarding opens the plan.",
+          "Press Add employees (or Onboarding → Add employees in the menu).",
+          "Once added, they show here with their checklist's progress.",
         ],
       },
       {
-        title: "Onboard somebody already on record",
+        title: "Start a checklist for somebody already added",
         steps: [
-          "Press Existing employee, for someone added by import or from an offer whose checklist did not start.",
+          "Press Start checklist, for someone added without one (people brought in from Excel, say).",
           "Choose the person, the checklist and their buddy, then press Start onboarding.",
         ],
       },

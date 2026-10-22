@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ExternalLink, Info } from "lucide-react";
+import { AlertTriangle, ChevronRight, ExternalLink, Info } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 
@@ -19,6 +19,30 @@ const OUTCOME_LABEL = {
   refused: "Not answered",
   withheld: "Withheld",
 } as const;
+
+/**
+ * Where a row opens: in the product (through AskMira's sign-in, in a new tab),
+ * or its own page in the portal (a helpdesk ticket), right here.
+ */
+function RowLink({ href }: { href: string | null | undefined }) {
+  if (!href) return null;
+  const inProduct = href.startsWith("/launch/");
+  return (
+    <Button asChild variant="link" size="sm" className="h-auto p-0">
+      <Link href={href} {...(inProduct ? { target: "_blank", rel: "noopener" } : {})}>
+        {inProduct ? (
+          <>
+            <ExternalLink /> Open
+          </>
+        ) : (
+          <>
+            <ChevronRight /> View
+          </>
+        )}
+      </Link>
+    </Button>
+  );
+}
 
 /**
  * What the companion looked up, rendered under its reply. Each card is a
@@ -64,13 +88,7 @@ export function CompanionCardView({ card }: { card: CompanionCard }) {
                     ))}
                     {card.links ? (
                       <TableCell className="whitespace-nowrap text-right">
-                        {card.links[index] ? (
-                          <Button asChild variant="link" size="sm" className="h-auto p-0">
-                            <Link href={card.links[index]} target="_blank" rel="noopener">
-                              <ExternalLink /> Open
-                            </Link>
-                          </Button>
-                        ) : null}
+                        <RowLink href={card.links[index]} />
                       </TableCell>
                     ) : null}
                   </TableRow>

@@ -76,6 +76,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Adding people lives on Onboarding → Add employees; old links land there.
+  async redirects() {
+    return [
+      { source: "/people/new", destination: "/onboarding/new", permanent: false },
+      { source: "/people/import", destination: "/onboarding/new?tab=excel", permanent: false },
+      { source: "/onboarding/import", destination: "/onboarding/new?tab=excel", permanent: false },
+    ];
+  },
   async rewrites() {
     return [
       { source: "/api/v1/:path*", destination: `${apiTarget}/api/v1/:path*` },

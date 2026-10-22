@@ -625,13 +625,13 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
 
   "/settings/connectors": {
     summary:
-      "Connect the other products your company uses — AnytimeHire for hiring, ExpenseGenie for expenses — with one click. Each connection belongs to this workspace alone.",
+      "Connect the other products your company uses — AnytimeHire for hiring, ExpenseGenie for expenses, CGB Helpdesk for IT tickets and assets — with one click. Each connection belongs to this workspace alone.",
     tasks: [
       {
         title: "Connect a product",
         steps: [
           "Press Connect on the product.",
-          "Sign in to the product as an admin of your organisation there, check the request names your AskMira workspace, and press Allow.",
+          "Sign in to the product as an admin of your organisation there, check the request names your AskMira workspace, and press Allow. In CGB Helpdesk, also choose which company it is.",
           "You come back here connected; your people are sent across at once.",
         ],
       },
@@ -639,7 +639,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         title: "Keep people in step",
         steps: [
           "People are sent across every night. Press Sync people now after a big change.",
-          "Anyone skipped is listed with the reason (for example, their email belongs to another organisation there).",
+          "Anyone skipped is listed with the reason (for example, their email belongs to another organisation there, or — in CGB Helpdesk — is not on the company's email domain).",
         ],
       },
       {
@@ -659,7 +659,8 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     ],
     tips: [
       "The key a product issues reaches only your organisation there, never another company's.",
-      "Once connected, Expenses and Hiring show the product's records, and Ask Mira can answer from them.",
+      "Once connected, Expenses, Hiring, Helpdesk and Assets show the product's records, and Ask Mira can answer from them.",
+      "In CGB Helpdesk, HR become helpdesk admins; engineers its IT team set up keep their role, and leavers can no longer sign in there.",
     ],
   },
 

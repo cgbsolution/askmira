@@ -38,7 +38,7 @@ import type {
 /**
  * Start onboarding for somebody already on record — a converted offer whose
  * checklist did not start, or a person brought in by import. A new joiner is
- * added with `AddJoinerDialog` instead, which does this as its last step.
+ * added under Onboarding → Add employees instead, which does this as its last step.
  */
 export function StartOnboardingDialog({
   onStarted,
@@ -112,14 +112,14 @@ export function StartOnboardingDialog({
     >
       <DialogTrigger asChild>
         <Button variant="outline">
-          <Rocket /> Existing employee
+          <Rocket /> Start checklist
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Start onboarding for an existing employee</DialogTitle>
+          <DialogTitle>Start a checklist for someone already added</DialogTitle>
           <DialogDescription>
-            For someone already on record. To add somebody new, use Add new joiner.
+            For someone already added without one, such as people brought in from Excel.
           </DialogDescription>
         </DialogHeader>
 

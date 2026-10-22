@@ -158,10 +158,14 @@ async function send(path: string, options: ApiOptions): Promise<Response> {
     const payload = await response.json().catch(() => null);
     // FastAPI puts the message in `detail`; our validation handler already
     // flattens Pydantic errors into a single readable sentence.
+    // 502–504 come from the proxy in front of the API, not the API itself:
+    // it is restarting (a deploy) or did not answer in time.
     const detail =
       typeof payload?.detail === "string"
         ? payload.detail
-        : `Request failed with status ${response.status}`;
+        : [502, 503, 504].includes(response.status)
+          ? "AskMira is restarting or briefly unavailable. Please try again in a minute."
+          : `Request failed with status ${response.status}`;
     if (response.status === 401 && !skipAuthRedirect && !isPublicPage()) {
       window.location.href = "/signin?expired=1";
     }

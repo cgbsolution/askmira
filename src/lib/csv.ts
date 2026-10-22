@@ -52,3 +52,29 @@ export function parseCsv(text: string): Record<string, string>[] {
     Object.fromEntries(header.map((key, at) => [key, (cells[at] ?? "").trim()])),
   );
 }
+
+/**
+ * One CSV cell, always quoted. A value starting with = + - @ (or a tab or
+ * carriage return) is prefixed with ' so a spreadsheet shows it rather than
+ * running it as a formula: exported names and remarks are typed by people.
+ */
+export function csvCell(value: unknown): string {
+  let text = value === null || value === undefined ? "" : String(value);
+  if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Saves rows as a CSV file. The byte-order mark makes Excel read it as UTF-8,
+ * so ₹ and non-English names survive.
+ */
+export function downloadCsv(fileName: string, header: string[], rows: unknown[][]): void {
+  const lines = [header, ...rows].map((row) => row.map(csvCell).join(","));
+  const blob = new Blob([`﻿${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName.endsWith(".csv") ? fileName : `${fileName}.csv`;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}

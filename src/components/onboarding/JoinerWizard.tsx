@@ -16,14 +16,6 @@ import { useOrgReference } from "@/components/people/useOrgReference";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -723,68 +715,5 @@ function JoinerDone({ created, actions }: { created: JoinerCreated; actions: Rea
         {actions}
       </div>
     </div>
-  );
-}
-
-/** The New joiners page's way in: the wizard in a dialog. */
-export function AddJoinerDialog({
-  onAdded,
-  onOpenPlan,
-}: {
-  onAdded: (created: JoinerCreated) => void;
-  onOpenPlan: (planId: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  // A fresh form every time the dialog opens.
-  const [round, setRound] = useState(0);
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (next) setRound((current) => current + 1);
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button variant="accent">
-          <UserPlus /> Add new joiner
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Add new joiner</DialogTitle>
-          <DialogDescription>
-            Their record, onboarding checklist and login, in three steps.
-          </DialogDescription>
-        </DialogHeader>
-        <JoinerWizard
-          key={round}
-          onCancel={() => setOpen(false)}
-          onAdded={onAdded}
-          renderDoneActions={(created, addAnother) => (
-            <>
-              <Button variant="outline" onClick={addAnother}>
-                Add another
-              </Button>
-              {created.plan_id ? (
-                <Button
-                  onClick={() => {
-                    setOpen(false);
-                    onOpenPlan(created.plan_id as string);
-                  }}
-                >
-                  View their onboarding
-                </Button>
-              ) : (
-                <Button asChild>
-                  <Link href={`/people/${created.employee_id}`}>Open profile</Link>
-                </Button>
-              )}
-            </>
-          )}
-        />
-      </DialogContent>
-    </Dialog>
   );
 }

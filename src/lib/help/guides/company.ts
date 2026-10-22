@@ -17,18 +17,12 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
         ],
       },
       {
-        title: "Add an employee",
+        title: "Add people",
         roles: [...HR],
         steps: [
-          "Press Add employee.",
-          "Go through the three steps: basic details, job details, onboarding and login.",
-          "Press Add joiner. Their record, checklist and login are created together.",
+          "People are added under Onboarding → Add employees: one at a time, or many from Excel.",
+          "Once added, they appear in this directory.",
         ],
-      },
-      {
-        title: "Import many at once",
-        roles: [...HR],
-        steps: ["Press Import and choose the spreadsheet; you see a check before anything is saved."],
       },
       {
         title: "Export the directory",
@@ -77,50 +71,32 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
     related: [{ label: "Lifecycle events", href: "/people/lifecycle" }],
   },
 
-  "/people/new": {
-    summary: "Add a person in three steps: basic details, job details, then onboarding and login.",
+  "/onboarding/new": {
+    summary: "Add people: one at a time with a short form, or many at once from Excel.",
     tasks: [
       {
-        title: "Add a new employee",
+        title: "Add one person",
         steps: [
-          "Basic details: employee code, first name and work email are required; gender, date of birth, mobile and personal email are optional. Press Next.",
-          "Job details: date of joining is required; add employment type, designation, department, manager, location and probation. Press Next.",
-          "Onboarding: choose a checklist and buddy, or Don't start a checklist. Admins can give them a login and email the sign-in details.",
-          "Press Add joiner. Open profile shows the new record.",
+          "Stay on One person and fill the three steps: basic details, job details, then checklist and login.",
+          "Press Add joiner. Their record, checklist and login are created together.",
+        ],
+      },
+      {
+        title: "Add many from Excel",
+        steps: [
+          "Open Many from Excel. Upload your factoHR Employee Detail file as it is, or fill in the template (Download template).",
+          "Press Check file and read the result. Nothing is saved yet.",
+          "Press Import.",
         ],
       },
     ],
     tips: [
-      "Somebody who joined more than a month ago gets no checklist unless you choose one.",
-      "Many people at once? Use Import from a spreadsheet.",
+      "Employee codes already in AskMira are skipped, so a corrected file can be imported again.",
+      "A value that fails a check (a mistyped PAN, say) is left out and listed; the rest of the row still comes in.",
     ],
     related: [
-      { label: "Import employees", href: "/people/import" },
       { label: "New joiners", href: "/onboarding/plans" },
-    ],
-  },
-
-  "/people/import": {
-    summary: "Bring employees in from a spreadsheet: the template, or another HR system's export such as factoHR's Employee Detail report.",
-    tasks: [
-      {
-        title: "Import from a spreadsheet",
-        steps: [
-          "Press Download template, or use the export from your old HR system as it is.",
-          "Choose the file (.xlsx or .csv) and press Check file. Nothing is saved yet.",
-          "Read the check: who will be added, rows with problems, columns that are used and those that are not.",
-          "Tick or untick Include people who have left, then press Import.",
-        ],
-      },
-    ],
-    tips: [
-      "Employee codes already in AskMira are skipped, so the same file can be imported again after fixing it.",
-      "A value that fails a check (a mistyped PAN, say) is left out and listed; the rest of the row is still imported.",
-      "Only the last four digits of an Aadhaar number are kept.",
-    ],
-    related: [
       { label: "Directory", href: "/people" },
-      { label: "Add employee", href: "/people/new" },
     ],
   },
 

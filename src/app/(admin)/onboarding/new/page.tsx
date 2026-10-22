@@ -1,9 +1,14 @@
-import React from "react";
+import React, { Suspense } from "react";
 
 import { NewEmployeeView } from "@/components/people/NewEmployeeView";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export const metadata = { title: "Add employee" };
+export const metadata = { title: "Add employees" };
 
 export default function Page() {
-  return <NewEmployeeView />;
+  return (
+    <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+      <NewEmployeeView />
+    </Suspense>
+  );
 }

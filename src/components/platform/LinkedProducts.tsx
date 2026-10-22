@@ -18,10 +18,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, post } from "@/lib/api";
+import type { ProductKey } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
 interface LinkedProduct {
-  key: "interview" | "expense";
+  key: ProductKey;
   name: string;
   /** The AskMira section it takes over. */
   replaces: string;

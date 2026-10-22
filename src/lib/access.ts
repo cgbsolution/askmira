@@ -202,14 +202,31 @@ export const NAV: NavSection[] = [
     name: "Onboarding",
     icon: Rocket,
     group: "main",
+    // The one place people are added — one at a time or from Excel — and
+    // followed through joining. Employees is for people already here.
     pages: [
+      { name: "Add employees", path: "/onboarding/new", roles: HR },
       { name: "New joiners", path: "/onboarding/plans", roles: HR },
+      { name: "Checklists", path: "/onboarding/templates", roles: HR },
       // HR see their own onboarding, while they have one, on Home.
       { name: "My onboarding", path: "/onboarding", roles: ["employee"], self: true },
       { name: "My tasks", path: "/onboarding/tasks", roles: EVERYONE },
-      { name: "Asset assignment", path: "/onboarding/assets", roles: HR },
-      { name: "Document entry", path: "/onboarding/documents", roles: HR },
-      { name: "Checklists", path: "/onboarding/templates", roles: HR },
+      // Each joiner's record has Assets and Documents tabs; these pages do the
+      // same for anyone, and stay reachable without a place in the menu.
+      {
+        name: "Asset assignment",
+        path: "/onboarding/assets",
+        roles: HR,
+        hidden: true,
+        parent: "/onboarding/plans",
+      },
+      {
+        name: "Document entry",
+        path: "/onboarding/documents",
+        roles: HR,
+        hidden: true,
+        parent: "/onboarding/plans",
+      },
     ],
   },
   {
@@ -221,13 +238,11 @@ export const NAV: NavSection[] = [
     pages: [
       { name: "Directory", path: "/people", roles: EVERYONE },
       { name: "Org chart", path: "/people/org-chart", roles: EVERYONE },
-      { name: "Import employees", path: "/people/import", roles: HR },
       { name: "Positions", path: "/people/positions", roles: HR },
       { name: "Lifecycle events", path: "/people/lifecycle", roles: HR },
       { name: "Profile changes", path: "/people/change-requests", roles: HR },
       { name: "Exits", path: "/people/exits", roles: MANAGERS },
       { name: "Clearance tasks", path: "/people/clearance", roles: EVERYONE },
-      { name: "Add employee", path: "/people/new", roles: HR, hidden: true, parent: "/people" },
     ],
   },
   {
@@ -401,11 +416,18 @@ export const NAV: NavSection[] = [
     name: "Assets",
     icon: Laptop,
     group: "main",
+    // CGB Helpdesk keeps the assets too: one product takes over Assets and Helpdesk.
+    product: "helpdesk",
     pages: [
       { name: "My assets", path: "/assets", roles: EVERYONE, self: true },
       { name: "Asset register", path: "/assets/inventory", roles: HR },
       { name: "Asset requests", path: "/assets/requests", roles: MANAGERS },
       { name: "Categories", path: "/assets/categories", roles: HR },
+    ],
+    linkedPages: [
+      { name: "My assets", path: "/linked/helpdesk/assets", roles: EVERYONE },
+      // The helpdesk decides who sees its register: its engineers and admins, and HR.
+      { name: "Asset register", path: "/linked/helpdesk/register", roles: HR, reach: EVERYONE },
     ],
   },
   {
@@ -413,12 +435,22 @@ export const NAV: NavSection[] = [
     name: "Helpdesk",
     icon: LifeBuoy,
     group: "main",
+    product: "helpdesk",
     pages: [
       { name: "My tickets", path: "/helpdesk", roles: EVERYONE },
       { name: "Ticket queue", path: "/helpdesk/queue", roles: HR },
       // A category owner outside HR works their tickets here, linked from My tickets.
       { name: "My ticket queue", path: "/helpdesk/assigned", roles: EVERYONE, hidden: true },
       { name: "Categories", path: "/helpdesk/categories", roles: ADMIN },
+    ],
+    linkedPages: [
+      // Also each ticket's own page, /linked/helpdesk/tickets/<id>.
+      { name: "My tickets", path: "/linked/helpdesk/tickets", roles: EVERYONE },
+      { name: "Overview", path: "/linked/helpdesk/overview", roles: EVERYONE },
+      // IT staff in the helpdesk need not be HR here: the helpdesk decides who works its queues.
+      { name: "Assigned to me", path: "/linked/helpdesk/assigned", roles: HR, reach: EVERYONE },
+      { name: "Unassigned queue", path: "/linked/helpdesk/queue", roles: HR, reach: EVERYONE },
+      { name: "All tickets", path: "/linked/helpdesk/all", roles: HR, reach: EVERYONE },
     ],
   },
   {
@@ -531,6 +563,7 @@ export function resolvePage(pathname: string): { page: NavPage; section?: NavSec
 export const PRODUCTS: Record<ProductKey, { name: string; audience: Audience[] }> = {
   interview: { name: "Interviews", audience: MANAGERS },
   expense: { name: "Expenses", audience: EVERYONE },
+  helpdesk: { name: "Helpdesk", audience: EVERYONE },
 };
 
 /** The linked product that has taken this section over, if any. */

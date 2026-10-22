@@ -10,6 +10,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
+import { PRODUCTS } from "@/lib/access";
 import { ApiError, post } from "@/lib/api";
 
 import type { Connector } from "./ConnectorsScreen";
@@ -35,7 +36,7 @@ export function ConnectorCallback() {
     const state = params.get("state");
     const product = params.get("product");
     window.history.replaceState(null, "", window.location.pathname);
-    if (!code || !state || (product !== "interview" && product !== "expense")) {
+    if (!code || !state || !product || !(product in PRODUCTS)) {
       setResult({ ok: false, message: "This link is missing its connect code. Press Connect again." });
       return;
     }

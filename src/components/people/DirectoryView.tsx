@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Loader2, Plus, Search, Upload, Users } from "lucide-react";
+import { Download, Loader2, Search, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -122,16 +122,6 @@ export function DirectoryView() {
           <Button variant="outline" onClick={() => void exportCsv()} disabled={exporting}>
             {exporting ? <Loader2 className="animate-spin" /> : <Download />} Export CSV
           </Button>
-          <Button variant="outline" asChild>
-            <Link href="/people/import">
-              <Upload /> Import
-            </Link>
-          </Button>
-          <Button variant="accent" asChild>
-            <Link href="/people/new">
-              <Plus /> Add employee
-            </Link>
-          </Button>
         </RequireRole>
       }
     >
@@ -145,7 +135,7 @@ export function DirectoryView() {
           title: filtered ? "No one matches these filters" : "No employees yet",
           description: filtered
             ? "Try a different name, or clear a filter."
-            : "Employees appear here once HR adds them.",
+            : "People appear here once HR adds them under Onboarding → Add employees.",
         }}
         toolbar={
           <>
