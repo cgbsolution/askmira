@@ -567,6 +567,13 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         title: "Change a role or reset a password",
         steps: ["Use Role to change the role, Password to issue a new one, Relink to change the employee record, and Disable or Enable to stop or allow sign-in."],
       },
+      {
+        title: "Free an email for another login",
+        steps: [
+          "One email is one login across AskMira. If a login has the wrong email or is in the wrong workspace, press Delete and give a reason.",
+          "The email can then be used for a login here or in another workspace, and the employee record can be given a new login.",
+        ],
+      },
     ],
     tips: [
       "A manager is not a role: anybody with direct reports gets the manager's pages.",

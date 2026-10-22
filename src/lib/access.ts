@@ -507,6 +507,36 @@ export function visiblePages(
   );
 }
 
+/**
+ * The sections kept on the right-hand rail instead of the navigation, top to
+ * bottom: the companion, the hubs a linked product can take over, and the
+ * self-service desks people reach for from any page.
+ */
+export const QUICK_ACCESS = ["companion", "expenses", "helpdesk", "hiring", "assets"];
+
+/** A section as a navigation rail shows it. */
+export interface RailEntry {
+  section: NavSection;
+  pages: NavPage[];
+  /** The linked product the row opens, where the person is offered it. */
+  launch?: ProductKey;
+}
+
+/**
+ * What a rail shows for a section: the pages this person may see and the linked
+ * product it launches, or null when that leaves nothing to show.
+ */
+export function railEntry(
+  section: NavSection,
+  user: AuthUser | null,
+  tenant: Tenant | null,
+): RailEntry | null {
+  const pages = visiblePages(section, user, tenant);
+  const product = linkedProduct(section, tenant);
+  const launch = product && roleAllows(user, PRODUCTS[product].audience) ? product : undefined;
+  return pages.length > 0 || launch ? { section, pages, launch } : null;
+}
+
 export function sectionByKey(key: string): NavSection | undefined {
   return NAV.find((section) => section.key === key);
 }

@@ -68,6 +68,10 @@ function addDays(iso: string, days: number): string {
  * All four go to the same approver (line manager, else HR) and appear in the
  * approvals inbox. On-duty and work-from-home may span several days; the API
  * leaves out week offs and holidays inside the range.
+ *
+ * HR's own correction is not a request: the API applies it at once, for
+ * anybody, so `direct` words the dialog that way. `employee` aims it at
+ * somebody else's record.
  */
 export function AttendanceRequestDialog({
   open,
@@ -78,6 +82,8 @@ export function AttendanceRequestDialog({
   today,
   isLocked,
   onCreated,
+  employee,
+  direct = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -88,6 +94,10 @@ export function AttendanceRequestDialog({
   today: string;
   isLocked: boolean;
   onCreated: () => void;
+  /** Whose day it is, when it is not the signed-in person's. */
+  employee?: { id: string; name: string };
+  /** The caller is HR: their correction is applied, not sent for approval. */
+  direct?: boolean;
 }) {
   const [kind, setKind] = useState<RegularisationKind>(initialKind);
   const [date, setDate] = useState(initialDate);
@@ -132,10 +142,14 @@ export function AttendanceRequestDialog({
           start_date: date,
           end_date: endDate,
           reason: reason.trim(),
+          employee_id: employee?.id ?? null,
         };
         const created = await post<Regularisation[]>("/attendance/regularisations/range", body);
+        const days = `${created.length} working day${created.length === 1 ? "" : "s"}`;
         toast.success(
-          `${KIND_LABELS[kind]} requested for ${created.length} working day${created.length === 1 ? "" : "s"}`,
+          created.every((row) => row.status === "approved")
+            ? `${KIND_LABELS[kind]} applied for ${days}`
+            : `${KIND_LABELS[kind]} requested for ${days}`,
         );
       } else {
         const body: RegularisationInput = {
@@ -147,9 +161,14 @@ export function AttendanceRequestDialog({
           requested_last_out: lastOut
             ? localDateTimeToISO(date, lastOut, overnight ? 1 : 0)
             : null,
+          employee_id: employee?.id ?? null,
         };
-        await post<Regularisation>("/attendance/regularisation", body);
-        toast.success(`${KIND_LABELS[kind]} raised for ${formatDay(date, true)}`);
+        const created = await post<Regularisation>("/attendance/regularisation", body);
+        toast.success(
+          created.status === "approved"
+            ? `${KIND_LABELS[kind]} applied to ${formatDay(date, true)}`
+            : `${KIND_LABELS[kind]} raised for ${formatDay(date, true)}`,
+        );
       }
       onCreated();
       onOpenChange(false);
@@ -164,11 +183,17 @@ export function AttendanceRequestDialog({
     <Dialog open={open} onOpenChange={(next) => !isSubmitting && onOpenChange(next)}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{KIND_LABELS[kind]}</DialogTitle>
+          <DialogTitle>
+            {KIND_LABELS[kind]}
+            {employee ? ` · ${employee.name}` : ""}
+          </DialogTitle>
           <DialogDescription>
             {day
               ? `${formatDay(day.attendance_date, true)} is recorded as ${STATUS_LABELS[day.status]} · in ${formatClock(day.first_in)}, out ${formatClock(day.last_out)}.`
-              : "Your manager — or HR, if you have none — decides it, and sees your reason."}
+              : direct
+                ? "Applied to the record at once, with no approval, and written to the audit log."
+                : "Your manager — or HR, if you have none — decides it, and sees your reason."}
+            {day && direct ? " Your change is applied at once, with no approval." : ""}
           </DialogDescription>
         </DialogHeader>
 
@@ -177,8 +202,9 @@ export function AttendanceRequestDialog({
             <Alert variant="warning">
               <Lock />
               <AlertDescription>
-                This period is locked for payroll. You can raise the request now; it can only be
-                approved after HR unlocks the period.
+                {direct
+                  ? "This period is locked for payroll. Unlock it in Attendance → Periods, with a reason, before changing a day in it."
+                  : "This period is locked for payroll. You can raise the request now; it can only be approved after HR unlocks the period."}
               </AlertDescription>
             </Alert>
           )}
@@ -328,7 +354,7 @@ export function AttendanceRequestDialog({
           </Button>
           <Button disabled={isSubmitting} onClick={() => void submit()}>
             {isSubmitting && <Loader2 className="animate-spin" />}
-            Send request
+            {direct ? "Apply" : "Send request"}
           </Button>
         </DialogFooter>
       </DialogContent>

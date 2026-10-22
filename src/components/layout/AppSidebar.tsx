@@ -1,19 +1,12 @@
 "use client";
 
-import {
-  ChevronRight,
-  ExternalLink,
-  LogOut,
-  MoreVertical,
-  UserCircle2,
-  type LucideIcon,
-} from "lucide-react";
+import { LogOut, MoreVertical, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { RailSection } from "@/components/layout/RailSection";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,9 +25,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
@@ -43,21 +33,15 @@ import { useT } from "@/lib/i18n";
 import {
   GROUP_LABEL,
   NAV,
-  PRODUCTS,
-  linkedProduct,
+  QUICK_ACCESS,
+  railEntry,
   resolvePage,
-  roleAllows,
-  visiblePages,
-  type NavPage,
   type NavSection,
+  type RailEntry,
 } from "@/lib/access";
-import type { ProductKey } from "@/lib/types";
-import { cn, humanizeRole, initials } from "@/lib/utils";
+import { humanizeRole, initials } from "@/lib/utils";
 
 const GROUP_ORDER: NavSection["group"][] = ["me", "company", "operations", "admin"];
-
-/** A top-level row: 44px, the icon in its own chip, label beside it. */
-const ROW = "relative h-11 gap-3 rounded-xl px-1.5 font-medium text-sidebar-foreground/90";
 
 /**
  * The nav rail from FRD 5.13: solid Deep Teal, Marigold on the active item.
@@ -67,7 +51,8 @@ const ROW = "relative h-11 gap-3 rounded-xl px-1.5 font-medium text-sidebar-fore
  * least one of its pages. A section with one page is a link; with more, its
  * pages are listed under it — so the rail, not a bar on each page, is how you
  * move around a module. A section a linked product has taken over is one row
- * that opens the product in a new tab.
+ * that opens the product in a new tab. The `QUICK_ACCESS` sections live on the
+ * right-hand rail instead (`ConnectorSidebar`).
  */
 export function AppSidebar() {
   const t = useT();
@@ -90,19 +75,9 @@ export function AppSidebar() {
   }
 
   const groups = useMemo(() => {
-    const sections = NAV.map((section) => {
-      const product = linkedProduct(section, tenant);
-      if (product) {
-        const offered = roleAllows(user, PRODUCTS[product].audience);
-        // The product's records as pages, then the launcher to do the work there.
-        return {
-          section,
-          pages: visiblePages(section, user, tenant),
-          launch: offered ? product : undefined,
-        };
-      }
-      return { section, pages: visiblePages(section, user, tenant), launch: undefined };
-    }).filter(({ pages, launch }) => pages.length > 0 || launch);
+    const sections = NAV.filter((section) => !QUICK_ACCESS.includes(section.key))
+      .map((section) => railEntry(section, user, tenant))
+      .filter((entry): entry is RailEntry => entry !== null);
     return GROUP_ORDER.map((group) => ({
       key: group,
       label: GROUP_LABEL[group],
@@ -169,7 +144,7 @@ export function AppSidebar() {
             </SidebarGroupLabel>
             <SidebarMenu className="gap-0.5">
               {group.items.map(({ section, pages, launch }) => (
-                <SectionItem
+                <RailSection
                   key={section.key}
                   section={section}
                   pages={pages}
@@ -242,183 +217,5 @@ export function AppSidebar() {
 
       <SidebarRail />
     </Sidebar>
-  );
-}
-
-/** The icon's chip. Marigold when its section is the one you are in. */
-function NavChip({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) {
-  return (
-    <span
-      className={cn(
-        "flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors",
-        active
-          ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-          : "bg-white/10 text-sidebar-foreground/85",
-      )}
-    >
-      <Icon className="size-4" />
-    </span>
-  );
-}
-
-/** The Marigold bar on the rail's edge beside the active row. */
-function ActiveBar() {
-  return (
-    <span
-      aria-hidden
-      className="absolute top-1/2 left-0 h-5 w-1 -translate-y-1/2 rounded-r-full bg-sidebar-primary group-data-[collapsible=icon]:hidden"
-    />
-  );
-}
-
-/**
- * One section of the rail.
- *
- * Expanded, a multi-page section unfolds its pages beneath it. Collapsed to
- * icons there is no room to unfold, so the same pages fly out to the right.
- */
-function SectionItem({
-  section,
-  pages,
-  launch,
-  inSection,
-  activePage,
-  open,
-  onOpenChange,
-  onNavigate,
-}: {
-  section: NavSection;
-  pages: NavPage[];
-  /** The linked product this row opens when it has no pages to list. */
-  launch?: ProductKey;
-  inSection: boolean;
-  activePage: string | undefined;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onNavigate: () => void;
-}) {
-  const t = useT();
-  const { state, isMobile } = useSidebar();
-
-  // A linked product with no pages for this person: the row opens the product.
-  if (launch && pages.length === 0) {
-    const label = `${t(section.name)} · ${t(PRODUCTS[launch].name)}`;
-    return (
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild tooltip={label} className={ROW}>
-          <Link
-            href={`/launch/${launch}`}
-            target="_blank"
-            rel="noopener"
-            onClick={onNavigate}
-            aria-label={`${label} (opens in a new tab)`}
-          >
-            <NavChip icon={section.icon} active={false} />
-            <span className="truncate">{t(section.name)}</span>
-            <ExternalLink className="mr-1 ml-auto size-3.5 text-sidebar-foreground/60" />
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    );
-  }
-
-  if (pages.length === 1) {
-    return (
-      <SidebarMenuItem>
-        <SidebarMenuButton asChild isActive={inSection} tooltip={t(section.name)} className={ROW}>
-          <Link
-            href={pages[0].path}
-            onClick={onNavigate}
-            aria-current={inSection ? "page" : undefined}
-          >
-            {inSection && <ActiveBar />}
-            <NavChip icon={section.icon} active={inSection} />
-            <span>{t(section.name)}</span>
-          </Link>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    );
-  }
-
-  if (state === "collapsed" && !isMobile) {
-    return (
-      <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <SidebarMenuButton isActive={inSection} aria-label={t(section.name)} className={ROW}>
-              <NavChip icon={section.icon} active={inSection} />
-              <span>{t(section.name)}</span>
-            </SidebarMenuButton>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start" sideOffset={12} className="min-w-52">
-            <DropdownMenuLabel>{t(section.name)}</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {pages.map((page) => {
-              const current = page.path === activePage;
-              return (
-                <DropdownMenuItem key={page.path} asChild>
-                  <Link
-                    href={page.path}
-                    aria-current={current ? "page" : undefined}
-                    className={cn(current && "font-semibold text-primary")}
-                  >
-                    {t(page.name)}
-                  </Link>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </SidebarMenuItem>
-    );
-  }
-
-  // Unfolded, the page you are on carries the highlight; folded, the section
-  // does, since none of its pages is on show to carry it.
-  const rowActive = inSection && !open;
-
-  return (
-    <Collapsible asChild open={open} onOpenChange={onOpenChange} className="group/collapsible">
-      <SidebarMenuItem>
-        <CollapsibleTrigger asChild>
-          <SidebarMenuButton isActive={rowActive} className={cn(ROW, inSection && "font-semibold")}>
-            {rowActive && <ActiveBar />}
-            <NavChip icon={section.icon} active={inSection} />
-            <span className="truncate">{t(section.name)}</span>
-            <ChevronRight className="ml-auto mr-1 text-sidebar-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-          </SidebarMenuButton>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
-          <SidebarMenuSub className="mx-0 mt-0.5 mb-1 ml-[21px] gap-0.5 border-white/15 pr-0 pl-3">
-            {pages.map((page) => {
-              const current = page.path === activePage;
-              return (
-                <SidebarMenuSubItem key={page.path}>
-                  {current && (
-                    <span
-                      aria-hidden
-                      className="absolute top-2 bottom-2 -left-3.5 w-[3px] rounded-full bg-sidebar-primary"
-                    />
-                  )}
-                  <SidebarMenuSubButton
-                    asChild
-                    isActive={current}
-                    className="h-9 rounded-lg px-3 text-sidebar-foreground/80 hover:text-sidebar-foreground"
-                  >
-                    <Link
-                      href={page.path}
-                      onClick={onNavigate}
-                      aria-current={current ? "page" : undefined}
-                    >
-                      <span>{t(page.name)}</span>
-                    </Link>
-                  </SidebarMenuSubButton>
-                </SidebarMenuSubItem>
-              );
-            })}
-          </SidebarMenuSub>
-        </CollapsibleContent>
-      </SidebarMenuItem>
-    </Collapsible>
   );
 }

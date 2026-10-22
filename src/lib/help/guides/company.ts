@@ -44,6 +44,15 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
         steps: [
           "Open the tab you need, such as Personal, Employment or Statutory & bank.",
           "Press Edit, change the details and save. Every change is kept in the Timeline.",
+          "Your own record works the same way: as HR you edit it directly, with no change request.",
+        ],
+      },
+      {
+        title: "Mark someone's attendance",
+        roles: [...HR],
+        steps: [
+          "Open the Attendance tab, click the day and choose Missed punch, Correct attendance, On duty or Work from home.",
+          "Give the times or status and a reason, then Apply. It is applied at once, with no approval; a locked payroll period must be unlocked first.",
         ],
       },
       {

@@ -56,7 +56,7 @@ interface RequestTarget {
  * Tier 1 throughout — every day here becomes payable days or loss of pay.
  */
 export function MyAttendance() {
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const [version, setVersion] = useState(0);
   const [target, setTarget] = useState<RequestTarget | null>(null);
   const refresh = useCallback(() => setVersion((current) => current + 1), []);
@@ -136,6 +136,7 @@ export function MyAttendance() {
         today={target?.today ?? today}
         isLocked={target?.isLocked ?? false}
         onCreated={changed}
+        direct={hasRole("admin", "sub_admin")}
       />
     </div>
   );

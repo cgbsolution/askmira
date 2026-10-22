@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound, Link2, Loader2, Mail, Plus, ShieldAlert, UserCog, Users } from "lucide-react";
+import { KeyRound, Link2, Loader2, Mail, Plus, ShieldAlert, Trash2, UserCog, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -21,6 +21,7 @@ import { NewUserDialog } from "./NewUserDialog";
 import { ResetPasswordDialog } from "./ResetPasswordDialog";
 import { RoleChangeDialog } from "./RoleChangeDialog";
 import { ActiveChangeDialog } from "./ActiveChangeDialog";
+import { DeleteLoginDialog } from "./DeleteLoginDialog";
 import { ROLE_LABEL, errorDetail, formatDateTime } from "./settingsShared";
 
 /**
@@ -39,6 +40,7 @@ export function UsersScreen() {
   const [creating, setCreating] = useState(false);
   const [changingRole, setChangingRole] = useState<ManagedUser | null>(null);
   const [changingActive, setChangingActive] = useState<ManagedUser | null>(null);
+  const [deleting, setDeleting] = useState<ManagedUser | null>(null);
   const [linking, setLinking] = useState<ManagedUser | null>(null);
   const [resetting, setResetting] = useState<ManagedUser | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
@@ -93,6 +95,15 @@ export function UsersScreen() {
     if (row.is_you) return "You cannot disable your own login.";
     if (row.is_break_glass)
       return "This is the break-glass account. Designate another one before disabling it.";
+    if (row.is_active && row.role === "admin" && activeAdmins <= 1)
+      return "This is the last active admin; the workspace needs one.";
+    return null;
+  };
+
+  const deleteBlockedBecause = (row: ManagedUser): string | null => {
+    if (row.is_you) return "You cannot delete your own login.";
+    if (row.is_break_glass)
+      return "This is the break-glass account. Designate another one before removing it.";
     if (row.is_active && row.role === "admin" && activeAdmins <= 1)
       return "This is the last active admin; the workspace needs one.";
     return null;
@@ -243,6 +254,14 @@ export function UsersScreen() {
                       >
                         {row.is_active ? "Disable" : "Enable"}
                       </ActionButton>
+                      <ActionButton
+                        blocked={deleteBlockedBecause(row)}
+                        onClick={() => setDeleting(row)}
+                        label="Delete login"
+                        destructive
+                      >
+                        <Trash2 /> Delete
+                      </ActionButton>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -278,6 +297,11 @@ export function UsersScreen() {
           reload();
           toast.success("Their sessions were ended as well.");
         }}
+      />
+      <DeleteLoginDialog
+        target={deleting}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        onDeleted={reload}
       />
     </PageShell>
   );

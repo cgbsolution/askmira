@@ -55,6 +55,8 @@ function SidebarProvider({
   defaultOpen = true,
   open: openProp,
   onOpenChange: setOpenProp,
+  cookieName = SIDEBAR_COOKIE_NAME,
+  shortcut = SIDEBAR_KEYBOARD_SHORTCUT,
   className,
   style,
   children,
@@ -63,6 +65,10 @@ function SidebarProvider({
   defaultOpen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Where the open state is remembered; null to start from `defaultOpen` every visit. */
+  cookieName?: string | null;
+  /** The Ctrl/⌘ key that toggles it; null for none, so a second sidebar leaves Ctrl+B alone. */
+  shortcut?: string | null;
 }) {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
@@ -77,9 +83,11 @@ function SidebarProvider({
       else _setOpen(openState);
 
       // Remembered across sessions. UI state only — nothing personal.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}; samesite=lax`;
+      if (cookieName) {
+        document.cookie = `${cookieName}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}; samesite=lax`;
+      }
     },
-    [setOpenProp, open],
+    [setOpenProp, open, cookieName],
   );
 
   const toggleSidebar = React.useCallback(() => {
@@ -88,15 +96,16 @@ function SidebarProvider({
 
   // Ctrl/⌘ + B toggles the sidebar.
   React.useEffect(() => {
+    if (!shortcut) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === SIDEBAR_KEYBOARD_SHORTCUT && (event.metaKey || event.ctrlKey)) {
+      if (event.key === shortcut && (event.metaKey || event.ctrlKey)) {
         event.preventDefault();
         toggleSidebar();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar]);
+  }, [toggleSidebar, shortcut]);
 
   const state = open ? "expanded" : "collapsed";
 

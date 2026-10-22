@@ -63,6 +63,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AttendanceCalendar } from "@/components/attendance/AttendanceCalendar";
+import { AttendanceRequestDialog } from "@/components/attendance/AttendanceRequestDialog";
+import type { AttendanceDay, RegularisationKind } from "@/lib/types/attendance";
 import { BalancesPanel } from "@/components/time/BalancesPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -119,6 +121,14 @@ export function ProfileView({
   const [deactivating, setDeactivating] = useState(false);
   const [section, setSection] = useState<{ section: ProfileSection; mode: EditMode } | null>(null);
   const [requestsVersion, setRequestsVersion] = useState(0);
+  const [attendanceVersion, setAttendanceVersion] = useState(0);
+  const [marking, setMarking] = useState<{
+    kind: RegularisationKind;
+    date: string;
+    day: AttendanceDay | null;
+    isLocked: boolean;
+    today: string;
+  } | null>(null);
 
   const isHr = hasRole("admin", "sub_admin");
   const isAdmin = hasRole("admin");
@@ -476,7 +486,30 @@ export function ProfileView({
 
         {seesHistory && !isSelf && hasModule("leave") && (
           <TabsContent value="attendance" className="mt-4">
-            <AttendanceCalendar employeeId={employee.id} title={`${name}'s attendance`} />
+            <AttendanceCalendar
+              employeeId={employee.id}
+              title={`${name}'s attendance`}
+              version={attendanceVersion}
+              onRequest={
+                isHr
+                  ? (kind, date, day, isLocked, today) => setMarking({ kind, date, day, isLocked, today })
+                  : undefined
+              }
+            />
+            {isHr && (
+              <AttendanceRequestDialog
+                open={marking !== null}
+                onOpenChange={(open) => !open && setMarking(null)}
+                initialKind={marking?.kind ?? "status_change"}
+                initialDate={marking?.date ?? ""}
+                day={marking?.day ?? null}
+                today={marking?.today ?? ""}
+                isLocked={marking?.isLocked ?? false}
+                onCreated={() => setAttendanceVersion((current) => current + 1)}
+                employee={{ id: employee.id, name }}
+                direct
+              />
+            )}
           </TabsContent>
         )}
 
@@ -579,7 +612,7 @@ export function ProfileView({
         open={deactivating}
         onOpenChange={setDeactivating}
         title={`Deactivate ${name}?`}
-        description="The record stays for payroll and audit history but leaves the directory. To record a resignation or exit, use People → Exits instead."
+        description="The record stays for payroll and audit history but leaves the directory, and their login is switched off. To free their email for another login, delete it in Settings → Users. To record a resignation or exit, use People → Exits instead."
         confirmLabel="Deactivate"
         destructive
         onConfirm={deactivate}
