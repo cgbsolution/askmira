@@ -28,10 +28,19 @@ const ConnectorRailContext = createContext<RailControls | null>(null);
  * The right-hand rail's own open state, apart from the navigation's. It starts
  * shut on every visit — nothing is remembered — and takes no keyboard
  * shortcut, so Ctrl+B stays the navigation's.
+ *
+ * Shut, it is a 64px strip plus its 1px border: the 40px buttons with the
+ * group's 12px either side, narrower than the navigation's, since it holds
+ * only a handful of icons.
  */
 export function ConnectorRailProvider({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider defaultOpen={false} cookieName={null} shortcut={null}>
+    <SidebarProvider
+      defaultOpen={false}
+      cookieName={null}
+      shortcut={null}
+      iconWidth="calc(4rem + 1px)"
+    >
       <ExposeRail>{children}</ExposeRail>
     </SidebarProvider>
   );

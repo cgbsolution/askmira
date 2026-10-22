@@ -57,6 +57,7 @@ function SidebarProvider({
   onOpenChange: setOpenProp,
   cookieName = SIDEBAR_COOKIE_NAME,
   shortcut = SIDEBAR_KEYBOARD_SHORTCUT,
+  iconWidth = SIDEBAR_WIDTH_ICON,
   className,
   style,
   children,
@@ -69,6 +70,8 @@ function SidebarProvider({
   cookieName?: string | null;
   /** The Ctrl/⌘ key that toggles it; null for none, so a second sidebar leaves Ctrl+B alone. */
   shortcut?: string | null;
+  /** Width of the collapsed icon strip, for a rail with fewer, plainer rows than the navigation. */
+  iconWidth?: string;
 }) {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
@@ -122,7 +125,7 @@ function SidebarProvider({
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH,
-              "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+              "--sidebar-width-icon": iconWidth,
               ...style,
             } as React.CSSProperties
           }
