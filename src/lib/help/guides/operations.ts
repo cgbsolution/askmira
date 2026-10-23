@@ -67,9 +67,9 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       {
         title: "Add a revision",
         steps: [
-          "Press New revision. Choose the effective date and the structure, and enter the CTC as a yearly or monthly figure.",
-          "Shaded amounts are worked out from the CTC. Type over any wage type to set it for this person; the balance component adjusts so the total still equals the CTC.",
-          "Add a remark against a wage type, and attach the increment letter if you have one. Save.",
+          "Press New revision. It starts from the latest revision's amounts. Pick the effective date.",
+          "Type CTC TOTAL and every amount by hand, each with its Pay Basis (Yearly, Monthly, Weekly, Daily or Hourly). What you type is saved exactly; a wage type left empty is not paid. The yearly figures, sub-totals and monthly gross fill in as you type.",
+          "The CTC TOTAL remark is the reason for the revision. Attach the increment letter if you have one, then SAVE.",
         ],
       },
       {
@@ -95,7 +95,8 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     tips: [
       "A revision that an approved or paid payroll used is locked: payroll history stays as it was paid. Add a new revision and raise arrears instead.",
       "Dating a revision into a month already paid creates arrears, paid through Arrears.",
-      "PF, ESI, professional tax, LWF and TDS are worked out in each payroll run, so the MANUAL columns of the upload sheet are not used.",
+      "TDS, PROF. TAX, MPF, ESIC and LWF MANUAL: an amount there is deducted instead of what payroll works out for that person. Leave it empty and payroll works it out as usual.",
+      "A week is 1/52 of a year; a month has 26 working days of 8 hours, for Weekly, Daily and Hourly amounts.",
     ],
   },
 

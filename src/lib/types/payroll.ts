@@ -340,6 +340,8 @@ export type RoundingMode = "half_up" | "half_even" | "ceiling" | "floor";
 
 /** Where a wage type sits on the Salary master; finer than its component type. */
 export type WageGroup =
+  | "ctc_input"
+  | "statutory_deduction"
   | "regular_earning"
   | "variable_earning"
   | "reimbursement"
@@ -349,6 +351,8 @@ export type WageGroup =
 
 /** The kind of component each wage group holds. */
 export const WAGE_GROUP_TYPE: Record<WageGroup, ComponentType> = {
+  ctc_input: "employer_contribution",
+  statutory_deduction: "deduction",
   regular_earning: "earning",
   variable_earning: "earning",
   reimbursement: "reimbursement",
@@ -505,7 +509,9 @@ export interface SalaryComponentAmount {
   is_manual?: boolean;
   remarks?: string | null;
   /** How a typed amount was entered, so the editor shows it back as typed. */
-  pay_basis?: "monthly" | "annual";
+  pay_basis?: PayBasis;
+  /** The amount as typed, in its pay basis (a day's figure for a daily one). */
+  entered_amount?: string | null;
   wage_group?: WageGroup | null;
 }
 
@@ -543,7 +549,8 @@ export interface SalaryAssignInput {
 // ── Salary master ───────────────────────────────────────────────────────────
 
 /** Whether a typed amount is a month's or a year's figure. */
-export type PayBasis = "monthly" | "annual";
+/** The Salary master's Pay Basis: what period a typed amount is for. */
+export type PayBasis = "annual" | "monthly" | "weekly" | "daily" | "hourly";
 
 /** One card on the Salary master timeline. */
 export interface SalaryRevision {
@@ -553,6 +560,11 @@ export interface SalaryRevision {
   structure_name: string | null;
   ctc_annual: string;
   ctc_monthly: string;
+  /** The CTC as typed: monthly when the year is exactly twelve months of it. */
+  ctc_basis?: PayBasis;
+  ctc_amount?: string | null;
+  /** Every amount on it was typed by hand. */
+  manual_entry?: boolean;
   gross_monthly: string;
   basic_monthly: string | null;
   currency: string;
@@ -579,6 +591,10 @@ export interface SalaryComponentAmountInput {
 
 /** A CTC (as a year or a month) and the wage types typed against it. */
 export interface SalaryAmountsInput {
+  /** "manual": every amount exactly as typed, the Salary master's way. */
+  entry?: "structure" | "manual";
+  ctc_amount?: string;
+  ctc_basis?: PayBasis;
   ctc_annual?: string;
   ctc_monthly?: string;
   components: SalaryComponentAmountInput[];
@@ -602,8 +618,16 @@ export interface SalaryTrailEntry {
   changes: Record<string, unknown>;
 }
 
+export interface StandardStatus {
+  complete: boolean;
+  missing: string[];
+  outdated: string[];
+  has_structure: boolean;
+}
+
 export interface StandardSetupResult {
   components_added: string[];
+  components_renamed?: string[];
   structure_name: string | null;
   /** Why no structure was made: the workspace's own wage types differ. */
   structure_skipped?: string | null;

@@ -28,7 +28,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { del, downloadFile } from "@/lib/api";
 import type { EmployeeSummary, EmploymentStatus, Page } from "@/lib/types";
-import type { SalaryComponent, SalaryOverview, SalaryRevision, SalaryStructure } from "@/lib/types/payroll";
+import type {
+  SalaryComponent,
+  SalaryOverview,
+  SalaryRevision,
+  SalaryStructure,
+  StandardStatus,
+} from "@/lib/types/payroll";
 import { formatDay } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
@@ -65,12 +71,13 @@ function SalaryMaster() {
   const revisions = useApiQuery<SalaryRevision[]>(employeeId ? `/employees/${employeeId}/salary/revisions` : null);
   const structures = useApiQuery<SalaryStructure[]>("/salary-structures");
   const components = useApiQuery<SalaryComponent[]>("/salary-components");
+  const standard = useApiQuery<StandardStatus>("/salary-components/standard");
 
   const nameOf = (code: string) => components.data?.find((c) => c.code === code)?.name ?? code;
-  const noStructure = structures.data !== null && !structures.data.some((s) => s.active);
   const setupDone = () => {
     structures.reload();
     components.reload();
+    standard.reload();
   };
 
   const choose = (person: EmployeeSummary | null) => {
@@ -146,7 +153,7 @@ function SalaryMaster() {
         </CardContent>
       </Card>
 
-      {noStructure && <StandardSetupCallout onDone={setupDone} />}
+      {standard.data && !standard.data.complete && <StandardSetupCallout status={standard.data} onDone={setupDone} />}
 
       {!employeeId ? (
         <EmployeeList key={listVersion} onOpen={choose} />
@@ -206,7 +213,7 @@ function SalaryMaster() {
           employee={employee}
           mode={editor}
           structures={structures.data ?? []}
-          structuresLoaded={structures.data !== null}
+          standard={standard.data}
           components={components.data ?? []}
           onClose={() => setEditor(null)}
           onSaved={revisions.reload}

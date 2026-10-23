@@ -91,6 +91,8 @@ export function isAmount(value: string): boolean {
 
 /** The Salary master's wage groups, each implying its component type. */
 export const WAGE_GROUP_LABEL: Record<WageGroup, string> = {
+  ctc_input: "CTC wise input",
+  statutory_deduction: "Statutory deduction",
   regular_earning: "Regular earning",
   variable_earning: "Variable earning",
   reimbursement: "Reimbursement",

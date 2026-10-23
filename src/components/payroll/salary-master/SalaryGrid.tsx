@@ -1,56 +1,46 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { FileText } from "lucide-react";
 import React from "react";
 
 import { Money } from "@/components/common/Money";
 import {
+  BASES,
   BASIS_LABEL,
   SECTIONS,
-  STATUTORY_LINES,
   type WageLine,
   type WageRow,
   isTypedAmount,
 } from "@/components/payroll/salary-master/shared";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PayBasis, SalaryGroupTotal } from "@/lib/types/payroll";
-import { cn } from "@/lib/utils";
 
-const CALCULATED: WageRow = {
-  manual: false,
-  amount: "",
-  basis: "monthly",
-  remarks: "",
-};
+const EMPTY: WageRow = { amount: "", basis: "monthly", remarks: "" };
 
-export interface CtcInput {
-  value: string;
+export interface CtcRow {
+  amount: string;
   basis: PayBasis;
-  invalid: boolean;
-  onChange: (value: string) => void;
+  /** The CTC row's Reference / Remarks: the revision's reason. */
+  remarks: string;
+  annual: string | null | undefined;
+  onAmount: (value: string) => void;
   onBasis: (basis: PayBasis) => void;
+  onRemarks: (value: string) => void;
 }
 
 /**
- * Every wage type of one salary revision in one grid, the way payroll people
- * read it: the CTC first, then each group numbered with its sub-total.
- *
- * Every figure besides what HR types comes from the server; the browser never
- * adds or multiplies money. A calculated amount is shaded; ticking "Manually"
- * (or typing over it) sets it for this person.
+ * The Employee Salary Master grid: CTC Wise Input, then the Salary Structure in
+ * numbered groups with their sub-totals. Every amount is typed by hand; the
+ * yearly figures and sub-totals come from the server, which also turns a
+ * weekly, daily or hourly figure into a month's. The browser never does sums.
  */
 export function SalaryGrid({
   lines,
   rows,
   groupTotals,
   ctc,
-  ctcAnnual,
-  ctcMonthly,
   grossMonthly,
   grossAnnual,
   readOnly = false,
@@ -59,29 +49,82 @@ export function SalaryGrid({
   lines: WageLine[];
   rows: Record<string, WageRow>;
   groupTotals: SalaryGroupTotal[];
-  /** The CTC input; omitted when read-only. */
-  ctc?: CtcInput;
-  ctcAnnual: string | null | undefined;
-  ctcMonthly: string | null | undefined;
+  ctc: CtcRow;
   grossMonthly: string | null | undefined;
   grossAnnual: string | null | undefined;
   readOnly?: boolean;
   onChange?: (code: string, row: WageRow) => void;
 }) {
-  const rowOf = (code: string): WageRow => rows[code] ?? CALCULATED;
-  const shown = (line: WageLine, row: WageRow) =>
-    row.manual ? row.amount : ((row.basis === "monthly" ? line.monthly : line.annual) ?? "");
+  const rowOf = (code: string): WageRow => rows[code] ?? EMPTY;
   const totalOf = (key: string) => groupTotals.find((t) => t.wage_group === key);
 
-  const changeBasis = (line: WageLine, row: WageRow, basis: PayBasis) => {
-    // Keep a typed amount's value, shown in the other basis using the server's
-    // own figure for it rather than working it out here.
-    const converted = basis === "monthly" ? line.monthly : line.annual;
-    onChange?.(line.code, {
-      ...row,
-      basis,
-      amount: row.manual && converted ? converted : row.amount,
-    });
+  const basisSelect = (value: PayBasis, onBasis: (basis: PayBasis) => void, label: string) =>
+    readOnly ? (
+      <span className="text-sm">{BASIS_LABEL[value]}</span>
+    ) : (
+      <Select value={value} onValueChange={(next) => onBasis(next as PayBasis)}>
+        <SelectTrigger size="sm" aria-label={`${label} pay basis`} className="w-28">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {BASES.map((basis) => (
+            <SelectItem key={basis} value={basis}>
+              {BASIS_LABEL[basis]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
+
+  const amountBox = (value: string, onValue: (value: string) => void, label: string) =>
+    readOnly ? (
+      <Money value={value || null} />
+    ) : (
+      <Input
+        inputMode="decimal"
+        aria-label={`${label} amount`}
+        aria-invalid={(value.trim() !== "" && !isTypedAmount(value)) || undefined}
+        value={value}
+        className="ml-auto h-9 w-36 text-right tabular-nums"
+        onChange={(event) => onValue(event.target.value)}
+      />
+    );
+
+  const remarksBox = (value: string, onValue: (value: string) => void, label: string) =>
+    readOnly ? (
+      <span className="text-sm text-muted-foreground">{value}</span>
+    ) : (
+      <Input
+        aria-label={`${label} remarks`}
+        maxLength={255}
+        value={value}
+        className="h-9"
+        onChange={(event) => onValue(event.target.value)}
+      />
+    );
+
+  const name = (label: string) => (
+    <span className="flex items-center gap-2 text-sm text-foreground">
+      <FileText aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+      {label}
+    </span>
+  );
+
+  const lineRow = (line: WageLine) => {
+    const row = rowOf(line.code);
+    const set = (patch: Partial<WageRow>) => onChange?.(line.code, { ...row, ...patch });
+    return (
+      <TableRow key={line.code}>
+        <TableCell className="min-w-64">{name(line.name)}</TableCell>
+        <TableCell className="w-32">{basisSelect(row.basis, (basis) => set({ basis }), line.name)}</TableCell>
+        <TableCell className="w-40 text-right">
+          {amountBox(row.amount, (amount) => set({ amount }), line.name)}
+        </TableCell>
+        <TableCell className="w-36 text-right">{row.amount.trim() ? <Money value={line.annual} /> : null}</TableCell>
+        <TableCell className="w-24" />
+        <TableCell className="min-w-44">{remarksBox(row.remarks, (remarks) => set({ remarks }), line.name)}</TableCell>
+      </TableRow>
+    );
   };
 
   const sectionRow = (label: string) => (
@@ -92,240 +135,93 @@ export function SalaryGrid({
     </TableRow>
   );
 
-  const groupRow = (index: number, label: string) => (
-    <TableRow className="hover:bg-transparent">
-      <TableCell colSpan={6} className="pt-4 pb-1.5 text-xs font-semibold tracking-wide text-primary uppercase">
-        <span className="mr-4 tabular-nums">{index}</span>
-        {label}
-      </TableCell>
-    </TableRow>
-  );
-
-  const subTotal = (monthly: string | null | undefined, annual: string | null | undefined) => (
-    <TableRow className="bg-muted/40 hover:bg-muted/40">
-      <TableCell className="font-semibold uppercase">Sub total</TableCell>
-      <TableCell />
-      <TableCell className="text-right font-semibold">
-        <Money value={monthly ?? null} />
-      </TableCell>
-      <TableCell className="text-right font-semibold">
-        <Money value={annual ?? null} />
-      </TableCell>
-      <TableCell colSpan={2} />
-    </TableRow>
-  );
-
-  const basisCell = (value: PayBasis, onBasis: (basis: PayBasis) => void, label: string, disabled = false) =>
-    readOnly ? (
-      <span className="text-sm">{BASIS_LABEL[value]}</span>
-    ) : (
-      <Select value={value} disabled={disabled} onValueChange={(next) => onBasis(next as PayBasis)}>
-        <SelectTrigger size="sm" aria-label={`${label} pay basis`} className="w-28">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="monthly">{BASIS_LABEL.monthly}</SelectItem>
-          <SelectItem value="annual">{BASIS_LABEL.annual}</SelectItem>
-        </SelectContent>
-      </Select>
-    );
-
-  const lineRow = (line: WageLine) => {
-    const row = rowOf(line.code);
-    const value = shown(line, row);
-    const invalid = row.manual && !isTypedAmount(row.amount);
-    const amount = readOnly ? (
-      <Money value={value || null} />
-    ) : (
-      <Input
-        inputMode="decimal"
-        aria-label={`${line.name} amount`}
-        aria-invalid={invalid || undefined}
-        disabled={line.balance}
-        value={value}
-        className={cn(
-          "ml-auto h-9 w-36 text-right tabular-nums",
-          !row.manual && "bg-muted/60 text-muted-foreground",
-          line.balance && "disabled:opacity-100",
-        )}
-        onChange={(event) => {
-          const typed = event.target.value;
-          onChange?.(
-            line.code,
-            typed.trim() === "" ? { ...row, manual: false, amount: "" } : { ...row, manual: true, amount: typed },
-          );
-        }}
-      />
-    );
-    return (
-      <TableRow key={line.code}>
-        <TableCell className="min-w-56">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium text-foreground">{line.name}</span>
-            {line.balance && <Badge variant="muted">Balance of CTC</Badge>}
-            {!line.partOfCtc && <Badge variant="outline">Outside CTC</Badge>}
-          </div>
-        </TableCell>
-        <TableCell className="w-32">
-          {basisCell(row.basis, (basis) => changeBasis(line, row, basis), line.name, line.balance)}
-        </TableCell>
-        <TableCell className="w-40 text-right">
-          {line.balance && !readOnly ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>{amount}</div>
-              </TooltipTrigger>
-              <TooltipContent>
-                What is left of the CTC after every other component. Change the CTC to move it.
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            amount
-          )}
-        </TableCell>
-        <TableCell className="w-36 text-right text-muted-foreground">
-          <Money value={line.annual} />
-        </TableCell>
-        <TableCell className="w-24 text-center">
-          {readOnly ? (
-            row.manual ? (
-              <Check aria-label="Typed manually" className="mx-auto size-4 text-primary" />
-            ) : null
-          ) : (
-            <Checkbox
-              aria-label={`Set ${line.name} manually`}
-              checked={row.manual}
-              disabled={line.balance}
-              onCheckedChange={(checked) =>
-                onChange?.(
-                  line.code,
-                  checked === true ? { ...row, manual: true, amount: value } : { ...row, manual: false, amount: "" },
-                )
-              }
-            />
-          )}
-        </TableCell>
-        <TableCell className="min-w-44">
-          {readOnly ? (
-            <span className="text-sm text-muted-foreground">{row.remarks || "—"}</span>
-          ) : (
-            <Input
-              aria-label={`${line.name} remarks`}
-              maxLength={255}
-              value={row.remarks}
-              className="h-9"
-              onChange={(event) => onChange?.(line.code, { ...row, remarks: event.target.value })}
-            />
-          )}
-        </TableCell>
-      </TableRow>
-    );
-  };
+  const ctcInputs = lines.filter((line) => line.group === "ctc_input");
 
   return (
     <div className="rounded-xl border border-border">
-      {/* table-ok: one form grid in sections (CTC wise input, numbered wage groups with sub-total rows spanning the table); DataTable has no section or sub-total rows */}
+      {/* table-ok: the Employee Salary Master form grid, in sections with numbered group and sub-total rows spanning the table; DataTable has no section or sub-total rows */}
       <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
             <TableHead className="text-xs uppercase">Wage type description</TableHead>
             <TableHead className="text-xs uppercase">Pay basis</TableHead>
-            <TableHead className="text-right text-xs uppercase">Amount (₹)</TableHead>
+            <TableHead className="text-right text-xs uppercase">Amount</TableHead>
             <TableHead className="text-right text-xs uppercase">Annually</TableHead>
-            <TableHead className="text-center text-xs uppercase">Manually</TableHead>
+            <TableHead className="text-xs uppercase">Manually</TableHead>
             <TableHead className="text-xs uppercase">Reference / remarks</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {sectionRow("CTC wise input")}
+          {sectionRow("CTC Wise Input")}
           <TableRow>
-            <TableCell className="font-medium">CTC total</TableCell>
+            <TableCell>{name("CTC TOTAL")}</TableCell>
+            <TableCell>{basisSelect(ctc.basis, ctc.onBasis, "CTC")}</TableCell>
+            <TableCell className="text-right">{amountBox(ctc.amount, ctc.onAmount, "CTC TOTAL")}</TableCell>
+            <TableCell className="text-right">
+              {ctc.amount.trim() ? <Money value={ctc.annual ?? null} /> : null}
+            </TableCell>
+            <TableCell />
+            <TableCell>{remarksBox(ctc.remarks, ctc.onRemarks, "CTC TOTAL")}</TableCell>
+          </TableRow>
+          {ctcInputs.map(lineRow)}
+          <TableRow>
+            <TableCell>{name("MONTHLY GROSS")}</TableCell>
             <TableCell>
-              {ctc ? basisCell(ctc.basis, ctc.onBasis, "CTC") : <span className="text-sm">Monthly</span>}
+              <span className="text-sm">Monthly</span>
             </TableCell>
             <TableCell className="text-right">
-              {ctc ? (
-                <Input
-                  id="sm-ctc"
-                  inputMode="decimal"
-                  aria-label="CTC"
-                  aria-invalid={ctc.invalid || undefined}
-                  value={ctc.value}
-                  placeholder={ctc.basis === "annual" ? "Yearly CTC" : "Monthly CTC"}
-                  className="ml-auto h-9 w-36 text-right tabular-nums"
-                  onChange={(event) => ctc.onChange(event.target.value)}
-                />
+              {readOnly ? (
+                <Money value={grossMonthly ?? null} />
               ) : (
-                <Money value={ctcMonthly ?? null} />
+                <span
+                  aria-label="Monthly gross, the sum of the earnings"
+                  className="ml-auto flex h-9 w-36 items-center justify-end rounded-lg border border-input bg-muted/60 px-3 text-sm tabular-nums"
+                >
+                  <Money value={grossMonthly ?? null} />
+                </span>
               )}
             </TableCell>
-            <TableCell className="text-right text-muted-foreground">
-              <Money value={ctcAnnual ?? null} />
-            </TableCell>
-            <TableCell colSpan={2} className="text-xs text-muted-foreground">
-              {ctc && ctc.basis === "annual" && ctcMonthly ? (
-                <>
-                  <Money value={ctcMonthly} /> a month
-                </>
-              ) : null}
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell className="font-medium">Monthly gross</TableCell>
-            <TableCell>
-              <span className="text-sm text-muted-foreground">Monthly</span>
-            </TableCell>
             <TableCell className="text-right">
-              <span className="ml-auto inline-flex h-9 w-36 items-center justify-end rounded-lg bg-muted/60 px-3">
-                <Money value={grossMonthly ?? null} />
-              </span>
-            </TableCell>
-            <TableCell className="text-right text-muted-foreground">
               <Money value={grossAnnual ?? null} />
             </TableCell>
-            <TableCell colSpan={2} className="text-xs text-muted-foreground">
-              Every earning, worked out
-            </TableCell>
+            <TableCell />
+            <TableCell className="text-xs text-muted-foreground">{readOnly ? "" : "Sum of the earnings"}</TableCell>
           </TableRow>
 
-          {sectionRow("Salary structure")}
+          {sectionRow("Salary Structure")}
           {SECTIONS.map((section, index) => {
-            if (section.key === "statutory") {
-              return (
-                <React.Fragment key={section.key}>
-                  {groupRow(index + 1, section.title)}
-                  {STATUTORY_LINES.map((name) => (
-                    <TableRow key={name}>
-                      <TableCell className="font-medium text-foreground">{name}</TableCell>
-                      <TableCell>
-                        <span className="text-sm text-muted-foreground">Monthly</span>
-                      </TableCell>
-                      <TableCell colSpan={2} className="text-right text-xs text-muted-foreground">
-                        Worked out in each payroll run
-                      </TableCell>
-                      <TableCell />
-                      <TableCell className="text-xs text-muted-foreground">From the statutory rules in force</TableCell>
-                    </TableRow>
-                  ))}
-                </React.Fragment>
-              );
-            }
             const groupLines = lines.filter((line) => line.group === section.key);
             const total = totalOf(section.key);
+            const showTotal = total !== undefined && !/^0+(\.0+)?$/.test(total.monthly);
             return (
               <React.Fragment key={section.key}>
-                {groupRow(index + 1, section.title)}
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={6}
+                    className="pt-4 pb-1.5 text-xs font-semibold tracking-wide text-primary uppercase"
+                  >
+                    <span className="mr-5 tabular-nums">{index + 1}</span>
+                    {section.title}
+                  </TableCell>
+                </TableRow>
                 {groupLines.length === 0 ? (
                   <TableRow className="hover:bg-transparent">
                     <TableCell colSpan={6} className="text-sm text-muted-foreground">
-                      No wage types in this group. Add one under Payroll setup → Salary structures.
+                      No wage types in this group.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  <>
-                    {groupLines.map(lineRow)}
-                    {subTotal(total?.monthly, total?.annual)}
-                  </>
+                  groupLines.map(lineRow)
+                )}
+                {showTotal && (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell className="font-semibold uppercase">Sub total</TableCell>
+                    <TableCell />
+                    <TableCell className="text-right font-semibold">
+                      <Money value={total.monthly} />
+                    </TableCell>
+                    <TableCell colSpan={3} />
+                  </TableRow>
                 )}
               </React.Fragment>
             );
