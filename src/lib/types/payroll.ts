@@ -432,6 +432,15 @@ export interface ResolvedComponent {
   counts_toward_pf: boolean;
   counts_toward_esi: boolean;
   display_order: number;
+  /** Typed in for this employee rather than worked out by the structure. */
+  is_manual?: boolean;
+}
+
+/** What one kind of component (earnings, deductions…) adds up to. */
+export interface SalaryTypeTotal {
+  component_type: ComponentType;
+  monthly: string;
+  annual: string;
 }
 
 export interface SalaryBreakdown {
@@ -441,6 +450,7 @@ export interface SalaryBreakdown {
   annual_total_in_ctc: string;
   monthly_total_in_ctc: string;
   components: ResolvedComponent[];
+  totals?: SalaryTypeTotal[];
 }
 
 export interface SalaryComponentAmount {
@@ -454,6 +464,10 @@ export interface SalaryComponentAmount {
   counts_toward_pf: boolean;
   counts_toward_esi: boolean;
   display_order: number;
+  is_manual?: boolean;
+  remarks?: string | null;
+  /** How a typed amount was entered, so the editor shows it back as typed. */
+  pay_basis?: "monthly" | "annual";
 }
 
 export interface SalaryRecord {
@@ -475,6 +489,8 @@ export interface SalaryOverview {
   employee_name: string;
   designation: string | null;
   status: string;
+  work_email?: string | null;
+  photo_url?: string | null;
   current_salary: SalaryRecord | null;
 }
 
@@ -483,6 +499,68 @@ export interface SalaryAssignInput {
   ctc_annual: string;
   effective_from: string;
   revision_reason?: string | null;
+}
+
+// ── Salary master ───────────────────────────────────────────────────────────
+
+/** Whether a typed amount is a month's or a year's figure. */
+export type PayBasis = "monthly" | "annual";
+
+/** One card on the Salary master timeline. */
+export interface SalaryRevision {
+  id: string;
+  employee_id: string;
+  structure_id: string;
+  structure_name: string | null;
+  ctc_annual: string;
+  ctc_monthly: string;
+  gross_monthly: string;
+  basic_monthly: string | null;
+  currency: string;
+  effective_from: string;
+  effective_to: string | null;
+  revision_reason: string | null;
+  attachment_name: string | null;
+  components: SalaryComponentAmount[];
+  totals: SalaryTypeTotal[];
+  /** Payroll has used this revision, so it is history and cannot change. */
+  locked: boolean;
+  locked_reason: string | null;
+  updated_at: string;
+}
+
+export interface SalaryComponentAmountInput {
+  component_code: string;
+  /** Empty lets the structure work it out. A string, never a JS number. */
+  amount?: string | null;
+  basis: PayBasis;
+  remarks?: string | null;
+}
+
+/** A CTC (as a year or a month) and the wage types typed against it. */
+export interface SalaryAmountsInput {
+  ctc_annual?: string;
+  ctc_monthly?: string;
+  components: SalaryComponentAmountInput[];
+}
+
+export interface SalaryRevisionInput extends SalaryAmountsInput {
+  structure_id: string;
+  effective_from: string;
+  revision_reason?: string | null;
+  /** Edit only: carry the typed changes into every later revision. */
+  apply_to_later_revisions?: boolean;
+}
+
+export interface SalarySaveResult {
+  id: string;
+  effective_from: string;
+  /** Months payroll already paid at the earlier amounts ("2026-08"): raise arrears. */
+  paid_months_affected?: string[];
+  /** Open runs worked out on the old amounts ("2026-08"): recompute them. */
+  runs_to_recompute?: string[];
+  /** Later revisions an "update later revisions" save reached. */
+  carried_forward_to?: string[];
 }
 
 // ── Statutory ───────────────────────────────────────────────────────────────

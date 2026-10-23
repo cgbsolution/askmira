@@ -21,7 +21,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       "Statutory rates come from the approved rule set in force on the run's date.",
     ],
     related: [
-      { label: "Salaries", href: "/payroll/salaries" },
+      { label: "Salary master", href: "/payroll/salaries" },
       { label: "Adjustments", href: "/payroll/adjustments" },
       { label: "Bank files", href: "/payroll/disbursements" },
     ],
@@ -53,18 +53,37 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
   },
 
   "/payroll/salaries": {
-    summary: "Assign and revise salaries. Every revision is effective-dated and audited.",
+    summary:
+      "One person's salary revisions, newest first. Add a revision, type the amount of any wage type, or correct a revision payroll has not paid yet.",
     tasks: [
       {
-        title: "Assign or revise a salary",
+        title: "Find a person's salary",
         steps: [
-          "Find the person and open their salary.",
-          "Press Revise: choose the structure, enter the CTC and the effective date, and preview the breakup.",
-          "Save it. History shows every earlier revision.",
+          "Type a name or employee code in the search box; the dot on each photo is their status. Use the dropdown beside it to show only active, exited or other people.",
+          "Or pick them from the List of employees.",
+          "Each card is one revision: the date it applies from, CTC and gross a month, basic, and any attached file.",
+        ],
+      },
+      {
+        title: "Add a revision",
+        steps: [
+          "Press New revision. Choose the effective date and the structure, and enter the CTC as a yearly or monthly figure.",
+          "Shaded amounts are worked out from the CTC. Type over any wage type to set it for this person; the balance component adjusts so the total still equals the CTC.",
+          "Add a remark against a wage type, and attach the increment letter if you have one. Save.",
+        ],
+      },
+      {
+        title: "Correct or delete a revision",
+        steps: [
+          "Press the pencil on a card to edit it, or the bin to delete it.",
+          "Save & update later revisions carries the wage types you changed into every later revision too.",
         ],
       },
     ],
-    tips: ["A backdated revision creates arrears, paid through Arrears."],
+    tips: [
+      "A revision that an approved or paid payroll used is locked: payroll history stays as it was paid. Add a new revision and raise arrears instead.",
+      "Dating a revision into a month already paid creates arrears, paid through Arrears.",
+    ],
   },
 
   "/payroll/adjustments": {
