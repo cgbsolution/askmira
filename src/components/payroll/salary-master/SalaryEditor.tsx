@@ -1,18 +1,16 @@
 "use client";
 
 import { CheckCircle2, Download, Loader2, Lock, Paperclip, Pencil, X } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
-import { Money } from "@/components/common/Money";
 import { apiMessage } from "@/components/payroll/labels";
 import { StatusAvatar, employeeLabel } from "@/components/payroll/salary-master/EmployeeSearch";
-import { WageTypeTable } from "@/components/payroll/salary-master/WageTypeTable";
+import { SalaryGrid } from "@/components/payroll/salary-master/SalaryGrid";
+import { StandardSetupCallout } from "@/components/payroll/salary-master/StandardSetupCallout";
 import {
-  BASIS_LABEL,
-  WAGE_GROUPS,
   type WageLine,
   type WageRow,
   isTypedAmount,
@@ -22,7 +20,6 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -30,23 +27,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { del, downloadFile, post, put } from "@/lib/api";
 import type { EmployeeSummary } from "@/lib/types";
-import type {
-  PayBasis,
-  SalaryAmountsInput,
-  SalaryBreakdown,
-  SalaryComponent,
-  SalaryRevision,
-  SalaryRevisionInput,
-  SalarySaveResult,
-  SalaryStructure,
-  SalaryStructureDetail,
-  SalaryTypeTotal,
+import {
+  DEFAULT_WAGE_GROUP,
+  type PayBasis,
+  type SalaryAmountsInput,
+  type SalaryBreakdown,
+  type SalaryComponent,
+  type SalaryRevision,
+  type SalaryRevisionInput,
+  type SalarySaveResult,
+  type SalaryStructure,
+  type SalaryStructureDetail,
+  type WageGroup,
 } from "@/lib/types/payroll";
 
 export type EditorMode =
   /** A new revision, starting from the latest one's structure and typed amounts. */
   | { kind: "new"; base: SalaryRevision | null; min?: string }
-  | { kind: "edit"; revision: SalaryRevision; hasLater: boolean; min?: string; max?: string }
+  | {
+      kind: "edit";
+      revision: SalaryRevision;
+      hasLater: boolean;
+      min?: string;
+      max?: string;
+    }
   | { kind: "view"; revision: SalaryRevision };
 
 /** The typed amounts and remarks a revision carries, as editor rows. */
@@ -57,11 +61,7 @@ function rowsFrom(revision: SalaryRevision | null): Record<string, WageRow> {
     if (component.is_manual || component.remarks) {
       rows[component.component_code] = {
         manual: Boolean(component.is_manual),
-        amount: component.is_manual
-          ? basis === "monthly"
-            ? component.monthly_amount
-            : component.annual_amount
-          : "",
+        amount: component.is_manual ? (basis === "monthly" ? component.monthly_amount : component.annual_amount) : "",
         basis,
         remarks: component.remarks ?? "",
       };
@@ -71,29 +71,36 @@ function rowsFrom(revision: SalaryRevision | null): Record<string, WageRow> {
 }
 
 /**
- * The Salary master's editor: one revision for one person, every wage type
- * grouped by kind, with live figures from the server as HR types.
+ * The Salary master's editor: one revision for one person, every wage type in
+ * one grid, with live figures from the server as HR types.
  */
 export function SalaryEditor({
   employee,
   mode,
   structures,
+  structuresLoaded,
   components,
   onClose,
   onSaved,
   onEdit,
+  onSetupDone,
 }: {
   employee: EmployeeSummary;
   mode: EditorMode | null;
   structures: SalaryStructure[];
+  /** False until the structure list has arrived, so the setup prompt does not flash. */
+  structuresLoaded: boolean;
   components: SalaryComponent[];
   onClose: () => void;
   onSaved: () => void;
   /** From the read-only view: switch to editing this revision. */
   onEdit?: (revision: SalaryRevision) => void;
+  /** The standard structure was just set up: reload structures and wage types. */
+  onSetupDone: () => void;
 }) {
   const revision = mode && mode.kind !== "new" ? mode.revision : null;
   const readOnly = mode?.kind === "view";
+  const activeStructures = structures.filter((s) => s.active);
 
   const [structureId, setStructureId] = useState("");
   const [effectiveFrom, setEffectiveFrom] = useState("");
@@ -108,12 +115,12 @@ export function SalaryEditor({
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<"save" | "forward" | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!mode) return;
     const source = mode.kind === "new" ? mode.base : mode.revision;
-    const firstActive = structures.find((s) => s.active)?.id ?? "";
-    setStructureId(source?.structure_id ?? firstActive);
+    setStructureId(source?.structure_id ?? "");
     setEffectiveFrom(mode.kind === "new" ? "" : mode.revision.effective_from);
     setReason(mode.kind === "new" ? "" : (mode.revision.revision_reason ?? ""));
     setCtc(mode.kind === "new" ? "" : mode.revision.ctc_annual);
@@ -124,9 +131,13 @@ export function SalaryEditor({
     setPreview(null);
     setPreviewError(null);
     setError(null);
-    // Structures load once; resetting on their arrival would wipe what was typed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
+
+  // With nothing to start from, take the workspace's structure as soon as there is one.
+  const firstActive = activeStructures[0]?.id ?? "";
+  useEffect(() => {
+    if (mode && !structureId && firstActive) setStructureId(firstActive);
+  }, [mode, structureId, firstActive]);
 
   const structure = useApiQuery<SalaryStructureDetail>(
     mode && structureId ? `/salary-structures/${structureId}` : null,
@@ -179,14 +190,18 @@ export function SalaryEditor({
     };
   }, [requestKey]);
 
-  // Every wage type the grid lists: the structure's, the tenant's active ones
+  // Every wage type the grid lists: the structure's, the workspace's active ones
   // (to type an amount for), and any this salary already pays.
   const lines = useMemo<WageLine[]>(() => {
+    const groupOf = new Map<string, WageGroup>(
+      components.map((c) => [c.code, c.wage_group ?? DEFAULT_WAGE_GROUP[c.component_type]]),
+    );
     type Resolved = {
       monthly: string;
       annual: string;
       name: string;
       type: WageLine["type"];
+      group: WageGroup;
       partOfCtc: boolean;
       order: number;
     };
@@ -199,6 +214,7 @@ export function SalaryEditor({
               annual: c.annual_amount,
               name: c.component_name,
               type: c.component_type,
+              group: c.wage_group ?? groupOf.get(c.component_code) ?? DEFAULT_WAGE_GROUP[c.component_type],
               partOfCtc: c.part_of_ctc,
               order: c.display_order,
             },
@@ -210,6 +226,7 @@ export function SalaryEditor({
               annual: c.annual_amount,
               name: c.name,
               type: c.component_type,
+              group: c.wage_group ?? groupOf.get(c.code) ?? DEFAULT_WAGE_GROUP[c.component_type],
               partOfCtc: c.part_of_ctc,
               order: c.display_order,
             },
@@ -217,10 +234,7 @@ export function SalaryEditor({
     );
     const inStructure = new Map((structure.data?.components ?? []).map((c) => [c.component_code, c]));
     const byCode = new Map<string, WageLine & { order: number }>();
-    const add = (
-      code: string,
-      base: { name: string; type: WageLine["type"]; partOfCtc: boolean; order: number },
-    ) => {
+    const add = (code: string, base: Omit<Resolved, "monthly" | "annual">) => {
       if (byCode.has(code)) return;
       const link = inStructure.get(code);
       const amounts = resolved.get(code);
@@ -228,6 +242,7 @@ export function SalaryEditor({
         code,
         name: base.name,
         type: base.type,
+        group: base.group,
         balance: link?.calculation_type === "balance",
         partOfCtc: base.partOfCtc,
         inStructure: Boolean(link),
@@ -240,6 +255,7 @@ export function SalaryEditor({
       add(link.component_code, {
         name: link.component_name,
         type: link.component_type,
+        group: groupOf.get(link.component_code) ?? DEFAULT_WAGE_GROUP[link.component_type],
         partOfCtc: link.part_of_ctc,
         order: link.display_order,
       });
@@ -250,6 +266,7 @@ export function SalaryEditor({
         add(component.code, {
           name: component.name,
           type: component.component_type,
+          group: groupOf.get(component.code) ?? DEFAULT_WAGE_GROUP[component.component_type],
           partOfCtc: component.part_of_ctc,
           order: component.display_order,
         });
@@ -258,10 +275,7 @@ export function SalaryEditor({
     return [...byCode.values()].sort((a, b) => a.order - b.order || a.code.localeCompare(b.code));
   }, [readOnly, revision, preview, structure.data, components]);
 
-  const totals: SalaryTypeTotal[] = (readOnly ? revision?.totals : preview?.totals) ?? [];
-  const totalOf = (type: string) => totals.find((t) => t.component_type === type);
-  const ctcAnnual = readOnly ? revision?.ctc_annual : preview?.ctc_annual;
-  const ctcMonthly = readOnly ? revision?.ctc_monthly : preview?.monthly_total_in_ctc;
+  const earnings = (readOnly ? revision?.totals : preview?.totals)?.find((t) => t.component_type === "earning");
   const attachmentName = revision?.attachment_name ?? null;
 
   const save = async (forward: boolean) => {
@@ -339,14 +353,15 @@ export function SalaryEditor({
   const title =
     mode?.kind === "new"
       ? mode.base
-        ? "New salary revision"
-        : "Assign a salary"
+        ? "Salary master · new revision"
+        : "Salary master · assign a salary"
       : mode?.kind === "edit"
-        ? `Edit the revision from ${revisionDate(mode.revision.effective_from)}`
+        ? `Salary master · edit the revision from ${revisionDate(mode.revision.effective_from)}`
         : revision
-          ? `Salary from ${revisionDate(revision.effective_from)}`
-          : "";
+          ? `Salary master · ${revisionDate(revision.effective_from)}`
+          : "Salary master";
   const busy = saving !== null;
+  const noStructure = !readOnly && structuresLoaded && activeStructures.length === 0;
 
   return (
     <Sheet open={mode !== null} onOpenChange={(open) => !open && !busy && onClose()}>
@@ -356,105 +371,124 @@ export function SalaryEditor({
           <SheetDescription>
             {readOnly
               ? (revision?.structure_name ?? "Salary structure")
-              : "Amounts you type override the structure for this person. Shaded amounts are worked out from the CTC."}
+              : "Shaded amounts are worked out from the CTC. Type over one, or tick Manually, to set it for this person."}
           </SheetDescription>
         </SheetHeader>
 
-        {/* One shrinkable column, so the wide wage grids scroll inside themselves on a phone. */}
-        <div className="grid grid-cols-1 gap-6 px-4 py-5 sm:px-6">
-          <div className="flex flex-wrap items-end gap-4">
+        {/* One shrinkable column, so the wide grid scrolls inside itself on a phone. */}
+        <div className="grid grid-cols-1 gap-5 px-4 py-5 sm:px-6">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex min-w-60 flex-1 items-center gap-3">
-              <StatusAvatar employee={employee} className="size-11" />
+              <StatusAvatar employee={employee} className="size-10" />
               <div className="min-w-0">
                 <p className="truncate font-semibold text-foreground">{employeeLabel(employee)}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {employee.designation ?? employee.work_email}
-                </p>
+                <p className="truncate text-xs text-muted-foreground">{employee.designation ?? employee.work_email}</p>
               </div>
             </div>
             {readOnly && revision ? (
               <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">From {revisionDate(revision.effective_from)}</Badge>
                 {revision.locked && (
                   <Badge variant="muted">
                     <Lock /> Locked
                   </Badge>
                 )}
-                {attachmentName && (
+                {attachmentName ? (
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() =>
-                      void downloadFile(`/employees/${employee.id}/salary/${revision.id}/attachment`, attachmentName).catch(
-                        (caught) => toast.error(apiMessage(caught, "Could not download the file.")),
-                      )
+                      void downloadFile(
+                        `/employees/${employee.id}/salary/${revision.id}/attachment`,
+                        attachmentName,
+                      ).catch((caught) => toast.error(apiMessage(caught, "Could not download the file.")))
                     }
                   >
                     <Download /> {attachmentName}
                   </Button>
+                ) : (
+                  <Badge variant="muted">
+                    <Paperclip /> No attachment
+                  </Badge>
                 )}
               </div>
             ) : (
               <>
-                <FormField htmlFor="sm-from" label="Effective from" className="w-48">
-                  <DatePicker
-                    id="sm-from"
-                    value={effectiveFrom}
-                    onChange={setEffectiveFrom}
-                    min={mode && mode.kind !== "view" ? mode.min : undefined}
-                    max={mode?.kind === "edit" ? mode.max : undefined}
-                  />
-                </FormField>
-                <FormField htmlFor="sm-structure" label="Salary structure" className="w-60">
-                  <Select value={structureId} onValueChange={setStructureId}>
-                    <SelectTrigger id="sm-structure" className="h-11 w-full">
-                      <SelectValue placeholder={structures.length ? "Choose" : "No structures yet"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {structures
-                        .filter((s) => s.active || s.id === structureId)
-                        .map((s) => (
-                          <SelectItem key={s.id} value={s.id}>
-                            {s.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
-                <FormField htmlFor="sm-file" label="Attachment" optional className="w-64">
-                  {attachmentName && !removeAttachment && !file ? (
-                    <div className="flex h-11 items-center gap-2 rounded-lg border border-border px-3 text-sm">
-                      <Paperclip className="size-4 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate">{attachmentName}</span>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="size-7"
-                        aria-label="Remove the attachment"
-                        onClick={() => setRemoveAttachment(true)}
-                      >
-                        <X />
-                      </Button>
-                    </div>
-                  ) : (
-                    <Input
-                      id="sm-file"
-                      type="file"
-                      accept="application/pdf,image/png,image/jpeg"
-                      onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                    />
+                <DatePicker
+                  id="sm-from"
+                  value={effectiveFrom}
+                  onChange={setEffectiveFrom}
+                  placeholder="Effective from"
+                  className="w-44"
+                  min={mode && mode.kind !== "view" ? mode.min : undefined}
+                  max={mode?.kind === "edit" ? mode.max : undefined}
+                />
+                <Select value={structureId} onValueChange={setStructureId} disabled={structures.length === 0}>
+                  <SelectTrigger id="sm-structure" aria-label="Salary structure" className="h-11 w-56">
+                    <SelectValue placeholder={activeStructures.length ? "Salary structure" : "No structure yet"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {structures
+                      .filter((s) => s.active || s.id === structureId)
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  ref={fileInput}
+                  id="sm-file"
+                  type="file"
+                  accept="application/pdf,image/png,image/jpeg"
+                  className="sr-only"
+                  tabIndex={-1}
+                  onChange={(event) => {
+                    setFile(event.target.files?.[0] ?? null);
+                    setRemoveAttachment(false);
+                  }}
+                />
+                <div className="flex h-11 items-center gap-1 rounded-lg border border-border bg-card pr-1 pl-3 text-sm">
+                  <span className="max-w-48 truncate text-muted-foreground">
+                    {file?.name ?? (attachmentName && !removeAttachment ? attachmentName : "No attachments")}
+                  </span>
+                  {(file || (attachmentName && !removeAttachment)) && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-8"
+                      aria-label="Remove the attachment"
+                      onClick={() => {
+                        if (file) {
+                          setFile(null);
+                          if (fileInput.current) fileInput.current.value = "";
+                        } else {
+                          setRemoveAttachment(true);
+                        }
+                      }}
+                    >
+                      <X />
+                    </Button>
                   )}
-                </FormField>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    aria-label="Attach a file"
+                    onClick={() => fileInput.current?.click()}
+                  >
+                    <Paperclip />
+                  </Button>
+                </div>
               </>
             )}
           </div>
 
           {!readOnly && (
-            <FormField
-              htmlFor="sm-reason"
-              label="Reason"
-              optional={!(mode?.kind === "new" && mode.base)}
-            >
+            <FormField htmlFor="sm-reason" label="Reason" optional={!(mode?.kind === "new" && mode.base)}>
               <Input
                 id="sm-reason"
                 maxLength={255}
@@ -476,45 +510,18 @@ export function SalaryEditor({
             </Alert>
           )}
 
-          <Card tier="tier1" className="gap-3 py-4">
-            <CardContent className="flex flex-wrap items-end gap-4 px-4">
-              {!readOnly && (
-                <>
-                  <FormField htmlFor="sm-ctc" label="CTC (₹)" className="w-52">
-                    <Input
-                      id="sm-ctc"
-                      inputMode="decimal"
-                      className="text-right tabular-nums"
-                      value={ctc}
-                      aria-invalid={(ctc.trim() !== "" && !ctcValid) || undefined}
-                      onChange={(event) => setCtc(event.target.value)}
-                    />
-                  </FormField>
-                  <FormField htmlFor="sm-ctc-basis" label="Pay basis" className="w-36">
-                    <Select
-                      value={ctcBasis}
-                      onValueChange={(value) => {
-                        // A yearly CTC is not a monthly one: start the figure again.
-                        setCtcBasis(value as PayBasis);
-                        setCtc("");
-                      }}
-                    >
-                      <SelectTrigger id="sm-ctc-basis" className="h-11 w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="annual">{BASIS_LABEL.annual}</SelectItem>
-                        <SelectItem value="monthly">{BASIS_LABEL.monthly}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormField>
-                </>
-              )}
-              <Figure label="CTC a year" value={ctcAnnual} />
-              <Figure label="CTC a month" value={ctcMonthly} />
-              <Figure label="Monthly gross" value={totalOf("earning")?.monthly} />
-              <Figure label="Deductions a month" value={totalOf("deduction")?.monthly} />
-              <div className="ml-auto self-center">
+          {noStructure ? (
+            <StandardSetupCallout onDone={onSetupDone} />
+          ) : (
+            <>
+              <div className="flex min-h-6 flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {readOnly
+                    ? "As saved."
+                    : ctcValid
+                      ? "Figures are worked out by the server as you type."
+                      : "Enter the CTC to see how it splits."}
+                </p>
                 {previewing && !readOnly ? (
                   <Badge variant="muted">
                     <Loader2 className="animate-spin" /> Working out
@@ -525,36 +532,42 @@ export function SalaryEditor({
                   </Badge>
                 ) : null}
               </div>
-            </CardContent>
-          </Card>
-
-          {previewError && !readOnly && (
-            <Alert variant="destructive">
-              <AlertDescription>{previewError}</AlertDescription>
-            </Alert>
-          )}
-
-          {structure.isLoading && !structure.data ? (
-            <Skeleton className="h-64 w-full" />
-          ) : (
-            WAGE_GROUPS.map((group) => {
-              const groupLines = lines.filter((line) => line.type === group.type);
-              if (groupLines.length === 0) return null;
-              return (
-                <WageTypeTable
-                  key={group.type}
-                  title={group.title}
-                  lines={groupLines}
+              {previewError && !readOnly && (
+                <Alert variant="destructive">
+                  <AlertDescription>{previewError}</AlertDescription>
+                </Alert>
+              )}
+              {structure.isLoading && !structure.data && !readOnly ? (
+                <Skeleton className="h-96 w-full" />
+              ) : (
+                <SalaryGrid
+                  lines={lines}
                   rows={rows}
-                  total={totalOf(group.type)}
+                  groupTotals={(readOnly ? revision?.group_totals : preview?.group_totals) ?? []}
                   readOnly={readOnly}
+                  ctc={
+                    readOnly
+                      ? undefined
+                      : {
+                          value: ctc,
+                          basis: ctcBasis,
+                          invalid: ctc.trim() !== "" && !ctcValid,
+                          onChange: setCtc,
+                          onBasis: (basis) => {
+                            // A yearly CTC is not a monthly one: start the figure again.
+                            setCtcBasis(basis);
+                            setCtc("");
+                          },
+                        }
+                  }
+                  ctcAnnual={readOnly ? revision?.ctc_annual : preview?.ctc_annual}
+                  ctcMonthly={readOnly ? revision?.ctc_monthly : preview?.monthly_total_in_ctc}
+                  grossMonthly={readOnly ? revision?.gross_monthly : earnings?.monthly}
+                  grossAnnual={earnings?.annual}
                   onChange={(code, row) => setRows((current) => ({ ...current, [code]: row }))}
                 />
-              );
-            })
-          )}
-          {!readOnly && !ctcValid && (
-            <p className="text-sm text-muted-foreground">Enter the CTC to see how it splits.</p>
+              )}
+            </>
           )}
 
           {error && (
@@ -578,7 +591,10 @@ export function SalaryEditor({
             </>
           ) : (
             <>
-              <Button disabled={busy || previewing || Boolean(previewError)} onClick={() => void save(false)}>
+              <Button
+                disabled={busy || previewing || Boolean(previewError) || noStructure}
+                onClick={() => void save(false)}
+              >
                 {saving === "save" && <Loader2 className="animate-spin" />}
                 Save
               </Button>
@@ -589,7 +605,7 @@ export function SalaryEditor({
                   onClick={() => void save(true)}
                 >
                   {saving === "forward" && <Loader2 className="animate-spin" />}
-                  Save &amp; update later revisions
+                  Save &amp; update future revisions
                 </Button>
               )}
               <Button variant="ghost" disabled={busy} onClick={onClose}>
@@ -600,16 +616,5 @@ export function SalaryEditor({
         </SheetFooter>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function Figure({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div className="min-w-28">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="mt-1 text-base font-semibold text-foreground">
-        <Money value={value ?? null} />
-      </p>
-    </div>
   );
 }

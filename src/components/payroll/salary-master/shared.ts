@@ -1,15 +1,34 @@
-import type { ComponentType, PayBasis } from "@/lib/types/payroll";
+import type { ComponentType, PayBasis, WageGroup } from "@/lib/types/payroll";
 import { parseISODate, toISODate } from "@/lib/utils";
 
-/** The kinds of wage type, in the order the Salary master lists them. */
-export const WAGE_GROUPS: { type: ComponentType; title: string }[] = [
-  { type: "earning", title: "Earnings" },
-  { type: "reimbursement", title: "Reimbursements" },
-  { type: "deduction", title: "Deductions" },
-  { type: "employer_contribution", title: "Company contributions" },
+/**
+ * The Salary master's sections, in the order the grid lists them. Statutory
+ * deductions are a section of their own but hold no wage types: payroll works
+ * them out each month from the statutory rules.
+ */
+export const SECTIONS: { key: WageGroup | "statutory"; title: string }[] = [
+  { key: "regular_earning", title: "Regular earning" },
+  { key: "variable_earning", title: "Variable earning" },
+  { key: "reimbursement", title: "Reimbursement" },
+  { key: "statutory", title: "Statutory deduction" },
+  { key: "non_statutory_deduction", title: "Non-statutory deduction" },
+  { key: "company_contribution", title: "Company contribution" },
+  { key: "provision", title: "Provision" },
 ];
 
-export const BASIS_LABEL: Record<PayBasis, string> = { monthly: "Monthly", annual: "Yearly" };
+/** What payroll deducts by law. Shown for completeness; never typed here. */
+export const STATUTORY_LINES = [
+  "Provident fund (employee)",
+  "ESI (employee)",
+  "Professional tax",
+  "Labour welfare fund",
+  "Income tax (TDS)",
+];
+
+export const BASIS_LABEL: Record<PayBasis, string> = {
+  monthly: "Monthly",
+  annual: "Yearly",
+};
 
 /** One wage type's state in the editor. Amounts stay strings end to end. */
 export interface WageRow {
@@ -25,6 +44,7 @@ export interface WageLine {
   code: string;
   name: string;
   type: ComponentType;
+  group: WageGroup;
   /** What the structure leaves over from the CTC: never typed. */
   balance: boolean;
   partOfCtc: boolean;
@@ -56,5 +76,9 @@ export function periodName(period: string): string {
 
 /** "2026-04-01" → "01 Apr 2026", the way revisions are dated on this screen. */
 export function revisionDate(iso: string): string {
-  return parseISODate(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return parseISODate(iso).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }

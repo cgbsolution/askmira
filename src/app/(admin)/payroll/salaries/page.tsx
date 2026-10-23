@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { List, Plus, Wallet } from "lucide-react";
+import { List, Plus, Upload, Wallet } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -14,13 +14,17 @@ import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { apiMessage } from "@/components/payroll/labels";
+import { BulkUploadDialog } from "@/components/payroll/salary-master/BulkUploadDialog";
 import { EmployeeSearch } from "@/components/payroll/salary-master/EmployeeSearch";
 import { RevisionTimeline } from "@/components/payroll/salary-master/RevisionTimeline";
 import { type EditorMode, SalaryEditor } from "@/components/payroll/salary-master/SalaryEditor";
+import { SalaryTrail } from "@/components/payroll/salary-master/SalaryTrail";
+import { StandardSetupCallout } from "@/components/payroll/salary-master/StandardSetupCallout";
 import { addDays, periodName, revisionDate } from "@/components/payroll/salary-master/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { del, downloadFile } from "@/lib/api";
 import type { EmployeeSummary, EmploymentStatus, Page } from "@/lib/types";
@@ -47,6 +51,10 @@ function SalaryMaster() {
   const [picked, setPicked] = useState<EmployeeSummary | null>(null);
   const [editor, setEditor] = useState<EditorMode | null>(null);
   const [deleting, setDeleting] = useState<SalaryRevision | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  // Bumped after a bulk upload so the list of employees shows the new salaries.
+  const [listVersion, setListVersion] = useState(0);
+  const [tab, setTab] = useState("revisions");
 
   // Arriving by link (or after a reload) gives only the id: fetch the person.
   const fetched = useApiQuery<EmployeeSummary>(
@@ -54,21 +62,31 @@ function SalaryMaster() {
   );
   const employee = employeeId ? (picked?.id === employeeId ? picked : fetched.data) : null;
 
-  const revisions = useApiQuery<SalaryRevision[]>(
-    employeeId ? `/employees/${employeeId}/salary/revisions` : null,
-  );
+  const revisions = useApiQuery<SalaryRevision[]>(employeeId ? `/employees/${employeeId}/salary/revisions` : null);
   const structures = useApiQuery<SalaryStructure[]>("/salary-structures");
   const components = useApiQuery<SalaryComponent[]>("/salary-components");
 
+  const nameOf = (code: string) => components.data?.find((c) => c.code === code)?.name ?? code;
+  const noStructure = structures.data !== null && !structures.data.some((s) => s.active);
+  const setupDone = () => {
+    structures.reload();
+    components.reload();
+  };
+
   const choose = (person: EmployeeSummary | null) => {
     setPicked(person);
+    setTab("revisions");
     router.replace(person ? `${pathname}?employee=${person.id}` : pathname);
   };
 
   const list = revisions.data ?? [];
   const openNew = () => {
     const latest = list[0] ?? null;
-    setEditor({ kind: "new", base: latest, min: latest ? addDays(latest.effective_from, 1) : undefined });
+    setEditor({
+      kind: "new",
+      base: latest,
+      min: latest ? addDays(latest.effective_from, 1) : undefined,
+    });
   };
   const openEdit = (revision: SalaryRevision) => {
     const index = list.findIndex((r) => r.id === revision.id);
@@ -86,9 +104,7 @@ function SalaryMaster() {
   const confirmDelete = async () => {
     if (!employee || !deleting) return;
     try {
-      const result = await del<{ runs_to_recompute: string[] }>(
-        `/employees/${employee.id}/salary/${deleting.id}`,
-      );
+      const result = await del<{ runs_to_recompute: string[] }>(`/employees/${employee.id}/salary/${deleting.id}`);
       const runs = result?.runs_to_recompute ?? [];
       if (runs.length) {
         toast.warning("Revision deleted.", {
@@ -119,6 +135,9 @@ function SalaryMaster() {
           <Button disabled={!employee || revisions.isLoading} onClick={openNew}>
             <Plus /> {revisions.data && list.length === 0 ? "Assign salary" : "New revision"}
           </Button>
+          <Button variant="outline" onClick={() => setBulkOpen(true)}>
+            <Upload /> Bulk upload
+          </Button>
           {employeeId && (
             <Button variant="outline" className="ml-auto" onClick={() => choose(null)}>
               <List /> List of employees
@@ -127,8 +146,10 @@ function SalaryMaster() {
         </CardContent>
       </Card>
 
+      {noStructure && <StandardSetupCallout onDone={setupDone} />}
+
       {!employeeId ? (
-        <EmployeeList onOpen={choose} />
+        <EmployeeList key={listVersion} onOpen={choose} />
       ) : fetched.error ? (
         <ErrorState message={fetched.error.detail} onRetry={fetched.reload} />
       ) : revisions.error ? (
@@ -138,33 +159,46 @@ function SalaryMaster() {
           <Skeleton className="h-36 w-full" />
           <Skeleton className="h-36 w-full" />
         </div>
-      ) : list.length === 0 ? (
-        <Card tier="tier1">
-          <EmptyState
-            icon={Wallet}
-            title="No salary yet"
-            description="Assign this person's first salary: pick a structure, enter the CTC, and type any amounts that differ."
-            action={
-              <Button disabled={!employee} onClick={openNew}>
-                <Plus /> Assign salary
-              </Button>
-            }
-          />
-        </Card>
       ) : (
-        <RevisionTimeline
-          revisions={list}
-          onView={(revision) => setEditor({ kind: "view", revision })}
-          onEdit={openEdit}
-          onDelete={setDeleting}
-          onDownload={(revision) => {
-            if (!employee) return;
-            void downloadFile(
-              `/employees/${employee.id}/salary/${revision.id}/attachment`,
-              revision.attachment_name ?? "salary-revision",
-            ).catch((caught) => toast.error(apiMessage(caught, "Could not download the file.")));
-          }}
-        />
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList>
+            <TabsTrigger value="revisions">Revisions ({list.length})</TabsTrigger>
+            <TabsTrigger value="history">Change history</TabsTrigger>
+          </TabsList>
+          <TabsContent value="revisions" className="mt-4">
+            {list.length === 0 ? (
+              <Card tier="tier1">
+                <EmptyState
+                  icon={Wallet}
+                  title="No salary yet"
+                  description="Assign this person's first salary: pick a structure, enter the CTC, and type any amounts that differ."
+                  action={
+                    <Button disabled={!employee} onClick={openNew}>
+                      <Plus /> Assign salary
+                    </Button>
+                  }
+                />
+              </Card>
+            ) : (
+              <RevisionTimeline
+                revisions={list}
+                onView={(revision) => setEditor({ kind: "view", revision })}
+                onEdit={openEdit}
+                onDelete={setDeleting}
+                onDownload={(revision) => {
+                  if (!employee) return;
+                  void downloadFile(
+                    `/employees/${employee.id}/salary/${revision.id}/attachment`,
+                    revision.attachment_name ?? "salary-revision",
+                  ).catch((caught) => toast.error(apiMessage(caught, "Could not download the file.")));
+                }}
+              />
+            )}
+          </TabsContent>
+          <TabsContent value="history" className="mt-4">
+            {employeeId && <SalaryTrail employeeId={employeeId} nameOf={nameOf} />}
+          </TabsContent>
+        </Tabs>
       )}
 
       {employee && (
@@ -172,12 +206,23 @@ function SalaryMaster() {
           employee={employee}
           mode={editor}
           structures={structures.data ?? []}
+          structuresLoaded={structures.data !== null}
           components={components.data ?? []}
           onClose={() => setEditor(null)}
           onSaved={revisions.reload}
           onEdit={openEdit}
+          onSetupDone={setupDone}
         />
       )}
+
+      <BulkUploadDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        onDone={() => {
+          revisions.reload();
+          setListVersion((version) => version + 1);
+        }}
+      />
 
       <ConfirmDialog
         open={deleting !== null}
@@ -252,9 +297,7 @@ function EmployeeList({ onOpen }: { onOpen: (employee: EmployeeSummary) => void 
       meta: { cellClassName: "text-sm" },
       cell: ({ row }) =>
         row.original.current_salary?.structure_name ?? (
-          <span className="text-muted-foreground">
-            {row.original.current_salary ? "—" : "No salary assigned"}
-          </span>
+          <span className="text-muted-foreground">{row.original.current_salary ? "—" : "No salary assigned"}</span>
         ),
     },
     {
@@ -262,8 +305,7 @@ function EmployeeList({ onOpen }: { onOpen: (employee: EmployeeSummary) => void 
       header: "Annual CTC",
       accessorFn: (row) => row.current_salary?.ctc_annual ?? null,
       meta: { className: "text-right" },
-      cell: ({ row }) =>
-        row.original.current_salary ? <Money value={row.original.current_salary.ctc_annual} /> : "—",
+      cell: ({ row }) => (row.original.current_salary ? <Money value={row.original.current_salary.ctc_annual} /> : "—"),
     },
     {
       id: "since",

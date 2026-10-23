@@ -76,13 +76,26 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         title: "Correct or delete a revision",
         steps: [
           "Press the pencil on a card to edit it, or the bin to delete it.",
-          "Save & update later revisions carries the wage types you changed into every later revision too.",
+          "Save & update future revisions carries the wage types you changed into every later revision too.",
         ],
+      },
+      {
+        title: "Upload many salaries from Excel",
+        steps: [
+          "Press Bulk upload, then Download template: the Employee Salary Master sheet (Employee Code, WEF, Pay Basis, Replace all future salary revisions, CTC TOTAL, MONTHLY GROSS and a column per wage type).",
+          "Fill the rows you want to change. A sheet exported from your old system uploads as it is.",
+          "Check file shows every row as Ready, Error or Skipped, with notes to check. Save is possible only when no row has an error, and saves them all at once.",
+        ],
+      },
+      {
+        title: "See who changed a salary",
+        steps: ["Open the person and choose Change history: every change, who made it, when, and what moved."],
       },
     ],
     tips: [
       "A revision that an approved or paid payroll used is locked: payroll history stays as it was paid. Add a new revision and raise arrears instead.",
       "Dating a revision into a month already paid creates arrears, paid through Arrears.",
+      "PF, ESI, professional tax, LWF and TDS are worked out in each payroll run, so the MANUAL columns of the upload sheet are not used.",
     ],
   },
 

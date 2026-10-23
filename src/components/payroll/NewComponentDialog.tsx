@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/common/FormField";
-import { apiMessage, COMPONENT_TYPE_LABEL } from "@/components/payroll/labels";
+import { apiMessage, COMPONENT_TYPE_LABEL, WAGE_GROUP_LABEL } from "@/components/payroll/labels";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,10 +28,11 @@ import { Switch } from "@/components/ui/switch";
 import { post } from "@/lib/api";
 import type {
   CalculationType,
-  ComponentType,
   SalaryComponent,
   SalaryComponentInput,
+  WageGroup,
 } from "@/lib/types/payroll";
+import { WAGE_GROUP_TYPE } from "@/lib/types/payroll";
 
 const CALCULATION_LABEL: Record<CalculationType, string> = {
   fixed: "Fixed monthly amount",
@@ -53,7 +54,8 @@ export function NewComponentDialog({ onCreated }: { onCreated: () => void }) {
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
-  const [componentType, setComponentType] = useState<ComponentType>("earning");
+  const [group, setGroup] = useState<WageGroup>("regular_earning");
+  const componentType = WAGE_GROUP_TYPE[group];
   const [calculation, setCalculation] = useState<CalculationType>("fixed");
   const [base, setBase] = useState("");
   const [value, setValue] = useState("");
@@ -89,6 +91,7 @@ export function NewComponentDialog({ onCreated }: { onCreated: () => void }) {
         code,
         name: name.trim(),
         component_type: componentType,
+        wage_group: group,
         calculation_type: calculation,
         base_component_code: calculation === "percentage_of" ? base.trim().toUpperCase() : null,
         value: calculation === "fixed" || calculation === "percentage_of" ? value : null,
@@ -133,15 +136,15 @@ export function NewComponentDialog({ onCreated }: { onCreated: () => void }) {
             <FormField htmlFor="cmp-name" label="Name">
               <Input id="cmp-name" value={name} maxLength={128} onChange={(e) => setName(e.target.value)} />
             </FormField>
-            <FormField htmlFor="cmp-type" label="Type">
-              <Select value={componentType} onValueChange={(v) => setComponentType(v as ComponentType)}>
+            <FormField htmlFor="cmp-type" label="Group" hint={COMPONENT_TYPE_LABEL[componentType]}>
+              <Select value={group} onValueChange={(v) => setGroup(v as WageGroup)}>
                 <SelectTrigger id="cmp-type" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(COMPONENT_TYPE_LABEL).map(([key, label]) => (
+                  {(Object.keys(WAGE_GROUP_LABEL) as WageGroup[]).map((key) => (
                     <SelectItem key={key} value={key}>
-                      {label}
+                      {WAGE_GROUP_LABEL[key]}
                     </SelectItem>
                   ))}
                 </SelectContent>

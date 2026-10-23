@@ -338,6 +338,33 @@ export type ComponentType = "earning" | "deduction" | "employer_contribution" | 
 export type CalculationType = "fixed" | "percentage_of" | "formula" | "balance";
 export type RoundingMode = "half_up" | "half_even" | "ceiling" | "floor";
 
+/** Where a wage type sits on the Salary master; finer than its component type. */
+export type WageGroup =
+  | "regular_earning"
+  | "variable_earning"
+  | "reimbursement"
+  | "non_statutory_deduction"
+  | "company_contribution"
+  | "provision";
+
+/** The kind of component each wage group holds. */
+export const WAGE_GROUP_TYPE: Record<WageGroup, ComponentType> = {
+  regular_earning: "earning",
+  variable_earning: "earning",
+  reimbursement: "reimbursement",
+  non_statutory_deduction: "deduction",
+  company_contribution: "employer_contribution",
+  provision: "employer_contribution",
+};
+
+/** A line with no group sits in its kind's usual one. */
+export const DEFAULT_WAGE_GROUP: Record<ComponentType, WageGroup> = {
+  earning: "regular_earning",
+  reimbursement: "reimbursement",
+  deduction: "non_statutory_deduction",
+  employer_contribution: "company_contribution",
+};
+
 export interface SalaryComponent {
   id: string;
   code: string;
@@ -355,6 +382,7 @@ export interface SalaryComponent {
   display_order: number;
   is_system: boolean;
   active: boolean;
+  wage_group?: WageGroup | null;
 }
 
 export interface SalaryComponentInput {
@@ -371,6 +399,7 @@ export interface SalaryComponentInput {
   counts_toward_pf: boolean;
   counts_toward_esi: boolean;
   display_order: number;
+  wage_group?: WageGroup | null;
 }
 
 export interface SalaryStructure {
@@ -434,6 +463,14 @@ export interface ResolvedComponent {
   display_order: number;
   /** Typed in for this employee rather than worked out by the structure. */
   is_manual?: boolean;
+  wage_group?: WageGroup | null;
+}
+
+/** What one wage group adds up to. */
+export interface SalaryGroupTotal {
+  wage_group: WageGroup;
+  monthly: string;
+  annual: string;
 }
 
 /** What one kind of component (earnings, deductions…) adds up to. */
@@ -451,6 +488,7 @@ export interface SalaryBreakdown {
   monthly_total_in_ctc: string;
   components: ResolvedComponent[];
   totals?: SalaryTypeTotal[];
+  group_totals?: SalaryGroupTotal[];
 }
 
 export interface SalaryComponentAmount {
@@ -468,6 +506,7 @@ export interface SalaryComponentAmount {
   remarks?: string | null;
   /** How a typed amount was entered, so the editor shows it back as typed. */
   pay_basis?: "monthly" | "annual";
+  wage_group?: WageGroup | null;
 }
 
 export interface SalaryRecord {
@@ -523,6 +562,7 @@ export interface SalaryRevision {
   attachment_name: string | null;
   components: SalaryComponentAmount[];
   totals: SalaryTypeTotal[];
+  group_totals?: SalaryGroupTotal[];
   /** Payroll has used this revision, so it is history and cannot change. */
   locked: boolean;
   locked_reason: string | null;
@@ -550,6 +590,49 @@ export interface SalaryRevisionInput extends SalaryAmountsInput {
   revision_reason?: string | null;
   /** Edit only: carry the typed changes into every later revision. */
   apply_to_later_revisions?: boolean;
+}
+
+/** One change to a person's salary, from the audit log. */
+export interface SalaryTrailEntry {
+  id: string;
+  at: string;
+  action: "create" | "update" | "delete" | "export" | string;
+  actor_name: string | null;
+  summary: string | null;
+  changes: Record<string, unknown>;
+}
+
+export interface StandardSetupResult {
+  components_added: string[];
+  structure_name: string | null;
+  /** Why no structure was made: the workspace's own wage types differ. */
+  structure_skipped?: string | null;
+}
+
+export interface SalaryImportRow {
+  row: number;
+  employee_code: string | null;
+  employee_name: string | null;
+  effective_from: string | null;
+  structure_name: string | null;
+  ctc_annual: string | null;
+  gross_monthly: string | null;
+  typed: number;
+  status: "ready" | "error" | "skipped";
+  message: string | null;
+  /** On a ready row: what to know before saving (a CTC that differs, columns not used…). */
+  notes?: string[];
+}
+
+export interface SalaryImportResult {
+  filename: string;
+  rows: SalaryImportRow[];
+  ready: number;
+  errors: number;
+  skipped: number;
+  /** Ready rows that carry notes. */
+  noted?: number;
+  applied: boolean;
 }
 
 export interface SalarySaveResult {

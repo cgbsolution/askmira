@@ -1,5 +1,5 @@
 import { ApiError } from "@/lib/api";
-import type { RunStatus, RunType } from "@/lib/types/payroll";
+import type { RunStatus, RunType, WageGroup } from "@/lib/types/payroll";
 
 export const MONTHS = [
   "January",
@@ -88,3 +88,13 @@ export function isZero(value: string | null | undefined): boolean {
 export function isAmount(value: string): boolean {
   return /^\d+(\.\d{1,2})?$/.test(value.trim());
 }
+
+/** The Salary master's wage groups, each implying its component type. */
+export const WAGE_GROUP_LABEL: Record<WageGroup, string> = {
+  regular_earning: "Regular earning",
+  variable_earning: "Variable earning",
+  reimbursement: "Reimbursement",
+  non_statutory_deduction: "Non-statutory deduction",
+  company_contribution: "Company contribution",
+  provision: "Provision",
+};
