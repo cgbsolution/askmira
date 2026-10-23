@@ -1,9 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { ChevronLeft, ChevronRight, ClipboardList, Loader2, Plus, Send, Trash2 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { NoEmployeeRecord, useHasEmployeeRecord } from "@/components/common/NoEmployeeRecord";
 import { PageShell } from "@/components/common/PageShell";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -12,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post, put } from "@/lib/api";
 import { toISODate } from "@/lib/utils";
@@ -120,6 +121,110 @@ export function TimesheetScreen() {
     }
   };
 
+  // One line of the week; `row.index` is the line's place in `entries`.
+  const columns: ColumnDef<Entry>[] = [
+    {
+      accessorKey: "work_date",
+      header: "Day",
+      meta: { headClassName: "w-40" },
+      cell: ({ row }) => (
+        <Select value={row.original.work_date} onValueChange={(v) => setEntry(row.index, { work_date: v })} disabled={!editable}>
+          <SelectTrigger aria-label="Day" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {days.map((d) => (
+              <SelectItem key={d} value={d}>
+                {dayName.format(new Date(`${d}T00:00:00`))}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      accessorKey: "project_id",
+      header: "Project",
+      cell: ({ row }) => (
+        <Select
+          value={row.original.project_id ?? NO_PROJECT}
+          onValueChange={(v) => setEntry(row.index, { project_id: v === NO_PROJECT ? null : v, task_id: null })}
+          disabled={!editable}
+        >
+          <SelectTrigger aria-label="Project" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={NO_PROJECT}>No project</SelectItem>
+            {(projects.data ?? []).map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.code} · {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      accessorKey: "task_id",
+      header: "Task",
+      cell: ({ row }) => (
+        <TaskSelect
+          project={(projects.data ?? []).find((p) => p.id === row.original.project_id)}
+          value={row.original.task_id}
+          label={row.original.task}
+          disabled={!editable}
+          onChange={(task_id) => setEntry(row.index, { task_id })}
+        />
+      ),
+    },
+    {
+      accessorKey: "hours",
+      header: "Hours",
+      meta: { headClassName: "w-24" },
+      cell: ({ row }) => (
+        <Input
+          aria-label="Hours"
+          inputMode="decimal"
+          className="tabular-nums"
+          value={row.original.hours}
+          disabled={!editable}
+          onChange={(e) => setEntry(row.index, { hours: e.target.value.replace(/[^\d.]/g, "") })}
+        />
+      ),
+    },
+    {
+      accessorKey: "description",
+      header: "What",
+      cell: ({ row }) => (
+        <Input
+          aria-label="What"
+          maxLength={500}
+          value={row.original.description ?? ""}
+          disabled={!editable}
+          onChange={(e) => setEntry(row.index, { description: e.target.value })}
+        />
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", headClassName: "w-12", text: false },
+      cell: ({ row }) =>
+        editable ? (
+          <Button
+            size="icon"
+            variant="ghost"
+            aria-label="Remove"
+            onClick={() => setEntries((c) => c.filter((_, i) => i !== row.index))}
+          >
+            <Trash2 />
+          </Button>
+        ) : null,
+    },
+  ];
+
   if (!hasRecord) {
     return (
       <PageShell title="Timesheet" description="Hours against projects, a week at a time. Your manager approves the week.">
@@ -161,96 +266,15 @@ export function TimesheetScreen() {
               <AlertDescription>Sent back: {data.decision_note}</AlertDescription>
             </Alert>
           )}
-          {isLoading && !data ? (
-            <p className="text-sm text-muted-foreground">Loading…</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-40">Day</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Task</TableHead>
-                  <TableHead className="w-24">Hours</TableHead>
-                  <TableHead>What</TableHead>
-                  <TableHead className="w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
-                      <Select value={entry.work_date} onValueChange={(v) => setEntry(index, { work_date: v })} disabled={!editable}>
-                        <SelectTrigger aria-label="Day" className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {days.map((d) => (
-                            <SelectItem key={d} value={d}>
-                              {dayName.format(new Date(`${d}T00:00:00`))}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={entry.project_id ?? NO_PROJECT}
-                        onValueChange={(v) => setEntry(index, { project_id: v === NO_PROJECT ? null : v, task_id: null })}
-                        disabled={!editable}
-                      >
-                        <SelectTrigger aria-label="Project" className="w-full">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={NO_PROJECT}>No project</SelectItem>
-                          {(projects.data ?? []).map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.code} · {p.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <TaskSelect
-                        project={(projects.data ?? []).find((p) => p.id === entry.project_id)}
-                        value={entry.task_id}
-                        label={entry.task}
-                        disabled={!editable}
-                        onChange={(task_id) => setEntry(index, { task_id })}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        aria-label="Hours"
-                        inputMode="decimal"
-                        className="tabular-nums"
-                        value={entry.hours}
-                        disabled={!editable}
-                        onChange={(e) => setEntry(index, { hours: e.target.value.replace(/[^\d.]/g, "") })}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        aria-label="What"
-                        maxLength={500}
-                        value={entry.description ?? ""}
-                        disabled={!editable}
-                        onChange={(e) => setEntry(index, { description: e.target.value })}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {editable && (
-                        <Button size="icon" variant="ghost" aria-label="Remove" onClick={() => setEntries((c) => c.filter((_, i) => i !== index))}>
-                          <Trash2 />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+          {/* Skeleton rows until the first week arrives. */}
+          <DataTable
+            variant="plain"
+            columns={columns}
+            data={isLoading && !data ? [] : entries}
+            getRowId={(_, index) => String(index)}
+            isLoading={isLoading && !data}
+            emptyMessage="No hours entered for this week."
+          />
           {editable && (
             <div className="flex flex-wrap justify-between gap-2">
               <Button

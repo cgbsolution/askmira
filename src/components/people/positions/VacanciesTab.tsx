@@ -1,17 +1,88 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Armchair, Info } from "lucide-react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import type { VacancyReport } from "@/lib/types/people";
+import type { Vacancy, VacancyReport } from "@/lib/types/people";
 import { formatDate } from "@/lib/utils";
 
 import { POSITION_STATUS } from "../labels";
+
+const VACANCY_COLUMNS: ColumnDef<Vacancy>[] = [
+  {
+    accessorKey: "title",
+    header: "Position",
+    meta: { text: (row) => `${row.title} ${row.code}` },
+    cell: ({ row }) => (
+      <>
+        <div className="font-medium text-foreground">{row.original.title}</div>
+        <div className="font-mono text-xs text-muted-foreground">
+          {row.original.code}
+          {Number(row.original.fte) < 1 && ` · ${row.original.fte} FTE`}
+        </div>
+      </>
+    ),
+  },
+  {
+    accessorKey: "department",
+    header: "Department",
+    meta: { cellClassName: "text-sm text-muted-foreground" },
+    cell: ({ row }) => row.original.department || "—",
+  },
+  {
+    accessorKey: "days_vacant",
+    header: "Open for",
+    meta: {
+      cellClassName: "text-sm",
+      text: (row) => {
+        const age =
+          row.days_vacant !== null
+            ? `${row.days_vacant} days${row.since ? ` since ${formatDate(row.since)}` : ""}`
+            : "Never filled";
+        return row.stale ? `${age} · Stale` : age;
+      },
+    },
+    cell: ({ row }) => (
+      <>
+        {row.original.days_vacant !== null ? (
+          <>
+            <span className="tabular-nums">{row.original.days_vacant}</span> days
+            {row.original.since && (
+              <div className="text-xs text-muted-foreground">since {formatDate(row.original.since)}</div>
+            )}
+          </>
+        ) : (
+          <span className="text-muted-foreground">Never filled</span>
+        )}
+        {row.original.stale && (
+          <Badge variant="warning" className="ml-2">
+            Stale
+          </Badge>
+        )}
+      </>
+    ),
+  },
+  {
+    id: "covered_by",
+    header: "Covered by",
+    accessorFn: (row) => (row.covered_by.length > 0 ? row.covered_by.join(", ") : "Nobody"),
+    meta: { cellClassName: "text-sm text-muted-foreground" },
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { text: (row) => POSITION_STATUS[row.status]?.label ?? row.status },
+    cell: ({ row }) => {
+      const status = POSITION_STATUS[row.original.status];
+      return status && <Badge variant={status.variant}>{status.label}</Badge>;
+    },
+  },
+];
 
 /**
  * Empty seats, oldest first.
@@ -58,65 +129,20 @@ export function VacanciesTab() {
         </Alert>
       )}
 
-      <DataPanel
+      <DataTable
         title="Vacancies"
         description={data ? `As of ${formatDate(data.as_of)}.` : undefined}
+        columns={VACANCY_COLUMNS}
+        data={rows}
+        getRowId={(row) => row.position_id}
+        noun="vacancies"
+        exportName="vacancies"
+        searchPlaceholder="Search positions"
         isLoading={isLoading}
         error={error?.detail ?? null}
         onRetry={reload}
-        isEmpty={rows.length === 0}
         empty={{ icon: Armchair, title: "No vacant seats", description: "Every approved seat is filled." }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Position</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Open for</TableHead>
-              <TableHead>Covered by</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => {
-              const status = POSITION_STATUS[row.status];
-              return (
-                <TableRow key={row.position_id}>
-                  <TableCell>
-                    <div className="font-medium text-foreground">{row.title}</div>
-                    <div className="font-mono text-xs text-muted-foreground">
-                      {row.code}
-                      {Number(row.fte) < 1 && ` · ${row.fte} FTE`}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{row.department || "—"}</TableCell>
-                  <TableCell className="text-sm">
-                    {row.days_vacant !== null ? (
-                      <>
-                        <span className="tabular-nums">{row.days_vacant}</span> days
-                        {row.since && (
-                          <div className="text-xs text-muted-foreground">since {formatDate(row.since)}</div>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">Never filled</span>
-                    )}
-                    {row.stale && (
-                      <Badge variant="warning" className="ml-2">
-                        Stale
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {row.covered_by.length > 0 ? row.covered_by.join(", ") : "Nobody"}
-                  </TableCell>
-                  <TableCell>{status && <Badge variant={status.variant}>{status.label}</Badge>}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
     </div>
   );
 }

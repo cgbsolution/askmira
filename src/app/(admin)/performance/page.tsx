@@ -1,26 +1,19 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { ClipboardCheck, History } from "lucide-react";
 import React, { useState } from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
 import { PipPanel } from "@/components/performance/PipPanel";
 import { ReviewView } from "@/components/performance/ReviewView";
-import { StatusBadge } from "@/components/performance/shared";
+import { humanize, StatusBadge } from "@/components/performance/shared";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { MyReview, PipSummary } from "@/lib/types/performance";
@@ -38,6 +31,44 @@ export default function MyReviewsPage() {
   const current = rows.find((r) => r.cycle_status !== "closed" && r.status !== "acknowledged") ?? rows[0];
   const shown = selected ?? current?.appraisal_id ?? null;
   const myPip = (pips.data ?? []).find((p) => p.is_mine && ["active", "extended", "draft"].includes(p.status));
+
+  const columns: ColumnDef<MyReview>[] = [
+    { accessorKey: "cycle_name", header: "Cycle", meta: { cellClassName: "font-medium" } },
+    {
+      id: "period",
+      header: "Period",
+      accessorFn: (row) => row.period_start,
+      meta: { text: (row) => formatDateRange(row.period_start, row.period_end) },
+      cell: ({ row }) => formatDateRange(row.original.period_start, row.original.period_end),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (row) => `${humanize(row.status)}${row.waiting_on_me ? " · Waiting on you" : ""}` },
+      cell: ({ row }) => (
+        <>
+          <StatusBadge status={row.original.status} />
+          {row.original.waiting_on_me && <span className="ml-2 text-xs text-accent-foreground">Waiting on you</span>}
+        </>
+      ),
+    },
+    {
+      accessorKey: "final_rating",
+      header: "Rating",
+      cell: ({ row }) => row.original.final_rating ?? "—",
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="ghost" onClick={() => setSelected(row.original.appraisal_id)}>
+          Open
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <PageShell title="My reviews" description="Your review, the score your goals contribute, and your history.">
@@ -70,37 +101,18 @@ export default function MyReviewsPage() {
       {myPip && <PipPanel pipId={myPip.pip_id} onChanged={pips.reload} />}
 
       {rows.length > 1 && (
-        <DataPanel title="All my reviews" description="Select one to open it." actions={<History className="size-4 text-muted-foreground" />}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cycle</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Rating</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.appraisal_id} data-state={row.appraisal_id === shown ? "selected" : undefined}>
-                  <TableCell className="font-medium">{row.cycle_name}</TableCell>
-                  <TableCell>{formatDateRange(row.period_start, row.period_end)}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={row.status} />
-                    {row.waiting_on_me && <span className="ml-2 text-xs text-accent-foreground">Waiting on you</span>}
-                  </TableCell>
-                  <TableCell>{row.final_rating ?? "—"}</TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" onClick={() => setSelected(row.appraisal_id)}>
-                      Open
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </DataPanel>
+        <DataTable
+          title="All my reviews"
+          description="Select one to open it."
+          actions={<History className="size-4 text-muted-foreground" />}
+          columns={columns}
+          data={rows}
+          getRowId={(row) => row.appraisal_id}
+          noun="reviews"
+          exportName="my-reviews"
+          searchPlaceholder="Search reviews"
+          rowClassName={(row) => (row.appraisal_id === shown ? "bg-mint-50" : undefined)}
+        />
       )}
     </PageShell>
   );

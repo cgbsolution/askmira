@@ -1,16 +1,16 @@
 "use client";
 
-import { Inbox, Search } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Inbox } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -20,14 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { HR } from "@/lib/access";
@@ -64,6 +56,70 @@ const STATUS_FILTERS: [string, string][] = [
   ["resolved", STATUS_LABEL.resolved],
   ["done", "Closed or cancelled"],
   [ANY, "Any status"],
+];
+
+const COLUMNS: ColumnDef<TicketSummary>[] = [
+  {
+    accessorKey: "subject",
+    header: "Ticket",
+    meta: { className: "max-w-72", text: (row) => `${row.subject} ${row.ticket_number}` },
+    cell: ({ row }) => (
+      <>
+        <p className="truncate font-medium text-foreground">{row.original.subject}</p>
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
+          {row.original.ticket_number}
+          {row.original.is_confidential && <ConfidentialBadge />}
+        </p>
+      </>
+    ),
+  },
+  {
+    accessorKey: "employee_name",
+    header: "Employee",
+    meta: { text: (row) => `${row.employee_name} ${row.employee_code ?? ""}` },
+    cell: ({ row }) => (
+      <PersonCell size="sm" name={row.original.employee_name} subtitle={row.original.employee_code} />
+    ),
+  },
+  { accessorKey: "category_name", header: "Category" },
+  {
+    accessorKey: "priority",
+    header: "Priority",
+    meta: { text: (row) => PRIORITY_LABEL[row.priority] },
+    cell: ({ row }) => <PriorityBadge priority={row.original.priority} />,
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { text: (row) => STATUS_LABEL[row.status] },
+    cell: ({ row }) => <TicketStatusBadge status={row.original.status} />,
+  },
+  {
+    id: "sla",
+    header: "SLA",
+    accessorFn: (row) => row.due_at,
+    meta: { className: "whitespace-nowrap", text: (row) => row.sla_state.replace(/_/g, " ") },
+    cell: ({ row }) => (
+      <>
+        <SlaBadge state={row.original.sla_state} />
+        {["on_track", "due_soon", "overdue"].includes(row.original.sla_state) && (
+          <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">Due {relativeTime(row.original.due_at)}</p>
+        )}
+      </>
+    ),
+  },
+  {
+    accessorKey: "assignee_name",
+    header: "Assignee",
+    meta: { text: (row) => row.assignee_name ?? "Unassigned" },
+    cell: ({ row }) => row.original.assignee_name ?? <span className="text-muted-foreground">Unassigned</span>,
+  },
+  {
+    accessorKey: "last_activity_at",
+    header: "Last activity",
+    meta: { className: "whitespace-nowrap tabular-nums", text: (row) => formatDateTime(row.last_activity_at) },
+    cell: ({ row }) => formatDateTime(row.original.last_activity_at),
+  },
 ];
 
 /**
@@ -161,34 +217,31 @@ export function QueueScreen({ title, description }: { title: string; description
     >
       <SummaryRow summary={summary.data} />
 
-      <DataPanel
+      <DataTable
         title="Tickets"
         description="Active tickets first, earliest deadline first."
+        columns={COLUMNS}
+        data={queue.data ?? []}
+        noun="tickets"
+        exportName="helpdesk-queue"
         isLoading={queue.isLoading && !queue.data}
         error={queue.error?.detail}
         onRetry={queue.reload}
-        isEmpty={(queue.data ?? []).length === 0}
+        filtered={filtered}
         empty={{
           icon: Inbox,
-          title: filtered ? "No tickets match these filters" : "The queue is clear",
-          description: filtered
-            ? "Change or clear the filters to see more."
-            : "No open tickets are waiting on you. New ones appear here as employees raise them.",
+          title: "The queue is clear",
+          description: "No open tickets are waiting on you. New ones appear here as employees raise them.",
         }}
-        toolbar={
+        emptyMessage="No tickets match these filters. Change or clear them to see more."
+        searchPlaceholder="Ticket, subject or employee"
+        search={searchText}
+        onSearchChange={setSearchText}
+        onRowClick={(row) => setOpenId(row.id)}
+        filters={
           <>
-            <div className="relative w-full sm:w-64">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-                placeholder="Ticket, subject or employee"
-                aria-label="Search tickets"
-                className="h-8 pl-9"
-              />
-            </div>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger size="sm" className="w-44" aria-label="Status">
+              <SelectTrigger className="h-9 w-44" aria-label="Status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -200,7 +253,7 @@ export function QueueScreen({ title, description }: { title: string; description
               </SelectContent>
             </Select>
             <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger size="sm" className="w-48" aria-label="Category">
+              <SelectTrigger className="h-9 w-48" aria-label="Category">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -214,7 +267,7 @@ export function QueueScreen({ title, description }: { title: string; description
               </SelectContent>
             </Select>
             <Select value={assignee} onValueChange={setAssignee}>
-              <SelectTrigger size="sm" className="w-44" aria-label="Assignee">
+              <SelectTrigger className="h-9 w-44" aria-label="Assignee">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -232,7 +285,7 @@ export function QueueScreen({ title, description }: { title: string; description
               value={priority}
               onValueChange={(value) => setPriority(value as TicketPriority | typeof ANY)}
             >
-              <SelectTrigger size="sm" className="w-36" aria-label="Priority">
+              <SelectTrigger className="h-9 w-36" aria-label="Priority">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -250,77 +303,9 @@ export function QueueScreen({ title, description }: { title: string; description
                 Overdue only
               </Label>
             </div>
-            <span className="ml-auto text-sm text-muted-foreground tabular-nums">
-              {queue.data ? `${queue.data.length} ticket${queue.data.length === 1 ? "" : "s"}` : ""}
-            </span>
           </>
         }
-      >
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Ticket</TableHead>
-                <TableHead>Employee</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Priority</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>SLA</TableHead>
-                <TableHead>Assignee</TableHead>
-                <TableHead>Last activity</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(queue.data ?? []).map((row) => (
-                <TableRow
-                  key={row.id}
-                  tabIndex={0}
-                  className="cursor-pointer"
-                  onClick={() => setOpenId(row.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setOpenId(row.id);
-                    }
-                  }}
-                >
-                  <TableCell className="max-w-72">
-                    <p className="truncate font-medium text-foreground">{row.subject}</p>
-                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
-                      {row.ticket_number}
-                      {row.is_confidential && <ConfidentialBadge />}
-                    </p>
-                  </TableCell>
-                  <TableCell>
-                    <PersonCell size="sm" name={row.employee_name} subtitle={row.employee_code} />
-                  </TableCell>
-                  <TableCell>{row.category_name}</TableCell>
-                  <TableCell>
-                    <PriorityBadge priority={row.priority} />
-                  </TableCell>
-                  <TableCell>
-                    <TicketStatusBadge status={row.status} />
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    <SlaBadge state={row.sla_state} />
-                    {["on_track", "due_soon", "overdue"].includes(row.sla_state) && (
-                      <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
-                        Due {relativeTime(row.due_at)}
-                      </p>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {row.assignee_name ?? <span className="text-muted-foreground">Unassigned</span>}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap tabular-nums">
-                    {formatDateTime(row.last_activity_at)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </DataPanel>
+      />
 
       <AgentTicketSheet
         ticketId={openId}

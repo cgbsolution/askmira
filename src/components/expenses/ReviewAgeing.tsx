@@ -1,24 +1,17 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Wallet } from "lucide-react";
 import React from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { PersonCell } from "@/components/common/PersonCell";
-import { EmptyState } from "@/components/common/EmptyState";
 import { QueryBoundary, StatTile } from "@/components/expenses/ReviewCommon";
 import { AdvanceStatusBadge, formatMoney } from "@/components/expenses/shared";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import type { Advance, AgeingReport } from "@/lib/types/expenses";
+import type { Advance, AdvanceStatus, AgeingReport } from "@/lib/types/expenses";
 import { formatDay } from "@/lib/utils";
 
 const BUCKETS: { key: keyof AgeingReport["buckets"]; label: string }[] = [
@@ -26,6 +19,120 @@ const BUCKETS: { key: keyof AgeingReport["buckets"]; label: string }[] = [
   { key: "31-45", label: "31–45 days" },
   { key: "46-90", label: "46–90 days" },
   { key: "over_90", label: "Over 90 days" },
+];
+
+/** One age bracket of the report, as a row of the ageing table. */
+type BucketRow = {
+  key: keyof AgeingReport["buckets"];
+  label: string;
+  count: number;
+  amount: string | undefined;
+};
+
+const BUCKET_COLUMNS: ColumnDef<BucketRow>[] = [
+  { accessorKey: "label", header: "Age" },
+  {
+    accessorKey: "count",
+    header: "Advances",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+  },
+  {
+    accessorKey: "amount",
+    header: "Outstanding",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => formatMoney(row.original.amount),
+  },
+];
+
+/** The status badge's words, for sorting, the search and the CSV. */
+const STATUS_TEXT: Record<AdvanceStatus, string> = {
+  issued: "Outstanding",
+  settled: "Settled",
+  cancelled: "Cancelled",
+};
+
+const ADVANCE_COLUMNS: ColumnDef<Advance>[] = [
+  {
+    id: "employee",
+    header: "Employee",
+    accessorFn: (advance) => advance.employee_name ?? "",
+    meta: { text: (advance) => `${advance.employee_name ?? "—"} ${advance.employee_code ?? ""}`.trim() },
+    cell: ({ row }) => (
+      <PersonCell size="sm" name={row.original.employee_name ?? "—"} subtitle={row.original.employee_code} />
+    ),
+  },
+  {
+    id: "trip",
+    header: "Trip",
+    accessorFn: (advance) => advance.trip_purpose ?? "",
+    meta: { cellClassName: "max-w-56 truncate" },
+    cell: ({ row }) => row.original.trip_purpose ?? "—",
+  },
+  {
+    accessorKey: "issued_on",
+    header: "Issued",
+    meta: { cellClassName: "whitespace-nowrap", text: (advance) => formatDay(advance.issued_on, true) },
+    cell: ({ row }) => formatDay(row.original.issued_on, true),
+  },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    // Decimal strings: compared digit group by digit group, so 9.00 sorts before 10.00.
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => formatMoney(row.original.amount),
+  },
+  {
+    accessorKey: "outstanding",
+    header: "Outstanding",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => formatMoney(row.original.outstanding),
+  },
+  {
+    accessorKey: "recovered_amount",
+    header: "Recovered",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => formatMoney(row.original.recovered_amount),
+  },
+  {
+    accessorKey: "refunded_amount",
+    header: "Refunded",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => formatMoney(row.original.refunded_amount),
+  },
+  {
+    accessorKey: "age_days",
+    header: "Age",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => `${row.original.age_days}d`,
+  },
+  {
+    id: "status",
+    header: "Status",
+    accessorFn: (advance) => STATUS_TEXT[advance.status],
+    meta: {
+      text: (advance) =>
+        [
+          STATUS_TEXT[advance.status],
+          advance.is_blocking && "Blocking",
+          advance.payroll_recovery_ref && `Payroll recovery ${advance.payroll_recovery_ref}`,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+    },
+    cell: ({ row }) => (
+      <div className="flex flex-wrap gap-1">
+        <AdvanceStatusBadge status={row.original.status} />
+        {row.original.is_blocking && <Badge variant="destructive">Blocking</Badge>}
+        {row.original.payroll_recovery_ref && (
+          <Badge variant="outline">Payroll recovery {row.original.payroll_recovery_ref}</Badge>
+        )}
+      </div>
+    ),
+  },
 ];
 
 /** Outstanding advances by age, and every advance on record. */
@@ -56,97 +163,39 @@ export function ReviewAgeing() {
                     value={report.blocking_count}
                   />
                 </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Age</TableHead>
-                      <TableHead className="text-right">Advances</TableHead>
-                      <TableHead className="text-right">Outstanding</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {BUCKETS.map((bucket) => {
-                      const row = report.buckets[bucket.key];
-                      return (
-                        <TableRow key={bucket.key}>
-                          <TableCell>{bucket.label}</TableCell>
-                          <TableCell className="text-right tabular-nums">{row?.count ?? 0}</TableCell>
-                          <TableCell className="text-right tabular-nums">{formatMoney(row?.amount)}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                <DataTable
+                  variant="plain"
+                  columns={BUCKET_COLUMNS}
+                  data={BUCKETS.map((bucket) => {
+                    const row = report.buckets[bucket.key];
+                    return { ...bucket, count: row?.count ?? 0, amount: row?.amount };
+                  })}
+                  getRowId={(row) => row.key}
+                />
               </div>
             )}
           </QueryBoundary>
         </CardContent>
       </Card>
 
-      <Card tier="tier1">
-        <CardHeader>
-          <CardTitle>All advances</CardTitle>
-          <CardDescription>Every advance issued, settled or cancelled.</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <QueryBoundary query={advances}>
-            {(rows) =>
-              rows.length === 0 ? (
-                <EmptyState
-                  icon={Wallet}
-                  title="No advances yet"
-                  description="Advances appear here once finance issues one against an approved trip."
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="pl-5">Employee</TableHead>
-                      <TableHead>Trip</TableHead>
-                      <TableHead>Issued</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-right">Outstanding</TableHead>
-                      <TableHead className="text-right">Recovered</TableHead>
-                      <TableHead className="text-right">Refunded</TableHead>
-                      <TableHead className="text-right">Age</TableHead>
-                      <TableHead className="pr-5">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((advance) => (
-                      <TableRow key={advance.id}>
-                        <TableCell className="pl-5">
-                          <PersonCell size="sm" name={advance.employee_name ?? "—"} subtitle={advance.employee_code} />
-                        </TableCell>
-                        <TableCell className="max-w-56 truncate">{advance.trip_purpose ?? "—"}</TableCell>
-                        <TableCell className="whitespace-nowrap">{formatDay(advance.issued_on, true)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatMoney(advance.amount)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatMoney(advance.outstanding)}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {formatMoney(advance.recovered_amount)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {formatMoney(advance.refunded_amount)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">{advance.age_days}d</TableCell>
-                        <TableCell className="pr-5">
-                          <div className="flex flex-wrap gap-1">
-                            <AdvanceStatusBadge status={advance.status} />
-                            {advance.is_blocking && <Badge variant="destructive">Blocking</Badge>}
-                            {advance.payroll_recovery_ref && (
-                              <Badge variant="outline">Payroll recovery {advance.payroll_recovery_ref}</Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )
-            }
-          </QueryBoundary>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="All advances"
+        description="Every advance issued, settled or cancelled."
+        tier="tier1"
+        columns={ADVANCE_COLUMNS}
+        data={advances.data ?? []}
+        noun="advances"
+        exportName="travel-advances"
+        searchPlaceholder="Search by employee or trip"
+        isLoading={advances.isLoading && !advances.data}
+        error={advances.error?.detail}
+        onRetry={advances.reload}
+        empty={{
+          icon: Wallet,
+          title: "No advances yet",
+          description: "Advances appear here once finance issues one against an approved trip.",
+        }}
+      />
     </div>
   );
 }

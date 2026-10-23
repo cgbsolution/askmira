@@ -1,9 +1,10 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Briefcase, Plus } from "lucide-react";
 import React, { useState } from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { PageShell } from "@/components/common/PageShell";
 import { RequireRole } from "@/components/common/RequireRole";
 import { ApprovalQueue } from "@/components/hiring/ApprovalQueue";
@@ -20,14 +21,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { MANAGERS } from "@/lib/access";
@@ -54,16 +47,77 @@ export default function RequisitionsPage() {
   const [status, setStatus] = useState<RequisitionStatus | "all">("all");
   const [mine, setMine] = useState(false);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const query =
-    `/hiring/requisitions?page=${page}&page_size=${PAGE_SIZE}` +
+    `/hiring/requisitions?page=${page}&page_size=${pageSize}` +
     (status === "all" ? "" : `&status=${status}`) +
     (mine && isManager ? "&mine=true" : "");
   const { data, error, isLoading, reload } = useApiQuery<Page<RequisitionSummary>>(query);
   const rows = data?.items ?? [];
-  const pages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
+
+  const columns: ColumnDef<RequisitionSummary>[] = [
+    {
+      accessorKey: "title",
+      header: "Requisition",
+      meta: { text: (row) => `${row.title} ${row.code}` },
+      cell: ({ row }) => (
+        <>
+          {isManager && canOpen(row.original) ? (
+            <Button
+              variant="link"
+              className="h-auto p-0 font-medium text-foreground"
+              onClick={(event) => {
+                event.stopPropagation();
+                setSelectedId(row.original.id);
+              }}
+            >
+              {row.original.title}
+            </Button>
+          ) : (
+            <span className="font-medium text-foreground">{row.original.title}</span>
+          )}
+          {isManager && !canOpen(row.original) ? (
+            <p className="text-xs text-muted-foreground">
+              Open for referrals; its details are with the hiring team.
+            </p>
+          ) : null}
+          <p className="font-mono text-xs text-muted-foreground">{row.original.code}</p>
+        </>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (row) => REQUISITION_STATUS[row.status][0] },
+      cell: ({ row }) => <StatusBadge map={REQUISITION_STATUS} value={row.original.status} />,
+    },
+    {
+      id: "employment_type",
+      header: "Type",
+      accessorFn: (row) => humanize(row.employment_type),
+    },
+    { accessorKey: "openings", header: "Openings", meta: { className: "text-right", cellClassName: "tabular-nums" } },
+    {
+      accessorKey: "open_vacancies",
+      header: "Still open",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "target_close_date",
+      header: "Target close",
+      meta: { text: (row) => formatDate(row.target_close_date) },
+      cell: ({ row }) => formatDate(row.original.target_close_date),
+    },
+    {
+      accessorKey: "created_at",
+      header: "Raised",
+      meta: { cellClassName: "text-muted-foreground", text: (row) => formatDateTime(row.created_at) },
+      cell: ({ row }) => formatDateTime(row.original.created_at),
+    },
+  ];
 
   return (
     <PageShell
@@ -79,10 +133,42 @@ export default function RequisitionsPage() {
     >
       {isManager && <ApprovalQueue onDecided={reload} />}
 
-      <DataPanel
+      <DataTable
         title="Requisitions"
-        description={data ? `${data.total} in view` : undefined}
-        toolbar={
+        columns={columns}
+        data={rows}
+        noun="requisitions"
+        isLoading={isLoading && !data}
+        error={error?.detail}
+        onRetry={reload}
+        filtered={status !== "all" || mine}
+        empty={{
+          icon: Briefcase,
+          title: "No requisitions yet",
+          description: isManager
+            ? "Raise a requisition to start hiring. It stays a draft until you submit it for approval."
+            : "Open roles appear here once they are approved.",
+        }}
+        emptyMessage="No requisitions match these filters."
+        onRowClick={
+          isManager
+            ? (row) => {
+                if (canOpen(row)) setSelectedId(row.id);
+              }
+            : undefined
+        }
+        rowClassName={(row) => (isManager && !canOpen(row) ? "cursor-default" : undefined)}
+        server={{
+          page,
+          pageSize,
+          total: data?.total ?? 0,
+          onPageChange: setPage,
+          onPageSizeChange: (size) => {
+            setPageSize(size);
+            setPage(1);
+          },
+        }}
+        filters={
           <>
             <Select
               value={status}
@@ -91,7 +177,7 @@ export default function RequisitionsPage() {
                 setPage(1);
               }}
             >
-              <SelectTrigger className="w-48" aria-label="Filter by status">
+              <SelectTrigger className="h-9 w-48" aria-label="Filter by status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -118,97 +204,7 @@ export default function RequisitionsPage() {
             )}
           </>
         }
-        isLoading={isLoading && !data}
-        error={error?.detail}
-        onRetry={reload}
-        isEmpty={rows.length === 0}
-        empty={{
-          icon: Briefcase,
-          title:
-            status === "all" && !mine ? "No requisitions yet" : "No requisitions match these filters",
-          description: isManager
-            ? "Raise a requisition to start hiring. It stays a draft until you submit it for approval."
-            : "Open roles appear here once they are approved.",
-        }}
-        footer={
-          data && data.total > PAGE_SIZE ? (
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>
-                Page {page} of {pages} · {data.total} requisitions
-              </span>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= pages}
-                  onClick={() => setPage(page + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          ) : undefined
-        }
-      >
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Requisition</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead className="text-right">Openings</TableHead>
-                <TableHead className="text-right">Still open</TableHead>
-                <TableHead>Target close</TableHead>
-                <TableHead>Raised</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className={isManager && canOpen(row) ? "cursor-pointer" : undefined}
-                  onClick={isManager && canOpen(row) ? () => setSelectedId(row.id) : undefined}
-                >
-                  <TableCell>
-                    {isManager && canOpen(row) ? (
-                      <Button
-                        variant="link"
-                        className="h-auto p-0 font-medium text-foreground"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSelectedId(row.id);
-                        }}
-                      >
-                        {row.title}
-                      </Button>
-                    ) : (
-                      <span className="font-medium text-foreground">{row.title}</span>
-                    )}
-                    {isManager && !canOpen(row) ? (
-                      <p className="text-xs text-muted-foreground">
-                        Open for referrals; its details are with the hiring team.
-                      </p>
-                    ) : null}
-                    <p className="font-mono text-xs text-muted-foreground">{row.code}</p>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge map={REQUISITION_STATUS} value={row.status} />
-                  </TableCell>
-                  <TableCell>{humanize(row.employment_type)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.openings}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.open_vacancies}</TableCell>
-                  <TableCell>{formatDate(row.target_close_date)}</TableCell>
-                  <TableCell className="text-muted-foreground">{formatDateTime(row.created_at)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </DataPanel>
+      />
 
       <RequisitionFormDialog
         open={createOpen}

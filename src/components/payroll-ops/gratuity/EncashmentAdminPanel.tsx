@@ -1,13 +1,14 @@
 "use client";
 
-import { CalendarClock, Coins, Loader2, Pencil, Plus } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { CalendarClock, Coins, Loader2, Lock, Pencil, Plus } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { isWholeNumber, ToggleRow } from "@/components/payroll-ops/loans/common";
-import { QueryPanel } from "@/components/payroll-ops/loans/QueryPanel";
 import { apiErrorMessage, InlineProblem, isMoneyInput } from "@/components/payroll-ops/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,14 +29,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -46,7 +39,7 @@ import type {
   EncashmentPolicyInput,
   EncashmentRequest,
 } from "@/lib/types/payroll-ops";
-import { formatDays } from "@/lib/utils";
+import { formatDays, formatMoney } from "@/lib/utils";
 
 import { EncashmentRequestsTable } from "./EncashmentRequestsTable";
 import { TextField } from "./TextField";
@@ -64,108 +57,166 @@ export function EncashmentAdminPanel({ isHr, isAdmin }: { isHr: boolean; isAdmin
 function PoliciesPanel({ isAdmin }: { isAdmin: boolean }) {
   const query = useApiQuery<EncashmentPolicy[]>("/encashment/policies");
   const [editing, setEditing] = useState<EncashmentPolicy | "new" | null>(null);
+  // A 403 is "no access", not a failed load: retrying will not help.
+  const forbidden = query.error?.status === 403;
+
+  const columns: ColumnDef<EncashmentPolicy>[] = [
+    {
+      accessorKey: "leave_type_code",
+      header: "Leave type",
+      meta: {
+        cellClassName: "font-medium text-foreground",
+        text: (policy) =>
+          policy.active ? policy.leave_type_code : `${policy.leave_type_code} · Inactive`,
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.leave_type_code}
+          {!row.original.active && (
+            <Badge variant="muted" className="ml-2">
+              Inactive
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "when",
+      header: "When",
+      accessorFn: (policy) =>
+        [policy.encashable_in_service && "In service", policy.encashable_on_exit && "On exit"]
+          .filter(Boolean)
+          .join(", ") || "Never",
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {row.original.encashable_in_service && <Badge variant="outline">In service</Badge>}
+          {row.original.encashable_on_exit && <Badge variant="outline">On exit</Badge>}
+          {!row.original.encashable_in_service && !row.original.encashable_on_exit && (
+            <span className="text-sm text-muted-foreground">Never</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "max_days_per_year",
+      header: "Max / year",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) =>
+        row.original.max_days_per_year ? formatDays(row.original.max_days_per_year) : "—",
+    },
+    {
+      accessorKey: "cap_days",
+      header: "Cap",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => (row.original.cap_days ? formatDays(row.original.cap_days) : "—"),
+    },
+    {
+      accessorKey: "min_balance_after_encashment",
+      header: "Keep after",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => formatDays(row.original.min_balance_after_encashment),
+    },
+    {
+      id: "wage_basis",
+      header: "Wage basis",
+      accessorFn: (policy) =>
+        `${policy.formula_basis.join(", ")} ÷ ${policy.days_per_month_divisor}`,
+      meta: { cellClassName: "text-sm" },
+      cell: ({ row }) => (
+        <>
+          {row.original.formula_basis.join(", ")}{" "}
+          <span className="text-muted-foreground">÷ {row.original.days_per_month_divisor}</span>
+        </>
+      ),
+    },
+    {
+      id: "tax",
+      header: "Tax",
+      accessorFn: (policy) =>
+        [
+          policy.in_service_fully_taxable ? "In service: fully taxable" : "In service: per server",
+          policy.exempt_on_retirement
+            ? `Retirement exempt${
+                policy.retirement_exemption_ceiling
+                  ? ` up to ${formatMoney(policy.retirement_exemption_ceiling)}`
+                  : ""
+              }`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      meta: { cellClassName: "text-xs text-muted-foreground" },
+      cell: ({ row }) => (
+        <>
+          {row.original.in_service_fully_taxable
+            ? "In service: fully taxable"
+            : "In service: per server"}
+          {row.original.exempt_on_retirement && (
+            <span className="block">
+              Retirement exempt
+              {row.original.retirement_exemption_ceiling && (
+                <>
+                  {" "}
+                  up to <Money value={row.original.retirement_exemption_ceiling} />
+                </>
+              )}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", headClassName: "w-16", text: false },
+      cell: ({ row }) =>
+        isAdmin && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Edit ${row.original.leave_type_code} policy`}
+            onClick={() => setEditing(row.original)}
+          >
+            <Pencil />
+          </Button>
+        ),
+    },
+  ];
 
   return (
     <>
-      <QueryPanel
-        query={query}
+      <DataTable
         title="Encashment policies"
         description="Which leave can be encashed, when, how much, and how it is taxed. One policy per leave type."
         actions={
           isAdmin && (
-            <Button size="sm" onClick={() => setEditing("new")}>
+            <Button size="sm" className="h-9" onClick={() => setEditing("new")}>
               <Plus /> New policy
             </Button>
           )
         }
-        isEmpty={(rows) => rows.length === 0}
-        empty={{
-          icon: Coins,
-          title: "No encashment policies",
-          description: "No leave type can be encashed until a policy exists for it.",
-        }}
-      >
-        {(policies) => (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Leave type</TableHead>
-                <TableHead>When</TableHead>
-                <TableHead className="text-right">Max / year</TableHead>
-                <TableHead className="text-right">Cap</TableHead>
-                <TableHead className="text-right">Keep after</TableHead>
-                <TableHead>Wage basis</TableHead>
-                <TableHead>Tax</TableHead>
-                <TableHead className="w-16" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {policies.map((policy) => (
-                <TableRow key={policy.id}>
-                  <TableCell className="font-medium text-foreground">
-                    {policy.leave_type_code}
-                    {!policy.active && (
-                      <Badge variant="muted" className="ml-2">
-                        Inactive
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {policy.encashable_in_service && <Badge variant="outline">In service</Badge>}
-                      {policy.encashable_on_exit && <Badge variant="outline">On exit</Badge>}
-                      {!policy.encashable_in_service && !policy.encashable_on_exit && (
-                        <span className="text-sm text-muted-foreground">Never</span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {policy.max_days_per_year ? formatDays(policy.max_days_per_year) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {policy.cap_days ? formatDays(policy.cap_days) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatDays(policy.min_balance_after_encashment)}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {policy.formula_basis.join(", ")}{" "}
-                    <span className="text-muted-foreground">÷ {policy.days_per_month_divisor}</span>
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {policy.in_service_fully_taxable
-                      ? "In service: fully taxable"
-                      : "In service: per server"}
-                    {policy.exempt_on_retirement && (
-                      <span className="block">
-                        Retirement exempt
-                        {policy.retirement_exemption_ceiling && (
-                          <>
-                            {" "}
-                            up to <Money value={policy.retirement_exemption_ceiling} />
-                          </>
-                        )}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {isAdmin && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Edit ${policy.leave_type_code} policy`}
-                        onClick={() => setEditing(policy)}
-                      >
-                        <Pencil />
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </QueryPanel>
+        columns={columns}
+        data={forbidden ? [] : (query.data ?? [])}
+        noun="policies"
+        exportName="encashment-policies"
+        searchPlaceholder="Search policies"
+        isLoading={query.isLoading && query.data === null}
+        error={forbidden ? null : (query.error?.detail ?? null)}
+        onRetry={query.reload}
+        empty={
+          forbidden
+            ? { icon: Lock, title: "You don't have access to this", description: query.error?.detail }
+            : {
+                icon: Coins,
+                title: "No encashment policies",
+                description: "No leave type can be encashed until a policy exists for it.",
+              }
+        }
+      />
       {isAdmin && (
         <PolicyDialog
           editing={editing}
@@ -466,14 +517,15 @@ function RequestsPanel({ canDecide }: { canDecide: boolean }) {
     request: EncashmentRequest;
     approve: boolean;
   } | null>(null);
+  // A 403 is "no access", not a failed load: retrying will not help.
+  const forbidden = query.error?.status === 403;
 
   return (
     <>
-      <QueryPanel
-        query={query}
+      <EncashmentRequestsTable
         title="Encashment requests"
         description="The server has already capped each request by policy and balance. An approved in-service encashment is paid in a future payroll run."
-        actions={
+        filters={
           <div className="flex items-center gap-2">
             <Switch
               id="encash-pending-only"
@@ -483,40 +535,45 @@ function RequestsPanel({ canDecide }: { canDecide: boolean }) {
             <Label htmlFor="encash-pending-only">Pending only</Label>
           </div>
         }
-        isEmpty={(rows) => rows.length === 0}
-        empty={{
-          icon: CalendarClock,
-          title: pendingOnly ? "No requests waiting for a decision" : "No encashment requests",
-          description: pendingOnly
-            ? "Turn off “Pending only” to see decided requests."
-            : "Requests employees make appear here.",
+        rows={forbidden ? [] : (query.data ?? [])}
+        showEmployee
+        actions={(row) => {
+          const isOwn = Boolean(user?.employee_id) && row.employee_id === user?.employee_id;
+          if (!canDecide || row.status !== "requested" || isOwn) return null;
+          return (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setDeciding({ request: row, approve: false })}
+              >
+                Reject
+              </Button>
+              <Button size="sm" onClick={() => setDeciding({ request: row, approve: true })}>
+                Approve
+              </Button>
+            </>
+          );
         }}
-      >
-        {(rows) => (
-          <EncashmentRequestsTable
-            rows={rows}
-            showEmployee
-            actions={(row) => {
-              const isOwn = Boolean(user?.employee_id) && row.employee_id === user?.employee_id;
-              if (!canDecide || row.status !== "requested" || isOwn) return null;
-              return (
-                <>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setDeciding({ request: row, approve: false })}
-                  >
-                    Reject
-                  </Button>
-                  <Button size="sm" onClick={() => setDeciding({ request: row, approve: true })}>
-                    Approve
-                  </Button>
-                </>
-              );
-            }}
-          />
-        )}
-      </QueryPanel>
+        isLoading={query.isLoading && query.data === null}
+        error={forbidden ? null : (query.error?.detail ?? null)}
+        onRetry={query.reload}
+        filtered={!forbidden && pendingOnly}
+        empty={
+          forbidden
+            ? { icon: Lock, title: "You don't have access to this", description: query.error?.detail }
+            : {
+                icon: CalendarClock,
+                title: "No encashment requests",
+                description: "Requests employees make appear here.",
+              }
+        }
+        emptyMessage={
+          pendingOnly
+            ? "No requests waiting for a decision. Turn off “Pending only” to see decided requests."
+            : undefined
+        }
+      />
       <DecisionDialog
         decision={deciding}
         onClose={() => setDeciding(null)}

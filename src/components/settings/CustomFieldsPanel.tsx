@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { ListPlus, Loader2, Pencil, Plus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, patch, post } from "@/lib/api";
@@ -48,70 +48,100 @@ function keyFrom(label: string): string {
 export function CustomFieldsPanel() {
   const { data, error, isLoading, reload } = useApiQuery<CustomField[]>("/org/custom-fields?include_inactive=true");
   const [editing, setEditing] = useState<CustomField | "new" | null>(null);
-  const rows = data ?? [];
+
+  const columns: ColumnDef<CustomField>[] = [
+    {
+      accessorKey: "label",
+      header: "Field",
+      meta: { text: (row) => `${row.label} ${row.key}` },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium">{row.original.label}</p>
+          <p className="font-mono text-xs text-muted-foreground">{row.original.key}</p>
+        </>
+      ),
+    },
+    {
+      id: "type",
+      header: "Type",
+      accessorFn: (row) => CUSTOM_FIELD_TYPE[row.field_type],
+      meta: {
+        text: (row) =>
+          `${CUSTOM_FIELD_TYPE[row.field_type]}${row.options && row.options.length > 0 ? ` · ${row.options.join(", ")}` : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {CUSTOM_FIELD_TYPE[row.original.field_type]}
+          {row.original.options && row.original.options.length > 0 && (
+            <p className="text-xs text-muted-foreground">{row.original.options.join(", ")}</p>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "rules",
+      header: "Rules",
+      accessorFn: (row) =>
+        [!row.is_active && "Off", row.is_required && "Required", row.is_sensitive && "Sensitive"]
+          .filter(Boolean)
+          .join(", "),
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {!row.original.is_active && <Badge variant="muted">Off</Badge>}
+          {row.original.is_required && <Badge variant="secondary">Required</Badge>}
+          {row.original.is_sensitive && <Badge variant="warning">Sensitive</Badge>}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "display_order",
+      header: "Order",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "w-12 text-right", text: false },
+      cell: ({ row }) => (
+        <Button
+          size="icon"
+          variant="ghost"
+          aria-label={`Edit ${row.original.label}`}
+          onClick={() => setEditing(row.original)}
+        >
+          <Pencil />
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <>
-      <DataPanel
+      <DataTable
         tier="tier1"
         title="Custom fields"
         description="Extra fields shown on every employee's profile and edited by HR. A sensitive field is hidden from the person it is about."
+        columns={columns}
+        data={data ?? []}
+        noun="fields"
+        exportName="custom-fields"
+        searchPlaceholder="Search fields"
+        rowClassName={(row) => (row.is_active ? undefined : "opacity-60")}
         actions={
-          <Button size="sm" onClick={() => setEditing("new")}>
+          <Button size="sm" className="h-9" onClick={() => setEditing("new")}>
             <Plus /> Add a field
           </Button>
         }
         isLoading={isLoading}
-        error={error?.detail ?? null}
+        error={error?.detail}
         onRetry={reload}
-        isEmpty={rows.length === 0}
         empty={{
           icon: ListPlus,
           title: "No custom fields",
           description: "Add one for anything your records need that the standard profile does not hold.",
         }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Field</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Rules</TableHead>
-              <TableHead className="text-right">Order</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id} className={row.is_active ? undefined : "opacity-60"}>
-                <TableCell>
-                  <p className="font-medium">{row.label}</p>
-                  <p className="font-mono text-xs text-muted-foreground">{row.key}</p>
-                </TableCell>
-                <TableCell>
-                  {CUSTOM_FIELD_TYPE[row.field_type]}
-                  {row.options && row.options.length > 0 && (
-                    <p className="text-xs text-muted-foreground">{row.options.join(", ")}</p>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {!row.is_active && <Badge variant="muted">Off</Badge>}
-                    {row.is_required && <Badge variant="secondary">Required</Badge>}
-                    {row.is_sensitive && <Badge variant="warning">Sensitive</Badge>}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{row.display_order}</TableCell>
-                <TableCell>
-                  <Button size="icon" variant="ghost" aria-label={`Edit ${row.label}`} onClick={() => setEditing(row)}>
-                    <Pencil />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       {editing && (
         <FieldDialog
           field={editing === "new" ? null : editing}

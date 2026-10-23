@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, MapPin, Plus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { EmployeePicker } from "@/components/payroll/EmployeePicker";
 import { apiMessage } from "@/components/payroll/labels";
@@ -26,18 +27,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { LocationOption, WorkLocation } from "@/lib/types/payroll";
 import { formatDay } from "@/lib/utils";
+
+/** "1 Apr 2026 – open": the dates a posting runs between. */
+function periodText(row: WorkLocation): string {
+  return `${formatDay(row.effective_from, true)} – ${row.effective_to ? formatDay(row.effective_to, true) : "open"}`;
+}
 
 /**
  * Where each employee worked, and from when. This is what lets payroll see a
@@ -84,53 +82,57 @@ export function WorkLocationsPanel() {
     }
   };
 
-  const rows = postings.data ?? [];
+  const columns: ColumnDef<WorkLocation>[] = [
+    {
+      id: "employee",
+      header: "Employee",
+      accessorFn: (row) => nameOf(row.employee_id),
+    },
+    {
+      id: "location",
+      header: "Location",
+      accessorFn: (row) => locationLabel(row.location_id),
+    },
+    {
+      accessorKey: "effective_from",
+      header: "Period",
+      meta: { cellClassName: "text-sm", text: periodText },
+      cell: ({ row }) => periodText(row.original),
+    },
+    {
+      accessorKey: "reason",
+      header: "Reason",
+      // Not "auto": it compares a missing reason inconsistently against a present one.
+      sortingFn: "alphanumeric",
+      meta: { cellClassName: "text-sm text-muted-foreground" },
+      cell: ({ row }) => row.original.reason ?? "—",
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Work locations"
         description="Postings by date. Professional Tax and LWF follow the state of the location."
+        columns={columns}
+        data={postings.data ?? []}
+        noun="postings"
+        exportName="work-locations"
+        searchPlaceholder="Search employees or locations"
         actions={
-          <Button size="sm" onClick={() => setOpen(true)}>
+          <Button size="sm" className="h-9" onClick={() => setOpen(true)}>
             <Plus /> Record posting
           </Button>
         }
         isLoading={postings.isLoading && !postings.data}
         error={postings.error?.detail}
         onRetry={postings.reload}
-        isEmpty={rows.length === 0}
         empty={{
           icon: MapPin,
           title: "No postings recorded",
           description: "Without one, payroll uses each employee's current location for the whole month.",
         }}
-      >
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>Reason</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{nameOf(row.employee_id)}</TableCell>
-                  <TableCell>{locationLabel(row.location_id)}</TableCell>
-                  <TableCell className="text-sm">
-                    {formatDay(row.effective_from, true)} –{" "}
-                    {row.effective_to ? formatDay(row.effective_to, true) : "open"}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{row.reason ?? "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </DataPanel>
+      />
 
       <Dialog open={open} onOpenChange={(next) => !saving && setOpen(next)}>
         <DialogContent className="sm:max-w-md">

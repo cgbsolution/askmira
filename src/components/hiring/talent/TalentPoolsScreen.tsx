@@ -1,12 +1,13 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { FolderHeart, Loader2, Plus, Trash2, UserMinus } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
@@ -23,11 +24,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, post } from "@/lib/api";
-import type { TalentPool, TalentPoolDetail } from "@/lib/types/hiring";
+import type { TalentPool, TalentPoolDetail, TalentPoolMember } from "@/lib/types/hiring";
 
 /**
  * Talent pools: candidates kept for roles that are not open yet.
@@ -54,6 +54,54 @@ export function TalentPoolsScreen() {
     }
   };
 
+  const columns: ColumnDef<TalentPool>[] = [
+    {
+      accessorKey: "name",
+      header: "Pool",
+      meta: { text: (pool) => [pool.name, pool.description].filter(Boolean).join(" · ") },
+      cell: ({ row }) => (
+        <>
+          <div className="font-medium text-foreground">{row.original.name}</div>
+          {row.original.description && (
+            <div className="text-xs text-muted-foreground">{row.original.description}</div>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "members",
+      header: "Candidates",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "created_at",
+      header: "Created",
+      meta: { cellClassName: "text-xs text-muted-foreground", text: (pool) => formatDateTime(pool.created_at) },
+      cell: ({ row }) => formatDateTime(row.original.created_at),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <Button size="sm" variant="outline" onClick={() => setOpen(row.original)}>
+            Open
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={`Delete ${row.original.name}`}
+            onClick={() => setDeleting(row.original)}
+          >
+            <Trash2 />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <PageShell
       title="Talent pools"
@@ -64,51 +112,22 @@ export function TalentPoolsScreen() {
         </Button>
       }
     >
-      <DataPanel
+      <DataTable
         title="Pools"
+        columns={columns}
+        data={pools.data ?? []}
+        noun="pools"
+        exportName="talent-pools"
+        searchPlaceholder="Search pools"
         isLoading={pools.isLoading}
         error={pools.error?.detail ?? null}
         onRetry={pools.reload}
-        isEmpty={(pools.data ?? []).length === 0}
         empty={{
           icon: FolderHeart,
           title: "No talent pools yet",
           description: "Create one, then add candidates to it from their profile.",
         }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Pool</TableHead>
-              <TableHead className="text-right">Candidates</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(pools.data ?? []).map((pool) => (
-              <TableRow key={pool.id}>
-                <TableCell>
-                  <div className="font-medium text-foreground">{pool.name}</div>
-                  {pool.description && <div className="text-xs text-muted-foreground">{pool.description}</div>}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{pool.members}</TableCell>
-                <TableCell className="text-xs text-muted-foreground">{formatDateTime(pool.created_at)}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button size="sm" variant="outline" onClick={() => setOpen(pool)}>
-                      Open
-                    </Button>
-                    <Button size="sm" variant="ghost" aria-label={`Delete ${pool.name}`} onClick={() => setDeleting(pool)}>
-                      <Trash2 />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       <CreatePoolDialog open={creating} onOpenChange={setCreating} onCreated={pools.reload} />
       <PoolSheet pool={open} onOpenChange={(next) => !next && setOpen(null)} onChanged={pools.reload} />
@@ -208,6 +227,83 @@ function PoolSheet({
     }
   };
 
+  // The last pool opened stays in `data` until this one's members arrive: never
+  // show them under this pool's name.
+  const members = data && pool && data.pool.id === pool.id ? data.members : [];
+
+  const columns: ColumnDef<TalentPoolMember>[] = [
+    {
+      accessorKey: "full_name",
+      header: "Candidate",
+      meta: {
+        text: (member) => [member.full_name, member.email, ...member.tags, member.note].filter(Boolean).join(" · "),
+      },
+      cell: ({ row }) => (
+        <>
+          <Link href={`/hiring/candidates/${row.original.candidate_id}`} className="hover:underline">
+            <PersonCell name={row.original.full_name} subtitle={row.original.email} size="sm" />
+          </Link>
+          {row.original.tags.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {row.original.tags.map((tag) => (
+                <Badge key={tag} variant="muted">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
+          {row.original.note && <p className="mt-1 max-w-xs text-xs text-muted-foreground">{row.original.note}</p>}
+        </>
+      ),
+    },
+    {
+      accessorKey: "last_requisition",
+      header: "Last applied for",
+      meta: {
+        cellClassName: "text-sm",
+        text: (member) => `${member.last_requisition} · ${CANDIDATE_STAGE[member.stage]?.[0] ?? member.stage}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.last_requisition}
+          <div className="mt-1">
+            <StatusBadge map={CANDIDATE_STAGE} value={row.original.stage} />
+          </div>
+        </>
+      ),
+    },
+    {
+      accessorKey: "consent",
+      header: "Consent",
+      meta: {
+        text: (member) => (member.consent === "granted" ? "Agreed to be kept" : "Withdrawn — do not contact"),
+      },
+      cell: ({ row }) =>
+        row.original.consent === "granted" ? (
+          <Badge variant="success">Agreed to be kept</Badge>
+        ) : (
+          <Badge variant="destructive">Withdrawn — do not contact</Badge>
+        ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          aria-label={`Remove ${row.original.full_name} from the pool`}
+          disabled={busy === row.original.candidate_id}
+          onClick={() => void removeMember(row.original.candidate_id)}
+        >
+          {busy === row.original.candidate_id ? <Loader2 className="animate-spin" /> : <UserMinus />}
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <Sheet open={pool !== null} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
@@ -216,69 +312,18 @@ function PoolSheet({
           <SheetDescription>{pool?.description ?? "Candidates kept for later, with their consent as it stands today."}</SheetDescription>
         </SheetHeader>
         <div className="px-4 pb-6">
-          <DataPanel
+          <DataTable
+            columns={columns}
+            data={members}
+            getRowId={(member) => member.candidate_id}
+            noun="candidates"
+            exportName={pool ? `talent-pool-${pool.name}` : "talent-pool"}
+            searchPlaceholder="Search candidates"
             isLoading={isLoading}
             error={error?.detail ?? null}
             onRetry={reload}
-            isEmpty={(data?.members ?? []).length === 0}
             empty={{ icon: FolderHeart, title: "Nobody in this pool yet", description: "Add candidates from their profile." }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Candidate</TableHead>
-                  <TableHead>Last applied for</TableHead>
-                  <TableHead>Consent</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(data?.members ?? []).map((member) => (
-                  <TableRow key={member.candidate_id}>
-                    <TableCell>
-                      <Link href={`/hiring/candidates/${member.candidate_id}`} className="hover:underline">
-                        <PersonCell name={member.full_name} subtitle={member.email} size="sm" />
-                      </Link>
-                      {member.tags.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {member.tags.map((tag) => (
-                            <Badge key={tag} variant="muted">
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                      {member.note && <p className="mt-1 max-w-xs text-xs text-muted-foreground">{member.note}</p>}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {member.last_requisition}
-                      <div className="mt-1">
-                        <StatusBadge map={CANDIDATE_STAGE} value={member.stage} />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {member.consent === "granted" ? (
-                        <Badge variant="success">Agreed to be kept</Badge>
-                      ) : (
-                        <Badge variant="destructive">Withdrawn — do not contact</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        aria-label={`Remove ${member.full_name} from the pool`}
-                        disabled={busy === member.candidate_id}
-                        onClick={() => void removeMember(member.candidate_id)}
-                      >
-                        {busy === member.candidate_id ? <Loader2 className="animate-spin" /> : <UserMinus />}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </div>
       </SheetContent>
     </Sheet>

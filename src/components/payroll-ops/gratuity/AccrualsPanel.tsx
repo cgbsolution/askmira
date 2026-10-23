@@ -1,27 +1,19 @@
 "use client";
 
-import { CalendarClock, Loader2, Play } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { CalendarClock, Loader2, Lock, Play } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { EmployeeCell } from "@/components/payroll-ops/loans/common";
-import { QueryPanel } from "@/components/payroll-ops/loans/QueryPanel";
-import { apiErrorMessage, InlineProblem, QueryBoundary } from "@/components/payroll-ops/shared";
+import { apiErrorMessage, InlineProblem } from "@/components/payroll-ops/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { AccrualRunResult, GratuityAccrual } from "@/lib/types/payroll-ops";
@@ -30,12 +22,85 @@ import { formatDay, formatDays, toISODate } from "@/lib/utils";
 import { AccrualDateSelect, useAccrualDates } from "./AccrualDatePicker";
 import { WorkingButton } from "./common";
 
+const ACCRUAL_COLUMNS: ColumnDef<GratuityAccrual>[] = [
+  {
+    accessorKey: "employee_name",
+    header: "Employee",
+    meta: { text: (row) => [row.employee_name, row.employee_code].filter(Boolean).join(" ") },
+    cell: ({ row }) => (
+      <EmployeeCell name={row.original.employee_name} code={row.original.employee_code} />
+    ),
+  },
+  {
+    accessorKey: "service_days",
+    header: "Service",
+    meta: {
+      className: "text-right",
+      cellClassName: "tabular-nums",
+      text: (row) => `${formatDays(row.service_years)} yrs · ${row.service_days} days`,
+    },
+    cell: ({ row }) => (
+      <>
+        {formatDays(row.original.service_years)} yrs
+        <span className="block text-xs text-muted-foreground">{row.original.service_days} days</span>
+      </>
+    ),
+  },
+  {
+    accessorKey: "is_eligible",
+    header: "Eligibility",
+    meta: { text: (row) => (row.is_eligible ? "Eligible" : "Not yet eligible") },
+    cell: ({ row }) =>
+      row.original.is_eligible ? (
+        <Badge variant="success">Eligible</Badge>
+      ) : (
+        <Badge variant="muted">Not yet eligible</Badge>
+      ),
+  },
+  {
+    accessorKey: "monthly_wages",
+    header: "Monthly wages",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.monthly_wages} />,
+  },
+  {
+    accessorKey: "eligible_amount",
+    header: "Accrued",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.eligible_amount} />,
+  },
+  {
+    id: "actions",
+    header: "",
+    enableHiding: false,
+    meta: { className: "text-right", headClassName: "w-24", text: false },
+    cell: ({ row }) => (
+      <WorkingButton
+        title={`Accrual working · ${row.original.employee_name ?? ""}`}
+        working={row.original.working}
+      />
+    ),
+  },
+];
+
 /** Run a gratuity accrual, and read each employee's accrual on a date. */
 export function AccrualsPanel({ canRun }: { canRun: boolean }) {
   const { dates, asOf, setAsOf } = useAccrualDates();
   const accruals = useApiQuery<GratuityAccrual[]>(
     asOf ? `/gratuity/accruals?as_of=${encodeURIComponent(asOf)}` : null,
   );
+
+  // The run dates load first; once there is one, the panel shows the chosen date's accruals.
+  const hasDates = !dates.error && (dates.data?.length ?? 0) > 0;
+  const current = hasDates ? accruals : dates;
+  // A 403 reads as "no access", not as a failed load.
+  const forbidden = current.error?.status === 403;
+  // The newest date is picked a moment after the dates arrive; until its accruals do, it is loading.
+  const isLoading = hasDates
+    ? accruals.data === null && !accruals.error
+    : dates.isLoading && dates.data === null;
 
   return (
     <div className="space-y-4">
@@ -49,93 +114,39 @@ export function AccrualsPanel({ canRun }: { canRun: boolean }) {
         />
       )}
 
-      <QueryPanel
-        query={dates}
+      <DataTable
         title="Accruals by employee"
         description="Each figure is what the employee would be owed in gratuity on that date, under the approved configuration."
-        toolbar={
+        columns={ACCRUAL_COLUMNS}
+        data={hasDates && !forbidden ? (accruals.data ?? []) : []}
+        noun="employees"
+        exportName={asOf ? `gratuity-accruals-${asOf}` : "gratuity-accruals"}
+        searchPlaceholder="Search employees"
+        isLoading={isLoading}
+        error={forbidden ? null : (current.error?.detail ?? null)}
+        onRetry={current.reload}
+        empty={
+          forbidden
+            ? { icon: Lock, title: "You don't have access to this", description: current.error?.detail }
+            : hasDates
+              ? {
+                  icon: CalendarClock,
+                  title: "No accruals on this date",
+                  description: "The accrual run for this date covered no employees.",
+                }
+              : {
+                  icon: CalendarClock,
+                  title: "No accrual has been run yet",
+                  description: "Accruals appear here once one has been run for a date.",
+                }
+        }
+        filters={
           dates.data && dates.data.length > 0 ? (
-            <>
-              <AccrualDateSelect dates={dates.data} value={asOf} onChange={setAsOf} />
-              <span className="ml-auto text-sm text-muted-foreground tabular-nums">
-                {accruals.data ? `${accruals.data.length} employees` : ""}
-              </span>
-            </>
+            <AccrualDateSelect dates={dates.data} value={asOf} onChange={setAsOf} />
           ) : undefined
         }
-        isEmpty={(rows) => rows.length === 0}
-        empty={{
-          icon: CalendarClock,
-          title: "No accrual has been run yet",
-          description: "Accruals appear here once one has been run for a date.",
-        }}
-      >
-        {() => (
-          <QueryBoundary query={accruals} skeletonRows={5}>
-            {(rows) =>
-              rows.length === 0 ? (
-                <EmptyState
-                  icon={CalendarClock}
-                  title="No accruals on this date"
-                  description="The accrual run for this date covered no employees."
-                />
-              ) : (
-                <AccrualsTable rows={rows} />
-              )
-            }
-          </QueryBoundary>
-        )}
-      </QueryPanel>
+      />
     </div>
-  );
-}
-
-function AccrualsTable({ rows }: { rows: GratuityAccrual[] }) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Employee</TableHead>
-          <TableHead className="text-right">Service</TableHead>
-          <TableHead>Eligibility</TableHead>
-          <TableHead className="text-right">Monthly wages</TableHead>
-          <TableHead className="text-right">Accrued</TableHead>
-          <TableHead className="w-24" />
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => (
-          <TableRow key={row.id}>
-            <TableCell>
-              <EmployeeCell name={row.employee_name} code={row.employee_code} />
-            </TableCell>
-            <TableCell className="text-right tabular-nums">
-              {formatDays(row.service_years)} yrs
-              <span className="block text-xs text-muted-foreground">{row.service_days} days</span>
-            </TableCell>
-            <TableCell>
-              {row.is_eligible ? (
-                <Badge variant="success">Eligible</Badge>
-              ) : (
-                <Badge variant="muted">Not yet eligible</Badge>
-              )}
-            </TableCell>
-            <TableCell className="text-right">
-              <Money value={row.monthly_wages} />
-            </TableCell>
-            <TableCell className="text-right">
-              <Money value={row.eligible_amount} />
-            </TableCell>
-            <TableCell className="text-right">
-              <WorkingButton
-                title={`Accrual working · ${row.employee_name ?? ""}`}
-                working={row.working}
-              />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
   );
 }
 

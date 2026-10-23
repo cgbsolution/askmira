@@ -1,9 +1,10 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Briefcase, MoreHorizontal, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -22,7 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { Occupancy, Position, PositionStatus } from "@/lib/types/people";
@@ -43,7 +42,6 @@ export function PositionsTab() {
   const canStaff = hasRole("admin", "sub_admin");
 
   const [statusFilter, setStatusFilter] = useState<string>(ANY);
-  const [search, setSearch] = useState("");
 
   const path =
     statusFilter === ANY ? "/positions" : `/positions?position_status=${statusFilter}`;
@@ -71,194 +69,198 @@ export function PositionsTab() {
     [positions.data],
   );
 
-  const rows = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    const all = positions.data ?? [];
-    if (!term) return all;
-    return all.filter(
-      (row) =>
-        row.title.toLowerCase().includes(term) ||
-        row.code.toLowerCase().includes(term) ||
-        (holders.get(row.id)?.primary_holder ?? "").toLowerCase().includes(term),
-    );
-  }, [positions.data, search, holders]);
-
   const reloadAll = () => {
     positions.reload();
     occupancy.reload();
   };
 
+  const holderText = (row: Position) => {
+    const holder = holders.get(row.id);
+    return (
+      holder?.primary_holder ?? (holder?.covering.length ? `Covered by ${holder.covering.join(", ")}` : "Empty")
+    );
+  };
+
+  const columns: ColumnDef<Position>[] = [
+    {
+      accessorKey: "title",
+      header: "Position",
+      meta: { text: (row) => `${row.title} ${row.code}` },
+      cell: ({ row }) => (
+        <>
+          <div className="font-medium text-foreground">{row.original.title}</div>
+          <div className="text-xs text-muted-foreground">
+            <span className="font-mono">{row.original.code}</span>
+            {row.original.grade && ` · ${row.original.grade}`}
+            {Number(row.original.fte) < 1 && ` · ${row.original.fte} FTE`}
+          </div>
+          {row.original.reports_to_position_id && (
+            <div className="text-[11px] text-muted-foreground">
+              Reports to {titleOf.get(row.original.reports_to_position_id) ?? "another position"}
+            </div>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "holder",
+      header: "Holder",
+      accessorFn: holderText,
+      meta: { cellClassName: "text-sm" },
+      cell: ({ row }) =>
+        holders.get(row.original.id)?.primary_holder ?? (
+          <span className="text-muted-foreground">{holderText(row.original)}</span>
+        ),
+    },
+    {
+      id: "department",
+      header: "Department",
+      accessorFn: (row) => org.departmentName(row.department_id),
+      meta: { cellClassName: "text-sm text-muted-foreground" },
+    },
+    {
+      id: "budgeted_ctc",
+      header: "Budgeted CTC",
+      accessorFn: (row) => row.budgeted_ctc_max,
+      sortingFn: "alphanumeric",
+      meta: {
+        cellClassName: "text-sm",
+        text: (row) =>
+          row.budgeted_ctc_max
+            ? row.budgeted_ctc_min
+              ? `${row.budgeted_ctc_min} – ${row.budgeted_ctc_max}`
+              : row.budgeted_ctc_max
+            : "Not set",
+      },
+      cell: ({ row }) =>
+        row.original.budgeted_ctc_max ? (
+          <>
+            {row.original.budgeted_ctc_min && (
+              <>
+                <Money value={row.original.budgeted_ctc_min} /> –{" "}
+              </>
+            )}
+            <Money value={row.original.budgeted_ctc_max} />
+          </>
+        ) : (
+          <span className="text-muted-foreground">Not set</span>
+        ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: {
+        text: (row) => {
+          const label = POSITION_STATUS[row.status]?.label ?? row.status;
+          return row.vacated_on && row.status === "vacant" ? `${label} since ${formatDate(row.vacated_on)}` : label;
+        },
+      },
+      cell: ({ row }) => {
+        const status = POSITION_STATUS[row.original.status];
+        return (
+          <>
+            {status && <Badge variant={status.variant}>{status.label}</Badge>}
+            {row.original.vacated_on && row.original.status === "vacant" && (
+              <div className="mt-1 text-[11px] text-muted-foreground">since {formatDate(row.original.vacated_on)}</div>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "w-12 text-right", text: false },
+      cell: ({ row }) => {
+        const position = row.original;
+        const open = position.status !== "abolished";
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={`Actions for ${position.title}`}>
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setViewing(position)}>Assignment history</DropdownMenuItem>
+              {canStaff && open && position.status !== "frozen" && (
+                <DropdownMenuItem onSelect={() => setAssigning(position)}>Assign someone</DropdownMenuItem>
+              )}
+              {canStaff && position.status === "filled" && (
+                <DropdownMenuItem onSelect={() => setVacating(position)}>Vacate</DropdownMenuItem>
+              )}
+              {canManage && open && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => setForm({ open: true, editing: position })}>Edit</DropdownMenuItem>
+                  {position.status === "frozen" ? (
+                    <DropdownMenuItem onSelect={() => setStatusAction({ position, action: "unfreeze" })}>
+                      Unfreeze
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onSelect={() => setStatusAction({ position, action: "freeze" })}>
+                      Freeze
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onSelect={() => setStatusAction({ position, action: "abolish" })}
+                  >
+                    Abolish
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Positions"
-        description={positions.data ? `${positions.data.length} positions.` : undefined}
+        columns={columns}
+        data={positions.data ?? []}
+        noun="positions"
+        exportName="positions"
+        searchPlaceholder="Search title, code or holder"
+        rowClassName={(row) => (row.status !== "abolished" ? undefined : "opacity-60")}
         actions={
           canManage ? (
-            <Button size="sm" onClick={() => setForm({ open: true, editing: null })}>
+            <Button size="sm" className="h-9" onClick={() => setForm({ open: true, editing: null })}>
               <Plus /> New position
             </Button>
           ) : undefined
         }
-        toolbar={
-          <>
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search title, code or holder"
-              aria-label="Search positions"
-              className="max-w-xs"
-            />
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-44" aria-label="Filter by status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ANY}>Every status</SelectItem>
-                {(Object.keys(POSITION_STATUS) as PositionStatus[]).map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {POSITION_STATUS[key].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </>
+        filters={
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-9 w-44" aria-label="Filter by status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ANY}>Every status</SelectItem>
+              {(Object.keys(POSITION_STATUS) as PositionStatus[]).map((key) => (
+                <SelectItem key={key} value={key}>
+                  {POSITION_STATUS[key].label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         }
         isLoading={positions.isLoading}
         error={positions.error?.detail ?? null}
         onRetry={positions.reload}
-        isEmpty={rows.length === 0}
+        filtered={statusFilter !== ANY}
         empty={{
           icon: Briefcase,
-          title: search || statusFilter !== ANY ? "No positions match" : "No positions yet",
-          description:
-            search || statusFilter !== ANY
-              ? "Clear the search or the status filter."
-              : "A position is a seat that exists whether or not somebody sits in it.",
+          title: "No positions yet",
+          description: "A position is a seat that exists whether or not somebody sits in it.",
         }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Position</TableHead>
-              <TableHead>Holder</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Budgeted CTC</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => {
-              const holder = holders.get(row.id);
-              const status = POSITION_STATUS[row.status];
-              const open = row.status !== "abolished";
-              return (
-                <TableRow key={row.id} className={open ? undefined : "opacity-60"}>
-                  <TableCell>
-                    <div className="font-medium text-foreground">{row.title}</div>
-                    <div className="text-xs text-muted-foreground">
-                      <span className="font-mono">{row.code}</span>
-                      {row.grade && ` · ${row.grade}`}
-                      {Number(row.fte) < 1 && ` · ${row.fte} FTE`}
-                    </div>
-                    {row.reports_to_position_id && (
-                      <div className="text-[11px] text-muted-foreground">
-                        Reports to {titleOf.get(row.reports_to_position_id) ?? "another position"}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {holder?.primary_holder ?? (
-                      <span className="text-muted-foreground">
-                        {holder?.covering.length
-                          ? `Covered by ${holder.covering.join(", ")}`
-                          : "Empty"}
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {org.departmentName(row.department_id)}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {row.budgeted_ctc_max ? (
-                      <>
-                        {row.budgeted_ctc_min && (
-                          <>
-                            <Money value={row.budgeted_ctc_min} /> –{" "}
-                          </>
-                        )}
-                        <Money value={row.budgeted_ctc_max} />
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">Not set</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {status && <Badge variant={status.variant}>{status.label}</Badge>}
-                    {row.vacated_on && row.status === "vacant" && (
-                      <div className="mt-1 text-[11px] text-muted-foreground">
-                        since {formatDate(row.vacated_on)}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label={`Actions for ${row.title}`}>
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setViewing(row)}>
-                          Assignment history
-                        </DropdownMenuItem>
-                        {canStaff && open && row.status !== "frozen" && (
-                          <DropdownMenuItem onSelect={() => setAssigning(row)}>
-                            Assign someone
-                          </DropdownMenuItem>
-                        )}
-                        {canStaff && row.status === "filled" && (
-                          <DropdownMenuItem onSelect={() => setVacating(row)}>
-                            Vacate
-                          </DropdownMenuItem>
-                        )}
-                        {canManage && open && (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onSelect={() => setForm({ open: true, editing: row })}>
-                              Edit
-                            </DropdownMenuItem>
-                            {row.status === "frozen" ? (
-                              <DropdownMenuItem
-                                onSelect={() => setStatusAction({ position: row, action: "unfreeze" })}
-                              >
-                                Unfreeze
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                onSelect={() => setStatusAction({ position: row, action: "freeze" })}
-                              >
-                                Freeze
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onSelect={() => setStatusAction({ position: row, action: "abolish" })}
-                            >
-                              Abolish
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </DataPanel>
+        emptyMessage="No positions match. Clear the search or the status filter."
+      />
 
       <PositionDialog
         open={form.open}

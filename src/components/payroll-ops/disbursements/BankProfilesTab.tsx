@@ -1,13 +1,15 @@
 "use client";
 
-import { Landmark, Loader2, Plus } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Landmark, Loader2, Lock, Plus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { RequireRole } from "@/components/common/RequireRole";
 import { apiErrorMessage, InlineProblem } from "@/components/payroll-ops/shared";
-import { QueryPanel, useEntityName } from "@/components/payroll-ops/disbursements/common";
+import { useEntityName } from "@/components/payroll-ops/disbursements/common";
 import { FORMAT_LABEL, IFSC_PATTERN } from "@/components/payroll-ops/disbursements/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,14 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { type ApiError, post } from "@/lib/api";
 import type {
   BankFileFormat,
@@ -58,12 +52,48 @@ export function BankProfilesTab({
 }) {
   const [open, setOpen] = useState(false);
   const entityName = useEntityName(entities);
+  // A refusal for this role reads as no access, not as a failed load.
+  const forbidden = query.error?.status === 403;
+
+  const columns: ColumnDef<BankProfile>[] = [
+    {
+      accessorKey: "bank_name",
+      header: "Bank",
+      meta: { cellClassName: "font-medium text-foreground" },
+    },
+    { accessorKey: "ifsc", header: "IFSC", meta: { cellClassName: "tabular-nums" } },
+    {
+      id: "file_format",
+      header: "File format",
+      accessorFn: (row) => FORMAT_LABEL[row.file_format] ?? row.file_format,
+    },
+    {
+      accessorKey: "corporate_id",
+      header: "Corporate ID",
+      meta: { className: "hidden md:table-cell", cellClassName: "text-muted-foreground" },
+      cell: ({ row }) => row.original.corporate_id ?? "—",
+    },
+    {
+      id: "entity",
+      header: "Entity",
+      accessorFn: (row) => entityName(row.legal_entity_id),
+      meta: { className: "hidden md:table-cell", cellClassName: "text-muted-foreground" },
+    },
+    {
+      id: "state",
+      header: "State",
+      accessorFn: (row) => (row.active ? "Active" : "Inactive"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.active ? "success" : "muted"}>
+          {row.original.active ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+  ];
 
   return (
     <>
-      <QueryPanel
-        query={query}
-        loadingRows={3}
+      <DataTable
         title="Bank profiles"
         description="The account salaries are paid from, and the file format that bank expects. The account number is stored when you save it and is never displayed again."
         actions={
@@ -73,49 +103,26 @@ export function BankProfilesTab({
             </Button>
           </RequireRole>
         }
-        isEmpty={(rows) => rows.length === 0}
-        empty={{
-          icon: Landmark,
-          title: "No bank profile yet",
-          description:
-            "A batch needs a bank profile to know which account pays and which file format to build. An admin adds one here.",
-        }}
-      >
-        {(rows) => (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Bank</TableHead>
-                    <TableHead>IFSC</TableHead>
-                    <TableHead>File format</TableHead>
-                    <TableHead className="hidden md:table-cell">Corporate ID</TableHead>
-                    <TableHead className="hidden md:table-cell">Entity</TableHead>
-                    <TableHead>State</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-medium text-foreground">{row.bank_name}</TableCell>
-                      <TableCell className="tabular-nums">{row.ifsc}</TableCell>
-                      <TableCell>{FORMAT_LABEL[row.file_format] ?? row.file_format}</TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">
-                        {row.corporate_id ?? "—"}
-                      </TableCell>
-                      <TableCell className="hidden text-muted-foreground md:table-cell">
-                        {entityName(row.legal_entity_id)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={row.active ? "success" : "muted"}>
-                          {row.active ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-        )}
-      </QueryPanel>
+        columns={columns}
+        data={forbidden ? [] : (query.data ?? [])}
+        noun="bank profiles"
+        exportName="bank-profiles"
+        searchPlaceholder="Search bank profiles"
+        loadingRows={3}
+        isLoading={query.isLoading && query.data === null}
+        error={forbidden ? null : query.error?.detail}
+        onRetry={query.reload}
+        empty={
+          forbidden
+            ? { icon: Lock, title: "You don't have access to this", description: query.error?.detail }
+            : {
+                icon: Landmark,
+                title: "No bank profile yet",
+                description:
+                  "A batch needs a bank profile to know which account pays and which file format to build. An admin adds one here.",
+              }
+        }
+      />
       <AddProfileDialog
         open={open}
         onOpenChange={setOpen}

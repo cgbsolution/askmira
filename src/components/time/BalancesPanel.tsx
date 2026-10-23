@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { History, Loader2, SlidersHorizontal } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmployeePicker, employeeDisplayName } from "@/components/common/EmployeePicker";
 import { FormField } from "@/components/common/FormField";
 import { BalanceCards } from "@/components/time/BalanceCards";
@@ -26,32 +27,69 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import type {
   BalanceAdjustment,
   BalanceHistory,
+  BalanceHistoryEntry,
   EmployeeSummary,
   LeaveBalance,
   LeaveType,
   ManualAdjustmentKind,
 } from "@/lib/types";
-import { cn, formatDay, formatDays } from "@/lib/utils";
+import { formatDay, formatDays } from "@/lib/utils";
 
 const KIND_LABEL: Record<ManualAdjustmentKind, string> = {
   opening: "Set the opening balance",
   credit: "Credit days",
   debit: "Debit days",
 };
+
+/** "+1.5" for a credit, "-1" for a debit: as the history shows it. */
+function signedDays(entry: BalanceHistoryEntry): string {
+  return `${entry.days.startsWith("-") ? "" : "+"}${formatDays(entry.days)}`;
+}
+
+// Day counts arrive as decimal strings ("1.50"): they sort by value and export as shown.
+const HISTORY_COLUMNS: ColumnDef<BalanceHistoryEntry>[] = [
+  {
+    accessorKey: "on",
+    header: "Date",
+    meta: { cellClassName: "whitespace-nowrap tabular-nums", text: (entry) => formatDay(entry.on, true) },
+    cell: ({ row }) => formatDay(row.original.on, true),
+  },
+  { accessorKey: "label", header: "Movement", meta: { cellClassName: "text-foreground" } },
+  {
+    accessorKey: "note",
+    header: "Detail",
+    meta: { className: "hidden md:table-cell", cellClassName: "max-w-xs truncate text-muted-foreground" },
+    cell: ({ row }) => row.original.note ?? "—",
+  },
+  {
+    id: "days",
+    header: "Days",
+    accessorFn: (entry) => Number(entry.days),
+    meta: { className: "text-right font-mono", text: signedDays },
+    cell: ({ row }) => (
+      <span className={row.original.days.startsWith("-") ? "text-destructive" : "text-foreground"}>
+        {signedDays(row.original)}
+      </span>
+    ),
+  },
+  {
+    id: "running_balance",
+    header: "Balance",
+    accessorFn: (entry) => Number(entry.running_balance),
+    meta: {
+      className: "text-right font-mono",
+      cellClassName: "text-foreground",
+      text: (entry) => formatDays(entry.running_balance),
+    },
+    cell: ({ row }) => formatDays(row.original.running_balance),
+  },
+];
 
 /**
  * Balances in depth: any year, the history behind each figure, and — for HR —
@@ -175,16 +213,22 @@ export function BalancesPanel({
       )}
 
       {employeeId && rows.length > 0 && (
-        <DataPanel
+        <DataTable
           title={
             <span className="flex items-center gap-2">
               <History className="size-4 text-muted-foreground" /> Balance history
             </span>
           }
           description="Every credit and debit behind the figure, in date order."
-          actions={
+          columns={HISTORY_COLUMNS}
+          data={history.data?.entries ?? []}
+          getRowId={(entry, index) => `${entry.on}-${entry.kind}-${index}`}
+          noun="entries"
+          exportName={`balance-history-${year}`}
+          searchPlaceholder="Search movements"
+          filters={
             <Select value={historyTypeId} onValueChange={setHistoryTypeId}>
-              <SelectTrigger size="sm" className="w-48" aria-label="Leave type">
+              <SelectTrigger className="h-9 w-48" aria-label="Leave type">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -199,52 +243,12 @@ export function BalancesPanel({
           isLoading={history.isLoading}
           error={history.error?.detail}
           onRetry={history.reload}
-          isEmpty={(history.data?.entries.length ?? 0) === 0}
           empty={{
             icon: History,
             title: "Nothing recorded yet",
             description: `No accruals, leave or adjustments on this balance in ${year}.`,
           }}
-        >
-          {history.data && (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="pl-5">Date</TableHead>
-                  <TableHead>Movement</TableHead>
-                  <TableHead className="hidden md:table-cell">Detail</TableHead>
-                  <TableHead className="text-right">Days</TableHead>
-                  <TableHead className="pr-5 text-right">Balance</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {history.data.entries.map((entry, index) => (
-                  <TableRow key={`${entry.on}-${entry.kind}-${index}`}>
-                    <TableCell className="pl-5 whitespace-nowrap tabular-nums">
-                      {formatDay(entry.on, true)}
-                    </TableCell>
-                    <TableCell className="text-foreground">{entry.label}</TableCell>
-                    <TableCell className="hidden max-w-xs truncate text-muted-foreground md:table-cell">
-                      {entry.note ?? "—"}
-                    </TableCell>
-                    <TableCell
-                      className={cn(
-                        "text-right font-mono",
-                        entry.days.startsWith("-") ? "text-destructive" : "text-foreground",
-                      )}
-                    >
-                      {entry.days.startsWith("-") ? "" : "+"}
-                      {formatDays(entry.days)}
-                    </TableCell>
-                    <TableCell className="pr-5 text-right font-mono text-foreground">
-                      {formatDays(entry.running_balance)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </DataPanel>
+        />
       )}
 
       {isHr && employeeId && (

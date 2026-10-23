@@ -1,14 +1,16 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Briefcase, Gift, HandHeart, Users } from "lucide-react";
 import React from "react";
 
 import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { Money } from "@/components/common/Money";
 import { RequireRole } from "@/components/common/RequireRole";
-import { REFERRAL_STATUS, StatusBadge } from "@/components/hiring/labels";
+import { humanize, REFERRAL_STATUS, StatusBadge } from "@/components/hiring/labels";
 import { ReferralFormDialog } from "@/components/hiring/ReferralFormDialog";
 import { ReferralHireDialog, ReferralPayDialog } from "@/components/hiring/ReferralHrActions";
 import { ReferralPayouts } from "@/components/hiring/ReferralPayouts";
@@ -17,19 +19,12 @@ import { ReferralProgrammeTerms } from "@/components/hiring/ReferralProgrammeTer
 import { ReferralShareDialog } from "@/components/hiring/ReferralShareDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ADMIN } from "@/lib/access";
 import type {
   MyReferral,
   OpenRole,
+  ReferralPayout,
   ReferralProgramme,
   ReferralRow,
 } from "@/lib/types/hiring";
@@ -40,6 +35,40 @@ function experience(role: OpenRole): string | null {
   if (min === null && max === null) return null;
   if (min !== null && max !== null) return `${min}–${max} yrs`;
   return min !== null ? `${min}+ yrs` : `up to ${max} yrs`;
+}
+
+/** A referral's status cell as one line, for the search and the CSV. */
+function statusText(
+  row: Pick<MyReferral, "status" | "hired_on"> & Partial<Pick<MyReferral, "duplicate_note" | "ineligibility_reason">>,
+): string {
+  return [
+    REFERRAL_STATUS[row.status]?.[0] ?? row.status,
+    row.duplicate_note,
+    row.ineligibility_reason,
+    row.hired_on ? `Joined ${formatDay(row.hired_on, true)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** A referral's payouts as one line, for the search and the CSV. */
+function payoutsText(payouts: ReferralPayout[]): string {
+  if (payouts.length === 0) return "No payouts scheduled";
+  return payouts
+    .map((payout) =>
+      [
+        payout.milestone,
+        payout.amount,
+        humanize(payout.status),
+        payout.status === "paid" && payout.paid_at
+          ? `paid ${formatDay(payout.paid_at, true)}`
+          : `payable ${formatDay(payout.payable_on, true)}`,
+        payout.payroll_reference ? `Payroll ref ${payout.payroll_reference}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    )
+    .join("; ");
 }
 
 /**
@@ -136,70 +165,87 @@ export function ReferralOpenRolesTab({ onReferred }: { onReferred?: () => void }
   );
 }
 
+const MY_REFERRAL_COLUMNS: ColumnDef<MyReferral>[] = [
+  {
+    accessorKey: "candidate",
+    header: "Candidate",
+    meta: { cellClassName: "font-medium text-foreground" },
+  },
+  {
+    accessorKey: "requisition_title",
+    header: "Role",
+    meta: { text: (row) => [row.requisition_title, row.requisition_code].filter(Boolean).join(" · ") },
+    cell: ({ row }) => (
+      <>
+        <p>{row.original.requisition_title ?? "—"}</p>
+        <p className="text-xs text-muted-foreground">{row.original.requisition_code ?? ""}</p>
+      </>
+    ),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { cellClassName: "max-w-64 whitespace-normal", text: statusText },
+    cell: ({ row }) => (
+      <>
+        <StatusBadge map={REFERRAL_STATUS} value={row.original.status} />
+        {row.original.duplicate_note && (
+          <p className="mt-1 text-xs text-muted-foreground">{row.original.duplicate_note}</p>
+        )}
+        {row.original.ineligibility_reason && (
+          <p className="mt-1 text-xs text-destructive">{row.original.ineligibility_reason}</p>
+        )}
+        {row.original.hired_on && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Joined {formatDay(row.original.hired_on, true)}
+          </p>
+        )}
+      </>
+    ),
+  },
+  {
+    accessorKey: "submitted_at",
+    header: "Submitted",
+    meta: { cellClassName: "tabular-nums", text: (row) => formatDate(row.submitted_at) },
+    cell: ({ row }) => formatDate(row.original.submitted_at),
+  },
+  {
+    accessorKey: "bonus_amount",
+    header: "Bonus",
+    // Amounts arrive as decimal strings: compare them as numbers, not as text.
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.bonus_amount} />,
+  },
+  {
+    id: "payouts",
+    header: "Payouts",
+    meta: { cellClassName: "whitespace-normal", text: (row) => payoutsText(row.payouts) },
+    cell: ({ row }) => <ReferralPayouts payouts={row.original.payouts} />,
+  },
+];
+
 /** The viewer's own referrals: where each stands, and any bonus and its payouts. */
 export function ReferralMineTab() {
   const { data, error, isLoading, reload } = useApiQuery<MyReferral[]>("/recruiting/my-referrals");
-  const rows = data ?? [];
   return (
-    <DataPanel
+    <DataTable
       title="My referrals"
+      columns={MY_REFERRAL_COLUMNS}
+      data={data ?? []}
+      noun="referrals"
+      exportName="my-referrals"
+      searchPlaceholder="Search candidate or role"
       isLoading={isLoading && !data}
       error={error?.detail}
       onRetry={reload}
-      isEmpty={rows.length === 0}
       empty={{
         icon: HandHeart,
         title: "You have not referred anyone yet",
         description: "Referrals you make from the Open roles tab appear here with their progress.",
       }}
-    >
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Candidate</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Submitted</TableHead>
-              <TableHead className="text-right">Bonus</TableHead>
-              <TableHead>Payouts</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id} className="align-top">
-                <TableCell className="font-medium text-foreground">{row.candidate}</TableCell>
-                <TableCell>
-                  <p>{row.requisition_title ?? "—"}</p>
-                  <p className="text-xs text-muted-foreground">{row.requisition_code ?? ""}</p>
-                </TableCell>
-                <TableCell className="max-w-64 whitespace-normal">
-                  <StatusBadge map={REFERRAL_STATUS} value={row.status} />
-                  {row.duplicate_note && (
-                    <p className="mt-1 text-xs text-muted-foreground">{row.duplicate_note}</p>
-                  )}
-                  {row.ineligibility_reason && (
-                    <p className="mt-1 text-xs text-destructive">{row.ineligibility_reason}</p>
-                  )}
-                  {row.hired_on && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Joined {formatDay(row.hired_on, true)}
-                    </p>
-                  )}
-                </TableCell>
-                <TableCell className="tabular-nums">{formatDate(row.submitted_at)}</TableCell>
-                <TableCell className="text-right">
-                  <Money value={row.bonus_amount} />
-                </TableCell>
-                <TableCell className="whitespace-normal">
-                  <ReferralPayouts payouts={row.payouts} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </DataPanel>
+      rowClassName={() => "align-top"}
+    />
   );
 }
 
@@ -208,77 +254,103 @@ const HIREABLE = new Set<ReferralRow["status"]>(["submitted", "in_process"]);
 /** Every referral in the workspace (HR): mark hires and record payouts. */
 export function ReferralAllTab() {
   const { data, error, isLoading, reload } = useApiQuery<ReferralRow[]>("/recruiting/referrals");
-  const rows = data ?? [];
+  const columns: ColumnDef<ReferralRow>[] = [
+    {
+      accessorKey: "candidate",
+      header: "Candidate",
+      meta: { cellClassName: "font-medium text-foreground" },
+    },
+    {
+      accessorKey: "referrer",
+      header: "Referred by",
+      meta: {
+        text: (row) =>
+          [row.referrer, row.referrer_grade ? `Grade ${row.referrer_grade}` : null].filter(Boolean).join(" · "),
+      },
+      cell: ({ row }) => (
+        <>
+          <p>{row.original.referrer ?? "—"}</p>
+          {row.original.referrer_grade && (
+            <p className="text-xs text-muted-foreground">Grade {row.original.referrer_grade}</p>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "requisition_code",
+      header: "Role",
+      cell: ({ row }) => row.original.requisition_code ?? "—",
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: statusText },
+      cell: ({ row }) => (
+        <>
+          <StatusBadge map={REFERRAL_STATUS} value={row.original.status} />
+          {row.original.hired_on && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Joined {formatDay(row.original.hired_on, true)}
+            </p>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "submitted_at",
+      header: "Submitted",
+      meta: { cellClassName: "tabular-nums", text: (row) => formatDate(row.submitted_at) },
+      cell: ({ row }) => formatDate(row.original.submitted_at),
+    },
+    {
+      accessorKey: "bonus_amount",
+      header: "Bonus",
+      // Amounts arrive as decimal strings: compare them as numbers, not as text.
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.bonus_amount} />,
+    },
+    {
+      id: "payouts",
+      header: "Payouts",
+      meta: { cellClassName: "whitespace-normal", text: (row) => payoutsText(row.payouts) },
+      cell: ({ row }) => (
+        <ReferralPayouts
+          payouts={row.original.payouts}
+          renderAction={(payout) =>
+            payout.status === "scheduled" ? <ReferralPayDialog payout={payout} onDone={reload} /> : null
+          }
+        />
+      ),
+    },
+    {
+      id: "actions",
+      header: "Action",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) =>
+        HIREABLE.has(row.original.status) && <ReferralHireDialog referral={row.original} onDone={reload} />,
+    },
+  ];
   return (
-    <DataPanel
+    <DataTable
       title="All referrals"
       description="Payouts are not picked up by payroll automatically. Mark one paid only after it has gone out in a run."
+      columns={columns}
+      data={data ?? []}
+      noun="referrals"
+      exportName="referrals"
+      searchPlaceholder="Search candidate, referrer or role"
       isLoading={isLoading && !data}
       error={error?.detail}
       onRetry={reload}
-      isEmpty={rows.length === 0}
       empty={{
         icon: Users,
         title: "No referrals yet",
         description: "Referrals made by employees appear here.",
       }}
-    >
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Candidate</TableHead>
-              <TableHead>Referred by</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Submitted</TableHead>
-              <TableHead className="text-right">Bonus</TableHead>
-              <TableHead>Payouts</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id} className="align-top">
-                <TableCell className="font-medium text-foreground">{row.candidate}</TableCell>
-                <TableCell>
-                  <p>{row.referrer ?? "—"}</p>
-                  {row.referrer_grade && (
-                    <p className="text-xs text-muted-foreground">Grade {row.referrer_grade}</p>
-                  )}
-                </TableCell>
-                <TableCell>{row.requisition_code ?? "—"}</TableCell>
-                <TableCell>
-                  <StatusBadge map={REFERRAL_STATUS} value={row.status} />
-                  {row.hired_on && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Joined {formatDay(row.hired_on, true)}
-                    </p>
-                  )}
-                </TableCell>
-                <TableCell className="tabular-nums">{formatDate(row.submitted_at)}</TableCell>
-                <TableCell className="text-right">
-                  <Money value={row.bonus_amount} />
-                </TableCell>
-                <TableCell className="whitespace-normal">
-                  <ReferralPayouts
-                    payouts={row.payouts}
-                    renderAction={(payout) =>
-                      payout.status === "scheduled" ? (
-                        <ReferralPayDialog payout={payout} onDone={reload} />
-                      ) : null
-                    }
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  {HIREABLE.has(row.status) && <ReferralHireDialog referral={row} onDone={reload} />}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </DataPanel>
+      rowClassName={() => "align-top"}
+    />
   );
 }
 

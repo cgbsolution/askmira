@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, Award, Loader2, Lock, Plus, Scale, Unlock } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
@@ -36,14 +37,6 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { HR } from "@/lib/access";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -77,6 +70,44 @@ export default function CalibrationPage() {
     );
   }
 
+  const columns: ColumnDef<CalibrationSession>[] = [
+    { accessorKey: "name", header: "Session", meta: { cellClassName: "font-medium" } },
+    {
+      accessorKey: "cycle_name",
+      header: "Cycle",
+      cell: ({ row }) => row.original.cycle_name ?? "—",
+    },
+    {
+      accessorKey: "scope",
+      header: "Scope",
+      meta: { text: (s) => humanize(s.scope) },
+      cell: ({ row }) => humanize(row.original.scope),
+    },
+    { id: "facilitator", header: "Facilitator", accessorFn: (s) => s.facilitator_name ?? "HR" },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (s) => `${humanize(s.status)}${s.locked_at ? " · Locked" : ""}` },
+      cell: ({ row }) => (
+        <>
+          <StatusBadge status={row.original.status} />
+          {row.original.locked_at && <Badge variant="outline" className="ml-2">Locked</Badge>}
+        </>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="ghost" onClick={() => setOpen(row.original.id)}>
+          Open
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <PageShell
       title="Calibration"
@@ -89,46 +120,18 @@ export default function CalibrationPage() {
         </RequireRole>
       }
     >
-      <DataPanel
+      <DataTable
         title="Sessions"
-        isLoading={sessions.isLoading}
+        columns={columns}
+        data={sessions.data ?? []}
+        noun="sessions"
+        exportName="calibration-sessions"
+        searchPlaceholder="Search sessions"
+        isLoading={sessions.isLoading && !sessions.data}
         error={sessions.error?.detail}
         onRetry={sessions.reload}
-        isEmpty={(sessions.data ?? []).length === 0}
         empty={{ icon: Scale, title: "No calibration sessions", description: "Sessions you are invited to appear here. HR sets them up." }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Session</TableHead>
-              <TableHead>Cycle</TableHead>
-              <TableHead>Scope</TableHead>
-              <TableHead>Facilitator</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sessions.data?.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell className="font-medium">{s.name}</TableCell>
-                <TableCell>{s.cycle_name ?? "—"}</TableCell>
-                <TableCell>{humanize(s.scope)}</TableCell>
-                <TableCell>{s.facilitator_name ?? "HR"}</TableCell>
-                <TableCell>
-                  <StatusBadge status={s.status} />
-                  {s.locked_at && <Badge variant="outline" className="ml-2">Locked</Badge>}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" onClick={() => setOpen(s.id)}>
-                    Open
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       {creating && <NewSessionDialog onClose={() => setCreating(false)} onDone={() => { setCreating(false); sessions.reload(); }} />}
     </PageShell>
   );
@@ -279,6 +282,132 @@ function Workspace({ sessionId }: { sessionId: string }) {
   const { session, viewer, distribution } = data;
   const names = Object.fromEntries(data.grid.map((r) => [r.appraisal_id, r.name]));
 
+  const gridColumns: ColumnDef<CalibrationRow>[] = [
+    {
+      accessorKey: "name",
+      header: "Person",
+      meta: {
+        text: (row) =>
+          [row.name, row.employee_code, row.manager_name ? `reports to ${row.manager_name}` : null]
+            .filter(Boolean)
+            .join(" · "),
+      },
+      cell: ({ row }) => (
+        <PersonCell
+          name={row.original.name}
+          subtitle={row.original.manager_name ? `reports to ${row.original.manager_name}` : row.original.employee_code}
+          size="sm"
+        />
+      ),
+    },
+    {
+      accessorKey: "grade",
+      header: "Grade",
+      cell: ({ row }) => row.original.grade ?? "—",
+    },
+    {
+      accessorKey: "tenure_months",
+      header: "Tenure",
+      meta: { className: "text-right tabular-nums" },
+      cell: ({ row }) => (row.original.tenure_months !== null ? `${row.original.tenure_months} mo` : "—"),
+    },
+    {
+      accessorKey: "goal_score",
+      header: "Goal score",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right tabular-nums" },
+      cell: ({ row }) => row.original.goal_score ?? "—",
+    },
+    {
+      accessorKey: "current_score",
+      header: "Score",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right tabular-nums" },
+      cell: ({ row }) => row.original.current_score ?? "—",
+    },
+    {
+      accessorKey: "peer_median_score",
+      header: "Peer median",
+      sortingFn: "alphanumeric",
+      meta: {
+        className: "text-right tabular-nums",
+        text: (row) => `${row.peer_median_score ?? "—"}${row.peer_count > 0 ? ` (${row.peer_count})` : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.peer_median_score ?? "—"}
+          {row.original.peer_count > 0 && <span className="text-xs text-muted-foreground"> ({row.original.peer_count})</span>}
+        </>
+      ),
+    },
+    {
+      accessorKey: "current_rating",
+      header: "Rating",
+      meta: { text: (row) => row.current_rating ?? "Not rated" },
+      cell: ({ row }) => row.original.current_rating ?? <span className="text-muted-foreground">Not rated</span>,
+    },
+    {
+      accessorKey: "recognition_count",
+      header: "Recognition",
+      meta: { className: "text-right tabular-nums" },
+      cell: ({ row }) => (
+        <>
+          <Award className="mr-1 inline size-3.5 text-brand-600" />
+          {row.original.recognition_count}
+        </>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <Button size="sm" variant="ghost" onClick={() => setEvidence(row.original)}>
+            Evidence
+          </Button>
+          {viewer.can_change && !row.original.is_self && (
+            <Button size="sm" variant="outline" onClick={() => setChanging(row.original)}>
+              Change
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
+  const changeColumns: ColumnDef<CalibrationChange>[] = [
+    {
+      accessorKey: "changed_at",
+      header: "When",
+      meta: { text: (c) => formatDate(c.changed_at) },
+      cell: ({ row }) => formatDate(row.original.changed_at),
+    },
+    { id: "person", header: "Person", accessorFn: (c) => names[c.appraisal_id] ?? "—" },
+    {
+      id: "from_to",
+      header: "From → to",
+      accessorFn: (c) => c.new_rating,
+      meta: {
+        text: (c) => `${c.previous_rating ?? "—"} → ${c.new_rating}${c.new_score ? ` (${c.new_score})` : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.previous_rating ?? "—"} → <span className="font-medium">{row.original.new_rating}</span>
+          {row.original.new_score && <span className="text-xs text-muted-foreground"> ({row.original.new_score})</span>}
+        </>
+      ),
+    },
+    { accessorKey: "justification", header: "Justification", meta: { cellClassName: "max-w-md whitespace-normal" } },
+    {
+      accessorKey: "applied_on_lock",
+      header: "Applied",
+      meta: { text: (c) => (c.applied_on_lock ? "Written back" : "—") },
+      cell: ({ row }) => (row.original.applied_on_lock ? <Badge variant="success">Written back</Badge> : "—"),
+    },
+  ];
+
   return (
     <div className="space-y-4">
       <Card tier="tier1">
@@ -348,97 +477,30 @@ function Workspace({ sessionId }: { sessionId: string }) {
         </Alert>
       )}
 
-      <DataPanel
+      <DataTable
         title="People in scope"
         description="Peer median is the score of others at the same grade in this session."
-        isEmpty={data.grid.length === 0}
+        columns={gridColumns}
+        data={data.grid}
+        getRowId={(row) => row.appraisal_id}
+        noun="people"
+        exportName="calibration-people"
+        searchPlaceholder="Search people"
         empty={{ icon: Scale, title: "Nobody in this session's scope has a review" }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Person</TableHead>
-              <TableHead>Grade</TableHead>
-              <TableHead className="text-right">Tenure</TableHead>
-              <TableHead className="text-right">Goal score</TableHead>
-              <TableHead className="text-right">Score</TableHead>
-              <TableHead className="text-right">Peer median</TableHead>
-              <TableHead>Rating</TableHead>
-              <TableHead className="text-right">Recognition</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.grid.map((row) => (
-              <TableRow key={row.appraisal_id}>
-                <TableCell>
-                  <PersonCell name={row.name} subtitle={row.manager_name ? `reports to ${row.manager_name}` : row.employee_code} size="sm" />
-                </TableCell>
-                <TableCell>{row.grade ?? "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.tenure_months !== null ? `${row.tenure_months} mo` : "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.goal_score ?? "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.current_score ?? "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {row.peer_median_score ?? "—"}
-                  {row.peer_count > 0 && <span className="text-xs text-muted-foreground"> ({row.peer_count})</span>}
-                </TableCell>
-                <TableCell>{row.current_rating ?? <span className="text-muted-foreground">Not rated</span>}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  <Award className="mr-1 inline size-3.5 text-brand-600" />
-                  {row.recognition_count}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => setEvidence(row)}>
-                      Evidence
-                    </Button>
-                    {viewer.can_change && !row.is_self && (
-                      <Button size="sm" variant="outline" onClick={() => setChanging(row)}>
-                        Change
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
-      <DataPanel
+      <DataTable
         title="Changes in this session"
         description="Every change, who made it and why. The last change for a person is what locking writes back."
-        isLoading={changes.isLoading}
+        columns={changeColumns}
+        data={changes.data ?? []}
+        noun="changes"
+        exportName="calibration-changes"
+        searchPlaceholder="Search changes"
+        isLoading={changes.isLoading && !changes.data}
         error={changes.error?.detail}
-        isEmpty={(changes.data ?? []).length === 0}
         empty={{ icon: Scale, title: "No ratings changed yet" }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>When</TableHead>
-              <TableHead>Person</TableHead>
-              <TableHead>From → to</TableHead>
-              <TableHead>Justification</TableHead>
-              <TableHead>Applied</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {changes.data?.map((c) => (
-              <TableRow key={c.id}>
-                <TableCell>{formatDate(c.changed_at)}</TableCell>
-                <TableCell>{names[c.appraisal_id] ?? "—"}</TableCell>
-                <TableCell>
-                  {c.previous_rating ?? "—"} → <span className="font-medium">{c.new_rating}</span>
-                  {c.new_score && <span className="text-xs text-muted-foreground"> ({c.new_score})</span>}
-                </TableCell>
-                <TableCell className="max-w-md whitespace-normal">{c.justification}</TableCell>
-                <TableCell>{c.applied_on_lock ? <Badge variant="success">Written back</Badge> : "—"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       {changing && (
         <ChangeDialog sessionId={session.id} row={changing} options={data.rating_options} onClose={() => setChanging(null)} onDone={() => { setChanging(null); refresh(); }} />

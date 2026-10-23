@@ -1,14 +1,15 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { LifeBuoy, Loader2, Plus, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { PipPanel } from "@/components/performance/PipPanel";
-import { PersonSelect, StatusBadge, useAction, usePeople } from "@/components/performance/shared";
+import { humanize, PersonSelect, StatusBadge, useAction, usePeople } from "@/components/performance/shared";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,14 +21,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
@@ -41,6 +34,54 @@ export default function PipsPage() {
   const [creating, setCreating] = useState(false);
   const rows = (data ?? []).filter((p) => !p.is_mine);
 
+  const columns: ColumnDef<PipSummary>[] = [
+    {
+      accessorKey: "employee_name",
+      header: "Employee",
+      meta: { text: (row) => `${row.employee_name} ${row.employee_code}` },
+      cell: ({ row }) => <PersonCell name={row.original.employee_name} subtitle={row.original.employee_code} size="sm" />,
+    },
+    {
+      id: "period",
+      header: "Period",
+      accessorFn: (row) => row.start_date,
+      meta: { text: (row) => formatDateRange(row.start_date, row.end_date) },
+      cell: ({ row }) => formatDateRange(row.original.start_date, row.original.end_date),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (row) => humanize(row.status) },
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+    { accessorKey: "check_ins", header: "Check-ins", meta: { className: "text-right tabular-nums" } },
+    {
+      id: "milestones_assessed",
+      header: "Milestones assessed",
+      accessorFn: (row) => row.milestones_assessed,
+      meta: {
+        className: "text-right tabular-nums",
+        text: (row) => `${row.milestones_assessed} / ${row.milestones}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.milestones_assessed} / {row.original.milestones}
+        </>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="ghost" onClick={() => setOpen(row.original.pip_id)}>
+          Open
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <PageShell
       title="Improvement plans"
@@ -51,53 +92,23 @@ export default function PipsPage() {
         </Button>
       }
     >
-      <DataPanel
+      <DataTable
         title="Plans"
-        isLoading={isLoading}
+        columns={columns}
+        data={rows}
+        getRowId={(row) => row.pip_id}
+        noun="plans"
+        exportName="improvement-plans"
+        searchPlaceholder="Search plans"
+        isLoading={isLoading && !data}
         error={error?.detail}
         onRetry={reload}
-        isEmpty={rows.length === 0}
         empty={{
           icon: LifeBuoy,
           title: "No improvement plans",
           description: "Plans you open, or that cover people in your reporting line, appear here.",
         }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Period</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Check-ins</TableHead>
-              <TableHead className="text-right">Milestones assessed</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.pip_id}>
-                <TableCell>
-                  <PersonCell name={row.employee_name} subtitle={row.employee_code} size="sm" />
-                </TableCell>
-                <TableCell>{formatDateRange(row.start_date, row.end_date)}</TableCell>
-                <TableCell>
-                  <StatusBadge status={row.status} />
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{row.check_ins}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {row.milestones_assessed} / {row.milestones}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" onClick={() => setOpen(row.pip_id)}>
-                    Open
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       <Sheet open={open !== null} onOpenChange={(value) => !value && setOpen(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">

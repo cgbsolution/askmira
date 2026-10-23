@@ -1,11 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Gift } from "lucide-react";
 import React from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { formatDay } from "@/lib/utils";
 
@@ -32,6 +33,58 @@ const TYPE_LABEL: Record<string, string> = {
   employer_contribution: "Employer contribution",
   reimbursement: "Reimbursement",
 };
+
+type CtcComponent = TotalRewards["ctc"]["components"][number];
+type BenefitCost = TotalRewards["benefits"][number];
+
+const COMPONENT_COLUMNS: ColumnDef<CtcComponent>[] = [
+  { accessorKey: "name", header: "Component" },
+  {
+    id: "kind",
+    header: "Kind",
+    accessorFn: (c) => `${TYPE_LABEL[c.type] ?? c.type}${c.part_of_ctc ? "" : " · outside CTC"}`,
+    meta: { cellClassName: "text-muted-foreground" },
+  },
+  {
+    accessorKey: "monthly",
+    header: "A month",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.monthly} />,
+  },
+  {
+    accessorKey: "annual",
+    header: "A year",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.annual} />,
+  },
+];
+
+const BENEFIT_COLUMNS: ColumnDef<BenefitCost>[] = [
+  { accessorKey: "plan", header: "Benefit plan" },
+  {
+    accessorKey: "lives",
+    header: "Lives",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+  },
+  {
+    accessorKey: "sum_insured",
+    header: "Cover",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.sum_insured} />,
+  },
+  {
+    accessorKey: "employer_premium",
+    header: "Company pays",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.employer_premium} />,
+  },
+  {
+    accessorKey: "your_premium",
+    header: "Top-up you pay",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.your_premium} />,
+  },
+];
 
 /** Everything the company spends on one person, from the salary and payslips on record. */
 export function TotalRewardsCard({ employeeId, isSelf }: { employeeId: string; isSelf: boolean }) {
@@ -63,33 +116,7 @@ export function TotalRewardsCard({ employeeId, isSelf }: { employeeId: string; i
           </div>
         )}
         {ctc.components.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Component</TableHead>
-                <TableHead>Kind</TableHead>
-                <TableHead className="text-right">A month</TableHead>
-                <TableHead className="text-right">A year</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ctc.components.map((c) => (
-                <TableRow key={c.code}>
-                  <TableCell>{c.name}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {TYPE_LABEL[c.type] ?? c.type}
-                    {!c.part_of_ctc && " · outside CTC"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={c.monthly} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={c.annual} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable variant="plain" columns={COMPONENT_COLUMNS} data={ctc.components} getRowId={(c) => c.code} />
         )}
         <div className="grid gap-3 sm:grid-cols-4">
           <Figure label={`Gross paid (${paid.payslips} payslip${paid.payslips === 1 ? "" : "s"})`} value={paid.gross_earnings} />
@@ -98,34 +125,7 @@ export function TotalRewardsCard({ employeeId, isSelf }: { employeeId: string; i
           {data.recognition && <Figure label={`Recognition (${data.recognition.points} points)`} value={data.recognition.value} />}
         </div>
         {data.benefits.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Benefit plan</TableHead>
-                <TableHead className="text-right">Lives</TableHead>
-                <TableHead className="text-right">Cover</TableHead>
-                <TableHead className="text-right">Company pays</TableHead>
-                <TableHead className="text-right">Top-up you pay</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.benefits.map((b) => (
-                <TableRow key={b.plan}>
-                  <TableCell>{b.plan}</TableCell>
-                  <TableCell className="text-right tabular-nums">{b.lives}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={b.sum_insured} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={b.employer_premium} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={b.your_premium} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable variant="plain" columns={BENEFIT_COLUMNS} data={data.benefits} getRowId={(b) => b.plan} />
         )}
         {data.not_included.map((line) => (
           <p key={line} className="text-xs text-muted-foreground">

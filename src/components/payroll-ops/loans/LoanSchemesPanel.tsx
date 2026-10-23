@@ -1,9 +1,11 @@
 "use client";
 
-import { Landmark, Loader2, Plus } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Landmark, Loader2, Lock, Plus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { apiErrorMessage, InlineProblem, isMoneyInput } from "@/components/payroll-ops/shared";
@@ -26,14 +28,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
@@ -47,87 +41,129 @@ import {
   LOAN_TYPE_LABEL,
   ToggleRow,
 } from "./common";
-import { QueryPanel } from "./QueryPanel";
+
+const SCHEME_COLUMNS: ColumnDef<LoanScheme>[] = [
+  {
+    accessorKey: "name",
+    header: "Scheme",
+    meta: { text: (scheme) => `${scheme.name} ${LOAN_TYPE_LABEL[scheme.loan_type]}` },
+    cell: ({ row }) => (
+      <>
+        <span className="font-medium text-foreground">{row.original.name}</span>
+        <span className="block text-xs text-muted-foreground">{LOAN_TYPE_LABEL[row.original.loan_type]}</span>
+      </>
+    ),
+  },
+  {
+    id: "interest",
+    header: "Interest",
+    accessorFn: (scheme) => describeRate(scheme.interest_rate, scheme.interest_type),
+    sortingFn: "alphanumeric",
+    meta: { cellClassName: "text-sm" },
+  },
+  {
+    id: "max_amount",
+    header: "Max amount",
+    accessorFn: (scheme) => scheme.max_amount,
+    sortingFn: "alphanumeric",
+    meta: {
+      className: "text-right",
+      text: (scheme) =>
+        scheme.max_amount ||
+        (scheme.max_amount_as_multiple_of_salary
+          ? `${scheme.max_amount_as_multiple_of_salary} × salary`
+          : "No cap"),
+    },
+    cell: ({ row }) =>
+      row.original.max_amount ? (
+        <Money value={row.original.max_amount} />
+      ) : row.original.max_amount_as_multiple_of_salary ? (
+        <span className="tabular-nums">{row.original.max_amount_as_multiple_of_salary} × salary</span>
+      ) : (
+        <span className="text-muted-foreground">No cap</span>
+      ),
+  },
+  {
+    accessorKey: "max_tenure_months",
+    header: "Max tenure",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => `${row.original.max_tenure_months} mo`,
+  },
+  {
+    accessorKey: "eligibility_min_service_months",
+    header: "Service needed",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => `${row.original.eligibility_min_service_months} mo`,
+  },
+  {
+    accessorKey: "moratorium_months",
+    header: "Moratorium",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => `${row.original.moratorium_months} mo`,
+  },
+  {
+    accessorKey: "minimum_net_pay",
+    header: "Min net pay",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.minimum_net_pay} />,
+  },
+  {
+    id: "rules",
+    header: "Rules",
+    meta: {
+      text: (scheme) =>
+        [
+          !scheme.active && "Inactive",
+          scheme.requires_approval && "Needs approval",
+          scheme.allow_partial_recovery && "Partial recovery",
+        ]
+          .filter(Boolean)
+          .join(", "),
+    },
+    cell: ({ row }) => (
+      <div className="flex flex-wrap gap-1">
+        {!row.original.active && <Badge variant="muted">Inactive</Badge>}
+        {row.original.requires_approval && <Badge variant="outline">Needs approval</Badge>}
+        {row.original.allow_partial_recovery && <Badge variant="outline">Partial recovery</Badge>}
+      </div>
+    ),
+  },
+];
 
 /** Loan schemes: the limits every application and every EMI is held to. */
 export function LoanSchemesPanel() {
   const { hasRole } = useAuth();
   const query = useApiQuery<LoanScheme[]>("/loans/schemes");
   const isAdmin = hasRole(...ADMIN_ROLES);
+  // A 403 reads as "no access", not as a failed load that a retry could fix.
+  const forbidden = query.error?.status === 403;
 
   return (
-    <QueryPanel
-      query={query}
+    <DataTable
       title="Loan schemes"
       description="Each scheme sets the limits an application is checked against, and the minimum net pay an EMI recovery may never push salary below."
       actions={isAdmin && <CreateSchemeDialog onCreated={query.reload} />}
-      isEmpty={(rows) => rows.length === 0}
-      empty={{
-        icon: Landmark,
-        title: "No loan schemes yet",
-        description: isAdmin
-          ? "Create a scheme before anyone can apply for a loan."
-          : "An admin has to create a scheme before anyone can apply for a loan.",
-      }}
-    >
-      {(schemes) => (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Scheme</TableHead>
-              <TableHead>Interest</TableHead>
-              <TableHead className="text-right">Max amount</TableHead>
-              <TableHead className="text-right">Max tenure</TableHead>
-              <TableHead className="text-right">Service needed</TableHead>
-              <TableHead className="text-right">Moratorium</TableHead>
-              <TableHead className="text-right">Min net pay</TableHead>
-              <TableHead>Rules</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {schemes.map((scheme) => (
-              <TableRow key={scheme.id}>
-                <TableCell>
-                  <span className="font-medium text-foreground">{scheme.name}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {LOAN_TYPE_LABEL[scheme.loan_type]}
-                  </span>
-                </TableCell>
-                <TableCell className="text-sm">
-                  {describeRate(scheme.interest_rate, scheme.interest_type)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {scheme.max_amount ? (
-                    <Money value={scheme.max_amount} />
-                  ) : scheme.max_amount_as_multiple_of_salary ? (
-                    <span className="tabular-nums">
-                      {scheme.max_amount_as_multiple_of_salary} × salary
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">No cap</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{scheme.max_tenure_months} mo</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {scheme.eligibility_min_service_months} mo
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{scheme.moratorium_months} mo</TableCell>
-                <TableCell className="text-right">
-                  <Money value={scheme.minimum_net_pay} />
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {!scheme.active && <Badge variant="muted">Inactive</Badge>}
-                    {scheme.requires_approval && <Badge variant="outline">Needs approval</Badge>}
-                    {scheme.allow_partial_recovery && <Badge variant="outline">Partial recovery</Badge>}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </QueryPanel>
+      columns={SCHEME_COLUMNS}
+      data={forbidden ? [] : (query.data ?? [])}
+      noun="schemes"
+      exportName="loan-schemes"
+      searchPlaceholder="Search schemes"
+      isLoading={query.isLoading && query.data === null}
+      error={forbidden ? null : (query.error?.detail ?? null)}
+      onRetry={query.reload}
+      empty={
+        forbidden
+          ? { icon: Lock, title: "You don't have access to this", description: query.error?.detail }
+          : {
+              icon: Landmark,
+              title: "No loan schemes yet",
+              description: isAdmin
+                ? "Create a scheme before anyone can apply for a loan."
+                : "An admin has to create a scheme before anyone can apply for a loan.",
+            }
+      }
+    />
   );
 }
 
@@ -225,7 +261,7 @@ function CreateSchemeDialog({ onCreated }: { onCreated: () => void }) {
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm">
+        <Button size="sm" className="h-9">
           <Plus /> New scheme
         </Button>
       </DialogTrigger>

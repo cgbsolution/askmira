@@ -1,16 +1,18 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { BellRing, Loader2, TrendingUp, UserCheck, Users } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
 import { ReviewView } from "@/components/performance/ReviewView";
-import { PercentBar, PersonSelect, StatusBadge, useAction, usePeople } from "@/components/performance/shared";
+import { humanize, PercentBar, PersonSelect, StatusBadge, useAction, usePeople } from "@/components/performance/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,14 +32,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { HR } from "@/lib/access";
@@ -47,6 +41,37 @@ import type { CycleProgress, CycleSummary, Delegation, TeamReviewRow } from "@/l
 import { formatDay, toISODate } from "@/lib/utils";
 
 const ALL = "__all__";
+
+type DepartmentProgress = CycleProgress["by_department"][number];
+type ManagerProgress = CycleProgress["by_manager"][number];
+
+const DEPARTMENT_COLUMNS: ColumnDef<DepartmentProgress>[] = [
+  { accessorKey: "department", header: "Department" },
+  {
+    accessorKey: "completion_percent",
+    header: "Completion",
+    meta: { text: (b) => `${b.completion_percent}%` },
+    cell: ({ row }) => (
+      <PercentBar value={String(row.original.completion_percent)} label={`${row.original.department} completion`} />
+    ),
+  },
+  { accessorKey: "pending", header: "Pending", meta: { className: "text-right tabular-nums" } },
+  { accessorKey: "overdue", header: "Overdue", meta: { className: "text-right tabular-nums" } },
+];
+
+const MANAGER_COLUMNS: ColumnDef<ManagerProgress>[] = [
+  { accessorKey: "manager_name", header: "Manager" },
+  {
+    accessorKey: "completion_percent",
+    header: "Completion",
+    meta: { text: (b) => `${b.completion_percent}%` },
+    cell: ({ row }) => (
+      <PercentBar value={String(row.original.completion_percent)} label={`${row.original.manager_name} completion`} />
+    ),
+  },
+  { accessorKey: "pending", header: "Pending", meta: { className: "text-right tabular-nums" } },
+  { accessorKey: "overdue", header: "Overdue", meta: { className: "text-right tabular-nums" } },
+];
 
 export default function TeamPage() {
   const cycles = useApiQuery<CycleSummary[]>("/appraisal/cycles");
@@ -60,6 +85,96 @@ export default function TeamPage() {
 
   const rows = team.data ?? [];
   const waiting = rows.filter((r) => r.awaiting_me).length;
+
+  const columns: ColumnDef<TeamReviewRow>[] = [
+    {
+      accessorKey: "employee_name",
+      header: "Employee",
+      meta: {
+        text: (row) =>
+          [row.employee_name, row.employee_code, row.department, row.manager_name && `reports to ${row.manager_name}`]
+            .filter(Boolean)
+            .join(" · "),
+      },
+      cell: ({ row }) => (
+        <PersonCell
+          name={row.original.employee_name}
+          subtitle={[row.original.department, row.original.manager_name && `reports to ${row.original.manager_name}`]
+            .filter(Boolean)
+            .join(" · ")}
+          size="sm"
+        />
+      ),
+    },
+    { accessorKey: "cycle_name", header: "Cycle" },
+    {
+      accessorKey: "stage_label",
+      header: "Step",
+      meta: { text: (row) => `${row.stage_label ?? "—"}${row.awaiting_me ? " · Yours" : ""}` },
+      cell: ({ row }) => (
+        <>
+          {row.original.stage_label ?? "—"}
+          {row.original.awaiting_me && <Badge variant="accent" className="ml-2">Yours</Badge>}
+        </>
+      ),
+    },
+    {
+      accessorKey: "due_date",
+      header: "Due",
+      meta: {
+        text: (row) =>
+          [
+            row.due_date ? formatDay(row.due_date, true) : "—",
+            row.days_overdue > 0 ? `${row.days_overdue}d late` : null,
+            row.escalated ? "Escalated" : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.due_date ? formatDay(row.original.due_date, true) : "—"}
+          {row.original.days_overdue > 0 && (
+            <Badge variant={row.original.escalation_due ? "destructive" : "warning"} className="ml-2">
+              {row.original.days_overdue}d late
+            </Badge>
+          )}
+          {row.original.escalated && <Badge variant="warning" className="ml-2">Escalated</Badge>}
+        </>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (row) => humanize(row.status) },
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+    {
+      accessorKey: "final_rating",
+      header: "Rating",
+      meta: {
+        cellClassName: "tabular-nums",
+        text: (row) => `${row.final_rating ?? "—"}${row.final_score ? ` · ${row.final_score}` : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.final_rating ?? "—"}
+          {row.original.final_score && <span className="text-muted-foreground"> · {row.original.final_score}</span>}
+        </>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant={row.original.awaiting_me ? "default" : "ghost"} onClick={() => setOpen(row.original)}>
+          {row.original.awaiting_me ? "Review" : "Open"}
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <PageShell title="My team" description="Reviews in your reporting line, who is holding each, and what is late.">
@@ -97,72 +212,24 @@ export default function TeamPage() {
         </TabsList>
 
         <TabsContent value="reviews" className="mt-4">
-          <DataPanel
+          <DataTable
             title="Reviews"
             description="Waiting on you first, then the most overdue."
-            isLoading={team.isLoading}
+            columns={columns}
+            data={rows}
+            getRowId={(row) => row.appraisal_id}
+            noun="reviews"
+            exportName="team-reviews"
+            searchPlaceholder="Search reviews"
+            isLoading={team.isLoading && !team.data}
             error={team.error?.detail}
             onRetry={team.reload}
-            isEmpty={rows.length === 0}
             empty={{
               icon: Users,
               title: "No reviews to show",
               description: "Reviews for people in your reporting line appear here once a cycle is launched.",
             }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Cycle</TableHead>
-                  <TableHead>Step</TableHead>
-                  <TableHead>Due</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Rating</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.appraisal_id}>
-                    <TableCell>
-                      <PersonCell
-                        name={row.employee_name}
-                        subtitle={[row.department, row.manager_name && `reports to ${row.manager_name}`].filter(Boolean).join(" · ")}
-                        size="sm"
-                      />
-                    </TableCell>
-                    <TableCell>{row.cycle_name}</TableCell>
-                    <TableCell>
-                      {row.stage_label ?? "—"}
-                      {row.awaiting_me && <Badge variant="accent" className="ml-2">Yours</Badge>}
-                    </TableCell>
-                    <TableCell>
-                      {row.due_date ? formatDay(row.due_date, true) : "—"}
-                      {row.days_overdue > 0 && (
-                        <Badge variant={row.escalation_due ? "destructive" : "warning"} className="ml-2">
-                          {row.days_overdue}d late
-                        </Badge>
-                      )}
-                      {row.escalated && <Badge variant="warning" className="ml-2">Escalated</Badge>}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={row.status} />
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {row.final_rating ?? "—"}
-                      {row.final_score && <span className="text-muted-foreground"> · {row.final_score}</span>}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant={row.awaiting_me ? "default" : "ghost"} onClick={() => setOpen(row)}>
-                        {row.awaiting_me ? "Review" : "Open"}
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </TabsContent>
 
         <TabsContent value="progress" className="mt-4">
@@ -197,62 +264,31 @@ function ProgressDashboard({ cycleId }: { cycleId: string }) {
   const { data, error, isLoading, reload } = useApiQuery<CycleProgress>(`/appraisal/cycles/${cycleId}/progress`);
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <DataPanel
+      <DataTable
         title={data ? `${data.cycle}: ${data.completion_percent}% complete` : "Completion"}
         description={data ? `${data.completed} of ${data.total} reviews complete` : undefined}
-        isLoading={isLoading}
+        columns={DEPARTMENT_COLUMNS}
+        data={data?.by_department ?? []}
+        getRowId={(b) => b.department_id ?? "none"}
+        noun="departments"
+        exportName="review-completion-by-department"
+        searchPlaceholder="Search departments"
+        isLoading={isLoading && !data}
         error={error?.detail}
         onRetry={reload}
-        isEmpty={data?.total === 0}
         empty={{ icon: TrendingUp, title: "Nobody in this cycle is in your line" }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Department</TableHead>
-              <TableHead>Completion</TableHead>
-              <TableHead className="text-right">Pending</TableHead>
-              <TableHead className="text-right">Overdue</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data?.by_department.map((b) => (
-              <TableRow key={b.department_id ?? "none"}>
-                <TableCell>{b.department}</TableCell>
-                <TableCell>
-                  <PercentBar value={String(b.completion_percent)} label={`${b.department} completion`} />
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{b.pending}</TableCell>
-                <TableCell className="text-right tabular-nums">{b.overdue}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
-      <DataPanel title="By manager" isLoading={isLoading} isEmpty={!data || data.by_manager.length === 0} empty={{ icon: Users, title: "No managers to show" }}>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Manager</TableHead>
-              <TableHead>Completion</TableHead>
-              <TableHead className="text-right">Pending</TableHead>
-              <TableHead className="text-right">Overdue</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data?.by_manager.map((b) => (
-              <TableRow key={b.manager_id ?? "none"}>
-                <TableCell>{b.manager_name}</TableCell>
-                <TableCell>
-                  <PercentBar value={String(b.completion_percent)} label={`${b.manager_name} completion`} />
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{b.pending}</TableCell>
-                <TableCell className="text-right tabular-nums">{b.overdue}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
+      <DataTable
+        title="By manager"
+        columns={MANAGER_COLUMNS}
+        data={data?.by_manager ?? []}
+        getRowId={(b) => b.manager_id ?? "none"}
+        noun="managers"
+        exportName="review-completion-by-manager"
+        searchPlaceholder="Search managers"
+        isLoading={isLoading && !data}
+        empty={{ icon: Users, title: "No managers to show" }}
+      />
       {data && Object.keys(data.pending_by_stage).length > 0 && (
         <DataPanel title="Pending by step" className="lg:col-span-2">
           <ul className="flex flex-wrap gap-4 p-5 text-sm">
@@ -325,9 +361,60 @@ function Delegations({ cycles }: { cycles: CycleSummary[] }) {
   const { busy, run } = useAction();
   const cycleNames = useMemo(() => Object.fromEntries(cycles.map((c) => [c.id, c.name])), [cycles]);
 
+  const columns: ColumnDef<Delegation>[] = [
+    { id: "cycle", header: "Cycle", accessorFn: (d) => cycleNames[d.cycle_id] ?? "—" },
+    { accessorKey: "from_name", header: "From" },
+    { accessorKey: "to_name", header: "To" },
+    {
+      id: "period",
+      header: "Period",
+      accessorFn: (d) => d.effective_from,
+      meta: { text: (d) => `${formatDay(d.effective_from, true)} – ${formatDay(d.effective_to, true)}` },
+      cell: ({ row }) => (
+        <>
+          {formatDay(row.original.effective_from, true)} – {formatDay(row.original.effective_to, true)}
+        </>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorFn: (d) => (d.in_effect ? "In effect" : d.active ? "Scheduled or past" : "Ended"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.in_effect ? "success" : "muted"}>
+          {row.original.in_effect ? "In effect" : row.original.active ? "Scheduled or past" : "Ended"}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => {
+        const d = row.original;
+        return (
+          d.active && (
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy !== null}
+              onClick={async () => {
+                await run(d.id, () => post(`/appraisal/delegations/${d.id}/revoke`), "Delegation ended.");
+                reload();
+              }}
+            >
+              End
+            </Button>
+          )
+        );
+      },
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Delegations"
         description="Hand your review steps to somebody while you are away. The entries they write name you as the owner."
         actions={
@@ -335,55 +422,16 @@ function Delegations({ cycles }: { cycles: CycleSummary[] }) {
             <UserCheck /> Delegate my steps
           </Button>
         }
-        isLoading={isLoading}
+        columns={columns}
+        data={data ?? []}
+        noun="delegations"
+        exportName="review-delegations"
+        searchPlaceholder="Search delegations"
+        isLoading={isLoading && !data}
         error={error?.detail}
         onRetry={reload}
-        isEmpty={(data ?? []).length === 0}
         empty={{ icon: UserCheck, title: "No delegations", description: "Delegations to or from you appear here." }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cycle</TableHead>
-              <TableHead>From</TableHead>
-              <TableHead>To</TableHead>
-              <TableHead>Period</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data?.map((d) => (
-              <TableRow key={d.id}>
-                <TableCell>{cycleNames[d.cycle_id] ?? "—"}</TableCell>
-                <TableCell>{d.from_name}</TableCell>
-                <TableCell>{d.to_name}</TableCell>
-                <TableCell>
-                  {formatDay(d.effective_from, true)} – {formatDay(d.effective_to, true)}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={d.in_effect ? "success" : "muted"}>{d.in_effect ? "In effect" : d.active ? "Scheduled or past" : "Ended"}</Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  {d.active && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={busy !== null}
-                      onClick={async () => {
-                        await run(d.id, () => post(`/appraisal/delegations/${d.id}/revoke`), "Delegation ended.");
-                        reload();
-                      }}
-                    >
-                      End
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       {creating && (
         <DelegateDialog
           cycles={cycles}

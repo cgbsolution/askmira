@@ -1,9 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Plus, Receipt } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
@@ -19,14 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, put } from "@/lib/api";
@@ -50,6 +44,36 @@ function currentMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
+
+type CostLine = NonNullable<CostPerHireReport["cost_lines"]>[number];
+
+const COST_LINE_COLUMNS: ColumnDef<CostLine>[] = [
+  {
+    accessorKey: "component",
+    header: "Component",
+    meta: { cellClassName: "text-foreground", text: (row) => componentLabel(row.component) },
+    cell: ({ row }) => componentLabel(row.original.component),
+  },
+  {
+    accessorKey: "source",
+    header: "Source",
+    cell: ({ row }) => row.original.source || "—",
+  },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    // A decimal string: compared as a number, not letter by letter.
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.amount} />,
+  },
+  {
+    accessorKey: "note",
+    header: "Note",
+    meta: { cellClassName: "max-w-80 whitespace-normal text-xs text-muted-foreground" },
+    cell: ({ row }) => row.original.note ?? "—",
+  },
+];
 
 /** Record one recruitment cost line for a period (HR). */
 export function CostRecordDialog({
@@ -214,7 +238,7 @@ export function CostPerHirePanel() {
           Enter a period to see its cost per hire.
         </p>
       ) : (
-        <div className="grid gap-4 pb-4">
+        <div className="grid gap-4">
           <dl className="grid grid-cols-1 gap-3 px-5 pt-4 sm:grid-cols-3">
             <div className="rounded-md border border-border px-3 py-2">
               <dt className="text-xs text-muted-foreground">Total recorded cost</dt>
@@ -257,38 +281,17 @@ export function CostPerHirePanel() {
               </p>
             )}
           </div>
-          {lines.length === 0 ? (
-            <div className="flex items-center gap-2 px-5 text-sm text-muted-foreground">
-              <Receipt className="size-4" /> No cost lines recorded for this period.
-            </div>
-          ) : (
-            <div className="overflow-x-auto border-t border-border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Component</TableHead>
-                    <TableHead>Source</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Note</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {lines.map((line) => (
-                    <TableRow key={line.id}>
-                      <TableCell className="text-foreground">{componentLabel(line.component)}</TableCell>
-                      <TableCell>{line.source || "—"}</TableCell>
-                      <TableCell className="text-right">
-                        <Money value={line.amount} />
-                      </TableCell>
-                      <TableCell className="max-w-80 whitespace-normal text-xs text-muted-foreground">
-                        {line.note ?? "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <div className="border-t border-border">
+            <DataTable
+              columns={COST_LINE_COLUMNS}
+              data={lines}
+              noun="cost lines"
+              exportName={`recruitment-costs-${report.period}`}
+              bordered={false}
+              searchPlaceholder="Search cost lines"
+              empty={{ icon: Receipt, title: "No cost lines recorded for this period" }}
+            />
+          </div>
         </div>
       )}
     </DataPanel>

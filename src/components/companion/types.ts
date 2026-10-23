@@ -41,6 +41,8 @@ export type CompanionCard =
       open?: string;
       /** Per row: where to open that row in the product (a job's candidates, with résumés). */
       links?: (string | null)[];
+      /** One page of a longer list on a portal page: which page, its size and the rows in all. */
+      page?: { number: number; size: number; total: number };
     }
   | {
       type: "policy";

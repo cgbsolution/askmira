@@ -1,14 +1,14 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { CalendarRange, Loader2, Pencil, Plus } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -27,26 +27,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post, put } from "@/lib/api";
-import type { Roster, RosterInput, Shift } from "@/lib/types/attendance";
+import type { Roster, RosterDay, RosterInput, Shift } from "@/lib/types/attendance";
 import { cn } from "@/lib/utils";
 
-import { errorDetail, LoadError, parseWholeNumber, shortTime, TableSkeleton } from "./shared";
-import { Field } from "./ShiftsTab";
+import { errorDetail, parseWholeNumber, shortTime } from "./shared";
+import { Field, loadErrorProps } from "./ShiftsTab";
 
 /** A UI bound so the day list stays usable; the API's own limit wins if lower. */
 const MAX_CYCLE_DAYS = 62;
 const WEEK_OFF = "__week_off__";
+
+function cycleText(roster: Roster): string {
+  return `${roster.cycle_days} ${roster.cycle_days === 1 ? "day" : "days"}`;
+}
+
+function daysInOrder(roster: Roster): RosterDay[] {
+  return [...roster.days].sort((a, b) => a.day_index - b.day_index);
+}
 
 export function RostersTab() {
   const rosters = useApiQuery<Roster[]>("/attendance/rosters");
@@ -66,91 +66,105 @@ export function RostersTab() {
     rosters.reload();
     shifts.reload();
   };
+  // The pattern names each day's shift by its code, so the rows wait for both lists.
+  const isLoading = (rosters.isLoading && !rosters.data) || (shifts.isLoading && !shifts.data);
+  const dayLabel = (day: RosterDay) =>
+    day.shift_id ? (shiftById.get(day.shift_id)?.code ?? "Unknown shift") : "Off";
+
+  const columns: ColumnDef<Roster>[] = [
+    {
+      accessorKey: "name",
+      header: "Name",
+      meta: { text: (roster) => [roster.name, roster.description].filter(Boolean).join(" · ") },
+      cell: ({ row: { original: roster } }) => (
+        <>
+          <p className="font-medium">{roster.name}</p>
+          {roster.description && (
+            <p className="max-w-64 truncate text-xs text-muted-foreground">{roster.description}</p>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "cycle_days",
+      header: "Cycle",
+      meta: { cellClassName: "tabular-nums", text: cycleText },
+      cell: ({ row }) => cycleText(row.original),
+    },
+    {
+      id: "pattern",
+      header: "Pattern",
+      meta: {
+        cellClassName: "max-w-96 whitespace-normal",
+        text: (roster) =>
+          daysInOrder(roster)
+            .map((day) => `${day.day_index + 1}·${dayLabel(day)}`)
+            .join(", "),
+      },
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {daysInOrder(row.original).map((day) => (
+            <Badge
+              key={day.day_index}
+              variant={day.shift_id ? "secondary" : "muted"}
+              title={`Day ${day.day_index + 1}`}
+            >
+              <span className="tabular-nums">{day.day_index + 1}</span>·{dayLabel(day)}
+            </Badge>
+          ))}
+        </div>
+      ),
+    },
+    {
+      id: "state",
+      header: "State",
+      accessorFn: (roster) => (roster.active ? "Active" : "Inactive"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.active ? "success" : "muted"}>
+          {row.original.active ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button variant="ghost" size="sm" onClick={() => setEditing(row.original)}>
+          <Pencil /> Edit
+        </Button>
+      ),
+    },
+  ];
 
   return (
-    <Card tier="tier1" className="pb-0">
-      <CardHeader>
-        <CardTitle>Rosters</CardTitle>
-        <CardDescription>Rotating patterns of shifts and week offs, repeated every cycle.</CardDescription>
-        <CardAction>
-          <Button size="sm" disabled={!shifts.data} onClick={() => setEditing("new")}>
+    <>
+      <DataTable
+        tier="tier1"
+        title="Rosters"
+        description="Rotating patterns of shifts and week offs, repeated every cycle."
+        actions={
+          <Button size="sm" className="h-9" disabled={!shifts.data} onClick={() => setEditing("new")}>
             <Plus /> New roster
           </Button>
-        </CardAction>
-      </CardHeader>
-
-      {rosters.isLoading || shifts.isLoading ? (
-        <div className="pb-5">
-          <TableSkeleton />
-        </div>
-      ) : error ? (
-        <LoadError error={error} onRetry={reloadAll} />
-      ) : rows.length === 0 ? (
-        <EmptyState
-          icon={CalendarRange}
-          title="No rosters defined"
-          description={
-            (shifts.data ?? []).some((shift) => shift.active)
-              ? "Create a roster to rotate people through shifts."
-              : "Create at least one active shift first, then build a roster from it."
-          }
-        />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="pl-5">Name</TableHead>
-              <TableHead>Cycle</TableHead>
-              <TableHead>Pattern</TableHead>
-              <TableHead>State</TableHead>
-              <TableHead className="pr-5 text-right">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((roster) => (
-              <TableRow key={roster.id} className={cn(!roster.active && "text-muted-foreground")}>
-                <TableCell className="pl-5">
-                  <p className="font-medium">{roster.name}</p>
-                  {roster.description && (
-                    <p className="max-w-64 truncate text-xs text-muted-foreground">{roster.description}</p>
-                  )}
-                </TableCell>
-                <TableCell className="tabular-nums">
-                  {roster.cycle_days} {roster.cycle_days === 1 ? "day" : "days"}
-                </TableCell>
-                <TableCell className="max-w-96 whitespace-normal">
-                  <div className="flex flex-wrap gap-1">
-                    {[...roster.days]
-                      .sort((a, b) => a.day_index - b.day_index)
-                      .map((day) => (
-                        <Badge
-                          key={day.day_index}
-                          variant={day.shift_id ? "secondary" : "muted"}
-                          title={`Day ${day.day_index + 1}`}
-                        >
-                          <span className="tabular-nums">{day.day_index + 1}</span>·
-                          {day.shift_id ? (shiftById.get(day.shift_id)?.code ?? "Unknown shift") : "Off"}
-                        </Badge>
-                      ))}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={roster.active ? "success" : "muted"}>
-                    {roster.active ? "Active" : "Inactive"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="pr-5 text-right">
-                  <Button variant="ghost" size="sm" onClick={() => setEditing(roster)}>
-                    <Pencil /> Edit
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+        }
+        columns={columns}
+        data={isLoading ? [] : rows}
+        noun="rosters"
+        searchPlaceholder="Search rosters"
+        rowClassName={(roster) => cn(!roster.active && "text-muted-foreground")}
+        isLoading={isLoading}
+        loadingRows={4}
+        {...loadErrorProps(error, reloadAll)}
+        empty={{
+          icon: CalendarRange,
+          title: "No rosters defined",
+          description: (shifts.data ?? []).some((shift) => shift.active)
+            ? "Create a roster to rotate people through shifts."
+            : "Create at least one active shift first, then build a roster from it.",
+        }}
+      />
 
       <RosterDialog
         target={editing}
@@ -161,7 +175,7 @@ export function RostersTab() {
           rosters.reload();
         }}
       />
-    </Card>
+    </>
   );
 }
 

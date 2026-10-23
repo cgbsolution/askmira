@@ -1,31 +1,24 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { ChevronDown, Download, Loader2, Upload, Users } from "lucide-react";
 import Link from "next/link";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
-import { TablePager, usePaged } from "@/components/common/TablePager";
 import { StatTile } from "@/components/expenses/ReviewCommon";
 import { EMPLOYMENT_STATUS, apiMessage } from "@/components/people/labels";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Stepper } from "@/components/ui/stepper";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { downloadFile, post } from "@/lib/api";
 import type { ImportPreview, ImportResult, ImportRow, ImportRowOutcome } from "@/lib/types/people";
@@ -383,98 +376,130 @@ const FILTERS: { value: RowFilter; label: string }[] = [
   { value: "skip", label: "Already here" },
 ];
 
+const SKIPPED_NOTE = "This Emp Code is already in AskMira; the record is left as it is.";
+
+/** The status badge's words, for the search and the CSV. */
+function statusText(row: ImportRow): string | null {
+  if (row.outcome === "skip") return "Already here";
+  if (row.outcome === "error") return "Not added";
+  if (!row.status) return null;
+  return row.status === "exited" && row.date_of_exit
+    ? `Left ${formatDay(row.date_of_exit, true)}`
+    : EMPLOYMENT_STATUS[row.status].label;
+}
+
+const IMPORT_ROW_COLUMNS: ColumnDef<ImportRow>[] = [
+  {
+    accessorKey: "line",
+    header: "Row",
+    meta: { className: "w-14", cellClassName: "tabular-nums text-muted-foreground" },
+  },
+  {
+    accessorKey: "name",
+    header: "Employee",
+    meta: { text: (row) => [row.name, row.employee_code].filter(Boolean).join(" ") },
+    cell: ({ row }) => (
+      <>
+        <span className="block font-medium">{row.original.name ?? "—"}</span>
+        <span className="text-xs text-muted-foreground">{row.original.employee_code ?? "No code"}</span>
+      </>
+    ),
+  },
+  {
+    id: "status",
+    header: "Status",
+    accessorFn: (row) => statusText(row),
+    cell: ({ row }) =>
+      row.original.outcome === "skip" ? (
+        <Badge variant="muted">Already here</Badge>
+      ) : row.original.outcome === "error" ? (
+        <Badge variant="destructive">Not added</Badge>
+      ) : row.original.status ? (
+        <Badge variant={EMPLOYMENT_STATUS[row.original.status].variant}>
+          {row.original.status === "exited" && row.original.date_of_exit
+            ? `Left ${formatDay(row.original.date_of_exit, true)}`
+            : EMPLOYMENT_STATUS[row.original.status].label}
+        </Badge>
+      ) : null,
+  },
+  {
+    accessorKey: "date_of_joining",
+    header: "Joined",
+    meta: {
+      cellClassName: "whitespace-nowrap tabular-nums",
+      text: (row) => (row.date_of_joining ? formatDay(row.date_of_joining, true) : null),
+    },
+    cell: ({ row }) => (row.original.date_of_joining ? formatDay(row.original.date_of_joining, true) : "—"),
+  },
+  {
+    accessorKey: "department",
+    header: "Department",
+    cell: ({ row }) => row.original.department ?? "—",
+  },
+  {
+    accessorKey: "location",
+    header: "Location",
+    cell: ({ row }) => row.original.location ?? "—",
+  },
+  {
+    accessorKey: "manager",
+    header: "Manager",
+    meta: { cellClassName: "whitespace-nowrap" },
+    cell: ({ row }) => row.original.manager ?? "—",
+  },
+  {
+    id: "notes",
+    header: "Notes",
+    accessorFn: (row) =>
+      [...row.errors, ...row.warnings, ...(row.outcome === "skip" ? [SKIPPED_NOTE] : [])].join("; "),
+    meta: { className: "min-w-72", cellClassName: "whitespace-normal" },
+    cell: ({ row }) => (
+      <ul className="grid gap-1 text-xs">
+        {row.original.errors.map((message) => (
+          <li key={message} className="text-destructive">
+            {message}
+          </li>
+        ))}
+        {row.original.warnings.map((message) => (
+          <li key={message} className="text-muted-foreground">
+            {message}
+          </li>
+        ))}
+        {row.original.outcome === "skip" && <li className="text-muted-foreground">{SKIPPED_NOTE}</li>}
+      </ul>
+    ),
+  },
+];
+
 /** The file's rows: what happens to each, and what was left out of it. */
 function ImportRows({ rows }: { rows: ImportRow[] }) {
   const [filter, setFilter] = useState<RowFilter>("all");
   const shown = filter === "all" ? rows : rows.filter((row) => row.outcome === filter);
-  const paged = usePaged(shown, 25);
   const count = (value: RowFilter) =>
     value === "all" ? rows.length : rows.filter((row) => row.outcome === value).length;
 
   return (
-    <div className="grid gap-3">
-      <Tabs value={filter} onValueChange={(value) => setFilter(value as RowFilter)}>
-        <TabsList>
-          {FILTERS.map((option) => (
-            <TabsTrigger key={option.value} value={option.value}>
-              {option.label} ({count(option.value)})
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-      <div className="overflow-x-auto rounded-xl border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-14">Row</TableHead>
-              <TableHead>Employee</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Joined</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Manager</TableHead>
-              <TableHead className="min-w-72">Notes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paged.rows.map((row) => (
-              <TableRow key={row.line} className="align-top">
-                <TableCell className="tabular-nums text-muted-foreground">{row.line}</TableCell>
-                <TableCell>
-                  <span className="block font-medium">{row.name ?? "—"}</span>
-                  <span className="text-xs text-muted-foreground">{row.employee_code ?? "No code"}</span>
-                </TableCell>
-                <TableCell>
-                  {row.outcome === "skip" ? (
-                    <Badge variant="muted">Already here</Badge>
-                  ) : row.outcome === "error" ? (
-                    <Badge variant="destructive">Not added</Badge>
-                  ) : row.status ? (
-                    <Badge variant={EMPLOYMENT_STATUS[row.status].variant}>
-                      {row.status === "exited" && row.date_of_exit
-                        ? `Left ${formatDay(row.date_of_exit, true)}`
-                        : EMPLOYMENT_STATUS[row.status].label}
-                    </Badge>
-                  ) : null}
-                </TableCell>
-                <TableCell className="whitespace-nowrap tabular-nums">
-                  {row.date_of_joining ? formatDay(row.date_of_joining, true) : "—"}
-                </TableCell>
-                <TableCell>{row.department ?? "—"}</TableCell>
-                <TableCell>{row.location ?? "—"}</TableCell>
-                <TableCell className="whitespace-nowrap">{row.manager ?? "—"}</TableCell>
-                <TableCell className="min-w-72 whitespace-normal">
-                  <ul className="grid gap-1 text-xs">
-                    {row.errors.map((message) => (
-                      <li key={message} className="text-destructive">
-                        {message}
-                      </li>
-                    ))}
-                    {row.warnings.map((message) => (
-                      <li key={message} className="text-muted-foreground">
-                        {message}
-                      </li>
-                    ))}
-                    {row.outcome === "skip" && (
-                      <li className="text-muted-foreground">
-                        This Emp Code is already in AskMira; the record is left as it is.
-                      </li>
-                    )}
-                  </ul>
-                </TableCell>
-              </TableRow>
+    <DataTable
+      columns={IMPORT_ROW_COLUMNS}
+      data={shown}
+      getRowId={(row) => String(row.line)}
+      noun="rows"
+      exportName="employee-import-rows"
+      searchPlaceholder="Search rows"
+      emptyMessage="No rows here."
+      pageSize={25}
+      rowClassName={() => "align-top"}
+      tabs={
+        <Tabs value={filter} onValueChange={(value) => setFilter(value as RowFilter)}>
+          <TabsList>
+            {FILTERS.map((option) => (
+              <TabsTrigger key={option.value} value={option.value}>
+                {option.label} ({count(option.value)})
+              </TabsTrigger>
             ))}
-            {paged.rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={8} className="py-8 text-center text-sm text-muted-foreground">
-                  No rows here.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <TablePager paged={paged} noun="rows" />
-    </div>
+          </TabsList>
+        </Tabs>
+      }
+    />
   );
 }

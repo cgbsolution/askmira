@@ -1,9 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Clock, Handshake, Megaphone } from "lucide-react";
 import React from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DataPanel } from "@/components/common/DataPanel";
 import { Money } from "@/components/common/Money";
 import {
@@ -20,14 +22,6 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { FunnelReport, OutcomeRates } from "@/lib/types/hiring";
 
 interface SectionProps {
@@ -42,74 +36,73 @@ function days(value: number | null | undefined): string {
   return `${value} ${value === 1 ? "day" : "days"}`;
 }
 
+/** Counts and rates: right-aligned, in tabular figures. */
+const FIGURE = { className: "text-right", cellClassName: "tabular-nums" };
+
+type Transition = FunnelReport["stage_timings"]["transitions"][number];
+
+const TIMING_COLUMNS: ColumnDef<Transition>[] = [
+  { id: "from_stage", header: "From", accessorFn: (row) => stageLabel(row.from_stage) },
+  { id: "to_stage", header: "To", accessorFn: (row) => stageLabel(row.to_stage) },
+  { accessorKey: "sample", header: "Sample", meta: FIGURE },
+  {
+    accessorKey: "median_days",
+    header: "Median",
+    meta: { ...FIGURE, text: (row) => (row.median_days !== null ? days(row.median_days) : row.note) },
+    cell: ({ row }) =>
+      row.original.median_days !== null ? (
+        days(row.original.median_days)
+      ) : (
+        <span className="text-xs text-muted-foreground">{row.original.note}</span>
+      ),
+  },
+];
+
 /** How long candidates sit between stages, where the sample is big enough to say. */
 export function AnalyticsTimingsPanel({ report, isLoading, error, onRetry }: SectionProps) {
   const timings = report?.stage_timings;
   const rows = timings?.transitions ?? [];
   return (
-    <DataPanel
+    <DataTable
       title="Time between stages"
       description={
         timings ? (
-          <span className="tabular-nums">
-            Median time to hire: {days(timings.median_time_to_hire_days)}
+          <span className="grid gap-1">
+            <span className="tabular-nums">
+              Median time to hire: {days(timings.median_time_to_hire_days)}
+            </span>
+            {/* With the table only: with no moves, the note is the empty state's text. */}
+            {rows.length > 0 && timings.stalls_at && (
+              <span className="text-foreground">
+                {timings.stalls_at.reading}{" "}
+                <span className="tabular-nums text-muted-foreground">
+                  ({days(timings.stalls_at.median_days)}
+                  {timings.stalls_at.share_of_total !== null
+                    ? `, ${percent(timings.stalls_at.share_of_total)} of the time to hire`
+                    : ""}
+                  )
+                </span>
+              </span>
+            )}
+            {rows.length > 0 && timings.note && <span className="text-xs">{timings.note}</span>}
           </span>
         ) : undefined
       }
+      columns={TIMING_COLUMNS}
+      data={rows}
+      getRowId={(row) => `${row.from_stage}-${row.to_stage}`}
+      noun="stage moves"
+      exportName="hiring-stage-timings"
+      searchPlaceholder="Search stages"
       isLoading={isLoading}
       error={error}
       onRetry={onRetry}
-      isEmpty={rows.length === 0}
       empty={{
         icon: Clock,
         title: "No stage moves recorded yet",
         description: timings?.note,
       }}
-    >
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>From</TableHead>
-              <TableHead>To</TableHead>
-              <TableHead className="text-right">Sample</TableHead>
-              <TableHead className="text-right">Median</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={`${row.from_stage}-${row.to_stage}`}>
-                <TableCell>{stageLabel(row.from_stage)}</TableCell>
-                <TableCell>{stageLabel(row.to_stage)}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.sample}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {row.median_days !== null ? (
-                    days(row.median_days)
-                  ) : (
-                    <span className="text-xs text-muted-foreground">{row.note}</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="grid gap-1 px-5 py-4 text-sm">
-        {timings?.stalls_at && (
-          <p className="text-foreground">
-            {timings.stalls_at.reading}{" "}
-            <span className="tabular-nums text-muted-foreground">
-              ({days(timings.stalls_at.median_days)}
-              {timings.stalls_at.share_of_total !== null
-                ? `, ${percent(timings.stalls_at.share_of_total)} of the time to hire`
-                : ""}
-              )
-            </span>
-          </p>
-        )}
-        {timings?.note && <p className="text-xs text-muted-foreground">{timings.note}</p>}
-      </div>
-    </DataPanel>
+    />
   );
 }
 
@@ -118,6 +111,50 @@ const SOURCE_CHART: ChartConfig = {
   offered: { label: "Offered", color: "var(--chart-2)" },
   joined: { label: "Joined", color: "var(--chart-3)" },
 };
+
+type SourceRow = FunnelReport["source_effectiveness"]["sources"][number];
+
+const SOURCE_COLUMNS: ColumnDef<SourceRow>[] = [
+  {
+    id: "source",
+    header: "Source",
+    accessorFn: (row) => sourceLabel(row.source),
+    meta: { cellClassName: "font-medium text-foreground" },
+  },
+  { accessorKey: "applied", header: "Applied", meta: FIGURE },
+  { accessorKey: "interviewed", header: "Interviewed", meta: FIGURE },
+  { accessorKey: "offered", header: "Offered", meta: FIGURE },
+  { accessorKey: "joined", header: "Joined", meta: FIGURE },
+  {
+    accessorKey: "interview_pass_rate",
+    header: "Interview pass",
+    meta: { ...FIGURE, text: (row) => percent(row.interview_pass_rate) },
+    cell: ({ row }) => percent(row.original.interview_pass_rate),
+  },
+  {
+    accessorKey: "conversion_to_hire",
+    header: "To hire",
+    meta: { ...FIGURE, text: (row) => percent(row.conversion_to_hire) },
+    cell: ({ row }) => percent(row.original.conversion_to_hire),
+  },
+  {
+    accessorKey: "spend",
+    header: "Spend",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.spend} />,
+  },
+  {
+    accessorKey: "cost_per_hire",
+    header: "Cost per hire",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.cost_per_hire} />,
+  },
+  {
+    accessorKey: "note",
+    header: "Note",
+    meta: { cellClassName: "max-w-72 whitespace-normal text-xs text-muted-foreground" },
+  },
+];
 
 /** Which sources bring people who get through, and what each hire from them cost. */
 export function AnalyticsSourcesPanel({ report, isLoading, error, onRetry }: SectionProps) {
@@ -147,102 +184,72 @@ export function AnalyticsSourcesPanel({ report, isLoading, error, onRetry }: Sec
           </BarChart>
         </ChartContainer>
       </div>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Source</TableHead>
-              <TableHead className="text-right">Applied</TableHead>
-              <TableHead className="text-right">Interviewed</TableHead>
-              <TableHead className="text-right">Offered</TableHead>
-              <TableHead className="text-right">Joined</TableHead>
-              <TableHead className="text-right">Interview pass</TableHead>
-              <TableHead className="text-right">To hire</TableHead>
-              <TableHead className="text-right">Spend</TableHead>
-              <TableHead className="text-right">Cost per hire</TableHead>
-              <TableHead>Note</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.source}>
-                <TableCell className="font-medium text-foreground">{sourceLabel(row.source)}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.applied}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.interviewed}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.offered}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.joined}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {percent(row.interview_pass_rate)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {percent(row.conversion_to_hire)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={row.spend} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={row.cost_per_hire} />
-                </TableCell>
-                <TableCell className="max-w-72 whitespace-normal text-xs text-muted-foreground">
-                  {row.note}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        columns={SOURCE_COLUMNS}
+        data={rows}
+        getRowId={(row) => row.source}
+        noun="sources"
+        exportName="hiring-source-effectiveness"
+        searchPlaceholder="Search sources"
+        bordered={false}
+        className="border-t border-border"
+      />
     </DataPanel>
   );
 }
+
+type OutcomeRow = OutcomeRates & { key: string };
 
 function OutcomeTable({
   title,
   rows,
   keyLabel,
+  exportName,
 }: {
   title: string;
-  rows: (OutcomeRates & { key: string })[];
+  rows: OutcomeRow[];
   keyLabel: (key: string) => string;
+  exportName: string;
 }) {
+  const columns: ColumnDef<OutcomeRow>[] = [
+    {
+      id: "group",
+      header: "Group",
+      accessorFn: (row) => keyLabel(row.key),
+      meta: { cellClassName: "text-foreground" },
+    },
+    { accessorKey: "offers", header: "Offers", meta: FIGURE },
+    { accessorKey: "accepted", header: "Accepted", meta: FIGURE },
+    { accessorKey: "declined_or_lapsed", header: "Declined / lapsed", meta: FIGURE },
+    { accessorKey: "joined", header: "Joined", meta: FIGURE },
+    { accessorKey: "dropped", header: "Did not join", meta: FIGURE },
+    { accessorKey: "revoked", header: "Revoked", meta: FIGURE },
+    {
+      accessorKey: "acceptance_rate",
+      header: "Acceptance",
+      meta: { ...FIGURE, text: (row) => percent(row.acceptance_rate) },
+      cell: ({ row }) => percent(row.original.acceptance_rate),
+    },
+    {
+      accessorKey: "drop_rate",
+      header: "Drop rate",
+      meta: { ...FIGURE, text: (row) => percent(row.drop_rate) },
+      cell: ({ row }) => percent(row.original.drop_rate),
+    },
+  ];
   return (
     <section className="grid gap-1 border-t border-border pt-3">
       <p className="px-5 text-sm font-medium text-foreground">{title}</p>
-      {rows.length === 0 ? (
-        <p className="px-5 pb-2 text-sm text-muted-foreground">No offers to group.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Group</TableHead>
-                <TableHead className="text-right">Offers</TableHead>
-                <TableHead className="text-right">Accepted</TableHead>
-                <TableHead className="text-right">Declined / lapsed</TableHead>
-                <TableHead className="text-right">Joined</TableHead>
-                <TableHead className="text-right">Did not join</TableHead>
-                <TableHead className="text-right">Revoked</TableHead>
-                <TableHead className="text-right">Acceptance</TableHead>
-                <TableHead className="text-right">Drop rate</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.key}>
-                  <TableCell className="text-foreground">{keyLabel(row.key)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.offers}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.accepted}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.declined_or_lapsed}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.joined}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.dropped}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.revoked}</TableCell>
-                  <TableCell className="text-right tabular-nums">{percent(row.acceptance_rate)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{percent(row.drop_rate)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <DataTable
+        columns={columns}
+        data={rows}
+        getRowId={(row) => row.key}
+        noun="groups"
+        exportName={exportName}
+        searchPlaceholder="Search groups"
+        bordered={false}
+        empty={{ icon: Handshake, title: "No offers to group" }}
+      />
     </section>
   );
 }
@@ -294,16 +301,19 @@ export function AnalyticsOfferOutcomesPanel({
             title="By department"
             rows={outcomes.by_department}
             keyLabel={(key) => nameFor("department_id", key)}
+            exportName="offer-outcomes-by-department"
           />
           <OutcomeTable
             title="By recruiter"
             rows={outcomes.by_recruiter}
             keyLabel={(key) => nameFor("recruiter_id", key)}
+            exportName="offer-outcomes-by-recruiter"
           />
           <OutcomeTable
             title="By notice period"
             rows={outcomes.by_notice_period}
             keyLabel={(key) => (key === "unknown" || key === "unassigned" ? "Not recorded" : key)}
+            exportName="offer-outcomes-by-notice-period"
           />
         </div>
       )}

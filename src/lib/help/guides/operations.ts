@@ -660,7 +660,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     tips: [
       "The key a product issues reaches only your organisation there, never another company's.",
       "Once connected, Expenses, Hiring, Helpdesk and Assets show the product's records, and Ask Mira can answer from them.",
-      "In CGB Helpdesk, HR become helpdesk admins; engineers its IT team set up keep their role, and leavers can no longer sign in there.",
+      "AskMira never changes anyone's role in CGB Helpdesk: its IT team decides who are engineers and admins. HR see their own company's tickets and assets here, and leavers can no longer sign in there.",
     ],
   },
 

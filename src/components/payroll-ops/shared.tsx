@@ -163,7 +163,7 @@ export function ForbiddenState({ message }: { message?: string }) {
  *
  * @example
  *   <QueryBoundary query={query} skeletonRows={4}>
- *     {(rows) => <Table …/>}
+ *     {(rows) => <DataTable columns={columns} data={rows} …/>}
  *   </QueryBoundary>
  */
 export function QueryBoundary<T>({

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   CalendarCheck,
   CalendarClock,
@@ -16,14 +17,14 @@ import {
 import React, { useState } from "react";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DatePicker } from "@/components/common/DatePicker";
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
-import { StatusBadge, useAction } from "@/components/performance/shared";
+import { humanize, StatusBadge, useAction } from "@/components/performance/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -45,14 +46,6 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
@@ -215,52 +208,67 @@ function MeetingTable({
   onOpen: (id: string) => void;
   empty: string;
 }) {
+  const columns: ColumnDef<OneOnOne>[] = [
+    {
+      accessorKey: "with_name",
+      header: "With",
+      meta: { text: (m) => `${m.with_name} · ${m.my_side === "manager" ? "Reports to you" : "Your manager"}` },
+      cell: ({ row }) => (
+        <PersonCell
+          name={row.original.with_name}
+          subtitle={row.original.my_side === "manager" ? "Reports to you" : "Your manager"}
+          size="sm"
+        />
+      ),
+    },
+    {
+      id: "when",
+      header: "When",
+      accessorFn: (m) => `${m.scheduled_on} ${m.start_time ?? ""}`,
+      meta: { text: (m) => when(m) },
+      cell: ({ row }) => when(row.original),
+    },
+    {
+      accessorKey: "talking_points",
+      header: "Talking points",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "open_action_items",
+      header: "Open actions",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (m) => humanize(m.status) },
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="ghost" onClick={() => onOpen(row.original.id)}>
+          Open
+        </Button>
+      ),
+    },
+  ];
   return (
-    <DataPanel
+    <DataTable
       title={title}
+      columns={columns}
+      data={rows}
+      noun="meetings"
+      exportName={`one-on-ones-${title.toLowerCase().replace(/\s+/g, "-")}`}
+      searchPlaceholder="Search by person"
       isLoading={isLoading}
       error={error}
       onRetry={onRetry}
-      isEmpty={rows.length === 0}
       empty={{ icon: MessagesSquare, title: "Nothing here yet", description: empty }}
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>With</TableHead>
-            <TableHead>When</TableHead>
-            <TableHead className="text-right">Talking points</TableHead>
-            <TableHead className="text-right">Open actions</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((m) => (
-            <TableRow key={m.id}>
-              <TableCell>
-                <PersonCell
-                  name={m.with_name}
-                  subtitle={m.my_side === "manager" ? "Reports to you" : "Your manager"}
-                  size="sm"
-                />
-              </TableCell>
-              <TableCell>{when(m)}</TableCell>
-              <TableCell className="text-right tabular-nums">{m.talking_points}</TableCell>
-              <TableCell className="text-right tabular-nums">{m.open_action_items}</TableCell>
-              <TableCell>
-                <StatusBadge status={m.status} />
-              </TableCell>
-              <TableCell className="text-right">
-                <Button size="sm" variant="ghost" onClick={() => onOpen(m.id)}>
-                  Open
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </DataPanel>
+    />
   );
 }
 
@@ -273,45 +281,65 @@ function ReportsTable({
   onOpen: (id: string) => void;
   onSchedule: (employeeId: string) => void;
 }) {
+  const columns: ColumnDef<ReportOneOnOneSummary>[] = [
+    {
+      accessorKey: "name",
+      header: "Person",
+      meta: { text: (r) => [r.name, r.employee_code, r.designation].filter(Boolean).join(" ") },
+      cell: ({ row }) => (
+        <PersonCell name={row.original.name} subtitle={row.original.designation ?? row.original.employee_code} size="sm" />
+      ),
+    },
+    {
+      accessorKey: "last_held_on",
+      header: "Last held",
+      meta: { text: (r) => (r.last_held_on ? formatDay(r.last_held_on, true) : "Never") },
+      cell: ({ row }) => (row.original.last_held_on ? formatDay(row.original.last_held_on, true) : "Never"),
+    },
+    {
+      accessorKey: "next_scheduled_on",
+      header: "Next",
+      meta: { text: (r) => (r.next_scheduled_on ? formatDay(r.next_scheduled_on, true) : null) },
+      cell: ({ row }) => (row.original.next_scheduled_on ? formatDay(row.original.next_scheduled_on, true) : "—"),
+    },
+    {
+      accessorKey: "held_count",
+      header: "Held",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "open_action_items",
+      header: "Open actions",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) =>
+        row.original.next_one_on_one_id ? (
+          <Button size="sm" variant="ghost" onClick={() => onOpen(row.original.next_one_on_one_id as string)}>
+            Open next
+          </Button>
+        ) : (
+          <Button size="sm" variant="outline" onClick={() => onSchedule(row.original.employee_id)}>
+            Schedule
+          </Button>
+        ),
+    },
+  ];
   return (
-    <DataPanel title="My reports" description="Where each 1:1 stands, and the action items still open between you.">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Person</TableHead>
-            <TableHead>Last held</TableHead>
-            <TableHead>Next</TableHead>
-            <TableHead className="text-right">Held</TableHead>
-            <TableHead className="text-right">Open actions</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => (
-            <TableRow key={r.employee_id}>
-              <TableCell>
-                <PersonCell name={r.name} subtitle={r.designation ?? r.employee_code} size="sm" />
-              </TableCell>
-              <TableCell>{r.last_held_on ? formatDay(r.last_held_on, true) : "Never"}</TableCell>
-              <TableCell>{r.next_scheduled_on ? formatDay(r.next_scheduled_on, true) : "—"}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.held_count}</TableCell>
-              <TableCell className="text-right tabular-nums">{r.open_action_items}</TableCell>
-              <TableCell className="text-right">
-                {r.next_one_on_one_id ? (
-                  <Button size="sm" variant="ghost" onClick={() => onOpen(r.next_one_on_one_id as string)}>
-                    Open next
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" onClick={() => onSchedule(r.employee_id)}>
-                    Schedule
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </DataPanel>
+    <DataTable
+      title="My reports"
+      description="Where each 1:1 stands, and the action items still open between you."
+      columns={columns}
+      data={rows}
+      getRowId={(r) => r.employee_id}
+      noun="people"
+      exportName="one-on-ones-my-reports"
+      searchPlaceholder="Search people"
+    />
   );
 }
 

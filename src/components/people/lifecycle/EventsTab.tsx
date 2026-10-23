@@ -1,11 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { CalendarClock, GitCommitHorizontal, Loader2, MoreHorizontal, Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -137,28 +137,172 @@ export function EventsTab() {
 
   const rows = data ?? [];
 
+  const columns: ColumnDef<LifecycleEvent>[] = [
+    {
+      accessorKey: "employee_name",
+      header: "Person",
+      meta: { text: (row) => `${row.employee_name} ${row.employee_code}` },
+      cell: ({ row }) => (
+        <>
+          <div className="font-medium text-foreground">{row.original.employee_name}</div>
+          <div className="font-mono text-xs text-muted-foreground">{row.original.employee_code}</div>
+        </>
+      ),
+    },
+    {
+      id: "event",
+      header: "Event",
+      accessorFn: (row) => EVENT_TYPE[row.event_type],
+      meta: { cellClassName: "text-sm", text: (row) => `${EVENT_TYPE[row.event_type]} ${row.reason}` },
+      cell: ({ row }) => (
+        <>
+          {EVENT_TYPE[row.original.event_type]}
+          <div className="max-w-56 truncate text-xs text-muted-foreground" title={row.original.reason}>
+            {row.original.reason}
+          </div>
+        </>
+      ),
+    },
+    {
+      id: "change",
+      header: "Change",
+      meta: {
+        cellClassName: "text-xs",
+        text: (row) =>
+          [
+            ...Object.entries(row.new_values).map(
+              ([field, value]) => `${FIELD_LABEL[field] ?? field}: ${fieldValue(field, value)}`,
+            ),
+            ...(row.new_ctc_annual ? [`CTC: ${row.new_ctc_annual}`] : []),
+          ].join("; "),
+      },
+      cell: ({ row }) => {
+        const changes = Object.entries(row.original.new_values);
+        return (
+          <>
+            {changes.map(([field, value]) => (
+              <div key={field}>
+                <span className="text-muted-foreground">{FIELD_LABEL[field] ?? field}: </span>
+                {fieldValue(field, value)}
+              </div>
+            ))}
+            {row.original.new_ctc_annual && (
+              <div>
+                <span className="text-muted-foreground">CTC: </span>
+                <Money value={row.original.new_ctc_annual} />
+              </div>
+            )}
+            {changes.length === 0 && !row.original.new_ctc_annual && "—"}
+          </>
+        );
+      },
+    },
+    {
+      accessorKey: "effective_from",
+      header: "Effective",
+      meta: { cellClassName: "text-sm", text: (row) => formatDate(row.effective_from) },
+      cell: ({ row }) => formatDate(row.original.effective_from),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: {
+        text: (row) =>
+          [EVENT_STATUS[row.status]?.label ?? row.status, row.failure_reason, row.cancelled_reason]
+            .filter(Boolean)
+            .join(" — "),
+      },
+      cell: ({ row }) => (
+        <>
+          <EventStatusBadge status={row.original.status} />
+          {row.original.failure_reason && (
+            <div className="mt-1 max-w-48 text-xs text-destructive">{row.original.failure_reason}</div>
+          )}
+          {row.original.cancelled_reason && (
+            <div className="mt-1 max-w-48 text-xs text-muted-foreground">{row.original.cancelled_reason}</div>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "w-12 text-right", text: false },
+      cell: ({ row }) => {
+        const event = row.original;
+        const due = parseISODate(event.effective_from) <= today;
+        return (
+          canDecide &&
+          ["pending_approval", "approved", "failed", "draft"].includes(event.status) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Actions for ${event.employee_name}`}
+                  disabled={effecting === event.id}
+                >
+                  {effecting === event.id ? <Loader2 className="animate-spin" /> : <MoreHorizontal />}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {event.status === "pending_approval" && (
+                  <>
+                    <DropdownMenuItem onSelect={() => setDecision({ event, kind: "approve" })}>
+                      Approve
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setDecision({ event, kind: "reject" })}>
+                      Reject
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {(event.status === "approved" || event.status === "failed") && (
+                  <DropdownMenuItem disabled={!due} onSelect={() => effect(event)}>
+                    {due ? "Apply now" : `Applies on ${formatDate(event.effective_from)}`}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onSelect={() => setDecision({ event, kind: "cancel" })}
+                >
+                  Cancel event
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )
+        );
+      },
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Events"
+        columns={columns}
+        data={rows}
+        noun="events"
+        exportName="lifecycle-events"
+        searchPlaceholder="Search by person or event"
         actions={
           <>
             {canDecide && (
-              <Button size="sm" variant="outline" onClick={sweep} disabled={sweeping}>
+              <Button size="sm" variant="outline" className="h-9" onClick={sweep} disabled={sweeping}>
                 {sweeping ? <Loader2 className="animate-spin" /> : <CalendarClock />} Apply due events
               </Button>
             )}
             {canRaise && (
-              <Button size="sm" onClick={() => setRaising(true)}>
+              <Button size="sm" className="h-9" onClick={() => setRaising(true)}>
                 <Plus /> Raise event
               </Button>
             )}
           </>
         }
-        toolbar={
+        filters={
           <>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48" aria-label="Filter by status">
+              <SelectTrigger className="h-9 w-48" aria-label="Filter by status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -171,7 +315,7 @@ export function EventsTab() {
               </SelectContent>
             </Select>
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-52" aria-label="Filter by event type">
+              <SelectTrigger className="h-9 w-52" aria-label="Filter by event type">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -188,109 +332,10 @@ export function EventsTab() {
         isLoading={isLoading}
         error={error?.detail ?? null}
         onRetry={reload}
-        isEmpty={rows.length === 0}
-        empty={{
-          icon: GitCommitHorizontal,
-          title: statusFilter === "pending_approval" ? "Nothing waiting for approval" : "No events match",
-        }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Person</TableHead>
-              <TableHead>Event</TableHead>
-              <TableHead>Change</TableHead>
-              <TableHead>Effective</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => {
-              const due = parseISODate(row.effective_from) <= today;
-              const changes = Object.entries(row.new_values);
-              return (
-                <TableRow key={row.id}>
-                  <TableCell>
-                    <div className="font-medium text-foreground">{row.employee_name}</div>
-                    <div className="font-mono text-xs text-muted-foreground">{row.employee_code}</div>
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {EVENT_TYPE[row.event_type]}
-                    <div className="max-w-56 truncate text-xs text-muted-foreground" title={row.reason}>
-                      {row.reason}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    {changes.map(([field, value]) => (
-                      <div key={field}>
-                        <span className="text-muted-foreground">{FIELD_LABEL[field] ?? field}: </span>
-                        {fieldValue(field, value)}
-                      </div>
-                    ))}
-                    {row.new_ctc_annual && (
-                      <div>
-                        <span className="text-muted-foreground">CTC: </span>
-                        <Money value={row.new_ctc_annual} />
-                      </div>
-                    )}
-                    {changes.length === 0 && !row.new_ctc_annual && "—"}
-                  </TableCell>
-                  <TableCell className="text-sm">{formatDate(row.effective_from)}</TableCell>
-                  <TableCell>
-                    <EventStatusBadge status={row.status} />
-                    {row.failure_reason && (
-                      <div className="mt-1 max-w-48 text-xs text-destructive">{row.failure_reason}</div>
-                    )}
-                    {row.cancelled_reason && (
-                      <div className="mt-1 max-w-48 text-xs text-muted-foreground">{row.cancelled_reason}</div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {canDecide && ["pending_approval", "approved", "failed", "draft"].includes(row.status) && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label={`Actions for ${row.employee_name}`}
-                            disabled={effecting === row.id}
-                          >
-                            {effecting === row.id ? <Loader2 className="animate-spin" /> : <MoreHorizontal />}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          {row.status === "pending_approval" && (
-                            <>
-                              <DropdownMenuItem onSelect={() => setDecision({ event: row, kind: "approve" })}>
-                                Approve
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => setDecision({ event: row, kind: "reject" })}>
-                                Reject
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {(row.status === "approved" || row.status === "failed") && (
-                            <DropdownMenuItem disabled={!due} onSelect={() => effect(row)}>
-                              {due ? "Apply now" : `Applies on ${formatDate(row.effective_from)}`}
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onSelect={() => setDecision({ event: row, kind: "cancel" })}
-                          >
-                            Cancel event
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </DataPanel>
+        filtered={statusFilter !== "pending_approval"}
+        empty={{ icon: GitCommitHorizontal, title: "Nothing waiting for approval" }}
+        emptyMessage="No events match."
+      />
 
       <RaiseEventDialog
         open={raising}

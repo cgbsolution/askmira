@@ -1,15 +1,16 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Copy, Plus, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { PageShell } from "@/components/common/PageShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -42,6 +43,97 @@ export function SsoScreen() {
 
   const enforcing = (providers.data ?? []).some((row) => row.enforce_sso && row.enabled);
 
+  const editColumn: ColumnDef<IdentityProvider> = {
+    id: "actions",
+    header: "Actions",
+    enableHiding: false,
+    meta: { className: "text-right", text: false },
+    cell: ({ row: { original: row } }) => (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setForm({ open: true, editing: row })}
+      >
+        Edit
+      </Button>
+    ),
+  };
+
+  const columns: ColumnDef<IdentityProvider>[] = [
+    {
+      accessorKey: "name",
+      header: "Provider",
+      meta: {
+        text: (row) => [row.name, row.idp_type === "saml" ? row.entity_id : row.issuer].filter(Boolean).join(" "),
+      },
+      cell: ({ row: { original: row } }) => (
+        <>
+          <div className="font-medium text-foreground">{row.name}</div>
+          <div className="text-xs text-muted-foreground">
+            {row.idp_type === "saml" ? row.entity_id : row.issuer}
+          </div>
+        </>
+      ),
+    },
+    {
+      accessorKey: "idp_type",
+      header: "Type",
+      meta: { text: (row) => [row.idp_type.toUpperCase(), row.enabled ? null : "Disabled"].filter(Boolean).join(" ") },
+      cell: ({ row: { original: row } }) => (
+        <>
+          <Badge variant="outline" className="uppercase">
+            {row.idp_type}
+          </Badge>
+          {!row.enabled && (
+            <Badge variant="outline" className="ml-1">
+              Disabled
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "email_domains",
+      header: "Email domains",
+      accessorFn: (row) =>
+        row.allowed_email_domains.length > 0 ? row.allowed_email_domains.join(", ") : "Any domain",
+      meta: { cellClassName: "text-xs" },
+      cell: ({ row: { original: row } }) =>
+        row.allowed_email_domains.length > 0 ? (
+          row.allowed_email_domains.join(", ")
+        ) : (
+          <span className="text-muted-foreground">Any domain</span>
+        ),
+    },
+    {
+      id: "behaviour",
+      header: "Behaviour",
+      accessorFn: (row) =>
+        [
+          row.enforce_sso ? "SSO enforced" : null,
+          row.jit_provisioning ? "Creates a login on first sign-in" : null,
+          row.idp_type === "oidc" && !row.has_client_secret ? "No client secret stored" : null,
+        ]
+          .filter(Boolean)
+          .join(", "),
+      meta: { cellClassName: "text-xs" },
+      cell: ({ row: { original: row } }) => (
+        <div className="flex flex-col gap-1">
+          {row.enforce_sso && <Badge>SSO enforced</Badge>}
+          {row.jit_provisioning && (
+            <span className="text-muted-foreground">
+              Creates a login on first sign-in
+            </span>
+          )}
+          {row.idp_type === "oidc" && !row.has_client_secret && (
+            <span className="text-destructive">No client secret stored</span>
+          )}
+        </div>
+      ),
+    },
+    ...(isAdmin ? [editColumn] : []),
+  ];
+
   return (
     <PageShell
       title="Sign-in & SSO"
@@ -65,91 +157,31 @@ export function SsoScreen() {
         </TabsList>
 
         <TabsContent value="providers" className="mt-4">
-          <DataPanel
+          <DataTable
             title="Identity providers"
             description="Roles are always assigned in AskMira. There is deliberately no mapping from an IdP role claim — that would be a path to granting yourself payroll access from outside."
             actions={
               isAdmin ? (
-                <Button size="sm" onClick={() => setForm({ open: true, editing: null })}>
+                <Button size="sm" className="h-9" onClick={() => setForm({ open: true, editing: null })}>
                   <Plus /> Add provider
                 </Button>
               ) : undefined
             }
-            isLoading={providers.isLoading}
+            columns={columns}
+            data={providers.data ?? []}
+            noun="providers"
+            exportName="identity-providers"
+            searchPlaceholder="Search providers"
+            rowClassName={(row) => (row.enabled ? undefined : "opacity-60")}
+            isLoading={providers.isLoading && !providers.data}
             error={providers.error?.detail ?? null}
             onRetry={providers.reload}
-            isEmpty={(providers.data ?? []).length === 0}
             empty={{
               icon: ShieldCheck,
               title: "No identity provider configured",
               description: "Everyone signs in with an email address and password.",
             }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Provider</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Email domains</TableHead>
-                  <TableHead>Behaviour</TableHead>
-                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(providers.data ?? []).map((row) => (
-                  <TableRow key={row.id} className={row.enabled ? undefined : "opacity-60"}>
-                    <TableCell>
-                      <div className="font-medium text-foreground">{row.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {row.idp_type === "saml" ? row.entity_id : row.issuer}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="uppercase">
-                        {row.idp_type}
-                      </Badge>
-                      {!row.enabled && (
-                        <Badge variant="outline" className="ml-1">
-                          Disabled
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {row.allowed_email_domains.length > 0 ? (
-                        row.allowed_email_domains.join(", ")
-                      ) : (
-                        <span className="text-muted-foreground">Any domain</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      <div className="flex flex-col gap-1">
-                        {row.enforce_sso && <Badge>SSO enforced</Badge>}
-                        {row.jit_provisioning && (
-                          <span className="text-muted-foreground">
-                            Creates a login on first sign-in
-                          </span>
-                        )}
-                        {row.idp_type === "oidc" && !row.has_client_secret && (
-                          <span className="text-destructive">No client secret stored</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    {isAdmin && (
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setForm({ open: true, editing: row })}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </TabsContent>
 
         <TabsContent value="directory" className="mt-4">

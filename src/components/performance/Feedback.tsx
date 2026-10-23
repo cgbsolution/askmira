@@ -1,5 +1,6 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   EyeOff,
   HandHeart,
@@ -15,6 +16,7 @@ import { useSearchParams } from "next/navigation";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DataPanel } from "@/components/common/DataPanel";
 import { DatePicker } from "@/components/common/DatePicker";
 import { EmployeePicker, employeeDisplayName } from "@/components/common/EmployeePicker";
@@ -23,7 +25,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
-import { PersonSelect, StatusBadge, useAction, usePeople } from "@/components/performance/shared";
+import { humanize, PersonSelect, StatusBadge, useAction, usePeople } from "@/components/performance/shared";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -45,14 +47,6 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
@@ -61,6 +55,7 @@ import { HR, MANAGERS } from "@/lib/access";
 import { post } from "@/lib/api";
 import type { EmployeeSummary } from "@/lib/types";
 import type {
+  FeedbackCompetencyAggregate,
   FeedbackCompetencyAnswerInput,
   FeedbackForm,
   FeedbackInboxItem,
@@ -213,60 +208,79 @@ export function FeedbackScreen() {
 
 // ── To give ─────────────────────────────────────────────────────────────────
 
+/** The status shown for one answer: a pending answer on a closed request reads "closed". */
+function inboxStatus(r: FeedbackInboxItem): string {
+  return r.request_status === "closed" && r.status === "pending" ? "closed" : r.status;
+}
+
 function GiveTab({ version }: { version: number }) {
   const { data, error, isLoading, reload } = useApiQuery<FeedbackInboxItem[]>(`/feedback/inbox?v=${version}`);
   const [open, setOpen] = useState<string | null>(null);
   const rows = data ?? [];
   const waiting = rows.filter((r) => r.status === "pending" && r.request_status === "open").length;
+  const columns: ColumnDef<FeedbackInboxItem>[] = [
+    {
+      accessorKey: "subject_name",
+      header: "About",
+      meta: { text: (r) => `${r.subject_name} · ${r.cycle_name ?? "Ad hoc"}` },
+      cell: ({ row }) => (
+        <PersonCell name={row.original.subject_name} subtitle={row.original.cycle_name ?? "Ad hoc"} size="sm" />
+      ),
+    },
+    {
+      accessorKey: "requested_by_name",
+      header: "Asked by",
+      meta: { cellClassName: "text-muted-foreground" },
+      cell: ({ row }) => row.original.requested_by_name ?? "—",
+    },
+    {
+      accessorKey: "due_on",
+      header: "Due",
+      meta: { text: (r) => formatDay(r.due_on, true) },
+      cell: ({ row }) => formatDay(row.original.due_on, true),
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorFn: (r) => inboxStatus(r),
+      meta: { text: (r) => humanize(inboxStatus(r)) },
+      cell: ({ row }) => <StatusBadge status={inboxStatus(row.original)} />,
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => {
+        const actionable = row.original.status === "pending" && row.original.request_status === "open";
+        return (
+          <Button size="sm" variant={actionable ? "default" : "ghost"} onClick={() => setOpen(row.original.reviewer_id)}>
+            {actionable ? "Answer" : "View"}
+          </Button>
+        );
+      },
+    },
+  ];
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Feedback to give"
         description={waiting ? `${waiting} waiting on you.` : "Nothing is waiting on you."}
+        columns={columns}
+        data={rows}
+        getRowId={(r) => r.reviewer_id}
+        noun="requests"
+        exportName="feedback-to-give"
+        searchPlaceholder="Search by person or cycle"
         isLoading={isLoading && !data}
         error={error?.detail}
         onRetry={reload}
-        isEmpty={rows.length === 0}
         empty={{
           icon: Inbox,
           title: "No one has asked you for feedback",
           description: "When a colleague or manager asks for your feedback on someone, it appears here.",
         }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>About</TableHead>
-              <TableHead>Asked by</TableHead>
-              <TableHead>Due</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r) => {
-              const actionable = r.status === "pending" && r.request_status === "open";
-              return (
-                <TableRow key={r.reviewer_id}>
-                  <TableCell>
-                    <PersonCell name={r.subject_name} subtitle={r.cycle_name ?? "Ad hoc"} size="sm" />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{r.requested_by_name ?? "—"}</TableCell>
-                  <TableCell>{formatDay(r.due_on, true)}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={r.request_status === "closed" && r.status === "pending" ? "closed" : r.status} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant={actionable ? "default" : "ghost"} onClick={() => setOpen(r.reviewer_id)}>
-                      {actionable ? "Answer" : "View"}
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       <Sheet open={open !== null} onOpenChange={(v) => !v && setOpen(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
           <SheetHeader>
@@ -548,56 +562,83 @@ function RequestsTab({
   );
   const [open, setOpen] = useState<string | null>(null);
   const rows = data ?? [];
+  const columns: ColumnDef<FeedbackRequestSummary>[] = [
+    {
+      accessorKey: "subject_name",
+      header: "About",
+      meta: {
+        text: (r) => (r.requested_by_name ? `${r.subject_name} · Asked by ${r.requested_by_name}` : r.subject_name),
+      },
+      cell: ({ row }) => (
+        <PersonCell
+          name={row.original.subject_name}
+          subtitle={row.original.requested_by_name ? `Asked by ${row.original.requested_by_name}` : undefined}
+          size="sm"
+        />
+      ),
+    },
+    {
+      id: "cycle_name",
+      header: "For",
+      accessorFn: (r) => r.cycle_name ?? "Ad hoc",
+      meta: { cellClassName: "text-muted-foreground" },
+    },
+    {
+      accessorKey: "due_on",
+      header: "Due",
+      meta: { text: (r) => formatDay(r.due_on, true) },
+      cell: ({ row }) => formatDay(row.original.due_on, true),
+    },
+    {
+      id: "answered",
+      header: "Answered",
+      accessorFn: (r) => r.responses,
+      meta: {
+        className: "text-right",
+        cellClassName: "tabular-nums",
+        text: (r) => `${r.responses} / ${r.reviewers_total}${r.declined ? ` (${r.declined} declined)` : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.responses} / {row.original.reviewers_total}
+          {row.original.declined ? (
+            <span className="text-muted-foreground"> ({row.original.declined} declined)</span>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (r) => humanize(r.status) },
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="ghost" onClick={() => setOpen(row.original.id)}>
+          Open
+        </Button>
+      ),
+    },
+  ];
   return (
     <>
-      <DataPanel
+      <DataTable
         title={title}
+        columns={columns}
+        data={rows}
+        noun="requests"
+        exportName={`feedback-requests-${scope.replace("_", "-")}`}
+        searchPlaceholder="Search by person or cycle"
         isLoading={isLoading && !data}
         error={error?.detail}
         onRetry={reload}
-        isEmpty={rows.length === 0}
         empty={{ icon: MessageSquareHeart, title: "No feedback requests", description: empty }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>About</TableHead>
-              <TableHead>For</TableHead>
-              <TableHead>Due</TableHead>
-              <TableHead className="text-right">Answered</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell>
-                  <PersonCell
-                    name={r.subject_name}
-                    subtitle={r.requested_by_name ? `Asked by ${r.requested_by_name}` : undefined}
-                    size="sm"
-                  />
-                </TableCell>
-                <TableCell className="text-muted-foreground">{r.cycle_name ?? "Ad hoc"}</TableCell>
-                <TableCell>{formatDay(r.due_on, true)}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {r.responses} / {r.reviewers_total}
-                  {r.declined ? <span className="text-muted-foreground"> ({r.declined} declined)</span> : null}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={r.status} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" onClick={() => setOpen(r.id)}>
-                    Open
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       <Sheet open={open !== null} onOpenChange={(v) => !v && setOpen(null)}>
         <SheetContent className="w-full overflow-y-auto sm:max-w-2xl">
           <SheetHeader>
@@ -758,6 +799,34 @@ function toastReminded(count: number) {
   toast.success(count ? `Reminded ${count} colleague(s).` : "Nobody left to remind.");
 }
 
+const AGGREGATE_COLUMNS: ColumnDef<FeedbackCompetencyAggregate>[] = [
+  {
+    accessorKey: "name",
+    header: "Competency",
+    cell: ({ row }) => (
+      <>
+        <p>{row.original.name}</p>
+        {row.original.comments.map((comment) => (
+          <p key={comment} className="text-xs text-muted-foreground">
+            “{comment}”
+          </p>
+        ))}
+      </>
+    ),
+  },
+  {
+    accessorKey: "average",
+    header: "Average",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => row.original.average ?? "—",
+  },
+  {
+    accessorKey: "responses",
+    header: "Rated by",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+  },
+];
+
 function AggregateCard({ aggregate }: { aggregate: NonNullable<FeedbackRequestDetail["aggregate"]> }) {
   return (
     <Card tier="tier1" className="gap-3">
@@ -772,31 +841,13 @@ function AggregateCard({ aggregate }: { aggregate: NonNullable<FeedbackRequestDe
       </CardHeader>
       <CardContent className="grid gap-4">
         {aggregate.competencies.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Competency</TableHead>
-                <TableHead className="text-right">Average</TableHead>
-                <TableHead className="text-right">Rated by</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {aggregate.competencies.map((c) => (
-                <TableRow key={c.competency_id}>
-                  <TableCell>
-                    <p>{c.name}</p>
-                    {c.comments.map((comment) => (
-                      <p key={comment} className="text-xs text-muted-foreground">
-                        “{comment}”
-                      </p>
-                    ))}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{c.average ?? "—"}</TableCell>
-                  <TableCell className="text-right tabular-nums">{c.responses}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            variant="plain"
+            columns={AGGREGATE_COLUMNS}
+            data={aggregate.competencies}
+            getRowId={(c) => c.competency_id}
+            noun="competencies"
+          />
         )}
         <TextList title="What they do well" items={aggregate.strengths} />
         <TextList title="What they could do differently" items={aggregate.improvements} />

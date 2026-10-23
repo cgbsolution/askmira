@@ -1,5 +1,6 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   BadgeCheck,
   Banknote,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import React from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Money } from "@/components/common/Money";
 import { DetailItem } from "@/components/people/StatusBadges";
@@ -32,19 +34,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { stateName } from "@/lib/states";
 import type {
   Address,
   EmployeeProfile,
   EmployeeRecord,
+  FamilyMember,
+  Nominee,
   NomineePurpose,
   ProfileSection,
 } from "@/lib/types/people";
@@ -257,6 +253,30 @@ export function EmergencyContactsCard({
   );
 }
 
+const FAMILY_COLUMNS: ColumnDef<FamilyMember>[] = [
+  { accessorKey: "name", header: "Name", meta: { cellClassName: "font-medium" } },
+  {
+    accessorKey: "relationship",
+    header: "Relationship",
+    cell: ({ row }) => RELATIONSHIP[row.original.relationship],
+  },
+  {
+    accessorKey: "date_of_birth",
+    header: "Date of birth",
+    cell: ({ row }) => day(row.original.date_of_birth) ?? "—",
+  },
+  {
+    accessorKey: "gender",
+    header: "Gender",
+    cell: ({ row }) => (row.original.gender ? FAMILY_GENDER[row.original.gender] : "—"),
+  },
+  {
+    accessorKey: "is_dependent",
+    header: "Dependant",
+    cell: ({ row }) => (row.original.is_dependent ? "Yes" : "No"),
+  },
+];
+
 export function FamilyCard({
   profile,
   isSelf,
@@ -272,32 +292,42 @@ export function FamilyCard({
       {rows.length === 0 ? (
         <Nothing>No family members recorded.</Nothing>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Relationship</TableHead>
-              <TableHead>Date of birth</TableHead>
-              <TableHead>Gender</TableHead>
-              <TableHead>Dependant</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((member, index) => (
-              <TableRow key={index}>
-                <TableCell className="font-medium">{member.name}</TableCell>
-                <TableCell>{RELATIONSHIP[member.relationship]}</TableCell>
-                <TableCell>{day(member.date_of_birth) ?? "—"}</TableCell>
-                <TableCell>{member.gender ? FAMILY_GENDER[member.gender] : "—"}</TableCell>
-                <TableCell>{member.is_dependent ? "Yes" : "No"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable
+          variant="plain"
+          columns={FAMILY_COLUMNS}
+          data={rows}
+          getRowId={(_member, index) => String(index)}
+          noun="family members"
+        />
       )}
     </SectionCard>
   );
 }
+
+const NOMINEE_COLUMNS: ColumnDef<Nominee>[] = [
+  { accessorKey: "name", header: "Nominee", meta: { cellClassName: "font-medium" } },
+  {
+    accessorKey: "relationship",
+    header: "Relationship",
+    cell: ({ row }) => RELATIONSHIP[row.original.relationship],
+  },
+  {
+    accessorKey: "date_of_birth",
+    header: "Date of birth",
+    cell: ({ row }) => day(row.original.date_of_birth) ?? "—",
+  },
+  {
+    accessorKey: "guardian_name",
+    header: "Guardian",
+    cell: ({ row }) => row.original.guardian_name ?? "—",
+  },
+  {
+    accessorKey: "share_percent",
+    header: "Share",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => `${row.original.share_percent}%`,
+  },
+];
 
 export function NomineesCard({
   profile,
@@ -325,31 +355,14 @@ export function NomineesCard({
         <div className="grid gap-4">
           {purposes.map((purpose) => (
             <div key={purpose}>
-              <p className="mb-1 text-sm font-semibold text-foreground">{NOMINEE_PURPOSE[purpose]}</p>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nominee</TableHead>
-                    <TableHead>Relationship</TableHead>
-                    <TableHead>Date of birth</TableHead>
-                    <TableHead>Guardian</TableHead>
-                    <TableHead className="text-right">Share</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows
-                    .filter((row) => row.purpose === purpose)
-                    .map((row, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="font-medium">{row.name}</TableCell>
-                        <TableCell>{RELATIONSHIP[row.relationship]}</TableCell>
-                        <TableCell>{day(row.date_of_birth) ?? "—"}</TableCell>
-                        <TableCell>{row.guardian_name ?? "—"}</TableCell>
-                        <TableCell className="text-right tabular-nums">{row.share_percent}%</TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
+              <p className="mb-2 text-sm font-semibold text-foreground">{NOMINEE_PURPOSE[purpose]}</p>
+              <DataTable
+                variant="plain"
+                columns={NOMINEE_COLUMNS}
+                data={rows.filter((row) => row.purpose === purpose)}
+                getRowId={(_nominee, index) => String(index)}
+                noun="nominees"
+              />
             </div>
           ))}
         </div>

@@ -1,27 +1,51 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, Building2, CheckCircle2, LineChart, Timer } from "lucide-react";
 import React from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Money } from "@/components/common/Money";
 import { InlineProblem, QueryBoundary } from "@/components/payroll-ops/shared";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { GratuityLiability } from "@/lib/types/payroll-ops";
 import { formatDay } from "@/lib/utils";
 
 import { AccrualDateSelect, useAccrualDates } from "./AccrualDatePicker";
+
+type DepartmentRow = GratuityLiability["by_department"][number];
+type TenureBandRow = GratuityLiability["by_tenure_band"][number];
+
+const DEPARTMENT_COLUMNS: ColumnDef<DepartmentRow>[] = [
+  { accessorKey: "department_name", header: "Department" },
+  {
+    accessorKey: "employee_count",
+    header: "Employees",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+  },
+  {
+    accessorKey: "accrued_liability",
+    header: "Accrued",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.accrued_liability} />,
+  },
+];
+
+const TENURE_BAND_COLUMNS: ColumnDef<TenureBandRow>[] = [
+  // By the years in the label: "5-10 years" before "10+ years", not after it.
+  { accessorKey: "band", header: "Band", sortingFn: "alphanumeric" },
+  {
+    accessorKey: "accrued_liability",
+    header: "Accrued",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.accrued_liability} />,
+  },
+];
 
 /** Accrued gratuity liability on a date, and how it breaks down. */
 export function LiabilityPanel() {
@@ -93,58 +117,28 @@ function LiabilityView({ data }: { data: GratuityLiability }) {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <DataPanel
+        <DataTable
           title="By department"
-          isEmpty={data.by_department.length === 0}
+          columns={DEPARTMENT_COLUMNS}
+          data={data.by_department}
+          getRowId={(row) => row.department_id}
+          noun="departments"
+          exportName={`gratuity-liability-by-department-${data.as_of}`}
+          searchPlaceholder="Search departments"
           empty={{ icon: Building2, title: "No department breakdown was returned" }}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Department</TableHead>
-                <TableHead className="text-right">Employees</TableHead>
-                <TableHead className="text-right">Accrued</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.by_department.map((row) => (
-                <TableRow key={row.department_id}>
-                  <TableCell>{row.department_name}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.employee_count}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.accrued_liability} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </DataPanel>
+        />
 
-        <DataPanel
+        <DataTable
           title="By tenure band"
           description="Completed years of service."
-          isEmpty={data.by_tenure_band.length === 0}
+          columns={TENURE_BAND_COLUMNS}
+          data={data.by_tenure_band}
+          getRowId={(row) => row.band}
+          noun="tenure bands"
+          exportName={`gratuity-liability-by-tenure-band-${data.as_of}`}
+          searchPlaceholder="Search bands"
           empty={{ icon: Timer, title: "No tenure breakdown was returned" }}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Band</TableHead>
-                <TableHead className="text-right">Accrued</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.by_tenure_band.map((row) => (
-                <TableRow key={row.band}>
-                  <TableCell>{row.band}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.accrued_liability} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </DataPanel>
+        />
       </div>
     </div>
   );

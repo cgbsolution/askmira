@@ -1,17 +1,17 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { HandCoins, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DatePicker } from "@/components/common/DatePicker";
 import { PersonCell } from "@/components/common/PersonCell";
-import { EmptyState } from "@/components/common/EmptyState";
 import { InlineProblem, StatTile, errorDetail, todayISO } from "@/components/expenses/ReviewCommon";
 import { AdvanceStatusBadge, formatMoney } from "@/components/expenses/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -21,16 +21,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { post } from "@/lib/api";
-import type { Advance, SettleInput, SettlementOutcome, SettlementResult } from "@/lib/types/expenses";
+import type { Advance, AdvanceStatus, SettleInput, SettlementOutcome, SettlementResult } from "@/lib/types/expenses";
 import { formatDay } from "@/lib/utils";
 
 const OUTCOME_LABEL: Record<SettlementOutcome, string> = {
@@ -38,6 +30,20 @@ const OUTCOME_LABEL: Record<SettlementOutcome, string> = {
   refund_due_to_employee: "Refund due to the employee",
   recovery_due_from_employee: "Recovery due from the employee",
 };
+
+/** The status badge's words, for sorting, the search and the CSV. */
+const STATUS_TEXT: Record<AdvanceStatus, string> = {
+  issued: "Outstanding",
+  settled: "Settled",
+  cancelled: "Cancelled",
+};
+
+/** "Issued 3 Oct 2026 · trip ended 7 Oct 2026". */
+function issuedLine(advance: Advance): string {
+  return `Issued ${formatDay(advance.issued_on, true)}${
+    advance.trip_to_date ? ` · trip ended ${formatDay(advance.trip_to_date, true)}` : ""
+  }`;
+}
 
 /** Advances whose trips are over, settled against the claims made for them. */
 export function ReviewAdvances({
@@ -49,69 +55,98 @@ export function ReviewAdvances({
 }) {
   const [settling, setSettling] = useState<Advance | null>(null);
 
-  if (advances.length === 0) {
-    return (
-      <Card tier="tier1">
-        <EmptyState
-          icon={HandCoins}
-          title="No advances to settle"
-          description="An issued advance appears here once its trip is over and it can be settled against the claims."
-        />
-      </Card>
-    );
-  }
+  const columns: ColumnDef<Advance>[] = [
+    {
+      accessorKey: "employee_name",
+      header: "Employee",
+      meta: { text: (advance) => [advance.employee_name ?? "—", advance.employee_code].filter(Boolean).join(" ") },
+      cell: ({ row }) => (
+        <PersonCell size="sm" name={row.original.employee_name ?? "—"} subtitle={row.original.employee_code} />
+      ),
+    },
+    {
+      accessorKey: "trip_purpose",
+      header: "Trip",
+      meta: {
+        cellClassName: "max-w-64",
+        text: (advance) => `${advance.trip_purpose ?? "—"} · ${issuedLine(advance)}`,
+      },
+      cell: ({ row }) => (
+        <>
+          <p className="truncate text-foreground">{row.original.trip_purpose ?? "—"}</p>
+          <p className="text-xs text-muted-foreground">{issuedLine(row.original)}</p>
+        </>
+      ),
+    },
+    {
+      accessorKey: "amount",
+      header: "Advance",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => formatMoney(row.original.amount),
+    },
+    {
+      accessorKey: "claimed_against",
+      header: "Claimed against",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => formatMoney(row.original.claimed_against),
+    },
+    {
+      accessorKey: "outstanding",
+      header: "Outstanding",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => formatMoney(row.original.outstanding),
+    },
+    {
+      accessorKey: "age_days",
+      header: "Age",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => `${row.original.age_days}d`,
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorFn: (advance) => STATUS_TEXT[advance.status],
+      meta: {
+        text: (advance) => [STATUS_TEXT[advance.status], advance.is_blocking && "Blocking"].filter(Boolean).join(", "),
+      },
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          <AdvanceStatusBadge status={row.original.status} />
+          {row.original.is_blocking && <Badge variant="destructive">Blocking</Badge>}
+        </div>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" onClick={() => setSettling(row.original)}>
+          Settle
+        </Button>
+      ),
+    },
+  ];
 
   return (
-    <Card tier="tier1" className="py-0">
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="pl-5">Employee</TableHead>
-              <TableHead>Trip</TableHead>
-              <TableHead className="text-right">Advance</TableHead>
-              <TableHead className="text-right">Claimed against</TableHead>
-              <TableHead className="text-right">Outstanding</TableHead>
-              <TableHead className="text-right">Age</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="pr-5" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {advances.map((advance) => (
-              <TableRow key={advance.id}>
-                <TableCell className="pl-5">
-                  <PersonCell size="sm" name={advance.employee_name ?? "—"} subtitle={advance.employee_code} />
-                </TableCell>
-                <TableCell className="max-w-64">
-                  <p className="truncate text-foreground">{advance.trip_purpose ?? "—"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Issued {formatDay(advance.issued_on, true)}
-                    {advance.trip_to_date && ` · trip ended ${formatDay(advance.trip_to_date, true)}`}
-                  </p>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{formatMoney(advance.amount)}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatMoney(advance.claimed_against)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{formatMoney(advance.outstanding)}</TableCell>
-                <TableCell className="text-right tabular-nums">{advance.age_days}d</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    <AdvanceStatusBadge status={advance.status} />
-                    {advance.is_blocking && <Badge variant="destructive">Blocking</Badge>}
-                  </div>
-                </TableCell>
-                <TableCell className="pr-5 text-right">
-                  <Button size="sm" onClick={() => setSettling(advance)}>
-                    Settle
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
+    <>
+      <DataTable
+        columns={columns}
+        data={advances}
+        noun="advances"
+        exportName="advances-to-settle"
+        searchPlaceholder="Search employee or trip"
+        empty={{
+          icon: HandCoins,
+          title: "No advances to settle",
+          description:
+            "An issued advance appears here once its trip is over and it can be settled against the claims.",
+        }}
+      />
 
       <SettleDialog
         advance={settling}
@@ -120,7 +155,7 @@ export function ReviewAdvances({
           if (changed) onChanged();
         }}
       />
-    </Card>
+    </>
   );
 }
 

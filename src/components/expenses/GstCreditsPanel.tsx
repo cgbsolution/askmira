@@ -1,9 +1,10 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Receipt } from "lucide-react";
 import React, { useState } from "react";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { QueryBoundary } from "@/components/expenses/ReviewCommon";
 import { EligibilityBadge, ReconciliationBadge, formatMoney, humanizeKey } from "@/components/expenses/shared";
 import { Badge } from "@/components/ui/badge";
@@ -18,19 +19,123 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import type { GstCredit } from "@/lib/types/expenses";
+import type { GstCredit, GstEligibility, Gstr2bMatch } from "@/lib/types/expenses";
 import { formatDay } from "@/lib/utils";
 
 const ALL = "__all__";
+
+/** The badges' words, for sorting, the search and the CSV. */
+const ELIGIBILITY_TEXT: Record<GstEligibility, string> = {
+  eligible: "Eligible",
+  ineligible: "Ineligible",
+  uncertain: "Needs review",
+};
+
+const MATCH_TEXT: Record<Gstr2bMatch, string> = {
+  not_reconciled: "Not reconciled",
+  matched: "Matched in 2B",
+  missing_in_2b: "Missing in 2B",
+  value_mismatch: "Value mismatch",
+};
+
+type MoneyField = "taxable_value" | "cgst" | "sgst" | "igst" | "cess" | "claimable_amount";
+
+function moneyColumn(key: MoneyField, header: string): ColumnDef<GstCredit> {
+  return {
+    accessorKey: key,
+    header,
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => formatMoney(row.original[key]),
+  };
+}
+
+const COLUMNS: ColumnDef<GstCredit>[] = [
+  {
+    accessorKey: "invoice_number",
+    header: "Invoice",
+    meta: { text: (credit) => `${credit.invoice_number} · ${formatDay(credit.invoice_date, true)}` },
+    cell: ({ row }) => (
+      <>
+        <p className="font-medium text-foreground">{row.original.invoice_number}</p>
+        <p className="text-xs text-muted-foreground">{formatDay(row.original.invoice_date, true)}</p>
+      </>
+    ),
+  },
+  {
+    accessorKey: "vendor_gstin",
+    header: "Vendor GSTIN",
+    meta: {
+      text: (credit) =>
+        credit.gstin_is_valid
+          ? credit.vendor_gstin
+          : `${credit.vendor_gstin} · ${credit.gstin_problem ?? "Invalid GSTIN"}`,
+    },
+    cell: ({ row }) => (
+      <>
+        <p className="tabular-nums">{row.original.vendor_gstin}</p>
+        {!row.original.gstin_is_valid && (
+          <Badge variant="destructive" className="mt-1">
+            {row.original.gstin_problem ?? "Invalid GSTIN"}
+          </Badge>
+        )}
+      </>
+    ),
+  },
+  {
+    id: "category",
+    header: "Category",
+    accessorFn: (credit) => humanizeKey(credit.category_key),
+    meta: {
+      text: (credit) =>
+        [humanizeKey(credit.category_key), credit.tax_split && humanizeKey(credit.tax_split)]
+          .filter(Boolean)
+          .join(" · "),
+    },
+    cell: ({ row }) => (
+      <>
+        {humanizeKey(row.original.category_key)}
+        {row.original.tax_split && (
+          <p className="text-xs text-muted-foreground">{humanizeKey(row.original.tax_split)}</p>
+        )}
+      </>
+    ),
+  },
+  moneyColumn("taxable_value", "Taxable"),
+  moneyColumn("cgst", "CGST"),
+  moneyColumn("sgst", "SGST"),
+  moneyColumn("igst", "IGST"),
+  moneyColumn("cess", "Cess"),
+  moneyColumn("claimable_amount", "Claimable"),
+  {
+    id: "eligibility",
+    header: "Eligibility",
+    accessorFn: (credit) => ELIGIBILITY_TEXT[credit.eligibility],
+    meta: {
+      cellClassName: "max-w-64 whitespace-normal",
+      text: (credit) =>
+        [ELIGIBILITY_TEXT[credit.eligibility], credit.eligibility_reason, credit.eligibility_reference]
+          .filter(Boolean)
+          .join(" · "),
+    },
+    cell: ({ row }) => (
+      <>
+        <EligibilityBadge eligibility={row.original.eligibility} />
+        <p className="mt-1 text-xs text-muted-foreground">{row.original.eligibility_reason}</p>
+        {row.original.eligibility_reference && (
+          <p className="text-xs text-muted-foreground">{row.original.eligibility_reference}</p>
+        )}
+      </>
+    ),
+  },
+  {
+    id: "gstr2b",
+    header: "GSTR-2B",
+    accessorFn: (credit) => MATCH_TEXT[credit.reconciliation_status] ?? credit.reconciliation_status,
+    cell: ({ row }) => <ReconciliationBadge status={row.original.reconciliation_status} />,
+  },
+];
 
 /** Every captured credit, filterable by eligibility, 2B match and period. */
 export function GstCreditsPanel() {
@@ -112,77 +217,25 @@ export function GstCreditsPanel() {
         </form>
 
         <QueryBoundary query={query} skeletonRows={5}>
-          {(rows) =>
-            rows.length === 0 ? (
-              <EmptyState
-                icon={Receipt}
-                title={path === "/gst/credits" ? "No credits captured yet" : "No credits match these filters"}
-                description={
-                  path === "/gst/credits"
-                    ? "A credit is recorded when an invoice's GST details are captured on the Capture tab or with a claim."
-                    : "Widen the filters to see more."
-                }
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-5">Invoice</TableHead>
-                    <TableHead>Vendor GSTIN</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead className="text-right">Taxable</TableHead>
-                    <TableHead className="text-right">CGST</TableHead>
-                    <TableHead className="text-right">SGST</TableHead>
-                    <TableHead className="text-right">IGST</TableHead>
-                    <TableHead className="text-right">Cess</TableHead>
-                    <TableHead className="text-right">Claimable</TableHead>
-                    <TableHead>Eligibility</TableHead>
-                    <TableHead className="pr-5">GSTR-2B</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((credit) => (
-                    <TableRow key={credit.id} className="align-top">
-                      <TableCell className="pl-5">
-                        <p className="font-medium text-foreground">{credit.invoice_number}</p>
-                        <p className="text-xs text-muted-foreground">{formatDay(credit.invoice_date, true)}</p>
-                      </TableCell>
-                      <TableCell>
-                        <p className="tabular-nums">{credit.vendor_gstin}</p>
-                        {!credit.gstin_is_valid && (
-                          <Badge variant="destructive" className="mt-1">
-                            {credit.gstin_problem ?? "Invalid GSTIN"}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {humanizeKey(credit.category_key)}
-                        {credit.tax_split && (
-                          <p className="text-xs text-muted-foreground">{humanizeKey(credit.tax_split)}</p>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(credit.taxable_value)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(credit.cgst)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(credit.sgst)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(credit.igst)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(credit.cess)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{formatMoney(credit.claimable_amount)}</TableCell>
-                      <TableCell className="max-w-64 whitespace-normal">
-                        <EligibilityBadge eligibility={credit.eligibility} />
-                        <p className="mt-1 text-xs text-muted-foreground">{credit.eligibility_reason}</p>
-                        {credit.eligibility_reference && (
-                          <p className="text-xs text-muted-foreground">{credit.eligibility_reference}</p>
-                        )}
-                      </TableCell>
-                      <TableCell className="pr-5">
-                        <ReconciliationBadge status={credit.reconciliation_status} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )
-          }
+          {(rows) => (
+            <DataTable
+              bordered={false}
+              columns={COLUMNS}
+              data={rows}
+              noun="credits"
+              exportName="gst-credits"
+              searchPlaceholder="Search invoice, GSTIN or category"
+              rowClassName={() => "align-top"}
+              filtered={path !== "/gst/credits"}
+              empty={{
+                icon: Receipt,
+                title: "No credits captured yet",
+                description:
+                  "A credit is recorded when an invoice's GST details are captured on the Capture tab or with a claim.",
+              }}
+              emptyMessage="No credits match these filters. Widen the filters to see more."
+            />
+          )}
         </QueryBoundary>
       </CardContent>
     </Card>

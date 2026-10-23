@@ -1,24 +1,119 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Info, MessageSquareText } from "lucide-react";
 import React, { useMemo } from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DataPanel } from "@/components/common/DataPanel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import type { InterviewerReport } from "@/lib/types/hiring";
+import type { InterviewerReport, InterviewerSignal } from "@/lib/types/hiring";
 
 function Muted({ children }: { children: React.ReactNode }) {
   return <p className="text-xs text-muted-foreground">{children}</p>;
 }
+
+function deviationText({ deviation }: InterviewerSignal["severity"]): string | null {
+  if (deviation == null) return null;
+  return `${deviation > 0 ? "+" : ""}${deviation} rating points against peers`;
+}
+
+function turnaroundText({ median_days, slowest_days }: InterviewerSignal["turnaround"]): string | null {
+  if (median_days == null) return null;
+  return `Median ${median_days} days${slowest_days != null ? `, slowest ${slowest_days}` : ""}`;
+}
+
+function qualityText({ incoherent_count }: InterviewerSignal["feedback_quality"]): string | null {
+  if (incoherent_count == null) return null;
+  return `${incoherent_count} incoherent form${incoherent_count === 1 ? "" : "s"}`;
+}
+
+/** A cell's lines as one piece of text, for the search and the CSV. */
+function lines(...parts: (string | null | undefined)[]): string {
+  return parts.filter(Boolean).join(" · ");
+}
+
+/** No column sorts: ordering interviewers by these figures would rank them. */
+const COLUMNS: ColumnDef<InterviewerSignal>[] = [
+  {
+    accessorKey: "name",
+    header: "Interviewer",
+    enableSorting: false,
+    meta: { cellClassName: "font-medium text-foreground" },
+  },
+  {
+    id: "interviews",
+    header: "Interviews",
+    accessorFn: (row) => row.severity.interviews,
+    enableSorting: false,
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+  },
+  {
+    id: "severity",
+    header: "Rating compared with peers",
+    enableSorting: false,
+    meta: {
+      cellClassName: "max-w-72 whitespace-normal",
+      text: ({ severity }) => lines(deviationText(severity), severity.reading, severity.note),
+    },
+    cell: ({ row }) => {
+      const { severity } = row.original;
+      const figure = deviationText(severity);
+      return (
+        <>
+          {figure != null ? <p className="tabular-nums">{figure}</p> : null}
+          {severity.reading && <Muted>{severity.reading}</Muted>}
+          {severity.note && <Muted>{severity.note}</Muted>}
+        </>
+      );
+    },
+  },
+  {
+    id: "turnaround",
+    header: "Feedback turnaround",
+    enableSorting: false,
+    meta: {
+      cellClassName: "max-w-72 whitespace-normal",
+      text: ({ turnaround }) => lines(turnaroundText(turnaround), turnaround.reading, turnaround.note),
+    },
+    cell: ({ row }) => {
+      const { turnaround } = row.original;
+      const figure = turnaroundText(turnaround);
+      return (
+        <>
+          {figure != null && <p className="tabular-nums">{figure}</p>}
+          {turnaround.reading && <Muted>{turnaround.reading}</Muted>}
+          {turnaround.note && <Muted>{turnaround.note}</Muted>}
+        </>
+      );
+    },
+  },
+  {
+    id: "feedback_quality",
+    header: "Feedback quality",
+    enableSorting: false,
+    meta: {
+      cellClassName: "max-w-80 whitespace-normal",
+      text: ({ feedback_quality: quality }) =>
+        lines(qualityText(quality), quality.reading, quality.note, quality.proxy_caveat),
+    },
+    cell: ({ row }) => {
+      const quality = row.original.feedback_quality;
+      const figure = qualityText(quality);
+      return (
+        <>
+          {figure != null && <p className="tabular-nums">{figure}</p>}
+          {quality.reading && <Muted>{quality.reading}</Muted>}
+          {quality.note && <Muted>{quality.note}</Muted>}
+          {quality.proxy_caveat && (
+            <p className="mt-1 text-xs italic text-muted-foreground">{quality.proxy_caveat}</p>
+          )}
+        </>
+      );
+    },
+  },
+];
 
 /**
  * Interviewer coaching signals. Framed as coaching, listed alphabetically,
@@ -59,73 +154,18 @@ export function AnalyticsInterviewersPanel() {
               </AlertDescription>
             </Alert>
           </div>
-          {rows.length === 0 ? (
-            <div className="flex items-center gap-2 px-5 pb-3 text-sm text-muted-foreground">
-              <MessageSquareText className="size-4" /> No interviewer feedback to read yet.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Interviewer</TableHead>
-                    <TableHead className="text-right">Interviews</TableHead>
-                    <TableHead>Rating compared with peers</TableHead>
-                    <TableHead>Feedback turnaround</TableHead>
-                    <TableHead>Feedback quality</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow key={row.interviewer_id} className="align-top">
-                      <TableCell className="font-medium text-foreground">{row.name}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {row.severity.interviews}
-                      </TableCell>
-                      <TableCell className="max-w-72 whitespace-normal">
-                        {row.severity.deviation != null ? (
-                          <p className="tabular-nums">
-                            {row.severity.deviation > 0 ? "+" : ""}
-                            {row.severity.deviation} rating points against peers
-                          </p>
-                        ) : null}
-                        {row.severity.reading && <Muted>{row.severity.reading}</Muted>}
-                        {row.severity.note && <Muted>{row.severity.note}</Muted>}
-                      </TableCell>
-                      <TableCell className="max-w-72 whitespace-normal">
-                        {row.turnaround.median_days != null && (
-                          <p className="tabular-nums">
-                            Median {row.turnaround.median_days} days
-                            {row.turnaround.slowest_days != null &&
-                              `, slowest ${row.turnaround.slowest_days}`}
-                          </p>
-                        )}
-                        {row.turnaround.reading && <Muted>{row.turnaround.reading}</Muted>}
-                        {row.turnaround.note && <Muted>{row.turnaround.note}</Muted>}
-                      </TableCell>
-                      <TableCell className="max-w-80 whitespace-normal">
-                        {row.feedback_quality.incoherent_count != null && (
-                          <p className="tabular-nums">
-                            {row.feedback_quality.incoherent_count} incoherent form
-                            {row.feedback_quality.incoherent_count === 1 ? "" : "s"}
-                          </p>
-                        )}
-                        {row.feedback_quality.reading && (
-                          <Muted>{row.feedback_quality.reading}</Muted>
-                        )}
-                        {row.feedback_quality.note && <Muted>{row.feedback_quality.note}</Muted>}
-                        {row.feedback_quality.proxy_caveat && (
-                          <p className="mt-1 text-xs italic text-muted-foreground">
-                            {row.feedback_quality.proxy_caveat}
-                          </p>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <DataTable
+            columns={COLUMNS}
+            data={rows}
+            getRowId={(row) => row.interviewer_id}
+            noun="interviewers"
+            exportName="interviewer-coaching-signals"
+            searchPlaceholder="Search interviewers"
+            bordered={false}
+            className="border-t border-border"
+            rowClassName={() => "align-top"}
+            empty={{ icon: MessageSquareText, title: "No interviewer feedback to read yet" }}
+          />
         </div>
       )}
     </DataPanel>

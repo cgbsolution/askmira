@@ -1,11 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Banknote, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
 import { useHasEmployeeRecord } from "@/components/common/NoEmployeeRecord";
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
@@ -15,7 +16,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post, put } from "@/lib/api";
 import { toISODate } from "@/lib/utils";
@@ -64,6 +64,27 @@ const STATUS_VARIANT: Record<AdvanceRequest["status"], "warning" | "secondary" |
 function failure(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;
 }
+
+const MY_REQUEST_COLUMNS: ColumnDef<AdvanceRequest>[] = [
+  { accessorKey: "period", header: "Month" },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.amount} />,
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { text: (r) => [r.status, r.decision_note].filter(Boolean).join(" · ") },
+    cell: ({ row }) => (
+      <>
+        <Badge variant={STATUS_VARIANT[row.original.status]}>{row.original.status}</Badge>
+        {row.original.decision_note && <p className="text-xs text-muted-foreground">{row.original.decision_note}</p>}
+      </>
+    ),
+  },
+];
 
 /** For the person: what they have earned this month and what they can draw now. */
 export function EarnedWageCard() {
@@ -135,29 +156,13 @@ export function EarnedWageCard() {
           </Button>
         </div>
         {(requests.data ?? []).length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Month</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(requests.data ?? []).map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{r.period}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={r.amount} />
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={STATUS_VARIANT[r.status]}>{r.status}</Badge>
-                    {r.decision_note && <p className="text-xs text-muted-foreground">{r.decision_note}</p>}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={MY_REQUEST_COLUMNS}
+            data={requests.data ?? []}
+            noun="requests"
+            exportName="my-wage-advances"
+            searchPlaceholder="Search by month or status"
+          />
         )}
       </CardContent>
     </Card>
@@ -183,76 +188,88 @@ export function EwaAdminScreen() {
     }
   };
 
+  const columns: ColumnDef<AdvanceRequest>[] = [
+    {
+      accessorKey: "employee_name",
+      header: "Person",
+      meta: { text: (r) => [r.employee_name, r.employee_code].filter(Boolean).join(" ") },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium">{row.original.employee_name}</p>
+          <p className="text-xs text-muted-foreground">{row.original.employee_code}</p>
+        </>
+      ),
+    },
+    { accessorKey: "period", header: "Month" },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.amount} />,
+    },
+    {
+      accessorKey: "earned_to_date",
+      header: "Earned then",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.earned_to_date} />,
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => <Badge variant={STATUS_VARIANT[row.original.status]}>{row.original.status}</Badge>,
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => {
+        const r = row.original;
+        return (
+          <div className="flex justify-end gap-2">
+            {r.status === "requested" && (
+              <>
+                <Button size="sm" disabled={busy === r.id} onClick={() => void act(r, "decide", { approve: true }, "Approved; the deduction is in this month's payroll.")}>
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={busy === r.id}
+                  onClick={() => void act(r, "decide", { approve: false, note: "Declined by payroll." }, "Declined.")}
+                >
+                  Decline
+                </Button>
+              </>
+            )}
+            {r.status === "approved" && (
+              <Button size="sm" variant="outline" disabled={busy === r.id} onClick={() => void act(r, "disbursed", { paid_on: toISODate(new Date()) }, "Recorded as paid out.")}>
+                Paid out today
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <PageShell title="Earned wage access" description="Advances on pay already earned this month, recovered in the same month's payroll.">
       <div className="grid gap-6">
         {policy.data && <PolicyCard policy={policy.data} onSaved={policy.reload} />}
-        <DataPanel
+        <DataTable
           tier="tier1"
           title="Requests"
+          columns={columns}
+          data={requests.data ?? []}
+          noun="requests"
+          exportName="earned-wage-requests"
+          searchPlaceholder="Search by person, month or status"
           isLoading={requests.isLoading && !requests.data}
           error={requests.error?.detail ?? null}
           onRetry={requests.reload}
-          isEmpty={(requests.data ?? []).length === 0}
           empty={{ icon: Banknote, title: "No requests yet" }}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Person</TableHead>
-                <TableHead>Month</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Earned then</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(requests.data ?? []).map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>
-                    <p className="font-medium">{r.employee_name}</p>
-                    <p className="text-xs text-muted-foreground">{r.employee_code}</p>
-                  </TableCell>
-                  <TableCell>{r.period}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={r.amount} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={r.earned_to_date} />
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={STATUS_VARIANT[r.status]}>{r.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
-                      {r.status === "requested" && (
-                        <>
-                          <Button size="sm" disabled={busy === r.id} onClick={() => void act(r, "decide", { approve: true }, "Approved; the deduction is in this month's payroll.")}>
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={busy === r.id}
-                            onClick={() => void act(r, "decide", { approve: false, note: "Declined by payroll." }, "Declined.")}
-                          >
-                            Decline
-                          </Button>
-                        </>
-                      )}
-                      {r.status === "approved" && (
-                        <Button size="sm" variant="outline" disabled={busy === r.id} onClick={() => void act(r, "disbursed", { paid_on: toISODate(new Date()) }, "Recorded as paid out.")}>
-                          Paid out today
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </DataPanel>
+        />
       </div>
     </PageShell>
   );

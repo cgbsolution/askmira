@@ -1,11 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { GitBranch, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { KIND_LABELS } from "@/components/attendance/AttendanceRequestDialog";
 import { EVENT_TYPE } from "@/components/people/labels";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -86,6 +86,24 @@ function failure(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;
 }
 
+/** A rule's conditions in one line, as the list shows them. */
+function conditionsOf(rule: Rule): string {
+  const conditions =
+    [
+      rule.min_amount && `from ₹${rule.min_amount}`,
+      rule.max_amount && `up to ₹${rule.max_amount}`,
+      rule.min_days && `${rule.min_days}+ days`,
+      rule.expense_categories.length > 0 &&
+        rule.expense_categories.map((c) => CATEGORY_CHOICES[rule.process]?.[c] ?? c).join(", "),
+      rule.leave_type_ids.length > 0 && `${rule.leave_type_ids.length} leave type(s)`,
+      rule.department_ids.length > 0 && `${rule.department_ids.length} department(s)`,
+      rule.location_ids.length > 0 && `${rule.location_ids.length} location(s)`,
+    ]
+      .filter(Boolean)
+      .join(" · ") || "Always";
+  return conditions + (rule.escalate_after_hours ? ` · escalates after ${rule.escalate_after_hours}h` : "");
+}
+
 /**
  * Who approves leave and expenses, in order, under which conditions. The first
  * active rule that matches (lowest priority number first) decides; with none,
@@ -98,6 +116,9 @@ export function ApprovalRulesPanel() {
   const [deleting, setDeleting] = useState<Rule | null>(null);
 
   const userName = (id?: string) => users.data?.find((u) => u.id === id)?.full_name ?? "someone";
+  const approversOf = (rule: Rule) =>
+    rule.steps.map((step) => (step.kind === "user" ? userName(step.user_id) : STEP_LABEL[step.kind])).join(" → ") +
+    (rule.process === "expense" ? " → finance" : "");
 
   const remove = async () => {
     if (!deleting) return;
@@ -111,6 +132,65 @@ export function ApprovalRulesPanel() {
     }
   };
 
+  const columns: ColumnDef<Rule>[] = [
+    {
+      accessorKey: "name",
+      header: "Rule",
+      meta: {
+        text: (rule) =>
+          `${rule.name} · ${PROCESS_LABEL[rule.process] ?? rule.process} · Priority ${rule.priority}${rule.active ? "" : " · Off"}`,
+      },
+      cell: ({ row }) => (
+        <>
+          <div className="font-medium text-foreground">{row.original.name}</div>
+          <div className="flex flex-wrap gap-1 pt-1">
+            <Badge variant="outline">{PROCESS_LABEL[row.original.process] ?? row.original.process}</Badge>
+            <Badge variant="muted">Priority {row.original.priority}</Badge>
+            {!row.original.active && <Badge variant="warning">Off</Badge>}
+          </div>
+        </>
+      ),
+    },
+    {
+      id: "when",
+      header: "When",
+      accessorFn: conditionsOf,
+      meta: { cellClassName: "text-sm text-muted-foreground" },
+    },
+    {
+      id: "approvers",
+      header: "Approvers, in order",
+      accessorFn: approversOf,
+      meta: { cellClassName: "text-sm" },
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={`Edit ${row.original.name}`}
+            onClick={() => setEditing(row.original)}
+          >
+            <Pencil />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-label={`Delete ${row.original.name}`}
+            onClick={() => setDeleting(row.original)}
+          >
+            <Trash2 />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <Alert>
@@ -121,82 +201,28 @@ export function ApprovalRulesPanel() {
           too. Anybody a rule names sees what waits on them under Approvals.
         </AlertDescription>
       </Alert>
-      <DataPanel
+      <DataTable
         tier="tier1"
         title="Approval rules"
+        columns={columns}
+        data={data ?? []}
+        noun="rules"
+        exportName="approval-rules"
+        searchPlaceholder="Search rules"
         actions={
-          <Button size="sm" onClick={() => setEditing("new")}>
+          <Button size="sm" className="h-9" onClick={() => setEditing("new")}>
             <Plus /> New rule
           </Button>
         }
         isLoading={isLoading}
-        error={error?.detail ?? null}
+        error={error?.detail}
         onRetry={reload}
-        isEmpty={(data ?? []).length === 0}
         empty={{
           icon: GitBranch,
           title: "No rules yet",
           description: "Requests go to the line manager, and lifecycle changes to HR.",
         }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Rule</TableHead>
-              <TableHead>When</TableHead>
-              <TableHead>Approvers, in order</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(data ?? []).map((rule) => (
-              <TableRow key={rule.id}>
-                <TableCell>
-                  <div className="font-medium text-foreground">{rule.name}</div>
-                  <div className="flex flex-wrap gap-1 pt-1">
-                    <Badge variant="outline">{PROCESS_LABEL[rule.process] ?? rule.process}</Badge>
-                    <Badge variant="muted">Priority {rule.priority}</Badge>
-                    {!rule.active && <Badge variant="warning">Off</Badge>}
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {[
-                    rule.min_amount && `from ₹${rule.min_amount}`,
-                    rule.max_amount && `up to ₹${rule.max_amount}`,
-                    rule.min_days && `${rule.min_days}+ days`,
-                    rule.expense_categories.length > 0 &&
-                      rule.expense_categories
-                        .map((c) => CATEGORY_CHOICES[rule.process]?.[c] ?? c)
-                        .join(", "),
-                    rule.leave_type_ids.length > 0 && `${rule.leave_type_ids.length} leave type(s)`,
-                    rule.department_ids.length > 0 && `${rule.department_ids.length} department(s)`,
-                    rule.location_ids.length > 0 && `${rule.location_ids.length} location(s)`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ") || "Always"}
-                  {rule.escalate_after_hours ? ` · escalates after ${rule.escalate_after_hours}h` : ""}
-                </TableCell>
-                <TableCell className="text-sm">
-                  {rule.steps
-                    .map((step) => (step.kind === "user" ? userName(step.user_id) : STEP_LABEL[step.kind]))
-                    .join(" → ")}
-                  {rule.process === "expense" && " → finance"}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button size="sm" variant="ghost" aria-label={`Edit ${rule.name}`} onClick={() => setEditing(rule)}>
-                      <Pencil />
-                    </Button>
-                    <Button size="sm" variant="ghost" aria-label={`Delete ${rule.name}`} onClick={() => setDeleting(rule)}>
-                      <Trash2 />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       {editing && (
         <RuleDialog
           rule={editing === "new" ? null : editing}

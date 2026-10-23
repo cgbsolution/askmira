@@ -1,9 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Clock, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { RequireRole } from "@/components/common/RequireRole";
@@ -11,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { ProjectRow } from "@/components/time/TimesheetScreen";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
@@ -27,6 +28,26 @@ interface Rate {
 }
 
 const GENERAL = "__general";
+
+const RATE_COLUMNS: ColumnDef<Rate>[] = [
+  {
+    accessorKey: "effective_from",
+    header: "From",
+    meta: { text: (r) => formatDay(r.effective_from, true) },
+    cell: ({ row }) => formatDay(row.original.effective_from, true),
+  },
+  {
+    id: "project",
+    header: "For",
+    accessorFn: (r) => r.project ?? "General rate",
+  },
+  {
+    accessorKey: "rate",
+    header: "An hour",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.rate} />,
+  },
+];
 
 /**
  * For people paid by the hour: the rate from each date, in general or for one
@@ -76,26 +97,13 @@ export function HourlyRatesCard({ employeeId }: { employeeId: string }) {
       </CardHeader>
       <CardContent className="grid gap-4">
         {rows.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>From</TableHead>
-                <TableHead>For</TableHead>
-                <TableHead className="text-right">An hour</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell>{formatDay(r.effective_from, true)}</TableCell>
-                  <TableCell>{r.project ?? "General rate"}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={r.rate} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={RATE_COLUMNS}
+            data={rows}
+            noun="rates"
+            exportName="hourly-rates"
+            searchPlaceholder="Search rates"
+          />
         )}
         <RequireRole roles={["admin"]}>
           <div className="grid gap-3 sm:grid-cols-[12rem_10rem_12rem_auto] sm:items-end">

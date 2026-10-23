@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Banknote, CheckCircle2, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
@@ -21,19 +22,54 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { Settlement, SettlementPaymentInput } from "@/lib/types/payroll-ops";
 import { formatDate, formatDay, toISODate } from "@/lib/utils";
+
+const EMPLOYEE_COLUMN: ColumnDef<Settlement> = {
+  id: "employee",
+  header: "Employee",
+  accessorFn: (row) => row.employee_name ?? "Unnamed employee",
+  meta: { text: (row) => `${row.employee_name ?? "Unnamed employee"} ${row.employee_code ?? ""}` },
+  cell: ({ row }) => (
+    <PersonCell name={row.original.employee_name ?? "Unnamed employee"} subtitle={row.original.employee_code} />
+  ),
+};
+
+const PAID_COLUMNS: ColumnDef<Settlement>[] = [
+  EMPLOYEE_COLUMN,
+  {
+    accessorKey: "net_amount",
+    header: "Amount",
+    meta: { className: "text-right", cellClassName: "font-medium" },
+    cell: ({ row }) => <Money value={row.original.net_amount} />,
+  },
+  {
+    id: "paid_on",
+    header: "Paid on",
+    accessorFn: (row) => row.paid_on ?? row.paid_at,
+    meta: {
+      cellClassName: "whitespace-nowrap tabular-nums",
+      text: (row) => (row.paid_on ? formatDay(row.paid_on, true) : formatDate(row.paid_at)),
+    },
+    cell: ({ row }) =>
+      row.original.paid_on ? formatDay(row.original.paid_on, true) : formatDate(row.original.paid_at),
+  },
+  {
+    accessorKey: "payment_reference",
+    header: "Bank reference",
+    meta: { cellClassName: "font-mono text-sm", text: (row) => row.payment_reference ?? "Not recorded" },
+    cell: ({ row }) => row.original.payment_reference ?? <Badge variant="muted">Not recorded</Badge>,
+  },
+  {
+    accessorKey: "paid_by_name",
+    header: "Recorded by",
+    meta: { cellClassName: "text-sm text-muted-foreground" },
+    cell: ({ row }) => row.original.paid_by_name ?? "—",
+  },
+];
 
 /**
  * Paying an approved full & final settlement.
@@ -59,123 +95,87 @@ export function SettlementPayments() {
   const waiting = approved.data ?? [];
   const done = paid.data ?? [];
 
+  const waitingColumns: ColumnDef<Settlement>[] = [
+    EMPLOYEE_COLUMN,
+    {
+      accessorKey: "last_working_day",
+      header: "Last working day",
+      meta: {
+        cellClassName: "whitespace-nowrap tabular-nums",
+        text: (row) => (row.last_working_day ? formatDay(row.last_working_day, true) : "—"),
+      },
+      cell: ({ row }) => (row.original.last_working_day ? formatDay(row.original.last_working_day, true) : "—"),
+    },
+    {
+      accessorKey: "approved_at",
+      header: "Approved",
+      meta: { cellClassName: "whitespace-nowrap tabular-nums", text: (row) => formatDate(row.approved_at) },
+      cell: ({ row }) => formatDate(row.original.approved_at),
+    },
+    {
+      accessorKey: "net_amount",
+      header: "Net payable",
+      meta: { className: "text-right", cellClassName: "font-medium" },
+      cell: ({ row }) => <Money value={row.original.net_amount} />,
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", headClassName: "w-40", text: false },
+      cell: ({ row }) => {
+        const own = user?.employee_id != null && row.original.employee_id === user.employee_id;
+        return canPay && !own ? (
+          <Button size="sm" onClick={() => setPaying(row.original)}>
+            <Banknote /> Mark as paid
+          </Button>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            {own ? "Your own settlement" : "An admin records payment"}
+          </span>
+        );
+      },
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Approved, waiting to be paid"
         description="Record each payment once the bank has sent it: the date and the bank's reference."
+        columns={waitingColumns}
+        data={waiting}
+        noun="settlements"
+        exportName="settlements-awaiting-payment"
+        searchPlaceholder="Search by name or code"
         isLoading={approved.isLoading && !approved.data}
         error={approved.error?.detail}
         onRetry={approved.reload}
-        isEmpty={waiting.length === 0}
         empty={{
           icon: Banknote,
           title: "Nothing waiting to be paid",
           description:
             "A settlement appears here once it is approved. Demands on an employee are recovered, not paid, so they do not.",
         }}
-      >
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Last working day</TableHead>
-                <TableHead>Approved</TableHead>
-                <TableHead className="text-right">Net payable</TableHead>
-                <TableHead className="w-40" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {waiting.map((row) => {
-                const own = user?.employee_id != null && row.employee_id === user.employee_id;
-                return (
-                  <TableRow key={row.id}>
-                    <TableCell>
-                      <PersonCell
-                        name={row.employee_name ?? "Unnamed employee"}
-                        subtitle={row.employee_code}
-                      />
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">
-                      {row.last_working_day ? formatDay(row.last_working_day, true) : "—"}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">
-                      {formatDate(row.approved_at)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      <Money value={row.net_amount} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {canPay && !own ? (
-                        <Button size="sm" onClick={() => setPaying(row)}>
-                          <Banknote /> Mark as paid
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">
-                          {own ? "Your own settlement" : "An admin records payment"}
-                        </span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </DataPanel>
+      />
 
-      <DataPanel
+      <DataTable
         title="Paid"
         description="Settlements paid to leavers, with the bank reference each was paid under."
+        columns={PAID_COLUMNS}
+        data={done}
+        noun="settlements"
+        exportName="settlements-paid"
+        searchPlaceholder="Search name, code or bank reference"
         isLoading={paid.isLoading && !paid.data}
         error={paid.error?.detail}
         onRetry={paid.reload}
-        isEmpty={done.length === 0}
         empty={{
           icon: CheckCircle2,
           title: "No settlement has been paid yet",
           description: "Payments you record above appear here.",
         }}
-      >
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Paid on</TableHead>
-                <TableHead>Bank reference</TableHead>
-                <TableHead>Recorded by</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {done.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>
-                    <PersonCell
-                      name={row.employee_name ?? "Unnamed employee"}
-                      subtitle={row.employee_code}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    <Money value={row.net_amount} />
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap tabular-nums">
-                    {row.paid_on ? formatDay(row.paid_on, true) : formatDate(row.paid_at)}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">
-                    {row.payment_reference ?? <Badge variant="muted">Not recorded</Badge>}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {row.paid_by_name ?? "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </DataPanel>
+      />
 
       <MarkPaidDialog
         settlement={paying}

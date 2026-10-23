@@ -1,10 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { BellRing, CircleCheck, Hourglass, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -18,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post, put } from "@/lib/api";
@@ -41,6 +42,49 @@ const SILENCE: Record<SilencePolicy, { label: string; consequence: string }> = {
     consequence: "Probation is extended once automatically; after that, a decision is required.",
   },
 };
+
+type DriftCase = DriftReport["cases"][number];
+
+const DRIFT_COLUMNS: ColumnDef<DriftCase>[] = [
+  {
+    accessorKey: "employee",
+    header: "Person",
+    meta: { cellClassName: "font-medium text-foreground" },
+  },
+  {
+    accessorKey: "days_overdue",
+    header: "Days overdue",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+  },
+  {
+    id: "reminders",
+    header: "Reminders",
+    accessorFn: (row) =>
+      Array.isArray(row.reminders_sent) ? row.reminders_sent.join(", ") || "None" : row.reminders_sent,
+    meta: { cellClassName: "text-sm text-muted-foreground" },
+  },
+  {
+    accessorKey: "resolution",
+    header: "What the policy does",
+    meta: {
+      cellClassName: "text-sm",
+      text: (row) =>
+        row.new_probation_end_date
+          ? `${row.resolution} New end date ${formatDate(row.new_probation_end_date)}`
+          : row.resolution,
+    },
+    cell: ({ row }) => (
+      <>
+        {row.original.resolution}
+        {row.original.new_probation_end_date && (
+          <div className="text-xs text-muted-foreground">
+            New end date {formatDate(row.original.new_probation_end_date)}
+          </div>
+        )}
+      </>
+    ),
+  },
+];
 
 /**
  * Probation: what happens when a manager does not decide, and who is overdue.
@@ -169,50 +213,25 @@ export function ProbationTab() {
       </DataPanel>
 
       {policy.data?.configured && (
-        <DataPanel
+        <DataTable
           title="Overdue probation reviews"
           description={drift.data ? `${drift.data.count} overdue as of ${formatDate(drift.data.as_of)}.` : undefined}
+          columns={DRIFT_COLUMNS}
+          data={drift.data?.cases ?? []}
+          getRowId={(row) => row.review_id}
+          noun="reviews"
+          exportName="overdue-probation-reviews"
+          searchPlaceholder="Search people"
           actions={
-            <Button size="sm" variant="outline" onClick={remind} disabled={reminding}>
+            <Button size="sm" variant="outline" className="h-9" onClick={remind} disabled={reminding}>
               {reminding ? <Loader2 className="animate-spin" /> : <BellRing />} Send due reminders
             </Button>
           }
           isLoading={drift.isLoading}
           error={drift.error?.detail ?? null}
           onRetry={drift.reload}
-          isEmpty={(drift.data?.cases ?? []).length === 0}
           empty={{ icon: CircleCheck, title: "No overdue reviews" }}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Person</TableHead>
-                <TableHead className="text-right">Days overdue</TableHead>
-                <TableHead>Reminders</TableHead>
-                <TableHead>What the policy does</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(drift.data?.cases ?? []).map((row) => (
-                <TableRow key={row.review_id}>
-                  <TableCell className="font-medium text-foreground">{row.employee}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.days_overdue}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {Array.isArray(row.reminders_sent) ? row.reminders_sent.join(", ") || "None" : row.reminders_sent}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {row.resolution}
-                    {row.new_probation_end_date && (
-                      <div className="text-xs text-muted-foreground">
-                        New end date {formatDate(row.new_probation_end_date)}
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </DataPanel>
+        />
       )}
     </div>
   );

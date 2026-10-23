@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { apiMessage, formatMoment, isZero } from "@/components/payroll/labels";
@@ -18,14 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { post } from "@/lib/api";
 import type { PayrollRun, VarianceFlag } from "@/lib/types/payroll";
@@ -71,80 +64,104 @@ export function VariancePanel({
     }
   };
 
+  const columns: ColumnDef<VarianceFlag>[] = [
+    {
+      id: "employee",
+      header: "Employee",
+      accessorFn: (flag) => flag.employee_name ?? flag.employee_code,
+      meta: { text: (flag) => `${flag.employee_name ?? flag.employee_code} ${flag.employee_code}` },
+      cell: ({ row }) => {
+        const flag = row.original;
+        return (
+          <>
+            <p className="font-medium text-foreground">{flag.employee_name ?? flag.employee_code}</p>
+            <p className="text-xs text-muted-foreground">{flag.employee_code}</p>
+            {!isZero(flag.not_employed_days) && (
+              <Badge variant="muted" className="mt-1">
+                Not employed: {formatDays(flag.not_employed_days)} days
+              </Badge>
+            )}
+            {flag.deduction_ceiling && (
+              <Badge variant="warning" className="mt-1">
+                Deductions {flag.deduction_ceiling.share_percent}% of wages, ceiling{" "}
+                {flag.deduction_ceiling.ceiling_percent}%
+              </Badge>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      accessorKey: "previous_net",
+      header: "Last month",
+      meta: { className: "text-right" },
+      cell: ({ row }) => (row.original.previous_net === null ? "—" : <Money value={row.original.previous_net} />),
+    },
+    {
+      accessorKey: "current_net",
+      header: "This month",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.current_net} />,
+    },
+    {
+      accessorKey: "change_percent",
+      header: "Change",
+      meta: {
+        className: "text-right",
+        cellClassName: "tabular-nums",
+        text: (flag) => (flag.change_percent === null ? null : `${flag.change_percent}%`),
+      },
+      cell: ({ row }) => (row.original.change_percent === null ? "—" : `${row.original.change_percent}%`),
+    },
+    {
+      id: "acknowledgement",
+      header: "Acknowledgement",
+      accessorFn: (flag) => (flag.acknowledged ? "Acknowledged" : "Not acknowledged"),
+      meta: {
+        cellClassName: "max-w-sm whitespace-normal",
+        text: (flag) =>
+          flag.acknowledged
+            ? `Acknowledged: “${flag.note}” — ${flag.acknowledged_by_name ?? "someone"}, ${formatMoment(flag.acknowledged_at)}`
+            : "Not acknowledged",
+      },
+      cell: ({ row }) => {
+        const flag = row.original;
+        return flag.acknowledged ? (
+          <div className="text-sm">
+            <Badge variant="success">Acknowledged</Badge>
+            <p className="mt-1 text-muted-foreground">
+              “{flag.note}” — {flag.acknowledged_by_name ?? "someone"}, {formatMoment(flag.acknowledged_at)}
+            </p>
+          </div>
+        ) : editable ? (
+          <Button size="sm" variant="outline" onClick={() => setTarget(flag)}>
+            Acknowledge
+          </Button>
+        ) : (
+          <Badge variant="warning">Not acknowledged</Badge>
+        );
+      },
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Variances"
         description="Net pay that moved more than the review threshold against last month, and deductions above the legal ceiling."
-        isEmpty={run.variance_flags.length === 0}
+        columns={columns}
+        data={run.variance_flags}
+        getRowId={(flag) => flag.employee_id}
+        noun="variances"
+        exportName={`payroll-variances-${run.period_year}-${String(run.period_month).padStart(2, "0")}`}
+        searchPlaceholder="Search by name or code"
         empty={{
           icon: CheckCircle2,
           title: "No variances",
           description:
             "Nobody's net pay moved beyond the threshold or past the deductions ceiling, or there is no prior month to compare.",
         }}
-      >
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead className="text-right">Last month</TableHead>
-                <TableHead className="text-right">This month</TableHead>
-                <TableHead className="text-right">Change</TableHead>
-                <TableHead>Acknowledgement</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {run.variance_flags.map((flag) => (
-                <TableRow key={flag.employee_id}>
-                  <TableCell>
-                    <p className="font-medium text-foreground">{flag.employee_name ?? flag.employee_code}</p>
-                    <p className="text-xs text-muted-foreground">{flag.employee_code}</p>
-                    {!isZero(flag.not_employed_days) && (
-                      <Badge variant="muted" className="mt-1">
-                        Not employed: {formatDays(flag.not_employed_days)} days
-                      </Badge>
-                    )}
-                    {flag.deduction_ceiling && (
-                      <Badge variant="warning" className="mt-1">
-                        Deductions {flag.deduction_ceiling.share_percent}% of wages, ceiling{" "}
-                        {flag.deduction_ceiling.ceiling_percent}%
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {flag.previous_net === null ? "—" : <Money value={flag.previous_net} />}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={flag.current_net} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {flag.change_percent === null ? "—" : `${flag.change_percent}%`}
-                  </TableCell>
-                  <TableCell className="max-w-sm whitespace-normal">
-                    {flag.acknowledged ? (
-                      <div className="text-sm">
-                        <Badge variant="success">Acknowledged</Badge>
-                        <p className="mt-1 text-muted-foreground">
-                          “{flag.note}” — {flag.acknowledged_by_name ?? "someone"},{" "}
-                          {formatMoment(flag.acknowledged_at)}
-                        </p>
-                      </div>
-                    ) : editable ? (
-                      <Button size="sm" variant="outline" onClick={() => setTarget(flag)}>
-                        Acknowledge
-                      </Button>
-                    ) : (
-                      <Badge variant="warning">Not acknowledged</Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </DataPanel>
+      />
 
       <Dialog open={target !== null} onOpenChange={(open) => !open && !saving && setTarget(null)}>
         <DialogContent className="sm:max-w-md">

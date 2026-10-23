@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Info, Landmark, Loader2, Plus, Wallet } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -28,7 +29,6 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -38,6 +38,7 @@ import type {
   BudgetView,
   CostCentre,
   HeadcountBudget,
+  HeadcountTotals,
 } from "@/lib/types/people";
 
 import { NONE, apiMessage, currentFinancialYear, fromSelect } from "../labels";
@@ -49,6 +50,75 @@ interface CostGap {
   actual_cost: string;
   gap: string;
 }
+
+/** One department's line in the headcount view: its name, then its totals. */
+type DepartmentHeadcount = HeadcountTotals & { department: string };
+
+const NUMBER_META = { className: "text-right", cellClassName: "tabular-nums" };
+
+const HEADCOUNT_COLUMNS: ColumnDef<DepartmentHeadcount>[] = [
+  { accessorKey: "department", header: "Department", meta: { cellClassName: "font-medium text-foreground" } },
+  { accessorKey: "approved_fte", header: "Approved FTE", sortingFn: "alphanumeric", meta: NUMBER_META },
+  { accessorKey: "filled_fte", header: "Filled", sortingFn: "alphanumeric", meta: NUMBER_META },
+  { accessorKey: "vacant_fte", header: "Vacant", sortingFn: "alphanumeric", meta: NUMBER_META },
+  { accessorKey: "frozen_fte", header: "Frozen", sortingFn: "alphanumeric", meta: NUMBER_META },
+  {
+    accessorKey: "people",
+    header: "People",
+    meta: NUMBER_META,
+    cell: ({ row }) => (
+      <>
+        {row.original.people}
+        {row.original.covered_only > 0 && (
+          <div className="text-[11px] text-muted-foreground">+{row.original.covered_only} covered only</div>
+        )}
+      </>
+    ),
+  },
+];
+
+const COST_COLUMNS: ColumnDef<CostGap>[] = [
+  { accessorKey: "scope", header: "Department", meta: { cellClassName: "font-medium text-foreground" } },
+  {
+    accessorKey: "budgeted_cost",
+    header: "Budgeted",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.budgeted_cost} />,
+  },
+  {
+    accessorKey: "actual_cost",
+    header: "Actual",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.actual_cost} />,
+  },
+  {
+    accessorKey: "gap",
+    header: "Headroom",
+    // A signed decimal string: sorted by value, so -5 comes before -1.
+    sortingFn: (a, b, id) => Number(a.getValue(id)) - Number(b.getValue(id)),
+    meta: { className: "text-right" },
+    cell: ({ row }) => (
+      <Money value={row.original.gap} className={row.original.gap.startsWith("-") ? "text-destructive" : undefined} />
+    ),
+  },
+];
+
+const CENTRE_COLUMNS: ColumnDef<CostCentre>[] = [
+  { accessorKey: "name", header: "Cost centre", meta: { cellClassName: "font-medium text-foreground" } },
+  { accessorKey: "code", header: "Code", meta: { cellClassName: "font-mono text-xs" } },
+  {
+    id: "status",
+    header: "Status",
+    accessorFn: (row) => (row.is_active ? "Active" : "Inactive"),
+    cell: ({ row }) => (
+      <Badge variant={row.original.is_active ? "secondary" : "outline"}>
+        {row.original.is_active ? "Active" : "Inactive"}
+      </Badge>
+    ),
+  },
+];
 
 /**
  * Headcount budget: approved against filled against vacant, then the budgets
@@ -79,17 +149,75 @@ export function BudgetTab() {
   });
   const [addingCentre, setAddingCentre] = useState(false);
 
-  const totals = Object.entries(view.data?.totals ?? {});
+  const totals: DepartmentHeadcount[] = Object.entries(view.data?.totals ?? {}).map(([department, row]) => ({
+    ...row,
+    department,
+  }));
   const costRows = (view.data?.cost ?? []) as CostGap[];
   const centreName = new Map((costCentres.data ?? []).map((row) => [row.id, row.name]));
+  const scopeOf = (row: HeadcountBudget) =>
+    row.department_id
+      ? org.departmentName(row.department_id)
+      : row.cost_centre_id
+        ? `Cost centre: ${centreName.get(row.cost_centre_id) ?? "—"}`
+        : "Whole workspace";
+
+  const reviseColumn: ColumnDef<HeadcountBudget> = {
+    id: "actions",
+    header: "Actions",
+    enableHiding: false,
+    meta: { className: "text-right", text: false },
+    cell: ({ row }) => (
+      <Button variant="outline" size="sm" onClick={() => setBudgetForm({ open: true, editing: row.original })}>
+        Revise
+      </Button>
+    ),
+  };
+  const budgetColumns: ColumnDef<HeadcountBudget>[] = [
+    { accessorKey: "financial_year", header: "Year", meta: { cellClassName: "text-sm" } },
+    {
+      id: "scope",
+      header: "Scope",
+      accessorFn: scopeOf,
+      meta: {
+        cellClassName: "text-sm",
+        text: (row) => (row.note ? `${scopeOf(row)} ${row.note}` : scopeOf(row)),
+      },
+      cell: ({ row }) => (
+        <>
+          {scopeOf(row.original)}
+          {row.original.note && <div className="text-xs text-muted-foreground">{row.original.note}</div>}
+        </>
+      ),
+    },
+    {
+      accessorKey: "approved_positions",
+      header: "Positions",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "approved_cost",
+      header: "Cost",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.approved_cost} />,
+    },
+    ...(canManage ? [reviseColumn] : []),
+  ];
 
   return (
     <div className="flex flex-col gap-4">
-      <DataPanel
+      <DataTable
         title="Headcount by department"
         description={
           view.data ? `${view.data.financial_year}, as of ${view.data.as_of}.` : undefined
         }
+        columns={HEADCOUNT_COLUMNS}
+        data={totals}
+        getRowId={(row) => row.department}
+        noun="departments"
+        exportName="headcount-by-department"
+        searchPlaceholder="Search departments"
         actions={
           canSeeCost ? (
             <div className="flex items-center gap-2">
@@ -103,41 +231,8 @@ export function BudgetTab() {
         isLoading={view.isLoading}
         error={view.error?.detail ?? null}
         onRetry={view.reload}
-        isEmpty={totals.length === 0}
         empty={{ icon: Landmark, title: "No positions to count yet" }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Department</TableHead>
-              <TableHead className="text-right">Approved FTE</TableHead>
-              <TableHead className="text-right">Filled</TableHead>
-              <TableHead className="text-right">Vacant</TableHead>
-              <TableHead className="text-right">Frozen</TableHead>
-              <TableHead className="text-right">People</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {totals.map(([key, row]) => (
-              <TableRow key={key}>
-                <TableCell className="font-medium text-foreground">{key}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.approved_fte}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.filled_fte}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.vacant_fte}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.frozen_fte}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {row.people}
-                  {row.covered_only > 0 && (
-                    <div className="text-[11px] text-muted-foreground">
-                      +{row.covered_only} covered only
-                    </div>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       {view.data?.cost_note && !includeCost && canSeeCost && (
         <Alert>
@@ -148,45 +243,29 @@ export function BudgetTab() {
       )}
 
       {includeCost && costRows.length > 0 && (
-        <DataPanel title="Budgeted against actual cost" description="Budgeted is each seat's CTC ceiling times its FTE; actual is what the people in those seats cost.">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Department</TableHead>
-                <TableHead className="text-right">Budgeted</TableHead>
-                <TableHead className="text-right">Actual</TableHead>
-                <TableHead className="text-right">Headroom</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {costRows.map((row) => (
-                <TableRow key={row.scope}>
-                  <TableCell className="font-medium text-foreground">{row.scope}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.budgeted_cost} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.actual_cost} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money
-                      value={row.gap}
-                      className={row.gap.startsWith("-") ? "text-destructive" : undefined}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </DataPanel>
+        <DataTable
+          title="Budgeted against actual cost"
+          description="Budgeted is each seat's CTC ceiling times its FTE; actual is what the people in those seats cost."
+          columns={COST_COLUMNS}
+          data={costRows}
+          getRowId={(row) => row.scope}
+          noun="departments"
+          exportName="budgeted-against-actual-cost"
+          searchPlaceholder="Search departments"
+        />
       )}
 
-      <DataPanel
+      <DataTable
         title="Approved budgets"
         description="New seats and fills are refused where they would exceed these. A budget cut below what exists is saved — it is a decision — and flagged."
+        columns={budgetColumns}
+        data={budgets.data ?? []}
+        noun="budgets"
+        exportName="headcount-budgets"
+        searchPlaceholder="Search budgets"
         actions={
           canManage ? (
-            <Button size="sm" onClick={() => setBudgetForm({ open: true, editing: null })}>
+            <Button size="sm" className="h-9" onClick={() => setBudgetForm({ open: true, editing: null })}>
               <Plus /> Set a budget
             </Button>
           ) : undefined
@@ -194,61 +273,23 @@ export function BudgetTab() {
         isLoading={budgets.isLoading}
         error={budgets.error?.detail ?? null}
         onRetry={budgets.reload}
-        isEmpty={(budgets.data ?? []).length === 0}
         empty={{
           icon: Wallet,
           title: "No headcount budgets set",
           description: "Without one, positions are created without a budget check.",
         }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Year</TableHead>
-              <TableHead>Scope</TableHead>
-              <TableHead className="text-right">Positions</TableHead>
-              <TableHead className="text-right">Cost</TableHead>
-              {canManage && <TableHead className="text-right">Actions</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(budgets.data ?? []).map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="text-sm">{row.financial_year}</TableCell>
-                <TableCell className="text-sm">
-                  {row.department_id
-                    ? org.departmentName(row.department_id)
-                    : row.cost_centre_id
-                      ? `Cost centre: ${centreName.get(row.cost_centre_id) ?? "—"}`
-                      : "Whole workspace"}
-                  {row.note && <div className="text-xs text-muted-foreground">{row.note}</div>}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{row.approved_positions}</TableCell>
-                <TableCell className="text-right">
-                  <Money value={row.approved_cost} />
-                </TableCell>
-                {canManage && (
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setBudgetForm({ open: true, editing: row })}
-                    >
-                      Revise
-                    </Button>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
-      <DataPanel
+      <DataTable
         title="Cost centres"
+        columns={CENTRE_COLUMNS}
+        data={costCentres.data ?? []}
+        noun="cost centres"
+        exportName="cost-centres"
+        searchPlaceholder="Search cost centres"
         actions={
           canManage ? (
-            <Button size="sm" variant="outline" onClick={() => setAddingCentre(true)}>
+            <Button size="sm" variant="outline" className="h-9" onClick={() => setAddingCentre(true)}>
               <Plus /> Add cost centre
             </Button>
           ) : undefined
@@ -256,32 +297,8 @@ export function BudgetTab() {
         isLoading={costCentres.isLoading}
         error={costCentres.error?.detail ?? null}
         onRetry={costCentres.reload}
-        isEmpty={(costCentres.data ?? []).length === 0}
         empty={{ icon: Landmark, title: "No cost centres" }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Cost centre</TableHead>
-              <TableHead>Code</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(costCentres.data ?? []).map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="font-medium text-foreground">{row.name}</TableCell>
-                <TableCell className="font-mono text-xs">{row.code}</TableCell>
-                <TableCell>
-                  <Badge variant={row.is_active ? "secondary" : "outline"}>
-                    {row.is_active ? "Active" : "Inactive"}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       <BudgetDialog
         open={budgetForm.open}

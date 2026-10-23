@@ -1,11 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Gift, Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { RequireRole } from "@/components/common/RequireRole";
@@ -21,14 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import { ADMIN } from "@/lib/access";
@@ -43,6 +36,11 @@ function defaultYear(): string {
   // The last completed April–March year: bonus is computed once the year is over.
   const start = now.getMonth() >= 3 ? now.getFullYear() - 1 : now.getFullYear() - 2;
   return `${start}-${start + 1}`;
+}
+
+/** An approved bonus already placed in a payroll run reads as scheduled, not as approved. */
+function statusLabel(row: BonusComputation): string {
+  return row.status === "approved" && row.paid_in_run_id ? "Scheduled in a run" : row.status;
 }
 
 /**
@@ -125,12 +123,90 @@ export function BonusPanel() {
     }
   };
 
+  const columns: ColumnDef<BonusComputation>[] = [
+    {
+      id: "employee",
+      header: "Employee",
+      accessorFn: (row) => nameOf(row.employee_id),
+    },
+    {
+      id: "eligibility",
+      header: "Eligibility",
+      accessorFn: (row) => (row.is_eligible ? "Eligible" : (row.ineligibility_reason ?? "Not eligible")),
+      meta: { cellClassName: "max-w-xs whitespace-normal text-sm" },
+      cell: ({ row }) =>
+        row.original.is_eligible ? (
+          <Badge variant="success">Eligible</Badge>
+        ) : (
+          <span className="text-muted-foreground">{row.original.ineligibility_reason ?? "Not eligible"}</span>
+        ),
+    },
+    {
+      accessorKey: "eligible_wage",
+      header: "Eligible wage",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.eligible_wage} />,
+    },
+    {
+      accessorKey: "days_worked",
+      header: "Days",
+      sortingFn: "alphanumeric",
+      meta: {
+        className: "text-right",
+        cellClassName: "tabular-nums",
+        text: (row) => `${row.days_worked}/${row.total_working_days}`,
+      },
+      cell: ({ row }) => `${row.original.days_worked}/${row.original.total_working_days}`,
+    },
+    {
+      accessorKey: "percentage",
+      header: "%",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.amount} />,
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: {
+        cellClassName: "text-sm",
+        text: (row) => (row.paid_on ? `${statusLabel(row)} ${formatDay(row.paid_on, true)}` : statusLabel(row)),
+      },
+      cell: ({ row }) => (
+        <>
+          <Badge
+            variant={
+              row.original.status === "paid" ? "success" : row.original.status === "approved" ? "accent" : "muted"
+            }
+          >
+            {statusLabel(row.original)}
+          </Badge>
+          {row.original.paid_on && (
+            <span className="ml-1 text-xs text-muted-foreground">{formatDay(row.original.paid_on, true)}</span>
+          )}
+        </>
+      ),
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Statutory bonus"
         description="Computed from the year's payslips against the approved bonus rule set."
-        toolbar={
+        columns={columns}
+        data={rows}
+        noun="employees"
+        exportName={validYear ? `statutory-bonus-${year}` : "statutory-bonus"}
+        searchPlaceholder="Search employees"
+        tabs={
           <div className="flex flex-wrap items-end gap-3">
             <FormField htmlFor="bonus-year" label="Financial year">
               <Input id="bonus-year" className="w-32" value={year} onChange={(e) => setYear(e.target.value)} />
@@ -165,61 +241,12 @@ export function BonusPanel() {
         isLoading={bonus.isLoading && !bonus.data}
         error={bonus.error?.status === 404 ? null : bonus.error?.detail}
         onRetry={bonus.reload}
-        isEmpty={rows.length === 0}
         empty={{
           icon: Gift,
           title: validYear ? `No bonus computed for ${year}` : "Enter a financial year like 2025-2026",
           description: "Compute it once the year's payroll runs are approved.",
         }}
-      >
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Eligibility</TableHead>
-                <TableHead className="text-right">Eligible wage</TableHead>
-                <TableHead className="text-right">Days</TableHead>
-                <TableHead className="text-right">%</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{nameOf(row.employee_id)}</TableCell>
-                  <TableCell className="max-w-xs whitespace-normal text-sm">
-                    {row.is_eligible ? (
-                      <Badge variant="success">Eligible</Badge>
-                    ) : (
-                      <span className="text-muted-foreground">{row.ineligibility_reason ?? "Not eligible"}</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.eligible_wage} />
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {row.days_worked}/{row.total_working_days}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{row.percentage}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.amount} />
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    <Badge variant={row.status === "paid" ? "success" : row.status === "approved" ? "accent" : "muted"}>
-                      {row.status === "approved" && row.paid_in_run_id ? "Scheduled in a run" : row.status}
-                    </Badge>
-                    {row.paid_on && (
-                      <span className="ml-1 text-xs text-muted-foreground">{formatDay(row.paid_on, true)}</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </DataPanel>
+      />
 
       <ConfirmDialog
         open={confirm === "approve"}

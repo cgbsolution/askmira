@@ -1,9 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle2, Loader2, PenLine } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { apiMessage } from "@/components/people/labels";
 import { Badge } from "@/components/ui/badge";
@@ -24,14 +26,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { downloadFile, post } from "@/lib/api";
@@ -122,6 +116,41 @@ export function AcknowledgePolicyDialog({
   );
 }
 
+type AcknowledgementRow = AcknowledgementRegister["rows"][number];
+
+const ACKNOWLEDGEMENT_COLUMNS: ColumnDef<AcknowledgementRow>[] = [
+  {
+    accessorKey: "employee_name",
+    header: "Employee",
+    meta: { text: (row) => `${row.employee_name} ${row.employee_code}` },
+    cell: ({ row }) => (
+      <>
+        <span className="font-medium text-foreground">{row.original.employee_name}</span>
+        <span className="block text-xs text-muted-foreground">{row.original.employee_code}</span>
+      </>
+    ),
+  },
+  {
+    id: "status",
+    header: "Status",
+    accessorFn: (row) => (row.acknowledged_at ? `Acknowledged ${formatDate(row.acknowledged_at)}` : "Pending"),
+    cell: ({ row }) =>
+      row.original.acknowledged_at ? (
+        <Badge variant="success">
+          <CheckCircle2 /> {formatDate(row.original.acknowledged_at)}
+        </Badge>
+      ) : (
+        <Badge variant="warning">Pending</Badge>
+      ),
+  },
+  {
+    accessorKey: "typed_name",
+    header: "Typed name",
+    meta: { cellClassName: "text-sm text-muted-foreground" },
+    cell: ({ row }) => row.original.typed_name ?? "—",
+  },
+];
+
 /** HR: who has acknowledged the current version of a policy, and who has not. */
 export function AcknowledgementRegisterSheet({
   document,
@@ -145,41 +174,19 @@ export function AcknowledgementRegisterSheet({
               : "Loading…"}
           </SheetDescription>
         </SheetHeader>
-        {data && (
-          <div className="px-4 pb-6">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Typed name</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.rows.map((row) => (
-                  <TableRow key={row.employee_id}>
-                    <TableCell>
-                      <span className="font-medium text-foreground">{row.employee_name}</span>
-                      <span className="block text-xs text-muted-foreground">{row.employee_code}</span>
-                    </TableCell>
-                    <TableCell>
-                      {row.acknowledged_at ? (
-                        <Badge variant="success">
-                          <CheckCircle2 /> {formatDate(row.acknowledged_at)}
-                        </Badge>
-                      ) : (
-                        <Badge variant="warning">Pending</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {row.typed_name ?? "—"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        )}
+        <div className="px-4 pb-6">
+          <DataTable
+            columns={ACKNOWLEDGEMENT_COLUMNS}
+            data={data?.rows ?? []}
+            getRowId={(row) => row.employee_id}
+            noun="employees"
+            exportName={`acknowledgements-${document?.title ?? "policy"}`}
+            searchPlaceholder="Search employees"
+            isLoading={query.isLoading && !data}
+            error={query.error?.detail}
+            onRetry={query.reload}
+          />
+        </div>
       </SheetContent>
     </Sheet>
   );

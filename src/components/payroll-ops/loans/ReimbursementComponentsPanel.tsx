@@ -1,10 +1,12 @@
 "use client";
 
-import { BellRing, Loader2, Plus, Wallet } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { BellRing, Loader2, Lock, Plus, Wallet } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import {
@@ -25,14 +27,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
@@ -42,7 +36,60 @@ import type {
 } from "@/lib/types/payroll-ops";
 
 import { ADMIN_ROLES, isWholeNumber, ToggleRow } from "./common";
-import { QueryPanel } from "./QueryPanel";
+
+const COMPONENT_COLUMNS: ColumnDef<ReimbursementComponent>[] = [
+  {
+    accessorKey: "name",
+    header: "Component",
+    meta: { text: (component) => `${component.name} ${component.code}` },
+    cell: ({ row }) => (
+      <>
+        <span className="font-medium text-foreground">{row.original.name}</span>
+        <span className="block text-xs text-muted-foreground">{row.original.code}</span>
+      </>
+    ),
+  },
+  {
+    accessorKey: "annual_entitlement",
+    header: "Annual entitlement",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.annual_entitlement} />,
+  },
+  {
+    accessorKey: "exemption_basis",
+    header: "Exemption basis",
+    meta: { className: "max-w-64", cellClassName: "text-sm text-muted-foreground" },
+    cell: ({ row }) => row.original.exemption_basis ?? "—",
+  },
+  {
+    accessorKey: "reminder_months_before_year_end",
+    header: "Reminder",
+    meta: { className: "text-right", cellClassName: "text-sm tabular-nums" },
+    cell: ({ row }) => `${row.original.reminder_months_before_year_end} mo before year end`,
+  },
+  {
+    id: "rules",
+    header: "Rules",
+    meta: {
+      text: (component) =>
+        [
+          !component.active && "Inactive",
+          component.bill_required && "Bill required",
+          component.carry_forward_within_year && "Carries forward in year",
+        ]
+          .filter(Boolean)
+          .join(", "),
+    },
+    cell: ({ row }) => (
+      <div className="flex flex-wrap gap-1">
+        {!row.original.active && <Badge variant="muted">Inactive</Badge>}
+        {row.original.bill_required && <Badge variant="outline">Bill required</Badge>}
+        {row.original.carry_forward_within_year && <Badge variant="outline">Carries forward in year</Badge>}
+      </div>
+    ),
+  },
+];
 
 /** Reimbursement components (fuel, telephone, books…) and their yearly entitlements. */
 export function ReimbursementComponentsPanel() {
@@ -50,6 +97,8 @@ export function ReimbursementComponentsPanel() {
   const isAdmin = hasRole(...ADMIN_ROLES);
   const query = useApiQuery<ReimbursementComponent[]>("/reimbursements/components");
   const [confirmReminders, setConfirmReminders] = useState(false);
+  // A 403 reads as "no access", not as a failed load that a retry could fix.
+  const forbidden = query.error?.status === 403;
 
   const runReminders = async () => {
     try {
@@ -67,71 +116,39 @@ export function ReimbursementComponentsPanel() {
 
   return (
     <>
-      <QueryPanel
-        query={query}
+      <DataTable
         title="Reimbursement components"
         description="The yearly entitlement for each component. Entitlement not claimed against bills by year end becomes taxable."
         actions={
           isAdmin && (
             <>
-              <Button size="sm" variant="outline" onClick={() => setConfirmReminders(true)}>
+              <Button size="sm" variant="outline" className="h-9" onClick={() => setConfirmReminders(true)}>
                 <BellRing /> Send reminders now
               </Button>
               <CreateComponentDialog onCreated={query.reload} />
             </>
           )
         }
-        isEmpty={(rows) => rows.length === 0}
-        empty={{
-          icon: Wallet,
-          title: "No reimbursement components yet",
-          description: isAdmin
-            ? "Add a component before employees can claim against it."
-            : "An admin has to add a component before employees can claim against it.",
-        }}
-      >
-        {(components) => (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Component</TableHead>
-                <TableHead className="text-right">Annual entitlement</TableHead>
-                <TableHead>Exemption basis</TableHead>
-                <TableHead className="text-right">Reminder</TableHead>
-                <TableHead>Rules</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {components.map((component) => (
-                <TableRow key={component.id}>
-                  <TableCell>
-                    <span className="font-medium text-foreground">{component.name}</span>
-                    <span className="block text-xs text-muted-foreground">{component.code}</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={component.annual_entitlement} />
-                  </TableCell>
-                  <TableCell className="max-w-64 text-sm text-muted-foreground">
-                    {component.exemption_basis ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-right text-sm tabular-nums">
-                    {component.reminder_months_before_year_end} mo before year end
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {!component.active && <Badge variant="muted">Inactive</Badge>}
-                      {component.bill_required && <Badge variant="outline">Bill required</Badge>}
-                      {component.carry_forward_within_year && (
-                        <Badge variant="outline">Carries forward in year</Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </QueryPanel>
+        columns={COMPONENT_COLUMNS}
+        data={forbidden ? [] : (query.data ?? [])}
+        noun="components"
+        exportName="reimbursement-components"
+        searchPlaceholder="Search components"
+        isLoading={query.isLoading && query.data === null}
+        error={forbidden ? null : (query.error?.detail ?? null)}
+        onRetry={query.reload}
+        empty={
+          forbidden
+            ? { icon: Lock, title: "You don't have access to this", description: query.error?.detail }
+            : {
+                icon: Wallet,
+                title: "No reimbursement components yet",
+                description: isAdmin
+                  ? "Add a component before employees can claim against it."
+                  : "An admin has to add a component before employees can claim against it.",
+              }
+        }
+      />
 
       <ConfirmDialog
         open={confirmReminders}
@@ -211,7 +228,7 @@ function CreateComponentDialog({ onCreated }: { onCreated: () => void }) {
       }}
     >
       <DialogTrigger asChild>
-        <Button size="sm">
+        <Button size="sm" className="h-9">
           <Plus /> New component
         </Button>
       </DialogTrigger>

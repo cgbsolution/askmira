@@ -1,22 +1,17 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import React from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import {
   formatDateTime,
+  humanize,
   INTERVIEW_MODE,
   INTERVIEW_STATUS,
   PANEL_RESPONSE,
   StatusBadge,
 } from "@/components/hiring/labels";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { InterviewListItem } from "@/lib/types/hiring";
 
 /** A time in a named zone; an unknown zone name falls back to saying so rather than crashing. */
@@ -56,6 +51,77 @@ export function InterviewWhen({
   );
 }
 
+/** A status as its badge reads, for the search and the CSV. */
+function statusLabel<K extends string>(map: Record<K, [string, unknown]>, value: K): string {
+  return map[value]?.[0] ?? humanize(value);
+}
+
+/** "3 on panel · 2 accepted · 1 feedback in", or "No panel". */
+function panelSummary(row: InterviewListItem): string {
+  const accepted = row.panel.filter((member) => member.response === "accepted").length;
+  const submitted = row.panel.filter((member) => member.feedback_submitted).length;
+  return row.panel.length === 0
+    ? "No panel"
+    : `${row.panel.length} on panel · ${accepted} accepted · ${submitted} feedback in`;
+}
+
+const COLUMNS: ColumnDef<InterviewListItem>[] = [
+  { accessorKey: "candidate_name", header: "Candidate", meta: { cellClassName: "font-medium text-foreground" } },
+  { accessorKey: "stage_name", header: "Round" },
+  {
+    accessorKey: "requisition_code",
+    header: "Requisition",
+    meta: { text: (row) => `${row.requisition_code} ${row.requisition_title}` },
+    cell: ({ row }) => (
+      <>
+        <span className="font-mono text-xs">{row.original.requisition_code}</span>
+        <p className="text-xs text-muted-foreground">{row.original.requisition_title}</p>
+      </>
+    ),
+  },
+  {
+    accessorKey: "scheduled_start",
+    header: "When",
+    meta: { text: (row) => formatDateTime(row.scheduled_start) },
+    cell: ({ row }) => (
+      <InterviewWhen start={row.original.scheduled_start} candidateTimezone={row.original.candidate_timezone} />
+    ),
+  },
+  {
+    accessorKey: "mode",
+    header: "Mode",
+    meta: { text: (row) => INTERVIEW_MODE[row.mode] ?? row.mode },
+    cell: ({ row }) => INTERVIEW_MODE[row.original.mode] ?? row.original.mode,
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { text: (row) => statusLabel(INTERVIEW_STATUS, row.status) },
+    cell: ({ row }) => <StatusBadge map={INTERVIEW_STATUS} value={row.original.status} />,
+  },
+  {
+    accessorKey: "my_response",
+    header: "My response",
+    meta: {
+      text: (row) => (row.my_response ? statusLabel(PANEL_RESPONSE, row.my_response) : "Not on panel"),
+    },
+    cell: ({ row }) =>
+      row.original.my_response ? (
+        <StatusBadge map={PANEL_RESPONSE} value={row.original.my_response} />
+      ) : (
+        <span className="text-xs text-muted-foreground">Not on panel</span>
+      ),
+  },
+  {
+    id: "panel",
+    header: "Panel",
+    // Sorted by panel size; searched and exported as the summary.
+    accessorFn: (row) => row.panel.length,
+    meta: { cellClassName: "text-xs text-muted-foreground tabular-nums", text: panelSummary },
+    cell: ({ row }) => panelSummary(row.original),
+  },
+];
+
 /** Interview rows. Clicking a row opens it. */
 export function InterviewTable({
   rows,
@@ -65,67 +131,14 @@ export function InterviewTable({
   onOpen: (id: string) => void;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Candidate</TableHead>
-            <TableHead>Round</TableHead>
-            <TableHead>Requisition</TableHead>
-            <TableHead>When</TableHead>
-            <TableHead>Mode</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>My response</TableHead>
-            <TableHead>Panel</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => {
-            const accepted = row.panel.filter((member) => member.response === "accepted").length;
-            const submitted = row.panel.filter((member) => member.feedback_submitted).length;
-            return (
-              <TableRow
-                key={row.id}
-                className="cursor-pointer"
-                tabIndex={0}
-                onClick={() => onOpen(row.id)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    onOpen(row.id);
-                  }
-                }}
-              >
-                <TableCell className="font-medium text-foreground">{row.candidate_name}</TableCell>
-                <TableCell>{row.stage_name}</TableCell>
-                <TableCell>
-                  <span className="font-mono text-xs">{row.requisition_code}</span>
-                  <p className="text-xs text-muted-foreground">{row.requisition_title}</p>
-                </TableCell>
-                <TableCell>
-                  <InterviewWhen start={row.scheduled_start} candidateTimezone={row.candidate_timezone} />
-                </TableCell>
-                <TableCell>{INTERVIEW_MODE[row.mode] ?? row.mode}</TableCell>
-                <TableCell>
-                  <StatusBadge map={INTERVIEW_STATUS} value={row.status} />
-                </TableCell>
-                <TableCell>
-                  {row.my_response ? (
-                    <StatusBadge map={PANEL_RESPONSE} value={row.my_response} />
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Not on panel</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground tabular-nums">
-                  {row.panel.length === 0
-                    ? "No panel"
-                    : `${row.panel.length} on panel · ${accepted} accepted · ${submitted} feedback in`}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={COLUMNS}
+      data={rows}
+      noun="interviews"
+      exportName="interviews"
+      bordered={false}
+      searchPlaceholder="Search candidate, round or requisition"
+      onRowClick={(row) => onOpen(row.id)}
+    />
   );
 }

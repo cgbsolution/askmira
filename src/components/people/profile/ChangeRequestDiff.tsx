@@ -1,19 +1,13 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import React from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FIELD_LABEL, NOMINEE_PURPOSE, RELATIONSHIP } from "@/components/people/profile/labels";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { stateName } from "@/lib/states";
 import type { ChangeRequest } from "@/lib/types/people";
-import { formatDay } from "@/lib/utils";
+import { cn, formatDay } from "@/lib/utils";
 
 type Json = Record<string, unknown>;
 
@@ -59,6 +53,20 @@ function entryLine(entry: Json): string {
   return parts.join(" · ") || "Entry";
 }
 
+/** One field of a request: what the record said, and what is asked for. */
+type FieldChange = { key: string; field: string; before: string; after: string; changed: boolean };
+
+const FIELD_COLUMNS: ColumnDef<FieldChange>[] = [
+  { accessorKey: "field", header: "Field", meta: { cellClassName: "text-muted-foreground" } },
+  { accessorKey: "before", header: "On record", meta: { cellClassName: "max-w-64 whitespace-normal" } },
+  {
+    accessorKey: "after",
+    header: "Requested",
+    meta: { cellClassName: "max-w-64 whitespace-normal" },
+    cell: ({ row }) => <span className={cn(row.original.changed && "font-medium")}>{row.original.after}</span>,
+  },
+];
+
 /**
  * What a change request asks for against what the record said when it was
  * raised. Identifiers arrive already masked for anyone outside HR.
@@ -94,30 +102,14 @@ export function ChangeRequestDiff({ request }: { request: ChangeRequest }) {
     );
   }
 
-  const keys = Object.keys(proposed).filter((key) => key !== "name_similarity");
+  const rows: FieldChange[] = Object.keys(proposed)
+    .filter((key) => key !== "name_similarity")
+    .map((key) => {
+      const before = show(current[key]);
+      const after = show(proposed[key]);
+      return { key, field: FIELD_LABEL[key] ?? key, before, after, changed: before !== after };
+    });
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Field</TableHead>
-          <TableHead>On record</TableHead>
-          <TableHead>Requested</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {keys.map((key) => {
-          const changed = show(current[key]) !== show(proposed[key]);
-          return (
-            <TableRow key={key}>
-              <TableCell className="text-muted-foreground">{FIELD_LABEL[key] ?? key}</TableCell>
-              <TableCell className="max-w-64 whitespace-normal">{show(current[key])}</TableCell>
-              <TableCell className={changed ? "max-w-64 whitespace-normal font-medium" : "max-w-64 whitespace-normal"}>
-                {show(proposed[key])}
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+    <DataTable variant="plain" columns={FIELD_COLUMNS} data={rows} getRowId={(row) => row.key} noun="fields" />
   );
 }

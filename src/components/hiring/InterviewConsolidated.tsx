@@ -1,24 +1,41 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, CheckCircle2, OctagonX } from "lucide-react";
 import React from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { ErrorState } from "@/components/common/ErrorState";
 import { humanize, RECOMMENDATION } from "@/components/hiring/labels";
 import { ScoreCard, ScoreFitCard } from "@/components/hiring/ScoreCard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { AdvanceCheck, ConsolidatedView, Recommendation } from "@/lib/types/hiring";
+
+type CompetencyRow = ConsolidatedView["per_competency"][string] & { name: string };
+
+const COMPETENCY_COLUMNS: ColumnDef<CompetencyRow>[] = [
+  {
+    accessorKey: "name",
+    header: "Competency",
+    cell: ({ row }) => humanize(row.original.name),
+  },
+  { accessorKey: "raters", header: "Raters", meta: { className: "text-right", cellClassName: "tabular-nums" } },
+  { accessorKey: "lowest", header: "Lowest", meta: { className: "text-right", cellClassName: "tabular-nums" } },
+  { accessorKey: "highest", header: "Highest", meta: { className: "text-right", cellClassName: "tabular-nums" } },
+  { accessorKey: "spread", header: "Spread", meta: { className: "text-right", cellClassName: "tabular-nums" } },
+  {
+    id: "scores",
+    header: "Scores",
+    meta: { cellClassName: "text-xs text-muted-foreground tabular-nums" },
+    cell: ({ row }) =>
+      Object.entries(row.original.scores)
+        .map(([rater, score]) => `${rater}: ${score}`)
+        .join(" · "),
+  },
+];
 
 /**
  * The panel's combined view for the people who oversee the hire: the headline,
@@ -34,7 +51,7 @@ export function InterviewConsolidated({ interviewId }: { interviewId: string }) 
   if (error) return <ErrorState message={error.detail} onRetry={reload} className="py-6" />;
   if (!data) return null;
 
-  const competencies = Object.entries(data.per_competency);
+  const competencies = Object.entries(data.per_competency).map(([name, row]) => ({ ...row, name }));
 
   return (
     <div className="space-y-4">
@@ -67,36 +84,12 @@ export function InterviewConsolidated({ interviewId }: { interviewId: string }) 
       )}
 
       {competencies.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Competency</TableHead>
-                <TableHead className="text-right">Raters</TableHead>
-                <TableHead className="text-right">Lowest</TableHead>
-                <TableHead className="text-right">Highest</TableHead>
-                <TableHead className="text-right">Spread</TableHead>
-                <TableHead>Scores</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {competencies.map(([name, row]) => (
-                <TableRow key={name}>
-                  <TableCell>{humanize(name)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.raters}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.lowest}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.highest}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.spread}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground tabular-nums">
-                    {Object.entries(row.scores)
-                      .map(([rater, score]) => `${rater}: ${score}`)
-                      .join(" · ")}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          variant="plain"
+          columns={COMPETENCY_COLUMNS}
+          data={competencies}
+          getRowId={(row) => row.name}
+        />
       )}
 
       <div className="space-y-3">

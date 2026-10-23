@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Bell, Loader2, Plus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { RequireRole } from "@/components/common/RequireRole";
 import { RULE_TYPE_LABEL } from "@/components/payroll/labels";
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
@@ -76,12 +76,79 @@ export function StatutoryUpdates({ onDrafted }: { onDrafted: () => void }) {
     }
   };
 
+  const columns: ColumnDef<Notice>[] = [
+    {
+      accessorKey: "title",
+      header: "Change",
+      meta: {
+        text: (notice) =>
+          [
+            notice.title,
+            RULE_TYPE_LABEL[notice.rule_type] ?? notice.rule_type,
+            notice.jurisdiction,
+            notice.source_reference,
+            notice.summary,
+          ].join(" · "),
+      },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium">{row.original.title}</p>
+          <p className="text-xs text-muted-foreground">
+            {RULE_TYPE_LABEL[row.original.rule_type] ?? row.original.rule_type} · {row.original.jurisdiction} ·{" "}
+            {row.original.source_reference}
+          </p>
+          <p className="mt-1 max-w-xl text-sm">{row.original.summary}</p>
+        </>
+      ),
+    },
+    {
+      accessorKey: "effective_from",
+      header: "From",
+      meta: { cellClassName: "whitespace-nowrap", text: (notice) => formatDay(notice.effective_from, true) },
+      cell: ({ row }) => formatDay(row.original.effective_from, true),
+    },
+    {
+      accessorKey: "status",
+      header: "Here",
+      meta: { text: (notice) => STATUS[notice.status].label },
+      cell: ({ row }) => (
+        <Badge variant={STATUS[row.original.status].variant}>{STATUS[row.original.status].label}</Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => {
+        const notice = row.original;
+        return (
+          notice.status === "action_needed" &&
+          (notice.has_suggested_rules ? (
+            <RequireRole roles={["admin"]}>
+              <Button size="sm" disabled={busy === notice.id} onClick={() => void draft(notice)}>
+                {busy === notice.id && <Loader2 className="animate-spin" />} Draft rule set
+              </Button>
+            </RequireRole>
+          ) : (
+            <span className="text-xs text-muted-foreground">Enter it from the cited source</span>
+          ))
+        );
+      },
+    },
+  ];
+
   return (
     <div className="grid gap-6">
-      <DataPanel
+      <DataTable
         tier="tier1"
         title="Statutory updates"
         description="Changes to PF, ESI, Professional Tax, LWF and income tax for your locations, published by AskMira's statutory desk."
+        columns={columns}
+        data={notices.data ?? []}
+        noun="notices"
+        exportName="statutory-notices"
+        searchPlaceholder="Search changes"
         actions={
           <RequireRole roles={["super_admin"]}>
             <Button size="sm" onClick={() => setPublishing(true)}>
@@ -92,49 +159,8 @@ export function StatutoryUpdates({ onDrafted }: { onDrafted: () => void }) {
         isLoading={notices.isLoading && !notices.data}
         error={notices.error?.detail ?? null}
         onRetry={notices.reload}
-        isEmpty={(notices.data ?? []).length === 0}
         empty={{ icon: Bell, title: "No statutory changes published for your locations" }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Change</TableHead>
-              <TableHead>From</TableHead>
-              <TableHead>Here</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(notices.data ?? []).map((notice) => (
-              <TableRow key={notice.id}>
-                <TableCell>
-                  <p className="font-medium">{notice.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {RULE_TYPE_LABEL[notice.rule_type] ?? notice.rule_type} · {notice.jurisdiction} · {notice.source_reference}
-                  </p>
-                  <p className="mt-1 max-w-xl text-sm">{notice.summary}</p>
-                </TableCell>
-                <TableCell className="whitespace-nowrap">{formatDay(notice.effective_from, true)}</TableCell>
-                <TableCell>
-                  <Badge variant={STATUS[notice.status].variant}>{STATUS[notice.status].label}</Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  {notice.status === "action_needed" &&
-                    (notice.has_suggested_rules ? (
-                      <RequireRole roles={["admin"]}>
-                        <Button size="sm" disabled={busy === notice.id} onClick={() => void draft(notice)}>
-                          {busy === notice.id && <Loader2 className="animate-spin" />} Draft rule set
-                        </Button>
-                      </RequireRole>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Enter it from the cited source</span>
-                    ))}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       {coverage.data && (
         <Card tier="tier1">
           <CardHeader>

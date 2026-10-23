@@ -1,11 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Users } from "lucide-react";
 import React from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import type { Feedback360 } from "@/lib/types/performance";
 
 const RELATION: Record<string, string> = {
@@ -15,6 +16,19 @@ const RELATION: Record<string, string> = {
   peer: "Peers",
   other: "Others",
 };
+
+type CompetencyRow = NonNullable<Feedback360["aggregate"]>["competencies"][number];
+
+const COMPETENCY_COLUMNS: ColumnDef<CompetencyRow>[] = [
+  { accessorKey: "name", header: "Competency" },
+  {
+    accessorKey: "average",
+    header: "Average",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => row.original.average ?? "—",
+  },
+  { accessorKey: "responses", header: "Answers", meta: { className: "text-right", cellClassName: "tabular-nums" } },
+];
 
 /**
  * The cycle's 360 feedback, beside the review it informs. Shown as the
@@ -50,24 +64,13 @@ export function Feedback360Panel({ requests }: { requests: Feedback360[] }) {
               </div>
             )}
             {request.aggregate && request.aggregate.competencies.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Competency</TableHead>
-                    <TableHead className="text-right">Average</TableHead>
-                    <TableHead className="text-right">Answers</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {request.aggregate.competencies.map((row) => (
-                    <TableRow key={row.competency_id}>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.average ?? "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.responses}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <DataTable
+                variant="plain"
+                columns={COMPETENCY_COLUMNS}
+                data={request.aggregate.competencies}
+                getRowId={(row) => row.competency_id}
+                noun="competencies"
+              />
             )}
             {request.aggregate && (request.aggregate.strengths.length > 0 || request.aggregate.improvements.length > 0) && (
               <div className="grid gap-3 sm:grid-cols-2">

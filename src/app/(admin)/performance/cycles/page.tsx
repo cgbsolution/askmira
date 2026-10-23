@@ -1,10 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { CalendarRange, Copy, Loader2, Lock, Play, Plus, RefreshCw, Rocket, UserRoundCheck } from "lucide-react";
 import React, { useState } from "react";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
@@ -33,14 +35,6 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -61,6 +55,61 @@ export default function CyclesPage() {
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const columns: ColumnDef<CycleSummary>[] = [
+    {
+      accessorKey: "name",
+      header: "Cycle",
+      meta: { cellClassName: "font-medium", text: (c) => `${c.name}${!c.has_template ? " (no scoring)" : ""}` },
+      cell: ({ row }) => (
+        <>
+          {row.original.name}
+          {!row.original.has_template && <span className="ml-2 text-xs text-muted-foreground">no scoring</span>}
+        </>
+      ),
+    },
+    {
+      accessorKey: "cycle_type",
+      header: "Type",
+      meta: { text: (c) => humanize(c.cycle_type) },
+      cell: ({ row }) => humanize(row.original.cycle_type),
+    },
+    {
+      id: "period",
+      header: "Period",
+      accessorFn: (c) => c.period_start,
+      meta: { text: (c) => formatDateRange(c.period_start, c.period_end) },
+      cell: ({ row }) => formatDateRange(row.original.period_start, row.original.period_end),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (c) => humanize(c.status) },
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+    {
+      id: "complete",
+      header: "Complete",
+      accessorFn: (c) => c.completed,
+      meta: { className: "text-right tabular-nums", text: (c) => `${c.completed} / ${c.appraisals}` },
+      cell: ({ row }) => (
+        <>
+          {row.original.completed} / {row.original.appraisals}
+        </>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="ghost" onClick={() => setOpen(row.original.id)}>
+          Open
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <PageShell
       title="Review cycles"
@@ -77,51 +126,19 @@ export default function CyclesPage() {
           <TabsTrigger value="probation">Probation reviews</TabsTrigger>
         </TabsList>
         <TabsContent value="cycles" className="mt-4">
-          <DataPanel
+          <DataTable
             title="Cycles"
             actions={<SweepButton onDone={reload} />}
-            isLoading={isLoading}
+            columns={columns}
+            data={data ?? []}
+            noun="cycles"
+            exportName="review-cycles"
+            searchPlaceholder="Search cycles"
+            isLoading={isLoading && !data}
             error={error?.detail}
             onRetry={reload}
-            isEmpty={(data ?? []).length === 0}
             empty={{ icon: CalendarRange, title: "No review cycles yet", description: "Create a cycle, set its scoring and rules, then launch it." }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cycle</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Complete</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">
-                      {c.name}
-                      {!c.has_template && <span className="ml-2 text-xs text-muted-foreground">no scoring</span>}
-                    </TableCell>
-                    <TableCell>{humanize(c.cycle_type)}</TableCell>
-                    <TableCell>{formatDateRange(c.period_start, c.period_end)}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={c.status} />
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {c.completed} / {c.appraisals}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="ghost" onClick={() => setOpen(c.id)}>
-                        Open
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </TabsContent>
         <TabsContent value="probation" className="mt-4">
           <ProbationPanel />
@@ -538,82 +555,106 @@ function ProbationPanel() {
   const { data, error, isLoading, reload } = useApiQuery<ProbationReview[]>(`/cycle-config/probation-reviews?pending_only=${pendingOnly}`);
   const [recording, setRecording] = useState<ProbationReview | null>(null);
   const { busy, run } = useAction();
+
+  const columns: ColumnDef<ProbationReview>[] = [
+    {
+      id: "employee",
+      header: "Employee",
+      accessorFn: (r) => r.employee_name ?? "—",
+      meta: { text: (r) => `${r.employee_name ?? "—"}${r.extends_review_id ? " (extension)" : ""}` },
+      cell: ({ row }) => (
+        <>
+          {row.original.employee_name ?? "—"}
+          {row.original.extends_review_id && <span className="ml-2 text-xs text-muted-foreground">(extension)</span>}
+        </>
+      ),
+    },
+    {
+      accessorKey: "probation_end_date",
+      header: "Probation ends",
+      meta: { text: (r) => formatDay(r.probation_end_date, true) },
+      cell: ({ row }) => formatDay(row.original.probation_end_date, true),
+    },
+    {
+      accessorKey: "review_due_date",
+      header: "Review due",
+      meta: { text: (r) => formatDay(r.review_due_date, true) },
+      cell: ({ row }) => formatDay(row.original.review_due_date, true),
+    },
+    {
+      accessorKey: "outcome",
+      header: "Outcome",
+      meta: {
+        text: (r) =>
+          r.outcome
+            ? `${humanize(r.outcome)}${r.extended_to ? ` to ${formatDay(r.extended_to, true)}` : ""}`
+            : "Pending",
+      },
+      cell: ({ row }) => {
+        const r = row.original;
+        return r.outcome ? (
+          <>
+            <StatusBadge status={r.outcome} />
+            {r.extended_to && <span className="ml-2 text-xs">to {formatDay(r.extended_to, true)}</span>}
+          </>
+        ) : (
+          "Pending"
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) =>
+        !row.original.outcome && (
+          <Button size="sm" variant="ghost" onClick={() => setRecording(row.original)}>
+            Record outcome
+          </Button>
+        ),
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Probation reviews"
         description="Scheduled from each employee's probation end date, not from a calendar."
-        actions={
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Checkbox id="pb-pending" checked={pendingOnly} onCheckedChange={(v) => setPendingOnly(v === true)} />
-              <Label htmlFor="pb-pending" className="text-xs font-normal">
-                Pending only
-              </Label>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={busy !== null}
-              onClick={async () => {
-                const r = await run<{ scheduled: number }>(
-                  "schedule",
-                  () => post<{ scheduled: number }>("/cycle-config/probation-reviews/schedule-due", { horizon_days: 30, lead_days: 7 }),
-                );
-                if (r) reload();
-              }}
-            >
-              <UserRoundCheck /> Schedule due in 30 days
-            </Button>
+        filters={
+          <div className="flex items-center gap-2">
+            <Checkbox id="pb-pending" checked={pendingOnly} onCheckedChange={(v) => setPendingOnly(v === true)} />
+            <Label htmlFor="pb-pending" className="text-xs font-normal">
+              Pending only
+            </Label>
           </div>
         }
-        isLoading={isLoading}
+        actions={
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={busy !== null}
+            onClick={async () => {
+              const r = await run<{ scheduled: number }>(
+                "schedule",
+                () => post<{ scheduled: number }>("/cycle-config/probation-reviews/schedule-due", { horizon_days: 30, lead_days: 7 }),
+              );
+              if (r) reload();
+            }}
+          >
+            <UserRoundCheck /> Schedule due in 30 days
+          </Button>
+        }
+        columns={columns}
+        data={data ?? []}
+        noun="probation reviews"
+        exportName="probation-reviews"
+        searchPlaceholder="Search probation reviews"
+        isLoading={isLoading && !data}
         error={error?.detail}
         onRetry={reload}
-        isEmpty={(data ?? []).length === 0}
         empty={{ icon: UserRoundCheck, title: "No probation reviews", description: "Schedule them from probation end dates on employee records." }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Probation ends</TableHead>
-              <TableHead>Review due</TableHead>
-              <TableHead>Outcome</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data?.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell>
-                  {r.employee_name ?? "—"}
-                  {r.extends_review_id && <span className="ml-2 text-xs text-muted-foreground">(extension)</span>}
-                </TableCell>
-                <TableCell>{formatDay(r.probation_end_date, true)}</TableCell>
-                <TableCell>{formatDay(r.review_due_date, true)}</TableCell>
-                <TableCell>
-                  {r.outcome ? (
-                    <>
-                      <StatusBadge status={r.outcome} />
-                      {r.extended_to && <span className="ml-2 text-xs">to {formatDay(r.extended_to, true)}</span>}
-                    </>
-                  ) : (
-                    "Pending"
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  {!r.outcome && (
-                    <Button size="sm" variant="ghost" onClick={() => setRecording(r)}>
-                      Record outcome
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       {recording && <ProbationOutcomeDialog review={recording} onClose={() => setRecording(null)} onDone={() => { setRecording(null); reload(); }} />}
     </>
   );

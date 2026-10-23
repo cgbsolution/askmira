@@ -1,11 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { BookOpen, Loader2, Save } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { apiMessage, periodLabel, RUN_TYPE } from "@/components/payroll/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,14 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { put } from "@/lib/api";
 import type { Page } from "@/lib/types";
@@ -105,20 +98,91 @@ export function LedgerMappingScreen() {
       [code]: { ...(current[code] ?? { debit: "", credit: "" }), [side]: value },
     }));
 
+  const valueOf = (row: MappingRow) => draft[row.line_code] ?? { debit: "", credit: "" };
+
+  const columns: ColumnDef<MappingRow>[] = [
+    {
+      id: "line",
+      header: "Payslip line",
+      accessorFn: (row) => row.name || row.line_code,
+      meta: { text: (row) => `${row.name || row.line_code} ${row.line_code}` },
+      cell: ({ row }) => (
+        <>
+          <span className="font-medium text-foreground">{row.original.name || row.original.line_code}</span>
+          <span className="block font-mono text-xs text-muted-foreground">{row.original.line_code}</span>
+          {row.original.used_by_run && !row.original.complete && (
+            <Badge variant="warning" className="mt-1">
+              Unmapped
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "nature",
+      header: "Posts as",
+      meta: { cellClassName: "text-sm text-muted-foreground", text: (row) => NATURE_LABEL[row.nature] },
+      cell: ({ row }) => NATURE_LABEL[row.original.nature],
+    },
+    {
+      id: "debit_ledger",
+      header: "Debit ledger",
+      accessorFn: (row) => valueOf(row).debit,
+      cell: ({ row }) => {
+        const needsDebit = row.original.nature === "earning" || row.original.nature === "employer_contribution";
+        return needsDebit ? (
+          <Input
+            aria-label={`Debit ledger for ${row.original.line_code}`}
+            value={valueOf(row.original).debit}
+            maxLength={160}
+            placeholder="e.g. Salaries & wages"
+            onChange={(event) => set(row.original.line_code, "debit", event.target.value)}
+          />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        );
+      },
+    },
+    {
+      id: "credit_ledger",
+      header: "Credit ledger",
+      accessorFn: (row) => valueOf(row).credit,
+      cell: ({ row }) => {
+        const needsCredit = row.original.nature !== "earning";
+        return needsCredit ? (
+          <Input
+            aria-label={`Credit ledger for ${row.original.line_code}`}
+            value={valueOf(row.original).credit}
+            maxLength={160}
+            placeholder="e.g. PF payable"
+            onChange={(event) => set(row.original.line_code, "credit", event.target.value)}
+          />
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        );
+      },
+    },
+  ];
+
   return (
-    <DataPanel
+    <DataTable
+      // A form: every line's ledgers are typed in and saved together, so no row is paged away.
+      variant="plain"
       title="Ledger mapping"
       description="Type each ledger exactly as it is named in your books. An export with an unmapped line is refused rather than posting to a ledger that does not exist."
+      columns={columns}
+      data={rows}
+      getRowId={(row) => row.line_code}
       actions={
         <Button disabled={isSaving || rows.length === 0} onClick={() => void save()}>
           {isSaving ? <Loader2 className="animate-spin" /> : <Save />}
           Save mapping
         </Button>
       }
-      toolbar={
+      filters={
         <>
           <Select value={runId} onValueChange={setRunId}>
-            <SelectTrigger size="sm" className="w-72" aria-label="Show the lines a run posts">
+            <SelectTrigger className="h-9 w-72" aria-label="Show the lines a run posts">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -139,74 +203,11 @@ export function LedgerMappingScreen() {
       isLoading={query.isLoading}
       error={query.error?.detail}
       onRetry={query.reload}
-      isEmpty={rows.length === 0}
       empty={{
         icon: BookOpen,
         title: "Nothing mapped yet",
         description: "Choose an approved run above to list the payslip lines it posts.",
       }}
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Payslip line</TableHead>
-            <TableHead>Posts as</TableHead>
-            <TableHead>Debit ledger</TableHead>
-            <TableHead>Credit ledger</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => {
-            const value = draft[row.line_code] ?? { debit: "", credit: "" };
-            const needsDebit = row.nature === "earning" || row.nature === "employer_contribution";
-            const needsCredit = row.nature !== "earning";
-            return (
-              <TableRow key={row.line_code}>
-                <TableCell>
-                  <span className="font-medium text-foreground">{row.name || row.line_code}</span>
-                  <span className="block font-mono text-xs text-muted-foreground">
-                    {row.line_code}
-                  </span>
-                  {row.used_by_run && !row.complete && (
-                    <Badge variant="warning" className="mt-1">
-                      Unmapped
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
-                  {NATURE_LABEL[row.nature]}
-                </TableCell>
-                <TableCell>
-                  {needsDebit ? (
-                    <Input
-                      aria-label={`Debit ledger for ${row.line_code}`}
-                      value={value.debit}
-                      maxLength={160}
-                      placeholder="e.g. Salaries & wages"
-                      onChange={(event) => set(row.line_code, "debit", event.target.value)}
-                    />
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {needsCredit ? (
-                    <Input
-                      aria-label={`Credit ledger for ${row.line_code}`}
-                      value={value.credit}
-                      maxLength={160}
-                      placeholder="e.g. PF payable"
-                      onChange={(event) => set(row.line_code, "credit", event.target.value)}
-                    />
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </DataPanel>
+    />
   );
 }

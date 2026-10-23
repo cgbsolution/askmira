@@ -1,9 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { InlineProblem, MONEY_RE, errorDetail, todayISO } from "@/components/expenses/ReviewCommon";
 import { CITY_TIER_LABEL, LIMIT_TYPE_LABEL, VIOLATION_ACTION_LABEL } from "@/components/expenses/shared";
 import { Button } from "@/components/ui/button";
@@ -18,7 +20,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -59,6 +60,9 @@ function blankRule(): RuleRow {
 }
 
 const CATEGORY_RE = /^[a-z0-9_]{1,64}$/;
+
+/** The rules editor is a grid of inputs: every cell keeps its compact padding. */
+const GRID = { className: "px-2 py-2" };
 
 /**
  * Create a policy, or a new version of one. The existing version is never
@@ -133,6 +137,175 @@ export function PoliciesVersionDialog({
       const p = ruleProblems(rule);
       return !p.category && !p.amount && !p.threshold;
     });
+
+  const columns: ColumnDef<RuleRow>[] = [
+    {
+      id: "category_key",
+      header: "Category key",
+      meta: GRID,
+      cell: ({ row }) => (
+        <Input
+          aria-label={`Rule ${row.index + 1} category key`}
+          value={row.original.category_key}
+          aria-invalid={touched && ruleProblems(row.original).category}
+          className={cn("h-8 w-40 font-normal")}
+          onChange={(event) =>
+            update(row.original.key, {
+              category_key: event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"),
+            })
+          }
+        />
+      ),
+    },
+    {
+      id: "city_tier",
+      header: "Tier",
+      meta: GRID,
+      cell: ({ row }) => (
+        <Select
+          value={row.original.city_tier}
+          onValueChange={(value) => update(row.original.key, { city_tier: value as CityTier })}
+        >
+          <SelectTrigger size="sm" className="w-32" aria-label={`Rule ${row.index + 1} tier`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(CITY_TIER_LABEL).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      id: "limit_type",
+      header: "Limit type",
+      meta: GRID,
+      cell: ({ row }) => (
+        <Select
+          value={row.original.limit_type}
+          onValueChange={(value) => update(row.original.key, { limit_type: value as LimitType })}
+        >
+          <SelectTrigger size="sm" className="w-28" aria-label={`Rule ${row.index + 1} limit type`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(LIMIT_TYPE_LABEL).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      id: "limit_amount",
+      header: "Limit (₹)",
+      meta: GRID,
+      cell: ({ row }) => (
+        <Input
+          aria-label={`Rule ${row.index + 1} limit amount`}
+          inputMode="decimal"
+          value={row.original.limit_amount}
+          aria-invalid={touched && ruleProblems(row.original).amount}
+          className="h-8 w-28 tabular-nums"
+          onChange={(event) => update(row.original.key, { limit_amount: event.target.value.trim() })}
+        />
+      ),
+    },
+    {
+      id: "violation_action",
+      header: "On breach",
+      meta: GRID,
+      cell: ({ row }) => (
+        <Select
+          value={row.original.violation_action}
+          onValueChange={(value) => update(row.original.key, { violation_action: value as ViolationAction })}
+        >
+          <SelectTrigger size="sm" className="w-44" aria-label={`Rule ${row.index + 1} action`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(VIOLATION_ACTION_LABEL).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
+      id: "requires_receipt",
+      header: "Receipt",
+      meta: GRID,
+      cell: ({ row }) => (
+        <Checkbox
+          id={`rule-${row.original.key}-receipt`}
+          aria-label={`Rule ${row.index + 1} requires receipt`}
+          checked={row.original.requires_receipt}
+          onCheckedChange={(checked) => update(row.original.key, { requires_receipt: checked === true })}
+        />
+      ),
+    },
+    {
+      id: "receipt_threshold",
+      header: "Receipt above (₹)",
+      meta: GRID,
+      cell: ({ row }) => (
+        <Input
+          aria-label={`Rule ${row.index + 1} receipt threshold`}
+          inputMode="decimal"
+          value={row.original.receipt_threshold}
+          aria-invalid={touched && ruleProblems(row.original).threshold}
+          className="h-8 w-28 tabular-nums"
+          onChange={(event) => update(row.original.key, { receipt_threshold: event.target.value.trim() })}
+        />
+      ),
+    },
+    {
+      id: "requires_pre_approval",
+      header: "Pre-approval",
+      meta: GRID,
+      cell: ({ row }) => (
+        <Checkbox
+          aria-label={`Rule ${row.index + 1} requires pre-approval`}
+          checked={row.original.requires_pre_approval}
+          onCheckedChange={(checked) => update(row.original.key, { requires_pre_approval: checked === true })}
+        />
+      ),
+    },
+    {
+      id: "is_per_diem",
+      header: "Per-diem",
+      meta: GRID,
+      cell: ({ row }) => (
+        <Checkbox
+          aria-label={`Rule ${row.index + 1} is per-diem`}
+          checked={row.original.is_per_diem}
+          onCheckedChange={(checked) => update(row.original.key, { is_per_diem: checked === true })}
+        />
+      ),
+    },
+    {
+      id: "remove",
+      header: () => <span className="sr-only">Remove</span>,
+      meta: { ...GRID, label: "Remove", cellClassName: "text-right" },
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Remove rule ${row.index + 1}`}
+          onClick={() => setRules((current) => current.filter((rule) => rule.key !== row.original.key))}
+        >
+          <Trash2 />
+        </Button>
+      ),
+    },
+  ];
 
   const save = async () => {
     setTouched(true);
@@ -263,156 +436,14 @@ export function PoliciesVersionDialog({
             {touched && rules.length === 0 && (
               <p className="text-sm text-destructive">Add at least one rule.</p>
             )}
-            <div className="overflow-x-auto rounded-md border">
-              <Table className="w-full min-w-[1080px] text-sm">
-                <TableHeader className="bg-muted/60 text-left text-xs text-muted-foreground">
-                  <TableRow>
-                    <TableHead className="px-2 py-2 font-medium">Category key</TableHead>
-                    <TableHead className="px-2 py-2 font-medium">Tier</TableHead>
-                    <TableHead className="px-2 py-2 font-medium">Limit type</TableHead>
-                    <TableHead className="px-2 py-2 font-medium">Limit (₹)</TableHead>
-                    <TableHead className="px-2 py-2 font-medium">On breach</TableHead>
-                    <TableHead className="px-2 py-2 font-medium">Receipt</TableHead>
-                    <TableHead className="px-2 py-2 font-medium">Receipt above (₹)</TableHead>
-                    <TableHead className="px-2 py-2 font-medium">Pre-approval</TableHead>
-                    <TableHead className="px-2 py-2 font-medium">Per-diem</TableHead>
-                    <TableHead className="px-2 py-2"><span className="sr-only">Remove</span></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rules.map((rule, index) => {
-                    const p = ruleProblems(rule);
-                    const prefix = `rule-${rule.key}`;
-                    return (
-                      <TableRow key={rule.key} className="border-t align-middle">
-                        <TableCell className="px-2 py-2">
-                          <Input
-                            aria-label={`Rule ${index + 1} category key`}
-                            value={rule.category_key}
-                            aria-invalid={touched && p.category}
-                            className={cn("h-8 w-40 font-normal")}
-                            onChange={(event) =>
-                              update(rule.key, {
-                                category_key: event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "_"),
-                              })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="px-2 py-2">
-                          <Select
-                            value={rule.city_tier}
-                            onValueChange={(value) => update(rule.key, { city_tier: value as CityTier })}
-                          >
-                            <SelectTrigger size="sm" className="w-32" aria-label={`Rule ${index + 1} tier`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(CITY_TIER_LABEL).map(([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="px-2 py-2">
-                          <Select
-                            value={rule.limit_type}
-                            onValueChange={(value) => update(rule.key, { limit_type: value as LimitType })}
-                          >
-                            <SelectTrigger size="sm" className="w-28" aria-label={`Rule ${index + 1} limit type`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(LIMIT_TYPE_LABEL).map(([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="px-2 py-2">
-                          <Input
-                            aria-label={`Rule ${index + 1} limit amount`}
-                            inputMode="decimal"
-                            value={rule.limit_amount}
-                            aria-invalid={touched && p.amount}
-                            className="h-8 w-28 tabular-nums"
-                            onChange={(event) => update(rule.key, { limit_amount: event.target.value.trim() })}
-                          />
-                        </TableCell>
-                        <TableCell className="px-2 py-2">
-                          <Select
-                            value={rule.violation_action}
-                            onValueChange={(value) =>
-                              update(rule.key, { violation_action: value as ViolationAction })
-                            }
-                          >
-                            <SelectTrigger size="sm" className="w-44" aria-label={`Rule ${index + 1} action`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(VIOLATION_ACTION_LABEL).map(([value, label]) => (
-                                <SelectItem key={value} value={value}>
-                                  {label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell className="px-2 py-2">
-                          <Checkbox
-                            id={`${prefix}-receipt`}
-                            aria-label={`Rule ${index + 1} requires receipt`}
-                            checked={rule.requires_receipt}
-                            onCheckedChange={(checked) => update(rule.key, { requires_receipt: checked === true })}
-                          />
-                        </TableCell>
-                        <TableCell className="px-2 py-2">
-                          <Input
-                            aria-label={`Rule ${index + 1} receipt threshold`}
-                            inputMode="decimal"
-                            value={rule.receipt_threshold}
-                            aria-invalid={touched && p.threshold}
-                            className="h-8 w-28 tabular-nums"
-                            onChange={(event) =>
-                              update(rule.key, { receipt_threshold: event.target.value.trim() })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="px-2 py-2">
-                          <Checkbox
-                            aria-label={`Rule ${index + 1} requires pre-approval`}
-                            checked={rule.requires_pre_approval}
-                            onCheckedChange={(checked) =>
-                              update(rule.key, { requires_pre_approval: checked === true })
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="px-2 py-2">
-                          <Checkbox
-                            aria-label={`Rule ${index + 1} is per-diem`}
-                            checked={rule.is_per_diem}
-                            onCheckedChange={(checked) => update(rule.key, { is_per_diem: checked === true })}
-                          />
-                        </TableCell>
-                        <TableCell className="px-2 py-2 text-right">
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Remove rule ${index + 1}`}
-                            onClick={() => setRules((current) => current.filter((row) => row.key !== rule.key))}
-                          >
-                            <Trash2 />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+            <DataTable
+              variant="plain"
+              columns={columns}
+              data={rules}
+              getRowId={(rule) => String(rule.key)}
+              noun="rules"
+              emptyMessage="No rules yet. Use Add rule to add one."
+            />
             {touched && !valid && rules.length > 0 && (
               <p className="text-sm text-destructive">
                 Every rule needs a category key, a limit amount and a receipt threshold in rupees (up to two decimals).

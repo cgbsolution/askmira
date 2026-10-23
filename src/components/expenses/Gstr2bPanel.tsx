@@ -1,11 +1,12 @@
 "use client";
 
-import { FileUp, GitCompareArrows, Loader2, Upload } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { FileUp, GitCompareArrows, Loader2, Lock, Upload } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/EmptyState";
-import { InlineProblem, QueryBoundary, StatTile, errorDetail, todayISO } from "@/components/expenses/ReviewCommon";
+import { DataTable } from "@/components/common/data-table/DataTable";
+import { InlineProblem, StatTile, errorDetail, todayISO } from "@/components/expenses/ReviewCommon";
 import { formatMoney, humanizeKey } from "@/components/expenses/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,14 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
@@ -46,6 +39,25 @@ const NO_ENTITY = "__none__";
 
 function when(value: string): string {
   return value.length === 10 ? formatDay(value, true) : formatDate(value);
+}
+
+type UploadProblem = Gstr2bCsvResult["errors"][number];
+
+const PROBLEM_COLUMNS: ColumnDef<UploadProblem>[] = [
+  { accessorKey: "row", header: "Row", meta: { headClassName: "w-20", cellClassName: "tabular-nums" } },
+  { accessorKey: "error", header: "Problem", meta: { cellClassName: "whitespace-normal text-destructive" } },
+];
+
+type TaxField = "matched_tax" | "missing_in_2b_tax" | "missing_in_register_tax" | "at_risk_tax";
+
+function taxColumn(key: TaxField, header: string): ColumnDef<GstReconciliation> {
+  return {
+    accessorKey: key,
+    header,
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => formatMoney(row.original[key]),
+  };
 }
 
 function ReconciliationFigures({
@@ -188,6 +200,75 @@ export function Gstr2bPanel() {
   const entityName = (id: string | null) =>
     id ? (entities.data?.find((entity) => entity.id === id)?.name ?? "Unknown entity") : "—";
 
+  // A 403 reads as "no access", not as a failed load.
+  const importsForbidden = imports.error?.status === 403;
+  const reconciliationsForbidden = reconciliations.error?.status === 403;
+
+  const importColumns: ColumnDef<Gstr2bImport>[] = [
+    { accessorKey: "period_label", header: "Period", meta: { cellClassName: "font-medium text-foreground" } },
+    { id: "entity", header: "Entity", accessorFn: (row) => entityName(row.legal_entity_id) },
+    {
+      accessorKey: "line_count",
+      header: "Lines",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "total_tax",
+      header: "Total tax",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => formatMoney(row.original.total_tax),
+    },
+    {
+      accessorKey: "imported_on",
+      header: "Downloaded on",
+      meta: { text: (row) => formatDay(row.imported_on, true) },
+      cell: ({ row }) => formatDay(row.original.imported_on, true),
+    },
+    {
+      accessorKey: "source_note",
+      header: "Note",
+      meta: { cellClassName: "max-w-72 whitespace-normal text-muted-foreground" },
+      cell: ({ row }) => row.original.source_note ?? "—",
+    },
+  ];
+
+  const reconciliationColumns: ColumnDef<GstReconciliation>[] = [
+    {
+      accessorKey: "period_label",
+      header: "Period",
+      meta: {
+        text: (row) =>
+          row.legal_entity_id ? `${row.period_label} · ${entityName(row.legal_entity_id)}` : row.period_label,
+      },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium text-foreground">{row.original.period_label}</p>
+          {row.original.legal_entity_id && (
+            <p className="text-xs text-muted-foreground">{entityName(row.original.legal_entity_id)}</p>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "run_on",
+      header: "Run",
+      meta: { cellClassName: "whitespace-nowrap", text: (row) => when(row.run_on) },
+      cell: ({ row }) => when(row.original.run_on),
+    },
+    {
+      id: "lines",
+      header: "Lines (ours / 2B)",
+      accessorFn: (row) => `${row.captured_lines} / ${row.portal_lines}`,
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    taxColumn("matched_tax", "Matched"),
+    taxColumn("missing_in_2b_tax", "Missing in 2B"),
+    taxColumn("missing_in_register_tax", "Missing in register"),
+    taxColumn("at_risk_tax", "At risk"),
+  ];
+
   return (
     <div className="grid gap-6">
       <Card tier="tier1">
@@ -264,75 +345,42 @@ export function Gstr2bPanel() {
                   : "Nothing was imported."}
               </p>
               {uploadResult.errors.length > 0 && (
-                <div className="rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-20 pl-4">Row</TableHead>
-                        <TableHead className="pr-4">Problem</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {uploadResult.errors.map((row, index) => (
-                        <TableRow key={`${row.row}-${index}`}>
-                          <TableCell className="pl-4 tabular-nums">{row.row}</TableCell>
-                          <TableCell className="whitespace-normal pr-4 text-destructive">{row.error}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                <DataTable
+                  columns={PROBLEM_COLUMNS}
+                  data={uploadResult.errors}
+                  getRowId={(row, index) => `${row.row}-${index}`}
+                  noun="problems"
+                  exportName="gstr2b-import-problems"
+                  searchPlaceholder="Search problems"
+                  selectable={false}
+                />
               )}
             </div>
           )}
         </CardContent>
       </Card>
 
-      <Card tier="tier1">
-        <CardHeader>
-          <CardTitle>Imports</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <QueryBoundary query={imports}>
-            {(rows) =>
-              rows.length === 0 ? (
-                <EmptyState
-                  icon={FileUp}
-                  title="No GSTR-2B imported"
-                  description="Nothing can be reconciled, or confirmed claimable, until a GSTR-2B is imported."
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="pl-5">Period</TableHead>
-                      <TableHead>Entity</TableHead>
-                      <TableHead className="text-right">Lines</TableHead>
-                      <TableHead className="text-right">Total tax</TableHead>
-                      <TableHead>Downloaded on</TableHead>
-                      <TableHead className="pr-5">Note</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="pl-5 font-medium text-foreground">{row.period_label}</TableCell>
-                        <TableCell>{entityName(row.legal_entity_id)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{row.line_count}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatMoney(row.total_tax)}</TableCell>
-                        <TableCell>{formatDay(row.imported_on, true)}</TableCell>
-                        <TableCell className="max-w-72 whitespace-normal pr-5 text-muted-foreground">
-                          {row.source_note ?? "—"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )
-            }
-          </QueryBoundary>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="Imports"
+        columns={importColumns}
+        data={importsForbidden ? [] : (imports.data ?? [])}
+        noun="imports"
+        exportName="gstr2b-imports"
+        searchPlaceholder="Search imports"
+        isLoading={imports.isLoading && imports.data === null}
+        error={importsForbidden ? null : (imports.error?.detail ?? null)}
+        onRetry={imports.reload}
+        loadingRows={3}
+        empty={
+          importsForbidden
+            ? { icon: Lock, title: "You don't have access to this", description: imports.error?.detail }
+            : {
+                icon: FileUp,
+                title: "No GSTR-2B imported",
+                description: "Nothing can be reconciled, or confirmed claimable, until a GSTR-2B is imported.",
+              }
+        }
+      />
 
       <Card tier="tier1">
         <CardHeader>
@@ -398,60 +446,27 @@ export function Gstr2bPanel() {
         </CardContent>
       </Card>
 
-      <Card tier="tier1">
-        <CardHeader>
-          <CardTitle>Past reconciliations</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <QueryBoundary query={reconciliations}>
-            {(rows) =>
-              rows.length === 0 ? (
-                <EmptyState
-                  icon={GitCompareArrows}
-                  title="No reconciliations run"
-                  description="Every credit reads as not reconciled until one is run for its period."
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="pl-5">Period</TableHead>
-                      <TableHead>Run</TableHead>
-                      <TableHead className="text-right">Lines (ours / 2B)</TableHead>
-                      <TableHead className="text-right">Matched</TableHead>
-                      <TableHead className="text-right">Missing in 2B</TableHead>
-                      <TableHead className="text-right">Missing in register</TableHead>
-                      <TableHead className="pr-5 text-right">At risk</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="pl-5">
-                          <p className="font-medium text-foreground">{row.period_label}</p>
-                          {row.legal_entity_id && (
-                            <p className="text-xs text-muted-foreground">{entityName(row.legal_entity_id)}</p>
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">{when(row.run_on)}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {row.captured_lines} / {row.portal_lines}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">{formatMoney(row.matched_tax)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatMoney(row.missing_in_2b_tax)}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {formatMoney(row.missing_in_register_tax)}
-                        </TableCell>
-                        <TableCell className="pr-5 text-right tabular-nums">{formatMoney(row.at_risk_tax)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )
-            }
-          </QueryBoundary>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="Past reconciliations"
+        columns={reconciliationColumns}
+        data={reconciliationsForbidden ? [] : (reconciliations.data ?? [])}
+        noun="reconciliations"
+        exportName="gst-reconciliations"
+        searchPlaceholder="Search reconciliations"
+        isLoading={reconciliations.isLoading && reconciliations.data === null}
+        error={reconciliationsForbidden ? null : (reconciliations.error?.detail ?? null)}
+        onRetry={reconciliations.reload}
+        loadingRows={3}
+        empty={
+          reconciliationsForbidden
+            ? { icon: Lock, title: "You don't have access to this", description: reconciliations.error?.detail }
+            : {
+                icon: GitCompareArrows,
+                title: "No reconciliations run",
+                description: "Every credit reads as not reconciled until one is run for its period.",
+              }
+        }
+      />
     </div>
   );
 }

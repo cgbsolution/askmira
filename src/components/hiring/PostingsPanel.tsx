@@ -1,23 +1,16 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, Megaphone, RefreshCw, XCircle } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { boardName } from "@/components/hiring/BoardStatusPanel";
 import { formatDateTime, POSTING_STATUS, StatusBadge } from "@/components/hiring/labels";
 import { ALL, PostingRequisitionSelect } from "@/components/hiring/PostingRequisitionSelect";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import type { Posting, PostingStatus, RequisitionSummary } from "@/lib/types/hiring";
@@ -117,12 +110,125 @@ export function PostingsPanel({
     if (refreshSignal > 0) reload();
   }, [refreshSignal, reload]);
   const rows = data ?? [];
+  const filtered = requisitionId !== ALL;
+
+  const columns: ColumnDef<Posting>[] = [
+    {
+      accessorKey: "requisition_code",
+      header: "Requisition",
+      meta: { text: (row) => `${row.requisition_code} ${row.requisition_title}` },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium text-foreground">{row.original.requisition_code}</p>
+          <p className="text-xs text-muted-foreground">{row.original.requisition_title}</p>
+        </>
+      ),
+    },
+    {
+      id: "board",
+      header: "Board",
+      accessorFn: (row) => boardName(row.board),
+      meta: {
+        text: (row) => (row.external_job_id ? `${boardName(row.board)} ID ${row.external_job_id}` : boardName(row.board)),
+      },
+      cell: ({ row }) => (
+        <>
+          <p>{boardName(row.original.board)}</p>
+          {row.original.external_job_id && (
+            <p className="text-xs text-muted-foreground">ID {row.original.external_job_id}</p>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (row) => POSTING_STATUS[row.status]?.[0] ?? row.status },
+      cell: ({ row }) => (
+        <>
+          <StatusBadge map={POSTING_STATUS} value={row.original.status} />
+          {row.original.next_attempt_at && row.original.status === "publishing" && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Next try {formatDateTime(row.original.next_attempt_at)}
+            </p>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "dates",
+      header: "Dates",
+      accessorFn: (row) => row.published_at,
+      meta: {
+        cellClassName: "text-xs tabular-nums text-muted-foreground",
+        text: (row) =>
+          `Published ${formatDateTime(row.published_at)} · Expires ${formatDateTime(row.expires_at)} · Next refresh ${formatDateTime(row.next_refresh_at)}`,
+      },
+      cell: ({ row }) => (
+        <>
+          <p>Published {formatDateTime(row.original.published_at)}</p>
+          <p>Expires {formatDateTime(row.original.expires_at)}</p>
+          <p>Next refresh {formatDateTime(row.original.next_refresh_at)}</p>
+        </>
+      ),
+    },
+    {
+      accessorKey: "attempt_count",
+      header: "Attempts",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      id: "problems",
+      header: "Problems",
+      meta: {
+        cellClassName: "max-w-72 whitespace-normal text-xs",
+        text: (row) => [row.last_error, ...row.warnings].filter(Boolean).join(" · "),
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.last_error && <p className="text-destructive">{row.original.last_error}</p>}
+          {row.original.warnings.length > 0 && (
+            <ul className="list-disc space-y-0.5 pl-4 text-mustard-900 dark:text-mustard-100">
+              {row.original.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          )}
+          {!row.original.last_error && row.original.warnings.length === 0 && (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "view_count",
+      header: "Views",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "application_count",
+      header: "Applications",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => <PostingActions posting={row.original} onChanged={onChanged} />,
+    },
+  ];
 
   return (
-    <DataPanel
+    <DataTable
       title="Postings"
       actions={actions}
-      toolbar={
+      columns={columns}
+      data={rows}
+      noun="postings"
+      exportName="job-board-postings"
+      searchPlaceholder="Search requisition or board"
+      filters={
         <PostingRequisitionSelect
           id="postings-filter"
           requisitions={requisitions}
@@ -130,84 +236,24 @@ export function PostingsPanel({
           onChange={setRequisitionId}
           allLabel="All requisitions"
           placeholder="Filter by requisition"
-          className="sm:w-80"
+          className="h-9 sm:w-80"
         />
       }
+      filtered={filtered}
       isLoading={isLoading && !data}
       error={error?.detail}
       onRetry={reload}
-      isEmpty={rows.length === 0}
       empty={{
         icon: Megaphone,
-        title: requisitionId === ALL ? "Nothing posted yet" : "This requisition has not been posted",
+        title: "Nothing posted yet",
         description: "Post an open requisition to a board to see it here.",
       }}
-    >
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Requisition</TableHead>
-              <TableHead>Board</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Dates</TableHead>
-              <TableHead className="text-right">Attempts</TableHead>
-              <TableHead>Problems</TableHead>
-              <TableHead className="text-right">Views</TableHead>
-              <TableHead className="text-right">Applications</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id} className="align-top">
-                <TableCell>
-                  <p className="font-medium text-foreground">{row.requisition_code}</p>
-                  <p className="text-xs text-muted-foreground">{row.requisition_title}</p>
-                </TableCell>
-                <TableCell>
-                  <p>{boardName(row.board)}</p>
-                  {row.external_job_id && (
-                    <p className="text-xs text-muted-foreground">ID {row.external_job_id}</p>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge map={POSTING_STATUS} value={row.status} />
-                  {row.next_attempt_at && row.status === "publishing" && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Next try {formatDateTime(row.next_attempt_at)}
-                    </p>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs tabular-nums text-muted-foreground">
-                  <p>Published {formatDateTime(row.published_at)}</p>
-                  <p>Expires {formatDateTime(row.expires_at)}</p>
-                  <p>Next refresh {formatDateTime(row.next_refresh_at)}</p>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{row.attempt_count}</TableCell>
-                <TableCell className="max-w-72 whitespace-normal text-xs">
-                  {row.last_error && <p className="text-destructive">{row.last_error}</p>}
-                  {row.warnings.length > 0 && (
-                    <ul className="list-disc space-y-0.5 pl-4 text-mustard-900 dark:text-mustard-100">
-                      {row.warnings.map((warning) => (
-                        <li key={warning}>{warning}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {!row.last_error && row.warnings.length === 0 && (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{row.view_count}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.application_count}</TableCell>
-                <TableCell className="text-right">
-                  <PostingActions posting={row} onChanged={onChanged} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </DataPanel>
+      emptyMessage={
+        filtered && rows.length === 0
+          ? "This requisition has not been posted. Post an open requisition to a board to see it here."
+          : undefined
+      }
+      rowClassName={() => "align-top"}
+    />
   );
 }

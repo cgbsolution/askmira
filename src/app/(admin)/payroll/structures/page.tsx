@@ -1,9 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Calculator, Loader2 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 
 import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { BreakdownTable } from "@/components/payroll/BreakdownTable";
@@ -16,14 +18,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { get } from "@/lib/api";
@@ -32,8 +26,126 @@ import type {
   SalaryComponent,
   SalaryStructure,
   SalaryStructureDetail,
+  StructureComponentDetail,
 } from "@/lib/types/payroll";
 import { cn, formatDay } from "@/lib/utils";
+
+/** The figure a structure uses for a component: its own override first. */
+const shownValue = (item: StructureComponentDetail) =>
+  item.override_value ?? item.value ?? item.override_formula ?? item.formula;
+
+const STRUCTURE_COMPONENT_COLUMNS: ColumnDef<StructureComponentDetail>[] = [
+  {
+    accessorKey: "component_name",
+    header: "Component",
+    meta: { text: (item) => `${item.component_name} ${item.component_code}` },
+    cell: ({ row }) => (
+      <>
+        <p className="font-medium text-foreground">{row.original.component_name}</p>
+        <p className="text-xs text-muted-foreground">{row.original.component_code}</p>
+      </>
+    ),
+  },
+  {
+    id: "calculated_as",
+    header: "Calculated as",
+    accessorFn: (item) =>
+      `${item.calculation_type.replace("_", " ")}${
+        item.base_component_code ? ` ${item.override_base_component_code ?? item.base_component_code}` : ""
+      }`,
+    meta: { cellClassName: "text-sm" },
+  },
+  {
+    id: "value",
+    header: "Value",
+    accessorFn: (item) => shownValue(item) ?? null,
+    meta: {
+      cellClassName: "text-sm tabular-nums",
+      text: (item) => (item.override_value ? `${shownValue(item)} (override)` : shownValue(item)),
+    },
+    cell: ({ row }) => (
+      <>
+        {shownValue(row.original) ?? "—"}
+        {row.original.override_value && (
+          <Badge variant="outline" className="ml-1">
+            override
+          </Badge>
+        )}
+      </>
+    ),
+  },
+  {
+    id: "statutory",
+    header: "Statutory",
+    meta: {
+      text: (item) =>
+        [item.counts_toward_pf && "PF", item.counts_toward_esi && "ESI", !item.part_of_ctc && "Outside CTC"]
+          .filter(Boolean)
+          .join(", "),
+    },
+    cell: ({ row }) => (
+      <div className="flex gap-1">
+        {row.original.counts_toward_pf && <Badge variant="outline">PF</Badge>}
+        {row.original.counts_toward_esi && <Badge variant="outline">ESI</Badge>}
+        {!row.original.part_of_ctc && <Badge variant="warning">Outside CTC</Badge>}
+      </div>
+    ),
+  },
+];
+
+const COMPONENT_COLUMNS: ColumnDef<SalaryComponent>[] = [
+  {
+    accessorKey: "name",
+    header: "Component",
+    meta: { text: (component) => `${component.name} ${component.code}` },
+    cell: ({ row }) => (
+      <>
+        <p className="font-medium text-foreground">{row.original.name}</p>
+        <p className="text-xs text-muted-foreground">{row.original.code}</p>
+      </>
+    ),
+  },
+  {
+    accessorKey: "component_type",
+    header: "Type",
+    meta: { text: (component) => COMPONENT_TYPE_LABEL[component.component_type] },
+    cell: ({ row }) => <Badge variant="muted">{COMPONENT_TYPE_LABEL[row.original.component_type]}</Badge>,
+  },
+  {
+    id: "calculated_as",
+    header: "Calculated as",
+    accessorFn: (component) =>
+      `${component.calculation_type.replace("_", " ")}${
+        component.base_component_code ? ` ${component.base_component_code}` : ""
+      }${component.value ? ` · ${component.value}` : ""}${component.formula ? ` · ${component.formula}` : ""}`,
+    meta: { cellClassName: "text-sm" },
+  },
+  {
+    id: "flags",
+    header: "Flags",
+    meta: {
+      text: (component) =>
+        [
+          component.taxable ? "Taxable" : "Exempt",
+          component.counts_toward_pf && "PF",
+          component.counts_toward_esi && "ESI",
+          component.pro_rate_on_lop && "LOP",
+          !component.part_of_ctc && "Outside CTC",
+        ]
+          .filter(Boolean)
+          .join(", "),
+    },
+    cell: ({ row }) => (
+      <div className="flex flex-wrap gap-1">
+        {row.original.taxable ? <Badge variant="outline">Taxable</Badge> : <Badge variant="outline">Exempt</Badge>}
+        {row.original.counts_toward_pf && <Badge variant="outline">PF</Badge>}
+        {row.original.counts_toward_esi && <Badge variant="outline">ESI</Badge>}
+        {row.original.pro_rate_on_lop && <Badge variant="outline">LOP</Badge>}
+        {!row.original.part_of_ctc && <Badge variant="warning">Outside CTC</Badge>}
+      </div>
+    ),
+  },
+];
 
 /**
  * The CTC builder — Tier 1 throughout.
@@ -147,51 +259,19 @@ export default function SalaryStructuresPage() {
 
             <div className="flex min-w-0 flex-col gap-4">
               {selectedId && (
-                <DataPanel
+                <DataTable
                   title={detail.data?.name ?? "Structure"}
                   description="Components and per-structure overrides."
+                  columns={STRUCTURE_COMPONENT_COLUMNS}
+                  data={detail.data?.components ?? []}
+                  getRowId={(item) => item.component_code}
+                  noun="components"
+                  exportName="salary-structure-components"
+                  searchPlaceholder="Search components"
                   isLoading={detail.isLoading && !detail.data}
                   error={detail.error?.detail}
                   onRetry={detail.reload}
-                >
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Component</TableHead>
-                          <TableHead>Calculated as</TableHead>
-                          <TableHead>Value</TableHead>
-                          <TableHead>Statutory</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(detail.data?.components ?? []).map((item) => (
-                          <TableRow key={item.component_code}>
-                            <TableCell>
-                              <p className="font-medium text-foreground">{item.component_name}</p>
-                              <p className="text-xs text-muted-foreground">{item.component_code}</p>
-                            </TableCell>
-                            <TableCell className="text-sm">
-                              {item.calculation_type.replace("_", " ")}
-                              {item.base_component_code ? ` ${item.override_base_component_code ?? item.base_component_code}` : ""}
-                            </TableCell>
-                            <TableCell className="text-sm tabular-nums">
-                              {item.override_value ?? item.value ?? item.override_formula ?? item.formula ?? "—"}
-                              {item.override_value && <Badge variant="outline" className="ml-1">override</Badge>}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                {item.counts_toward_pf && <Badge variant="outline">PF</Badge>}
-                                {item.counts_toward_esi && <Badge variant="outline">ESI</Badge>}
-                                {!item.part_of_ctc && <Badge variant="warning">Outside CTC</Badge>}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </DataPanel>
+                />
               )}
 
               {selectedId && (
@@ -232,59 +312,22 @@ export default function SalaryStructuresPage() {
         </TabsContent>
 
         <TabsContent value="components" className="mt-4">
-          <DataPanel
+          <DataTable
             title="Components"
+            columns={COMPONENT_COLUMNS}
+            data={components.data ?? []}
+            noun="components"
+            exportName="salary-components"
+            searchPlaceholder="Search components"
             isLoading={components.isLoading && !components.data}
             error={components.error?.detail}
             onRetry={components.reload}
-            isEmpty={(components.data ?? []).length === 0}
             empty={{
               icon: Calculator,
               title: "No components yet",
               description: "Basic, HRA, allowances and employer contributions are defined here.",
             }}
-          >
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Component</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Calculated as</TableHead>
-                    <TableHead>Flags</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(components.data ?? []).map((component) => (
-                    <TableRow key={component.id}>
-                      <TableCell>
-                        <p className="font-medium text-foreground">{component.name}</p>
-                        <p className="text-xs text-muted-foreground">{component.code}</p>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="muted">{COMPONENT_TYPE_LABEL[component.component_type]}</Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {component.calculation_type.replace("_", " ")}
-                        {component.base_component_code ? ` ${component.base_component_code}` : ""}
-                        {component.value ? ` · ${component.value}` : ""}
-                        {component.formula ? ` · ${component.formula}` : ""}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {component.taxable ? <Badge variant="outline">Taxable</Badge> : <Badge variant="outline">Exempt</Badge>}
-                          {component.counts_toward_pf && <Badge variant="outline">PF</Badge>}
-                          {component.counts_toward_esi && <Badge variant="outline">ESI</Badge>}
-                          {component.pro_rate_on_lop && <Badge variant="outline">LOP</Badge>}
-                          {!component.part_of_ctc && <Badge variant="warning">Outside CTC</Badge>}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </DataPanel>
+          />
         </TabsContent>
       </Tabs>
     </PageShell>

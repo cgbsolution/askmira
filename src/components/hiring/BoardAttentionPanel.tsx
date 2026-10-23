@@ -1,21 +1,16 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle2 } from "lucide-react";
 import React, { useEffect } from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { boardName } from "@/components/hiring/BoardStatusPanel";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { PostingAttention, RequisitionSummary } from "@/lib/types/hiring";
+
+type ParkedPosting = PostingAttention["parked"][number];
 
 /**
  * Postings that will not become live on their own (parked), plus how many are
@@ -39,8 +34,20 @@ export function BoardAttentionPanel({
     return found ? `${found.code} · ${found.title}` : "Requisition not found";
   };
 
+  const columns: ColumnDef<ParkedPosting>[] = [
+    { id: "requisition", header: "Requisition", accessorFn: (row) => requisitionLabel(row.requisition_id) },
+    { id: "board", header: "Board", accessorFn: (row) => boardName(row.board) },
+    {
+      id: "reason",
+      header: "Reason",
+      accessorFn: (row) => row.reason ?? "No reason recorded",
+      meta: { cellClassName: "max-w-96 whitespace-normal text-sm text-destructive" },
+    },
+    { accessorKey: "attempts", header: "Attempts", meta: { className: "text-right", cellClassName: "tabular-nums" } },
+  ];
+
   return (
-    <DataPanel
+    <DataTable
       title="Needs attention"
       description={
         data ? (
@@ -54,40 +61,20 @@ export function BoardAttentionPanel({
           </span>
         ) : undefined
       }
+      columns={columns}
+      data={parked}
+      getRowId={(row) => row.posting_id}
+      noun="parked postings"
+      exportName="parked-postings"
+      searchPlaceholder="Search parked postings"
       isLoading={isLoading && !data}
       error={error?.detail}
       onRetry={reload}
-      isEmpty={parked.length === 0}
       empty={{
         icon: CheckCircle2,
         title: "No parked postings",
         description: "A posting is parked when retries are used up or the board refused it.",
       }}
-    >
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Requisition</TableHead>
-              <TableHead>Board</TableHead>
-              <TableHead>Reason</TableHead>
-              <TableHead className="text-right">Attempts</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {parked.map((row) => (
-              <TableRow key={row.posting_id}>
-                <TableCell>{requisitionLabel(row.requisition_id)}</TableCell>
-                <TableCell>{boardName(row.board)}</TableCell>
-                <TableCell className="max-w-96 whitespace-normal text-sm text-destructive">
-                  {row.reason ?? "No reason recorded"}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{row.attempts}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </DataPanel>
+    />
   );
 }

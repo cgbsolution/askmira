@@ -1,10 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Download, FileText, Loader2, Plus, Users } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
 import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
@@ -21,7 +23,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, downloadFile, post } from "@/lib/api";
@@ -71,6 +72,35 @@ interface ChallanPosition {
     unused: string;
   }[];
 }
+
+type Challan = ChallanPosition["challans"][number];
+
+const CHALLAN_COLUMNS: ColumnDef<Challan>[] = [
+  {
+    id: "challan",
+    header: "Challan",
+    accessorFn: (challan) => `${challan.bsr_code} · ${challan.challan_serial} · ${formatDay(challan.deposit_date, true)}`,
+    meta: { cellClassName: "tabular-nums" },
+  },
+  {
+    accessorKey: "tds_amount",
+    header: "Deposited",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.tds_amount} />,
+  },
+  {
+    accessorKey: "tied",
+    header: "Tied",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.tied} />,
+  },
+  {
+    accessorKey: "unused",
+    header: "Unused",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.unused} />,
+  },
+];
 
 const QUARTER_MONTHS: Record<string, number[]> = { "1": [4, 5, 6], "2": [7, 8, 9], "3": [10, 11, 12], "4": [1, 2, 3] };
 
@@ -131,6 +161,38 @@ function ChallanTies({
 
   if (!valid) return null;
   const challans = position.data?.challans ?? [];
+  const dueColumns: ColumnDef<Invoice>[] = [
+    {
+      id: "invoice",
+      header: "Invoice",
+      accessorFn: (invoice) => `${invoice.contractor_name ?? ""} · ${invoice.invoice_number}`,
+    },
+    {
+      accessorKey: "tds_amount",
+      header: "TDS",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.tds_amount} />,
+    },
+    {
+      id: "challan",
+      header: "Challan",
+      cell: ({ row }) => (
+        <Select value={row.original.challan_id ?? "none"} onValueChange={(value) => void link(row.original, value)}>
+          <SelectTrigger className="w-64" aria-label={`Challan for ${row.original.invoice_number}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Not yet tied</SelectItem>
+            {challans.map((challan) => (
+              <SelectItem key={challan.id} value={challan.id}>
+                {challan.bsr_code} · {challan.challan_serial}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ),
+    },
+  ];
   return (
     <div className="space-y-4 border-t border-border p-5">
       <div>
@@ -146,73 +208,15 @@ function ChallanTies({
         </Badge>
       )}
       {challans.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Challan</TableHead>
-              <TableHead className="text-right">Deposited</TableHead>
-              <TableHead className="text-right">Tied</TableHead>
-              <TableHead className="text-right">Unused</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {challans.map((challan) => (
-              <TableRow key={challan.id}>
-                <TableCell className="tabular-nums">
-                  {challan.bsr_code} · {challan.challan_serial} · {formatDay(challan.deposit_date, true)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={challan.tds_amount} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={challan.tied} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={challan.unused} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable
+          columns={CHALLAN_COLUMNS}
+          data={challans}
+          noun="challans"
+          exportName={`26q-challans-${year}-q${quarter}`}
+          searchPlaceholder="Search challans"
+        />
       )}
-      {due.length > 0 && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Invoice</TableHead>
-              <TableHead className="text-right">TDS</TableHead>
-              <TableHead>Challan</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {due.map((invoice) => (
-              <TableRow key={invoice.id}>
-                <TableCell>
-                  {invoice.contractor_name} · {invoice.invoice_number}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={invoice.tds_amount} />
-                </TableCell>
-                <TableCell>
-                  <Select value={invoice.challan_id ?? "none"} onValueChange={(value) => void link(invoice, value)}>
-                    <SelectTrigger className="w-64" aria-label={`Challan for ${invoice.invoice_number}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Not yet tied</SelectItem>
-                      {challans.map((challan) => (
-                        <SelectItem key={challan.id} value={challan.id}>
-                          {challan.bsr_code} · {challan.challan_serial}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+      {due.length > 0 && <DataTable variant="plain" columns={dueColumns} data={due} />}
       <div className="flex flex-wrap items-end gap-3">
         <FormField
           htmlFor="tds-statement-for"
@@ -262,6 +266,38 @@ function currentFinancialYear(): string {
   return `${start}-${String(start + 1).slice(-2)}`;
 }
 
+const CONTRACTOR_COLUMNS: ColumnDef<Contractor>[] = [
+  {
+    accessorKey: "name",
+    header: "Name",
+    meta: { text: (c) => (c.gstin ? `${c.name} GSTIN ${c.gstin}` : c.name) },
+    cell: ({ row }) => (
+      <>
+        <p className="font-medium">{row.original.name}</p>
+        {row.original.gstin && <p className="text-xs text-muted-foreground">GSTIN {row.original.gstin}</p>}
+      </>
+    ),
+  },
+  {
+    accessorKey: "kind",
+    header: "Kind",
+    meta: { text: (c) => KINDS[c.kind] ?? c.kind },
+    cell: ({ row }) => KINDS[row.original.kind] ?? row.original.kind,
+  },
+  {
+    accessorKey: "pan_masked",
+    header: "PAN",
+    meta: { cellClassName: "font-mono text-sm", text: (c) => c.pan_masked ?? "No PAN — higher TDS" },
+    cell: ({ row }) => row.original.pan_masked ?? <Badge variant="warning">No PAN — higher TDS</Badge>,
+  },
+  {
+    accessorKey: "default_section",
+    header: "Section",
+    meta: { cellClassName: "text-sm", text: (c) => SECTIONS[c.default_section] ?? c.default_section },
+    cell: ({ row }) => SECTIONS[row.original.default_section] ?? row.original.default_section,
+  },
+];
+
 export function ContractorsScreen() {
   const contractors = useApiQuery<Contractor[]>("/contractors");
   const invoices = useApiQuery<Invoice[]>("/contractors/invoices");
@@ -292,6 +328,100 @@ export function ContractorsScreen() {
     }
   };
 
+  const invoiceColumns: ColumnDef<Invoice>[] = [
+    {
+      accessorKey: "contractor_name",
+      header: "Invoice",
+      meta: {
+        text: (invoice) =>
+          `${invoice.contractor_name ?? ""} ${invoice.invoice_number} ${formatDay(invoice.invoice_date, true)}`,
+      },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium">{row.original.contractor_name}</p>
+          <p className="text-xs text-muted-foreground">
+            {row.original.invoice_number} · {formatDay(row.original.invoice_date, true)}
+          </p>
+        </>
+      ),
+    },
+    { accessorKey: "section", header: "Section", meta: { cellClassName: "text-sm" } },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      meta: { className: "text-right" },
+      cell: ({ row }) => (
+        <>
+          <Money value={row.original.amount} />
+          {Number(row.original.gst_amount) > 0 && (
+            <p className="text-xs text-muted-foreground">
+              + GST <Money value={row.original.gst_amount} />
+            </p>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "tds_amount",
+      header: "TDS",
+      meta: { className: "text-right" },
+      cell: ({ row }) => (
+        <>
+          <Money value={row.original.tds_amount} />
+          <p className="text-xs text-muted-foreground">{row.original.tds_rate}%</p>
+          {row.original.tds_note && <p className="max-w-56 text-xs text-muted-foreground">{row.original.tds_note}</p>}
+        </>
+      ),
+    },
+    {
+      accessorKey: "net_payable",
+      header: "Pay",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.net_payable} />,
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge
+          variant={row.original.status === "paid" ? "success" : row.original.status === "approved" ? "secondary" : "warning"}
+        >
+          {row.original.status}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => {
+        const invoice = row.original;
+        return (
+          <>
+            {invoice.status === "pending" && (
+              <RequireRole roles={["admin"]}>
+                <Button size="sm" disabled={busy === invoice.id} onClick={() => void act(invoice, "approve", undefined, "Approved.")}>
+                  Approve
+                </Button>
+              </RequireRole>
+            )}
+            {invoice.status === "approved" && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy === invoice.id}
+                onClick={() => void act(invoice, "paid", { paid_on: toISODate(new Date()) }, "Marked paid.")}
+              >
+                Mark paid today
+              </Button>
+            )}
+          </>
+        );
+      },
+    },
+  ];
+
   return (
     <PageShell
       title="Contractors"
@@ -304,7 +434,7 @@ export function ContractorsScreen() {
           <TabsTrigger value="26q">26Q</TabsTrigger>
         </TabsList>
         <TabsContent value="invoices" className="mt-4">
-          <DataPanel
+          <DataTable
             tier="tier1"
             title="Invoices"
             actions={
@@ -312,80 +442,19 @@ export function ContractorsScreen() {
                 <Plus /> Enter an invoice
               </Button>
             }
+            columns={invoiceColumns}
+            data={invoices.data ?? []}
+            noun="invoices"
+            exportName="contractor-invoices"
+            searchPlaceholder="Search by contractor or invoice"
             isLoading={invoices.isLoading && !invoices.data}
             error={invoices.error?.detail ?? null}
             onRetry={invoices.reload}
-            isEmpty={(invoices.data ?? []).length === 0}
             empty={{ icon: FileText, title: "No invoices yet" }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Section</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-right">TDS</TableHead>
-                  <TableHead className="text-right">Pay</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(invoices.data ?? []).map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell>
-                      <p className="font-medium">{invoice.contractor_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {invoice.invoice_number} · {formatDay(invoice.invoice_date, true)}
-                      </p>
-                    </TableCell>
-                    <TableCell className="text-sm">{invoice.section}</TableCell>
-                    <TableCell className="text-right">
-                      <Money value={invoice.amount} />
-                      {Number(invoice.gst_amount) > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          + GST <Money value={invoice.gst_amount} />
-                        </p>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Money value={invoice.tds_amount} />
-                      <p className="text-xs text-muted-foreground">{invoice.tds_rate}%</p>
-                      {invoice.tds_note && <p className="max-w-56 text-xs text-muted-foreground">{invoice.tds_note}</p>}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Money value={invoice.net_payable} />
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={invoice.status === "paid" ? "success" : invoice.status === "approved" ? "secondary" : "warning"}>{invoice.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {invoice.status === "pending" && (
-                        <RequireRole roles={["admin"]}>
-                          <Button size="sm" disabled={busy === invoice.id} onClick={() => void act(invoice, "approve", undefined, "Approved.")}>
-                            Approve
-                          </Button>
-                        </RequireRole>
-                      )}
-                      {invoice.status === "approved" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={busy === invoice.id}
-                          onClick={() => void act(invoice, "paid", { paid_on: toISODate(new Date()) }, "Marked paid.")}
-                        >
-                          Mark paid today
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </TabsContent>
         <TabsContent value="contractors" className="mt-4">
-          <DataPanel
+          <DataTable
             tier="tier1"
             title="Contractors"
             actions={
@@ -393,36 +462,16 @@ export function ContractorsScreen() {
                 <Plus /> Add a contractor
               </Button>
             }
+            columns={CONTRACTOR_COLUMNS}
+            data={contractors.data ?? []}
+            noun="contractors"
+            exportName="contractors"
+            searchPlaceholder="Search contractors"
             isLoading={contractors.isLoading && !contractors.data}
             error={contractors.error?.detail ?? null}
             onRetry={contractors.reload}
-            isEmpty={(contractors.data ?? []).length === 0}
             empty={{ icon: Users, title: "No contractors yet" }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Kind</TableHead>
-                  <TableHead>PAN</TableHead>
-                  <TableHead>Section</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(contractors.data ?? []).map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell>
-                      <p className="font-medium">{c.name}</p>
-                      {c.gstin && <p className="text-xs text-muted-foreground">GSTIN {c.gstin}</p>}
-                    </TableCell>
-                    <TableCell>{KINDS[c.kind] ?? c.kind}</TableCell>
-                    <TableCell className="font-mono text-sm">{c.pan_masked ?? <Badge variant="warning">No PAN — higher TDS</Badge>}</TableCell>
-                    <TableCell className="text-sm">{SECTIONS[c.default_section] ?? c.default_section}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </TabsContent>
         <TabsContent value="26q" className="mt-4">
           <DataPanel

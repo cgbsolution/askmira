@@ -1,12 +1,12 @@
 "use client";
 
-import { Bot, ScrollText } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Bot } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -14,7 +14,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { AuditAction, AuditLogEntry } from "@/lib/types/admin";
 import type { Page } from "@/lib/types";
@@ -52,6 +51,63 @@ const EMPHASISED = new Set<AuditAction>([
   "login_failed",
 ]);
 
+const COLUMNS: ColumnDef<AuditLogEntry>[] = [
+  {
+    accessorKey: "created_at",
+    header: "When",
+    meta: {
+      className: "w-44",
+      cellClassName: "text-xs text-muted-foreground",
+      text: (row) => formatDateTime(row.created_at),
+    },
+    cell: ({ row }) => formatDateTime(row.original.created_at),
+  },
+  {
+    accessorKey: "action",
+    header: "Action",
+    meta: {
+      className: "w-48",
+      text: (row) => `${ACTION_LABEL.get(row.action) ?? row.action} · ${row.entity_type}`,
+    },
+    cell: ({ row }) => (
+      <>
+        <Badge variant={EMPHASISED.has(row.original.action) ? "default" : "outline"}>
+          {ACTION_LABEL.get(row.original.action) ?? row.original.action}
+        </Badge>
+        <div className="mt-1 font-mono text-[11px] text-muted-foreground">{row.original.entity_type}</div>
+      </>
+    ),
+  },
+  {
+    accessorKey: "summary",
+    header: "What happened",
+    meta: { cellClassName: "text-sm" },
+    cell: ({ row }) => (
+      <>
+        {row.original.summary ?? <span className="text-muted-foreground">No summary recorded</span>}
+        {row.original.ai_context && (
+          <div className="mt-1 text-xs text-muted-foreground">
+            Mira acted here — the contributing signals are on the record itself.
+          </div>
+        )}
+      </>
+    ),
+  },
+  {
+    accessorKey: "actor_type",
+    header: "By",
+    meta: { className: "w-32", text: (row) => (row.actor_type === "ai_companion" ? "Mira" : row.actor_type) },
+    cell: ({ row }) =>
+      row.original.actor_type === "ai_companion" ? (
+        <Badge variant="secondary">
+          <Bot /> Mira
+        </Badge>
+      ) : (
+        <span className="text-xs text-muted-foreground">{row.original.actor_type}</span>
+      ),
+  },
+];
+
 /**
  * The audit trail.
  *
@@ -66,23 +122,20 @@ export function AuditTrailPanel() {
   const [aiOnly, setAiOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
 
   const entityTypes = useApiQuery<string[]>("/admin/audit-logs/entity-types");
 
   const path = useMemo(() => {
-    const params = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
     if (entityType !== ANY) params.set("entity_type", entityType);
     if (action !== ANY) params.set("action", action);
     if (aiOnly) params.set("actor_type", "ai_companion");
     if (search.trim()) params.set("search", search.trim());
     return `/admin/audit-logs?${params.toString()}`;
-  }, [entityType, action, aiOnly, search, page]);
+  }, [entityType, action, aiOnly, search, page, pageSize]);
 
   const { data, error, isLoading, reload } = useApiQuery<Page<AuditLogEntry>>(path);
-
-  const rows = data?.items ?? [];
-  const total = data?.total ?? 0;
-  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   /** Any filter change puts you back on page one; page 7 of a new filter is meaningless. */
   const onFilter = <T,>(setter: (value: T) => void) => (value: T) => {
@@ -91,24 +144,20 @@ export function AuditTrailPanel() {
   };
 
   return (
-    <DataPanel
+    <DataTable
       title="Audit trail"
-      description={
-        total > 0
-          ? `${total.toLocaleString("en-IN")} entries. Insert-only: nothing here can be edited or removed, by anyone.`
-          : "Insert-only: nothing here can be edited or removed, by anyone."
-      }
-      toolbar={
+      description="Insert-only: nothing here can be edited or removed, by anyone."
+      columns={COLUMNS}
+      data={data?.items ?? []}
+      noun="entries"
+      exportName="audit-trail"
+      searchPlaceholder="Search the summary"
+      search={search}
+      onSearchChange={onFilter(setSearch)}
+      filters={
         <>
-          <Input
-            value={search}
-            onChange={(event) => onFilter(setSearch)(event.target.value)}
-            placeholder="Search the summary"
-            aria-label="Search the audit trail"
-            className="max-w-xs"
-          />
           <Select value={entityType} onValueChange={onFilter(setEntityType)}>
-            <SelectTrigger className="w-48" aria-label="Filter by record type">
+            <SelectTrigger className="h-9 w-48" aria-label="Filter by record type">
               <SelectValue placeholder="Any record" />
             </SelectTrigger>
             <SelectContent>
@@ -121,7 +170,7 @@ export function AuditTrailPanel() {
             </SelectContent>
           </Select>
           <Select value={action} onValueChange={onFilter(setAction)}>
-            <SelectTrigger className="w-52" aria-label="Filter by action">
+            <SelectTrigger className="h-9 w-52" aria-label="Filter by action">
               <SelectValue placeholder="Any action" />
             </SelectTrigger>
             <SelectContent>
@@ -136,6 +185,7 @@ export function AuditTrailPanel() {
           <Button
             variant={aiOnly ? "default" : "outline"}
             size="sm"
+            className="h-9"
             onClick={() => onFilter(setAiOnly)(!aiOnly)}
             aria-pressed={aiOnly}
           >
@@ -143,87 +193,21 @@ export function AuditTrailPanel() {
           </Button>
         </>
       }
+      filtered={entityType !== ANY || action !== ANY || aiOnly}
+      emptyMessage="Nothing matches those filters. Widen the record type or action, or clear the search."
       isLoading={isLoading}
-      error={error?.detail ?? null}
+      error={error?.detail}
       onRetry={reload}
-      isEmpty={rows.length === 0}
-      empty={{
-        icon: ScrollText,
-        title: "Nothing matches those filters",
-        description: "Widen the record type or action, or clear the search.",
+      server={{
+        page,
+        pageSize,
+        total: data?.total ?? 0,
+        onPageChange: setPage,
+        onPageSizeChange: (size) => {
+          setPageSize(size);
+          setPage(1);
+        },
       }}
-      footer={
-        total > PAGE_SIZE ? (
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Page {page} of {lastPage}
-            </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1}
-                onClick={() => setPage((current) => current - 1)}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= lastPage}
-                onClick={() => setPage((current) => current + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        ) : undefined
-      }
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-44">When</TableHead>
-            <TableHead className="w-48">Action</TableHead>
-            <TableHead>What happened</TableHead>
-            <TableHead className="w-32">By</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => (
-            <TableRow key={row.id}>
-              <TableCell className="text-xs text-muted-foreground">
-                {formatDateTime(row.created_at)}
-              </TableCell>
-              <TableCell>
-                <Badge variant={EMPHASISED.has(row.action) ? "default" : "outline"}>
-                  {ACTION_LABEL.get(row.action) ?? row.action}
-                </Badge>
-                <div className="mt-1 font-mono text-[11px] text-muted-foreground">
-                  {row.entity_type}
-                </div>
-              </TableCell>
-              <TableCell className="text-sm">
-                {row.summary ?? <span className="text-muted-foreground">No summary recorded</span>}
-                {row.ai_context && (
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    Mira acted here — the contributing signals are on the record itself.
-                  </div>
-                )}
-              </TableCell>
-              <TableCell>
-                {row.actor_type === "ai_companion" ? (
-                  <Badge variant="secondary">
-                    <Bot /> Mira
-                  </Badge>
-                ) : (
-                  <span className="text-xs text-muted-foreground">{row.actor_type}</span>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </DataPanel>
+    />
   );
 }

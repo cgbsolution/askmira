@@ -1,21 +1,15 @@
 "use client";
 
-import { FolderOpen, Send } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { FolderOpen, ReceiptText, Send } from "lucide-react";
 import React, { useState } from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import type { Claim, ExpenseReport, TravelRequest } from "@/lib/types/expenses";
+import { Card } from "@/components/ui/card";
+import type { Claim, ClaimStatus, ExpenseReport, PolicyVerdictKind, TravelRequest } from "@/lib/types/expenses";
 import { formatDateRange, formatDay } from "@/lib/utils";
 
 import { ReportCreateDialog } from "./ReportCreateDialog";
@@ -28,6 +22,28 @@ import {
   formatMoney,
   humanizeKey,
 } from "./shared";
+
+/** The policy badge's words, for sorting, the search and the CSV. */
+const VERDICT_TEXT: Record<PolicyVerdictKind, string> = {
+  within_policy: "Within policy",
+  no_rule: "No rule",
+  flagged: "Flagged",
+  needs_justification: "Needs justification",
+  blocked: "Blocked",
+  receipt_required: "Receipt required",
+  pre_approval_required: "Pre-approval required",
+};
+
+/** The status badge's words, for sorting, the search and the CSV. */
+const STATUS_TEXT: Record<ClaimStatus, string> = {
+  draft: "Draft",
+  pending_manager: "With manager",
+  submitted: "With finance",
+  approved: "Approved",
+  rejected: "Rejected",
+  reimbursed: "Reimbursed",
+  cancelled: "Cancelled",
+};
 
 /** The person's expense reports with their lines. */
 export function ReportsPanel({
@@ -44,6 +60,39 @@ export function ReportsPanel({
   onSelectClaim: (claim: Claim) => void;
 }) {
   const [submitting, setSubmitting] = useState<ExpenseReport | null>(null);
+
+  const columns: ColumnDef<Claim>[] = [
+    {
+      accessorKey: "incurred_on",
+      header: "Date",
+      meta: { cellClassName: "whitespace-nowrap tabular-nums", text: (line) => formatDay(line.incurred_on, true) },
+      cell: ({ row }) => formatDay(row.original.incurred_on, true),
+    },
+    {
+      id: "category",
+      header: "Category",
+      accessorFn: (line) => humanizeKey(line.category_key),
+    },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => formatMoney(row.original.amount, currency),
+    },
+    {
+      id: "policy",
+      header: "Policy",
+      accessorFn: (line) => VERDICT_TEXT[line.policy_verdict],
+      cell: ({ row }) => <VerdictBadge kind={row.original.policy_verdict} />,
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorFn: (line) => STATUS_TEXT[line.status],
+      cell: ({ row }) => <ClaimStatusBadge status={row.original.status} />,
+    },
+  ];
 
   if (reports.length === 0) {
     return (
@@ -69,9 +118,10 @@ export function ReportsPanel({
           ? trips.find((item) => item.id === report.travel_request_id)
           : undefined;
         return (
-          <Card key={report.id} tier="tier1">
-            <CardHeader>
-              <CardTitle className="flex flex-wrap items-center gap-2">
+          <DataTable
+            key={report.id}
+            title={
+              <span className="flex flex-wrap items-center gap-2">
                 {report.title}
                 <ReportStatusBadge status={report.status} />
                 {report.blocked_lines > 0 && (
@@ -79,71 +129,35 @@ export function ReportsPanel({
                     {report.blocked_lines} blocked {report.blocked_lines === 1 ? "line" : "lines"}
                   </Badge>
                 )}
-              </CardTitle>
-              <CardDescription className="tabular-nums">
+              </span>
+            }
+            description={
+              <span className="tabular-nums">
                 {report.line_count} {report.line_count === 1 ? "claim" : "claims"} · Total{" "}
                 <span className="font-semibold text-foreground">{formatMoney(report.total_amount, currency)}</span>
                 {trip && ` · ${trip.purpose} (${formatDateRange(trip.from_date, trip.to_date)})`}
                 {report.submitted_at && ` · Submitted ${formatDateTime(report.submitted_at)}`}
-              </CardDescription>
-              {report.status === "draft" && (
-                <CardAction>
-                  <Button size="sm" onClick={() => setSubmitting(report)}>
-                    <Send /> Submit report
-                  </Button>
-                </CardAction>
-              )}
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              {report.lines.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No claims in this report yet. Pick this report when you add a claim.
-                </p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead>Policy</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {report.lines.map((line) => (
-                      <TableRow
-                        key={line.id}
-                        tabIndex={0}
-                        className="cursor-pointer"
-                        onClick={() => onSelectClaim(line)}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            onSelectClaim(line);
-                          }
-                        }}
-                      >
-                        <TableCell className="whitespace-nowrap tabular-nums">
-                          {formatDay(line.incurred_on, true)}
-                        </TableCell>
-                        <TableCell>{humanizeKey(line.category_key)}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {formatMoney(line.amount, currency)}
-                        </TableCell>
-                        <TableCell>
-                          <VerdictBadge kind={line.policy_verdict} />
-                        </TableCell>
-                        <TableCell>
-                          <ClaimStatusBadge status={line.status} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+              </span>
+            }
+            actions={
+              report.status === "draft" && (
+                <Button size="sm" className="h-9" onClick={() => setSubmitting(report)}>
+                  <Send /> Submit report
+                </Button>
+              )
+            }
+            columns={columns}
+            data={report.lines}
+            noun="claims"
+            exportName={`expense-report-${report.title}`}
+            searchPlaceholder="Search claims"
+            onRowClick={onSelectClaim}
+            empty={{
+              icon: ReceiptText,
+              title: "No claims in this report yet",
+              description: "Pick this report when you add a claim.",
+            }}
+          />
         );
       })}
 

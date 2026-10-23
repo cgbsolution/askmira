@@ -1,8 +1,10 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -26,18 +28,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { del, get, patch, post, put } from "@/lib/api";
 import type {
   AssignmentPreview,
+  AssignmentRuleConfig,
   AutoAdvance,
   CalibrationScope,
   CompetencyTemplate,
@@ -134,53 +129,75 @@ export function stagesValid(stages: StageInput[]): boolean {
 /** Stages with their windows and what happens when a window closes. */
 export function StagesCard({ detail, onChanged }: { detail: CycleDetail; onChanged: () => void }) {
   const [editing, setEditing] = useState<StageConfig | null>(null);
+  const columns: ColumnDef<StageConfig>[] = [
+    { accessorKey: "sequence", header: "#", meta: { cellClassName: "tabular-nums" } },
+    {
+      accessorKey: "label",
+      header: "Stage",
+      meta: { text: (s) => `${s.label} (${humanize(s.role)}${s.is_mandatory ? "" : ", optional"})` },
+      cell: ({ row }) => (
+        <>
+          {row.original.label} <span className="text-xs text-muted-foreground">({humanize(row.original.role)}{row.original.is_mandatory ? "" : ", optional"})</span>
+        </>
+      ),
+    },
+    {
+      accessorKey: "open_date",
+      header: "Opens",
+      meta: { text: (s) => (s.open_date ? formatDay(s.open_date, true) : null) },
+      cell: ({ row }) => (row.original.open_date ? formatDay(row.original.open_date, true) : "—"),
+    },
+    {
+      accessorKey: "due_date",
+      header: "Due",
+      meta: { text: (s) => (s.due_date ? formatDay(s.due_date, true) : null) },
+      cell: ({ row }) => (row.original.due_date ? formatDay(row.original.due_date, true) : "—"),
+    },
+    {
+      accessorKey: "close_date",
+      header: "Closes",
+      meta: {
+        text: (s) => `${s.close_date ? formatDay(s.close_date, true) : "—"}${s.grace_days > 0 ? ` +${s.grace_days}d` : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.close_date ? formatDay(row.original.close_date, true) : "—"}
+          {row.original.grace_days > 0 && <span className="text-xs text-muted-foreground"> +{row.original.grace_days}d</span>}
+        </>
+      ),
+    },
+    {
+      accessorKey: "auto_advance",
+      header: "On close",
+      meta: { text: (s) => humanize(s.auto_advance) },
+      cell: ({ row }) => <Badge variant="outline">{humanize(row.original.auto_advance)}</Badge>,
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="ghost" onClick={() => setEditing(row.original)}>
+          Edit window
+        </Button>
+      ),
+    },
+  ];
   return (
-    <Card tier="tier1">
-      <CardHeader>
-        <CardTitle>Stages and windows</CardTitle>
-        <CardDescription>Steps run in order. When a window closes, unfinished reviews escalate, advance or hold — as set here.</CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>#</TableHead>
-              <TableHead>Stage</TableHead>
-              <TableHead>Opens</TableHead>
-              <TableHead>Due</TableHead>
-              <TableHead>Closes</TableHead>
-              <TableHead>On close</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {detail.stages.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell className="tabular-nums">{s.sequence}</TableCell>
-                <TableCell>
-                  {s.label} <span className="text-xs text-muted-foreground">({humanize(s.role)}{s.is_mandatory ? "" : ", optional"})</span>
-                </TableCell>
-                <TableCell>{s.open_date ? formatDay(s.open_date, true) : "—"}</TableCell>
-                <TableCell>{s.due_date ? formatDay(s.due_date, true) : "—"}</TableCell>
-                <TableCell>
-                  {s.close_date ? formatDay(s.close_date, true) : "—"}
-                  {s.grace_days > 0 && <span className="text-xs text-muted-foreground"> +{s.grace_days}d</span>}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{humanize(s.auto_advance)}</Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" onClick={() => setEditing(s)}>
-                    Edit window
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
+    <>
+      <DataTable
+        title="Stages and windows"
+        description="Steps run in order. When a window closes, unfinished reviews escalate, advance or hold — as set here."
+        tier="tier1"
+        columns={columns}
+        data={detail.stages}
+        noun="stages"
+        exportName="cycle-stages"
+        searchPlaceholder="Search stages"
+      />
       {editing && <WindowDialog stage={editing} onClose={() => setEditing(null)} onDone={() => { setEditing(null); onChanged(); }} />}
-    </Card>
+    </>
   );
 }
 
@@ -423,6 +440,13 @@ function TemplateDialog({ detail, onClose, onDone }: { detail: CycleDetail; onCl
   );
 }
 
+/** A rule's conditions in words: "Grades: L5, L6 · Min tenure months: 6". */
+function conditionsText(conditions: Record<string, unknown>): string {
+  return Object.entries(conditions)
+    .map(([k, v]) => `${humanize(k)}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
+    .join(" · ");
+}
+
 /** Which competency template each person is reviewed against. A default rule is required. */
 export function RulesCard({ detail, onChanged }: { detail: CycleDetail; onChanged: () => void }) {
   const templates = useApiQuery<CompetencyTemplate[]>("/competency/templates");
@@ -432,6 +456,45 @@ export function RulesCard({ detail, onChanged }: { detail: CycleDetail; onChange
   const { busy, run } = useAction();
   const names = Object.fromEntries((templates.data ?? []).map((t) => [t.id, t.name]));
   const hasDefault = detail.rules.some((r) => r.is_default);
+  const columns: ColumnDef<AssignmentRuleConfig>[] = [
+    { accessorKey: "priority", header: "Priority", meta: { cellClassName: "tabular-nums" } },
+    { accessorKey: "label", header: "Label", cell: ({ row }) => row.original.label ?? "—" },
+    {
+      id: "conditions",
+      header: "Conditions",
+      accessorFn: (r) => (r.is_default ? "Default — everyone" : conditionsText(r.conditions)),
+      meta: { cellClassName: "text-xs" },
+      cell: ({ row }) =>
+        row.original.is_default ? <Badge variant="secondary">Default — everyone</Badge> : conditionsText(row.original.conditions),
+    },
+    {
+      id: "template",
+      header: "Template",
+      accessorFn: (r) => names[r.template_id] ?? null,
+      cell: ({ row }) => names[row.original.template_id] ?? "—",
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) =>
+        draft && (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Remove rule"
+            disabled={busy !== null}
+            onClick={async () => {
+              await run(row.original.id, () => del(`/cycle-config/rules/${row.original.id}`), "Rule removed.");
+              onChanged();
+            }}
+          >
+            <Trash2 />
+          </Button>
+        ),
+    },
+  ];
 
   return (
     <Card tier="tier1">
@@ -470,45 +533,13 @@ export function RulesCard({ detail, onChanged }: { detail: CycleDetail; onChange
                 <AlertDescription>Launch is refused until one rule has no conditions, so nobody falls through.</AlertDescription>
               </Alert>
             )}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Label</TableHead>
-                  <TableHead>Conditions</TableHead>
-                  <TableHead>Template</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {detail.rules.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="tabular-nums">{r.priority}</TableCell>
-                    <TableCell>{r.label ?? "—"}</TableCell>
-                    <TableCell className="text-xs">
-                      {r.is_default ? <Badge variant="secondary">Default — everyone</Badge> : Object.entries(r.conditions).map(([k, v]) => `${humanize(k)}: ${Array.isArray(v) ? v.join(", ") : String(v)}`).join(" · ")}
-                    </TableCell>
-                    <TableCell>{names[r.template_id] ?? "—"}</TableCell>
-                    <TableCell className="text-right">
-                      {draft && (
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          aria-label="Remove rule"
-                          disabled={busy !== null}
-                          onClick={async () => {
-                            await run(r.id, () => del(`/cycle-config/rules/${r.id}`), "Rule removed.");
-                            onChanged();
-                          }}
-                        >
-                          <Trash2 />
-                        </Button>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable
+              columns={columns}
+              data={detail.rules}
+              noun="rules"
+              exportName="assignment-rules"
+              searchPlaceholder="Search rules"
+            />
           </>
         )}
         {preview && (

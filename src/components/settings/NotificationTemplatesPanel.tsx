@@ -1,10 +1,11 @@
 "use client";
 
-import { FileText, Loader2, RotateCcw, Save, Search, Send } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Loader2, RotateCcw, Save, Send } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -25,7 +26,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -47,6 +47,11 @@ const ALL = "__all";
 
 function changedChannels(item: EmailCatalogueItem): EditableChannel[] {
   return (Object.keys(item.custom) as EditableChannel[]).filter((channel) => item.custom[channel]);
+}
+
+/** The subject a message goes out with: the workspace's own, else the built-in one. */
+function subjectOf(item: EmailCatalogueItem): string {
+  return item.custom.email?.subject || item.default_subject || item.event_key;
 }
 
 /**
@@ -93,26 +98,82 @@ export function NotificationTemplatesPanel() {
 
   const changedCount = items.filter((item) => changedChannels(item).length > 0).length;
 
+  const columns: ColumnDef<EmailCatalogueItem>[] = [
+    {
+      id: "message",
+      header: "Message",
+      accessorFn: subjectOf,
+      meta: { cellClassName: "max-w-md", text: (item) => `${subjectOf(item)} · ${item.event_key}` },
+      cell: ({ row }) => (
+        <>
+          <div className="truncate text-sm font-medium">{subjectOf(row.original)}</div>
+          <div className="truncate font-mono text-[11px] text-muted-foreground">{row.original.event_key}</div>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {row.original.approval_buttons ? <Badge variant="secondary">Approve / Reject buttons</Badge> : null}
+            {row.original.audience === "candidate" ? <Badge variant="outline">To candidates</Badge> : null}
+            {row.original.urgent ? <Badge variant="outline">Urgent</Badge> : null}
+          </div>
+        </>
+      ),
+    },
+    { accessorKey: "group", header: "Area", meta: { cellClassName: "text-sm" } },
+    {
+      id: "wording",
+      header: "Wording",
+      accessorFn: (item) => {
+        const changed = changedChannels(item);
+        return changed.length
+          ? changed.map((channel) => `${CHANNEL_LABEL[channel]} · v${item.custom[channel]?.version}`).join(", ")
+          : "Built-in";
+      },
+      meta: { cellClassName: "text-sm" },
+      cell: ({ row }) => {
+        const changed = changedChannels(row.original);
+        return changed.length ? (
+          <div className="space-y-1">
+            {changed.map((channel) => (
+              <Badge key={channel} variant="default">
+                {CHANNEL_LABEL[channel]} · v{row.original.custom[channel]?.version}
+              </Badge>
+            ))}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">Built-in</span>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button variant="outline" size="sm" onClick={() => setEditing(row.original)}>
+          Edit
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         tier="tier1"
         title="Emails and messages"
         description={`Every message AskMira sends: ${items.length} in all, ${changedCount} in your own words. Each save is a new version; nothing is overwritten.`}
-        toolbar={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative w-full sm:w-72">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                aria-label="Search messages"
-                placeholder="Search subject, wording or event"
-                className="pl-9"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </div>
+        columns={columns}
+        data={rows}
+        getRowId={(item) => item.event_key}
+        noun="messages"
+        exportName="emails-and-messages"
+        // The screen searches the wording too, which no column shows.
+        searchPlaceholder="Search subject, wording or event"
+        search={search}
+        onSearchChange={setSearch}
+        filters={
+          <>
             <Select value={group} onValueChange={setGroup}>
-              <SelectTrigger aria-label="Area" className="w-52">
+              <SelectTrigger aria-label="Area" className="h-9 w-52">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -125,7 +186,7 @@ export function NotificationTemplatesPanel() {
               </SelectContent>
             </Select>
             <Select value={show} onValueChange={(value) => setShow(value as typeof show)}>
-              <SelectTrigger aria-label="Which messages" className="w-48">
+              <SelectTrigger aria-label="Which messages" className="h-9 w-48">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -134,71 +195,14 @@ export function NotificationTemplatesPanel() {
                 <SelectItem value="builtin">Built-in wording</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          </>
         }
+        filtered={group !== ALL || show !== "all"}
+        emptyMessage="No message matches. Clear the search or pick another area."
         isLoading={catalogue.isLoading}
-        error={catalogue.error?.detail ?? null}
+        error={catalogue.error?.detail}
         onRetry={catalogue.reload}
-        isEmpty={rows.length === 0}
-        empty={{
-          icon: FileText,
-          title: "No message matches",
-          description: "Clear the search or pick another area.",
-        }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Message</TableHead>
-              <TableHead>Area</TableHead>
-              <TableHead>Wording</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((item) => {
-              const own = item.custom.email;
-              const changed = changedChannels(item);
-              return (
-                <TableRow key={item.event_key}>
-                  <TableCell className="max-w-md">
-                    <div className="truncate text-sm font-medium">
-                      {own?.subject || item.default_subject || item.event_key}
-                    </div>
-                    <div className="truncate font-mono text-[11px] text-muted-foreground">
-                      {item.event_key}
-                    </div>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {item.approval_buttons ? <Badge variant="secondary">Approve / Reject buttons</Badge> : null}
-                      {item.audience === "candidate" ? <Badge variant="outline">To candidates</Badge> : null}
-                      {item.urgent ? <Badge variant="outline">Urgent</Badge> : null}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm">{item.group}</TableCell>
-                  <TableCell className="text-sm">
-                    {changed.length ? (
-                      <div className="space-y-1">
-                        {changed.map((channel) => (
-                          <Badge key={channel} variant="default">
-                            {CHANNEL_LABEL[channel]} · v{item.custom[channel]?.version}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground">Built-in</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="outline" size="sm" onClick={() => setEditing(item)}>
-                      Edit
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       <MessageEditor
         item={editing}

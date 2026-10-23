@@ -1,8 +1,10 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { ShieldCheck } from "lucide-react";
 import React, { useState } from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { stageLabel } from "@/components/hiring/AnalyticsNames";
@@ -15,14 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { DiversityReport } from "@/lib/types/hiring";
 
@@ -30,6 +24,44 @@ interface Dimension {
   dimension: string;
   values: string[];
 }
+
+type StageRow = DiversityReport["stages"][number];
+
+// A suppressed stage shows no number at all: the API still sends its count.
+const STAGE_COLUMNS: ColumnDef<StageRow>[] = [
+  {
+    accessorKey: "stage",
+    header: "Stage",
+    meta: { cellClassName: "text-foreground" },
+    cell: ({ row }) => stageLabel(row.original.stage),
+  },
+  {
+    accessorKey: "disclosed_at_stage",
+    header: "Disclosed at stage",
+    meta: {
+      className: "text-right",
+      cellClassName: "tabular-nums",
+      text: (row) => (row.suppressed ? "Suppressed" : row.disclosed_at_stage),
+    },
+    cell: ({ row }) =>
+      row.original.suppressed ? (
+        <Badge variant="muted">Suppressed — too few to show</Badge>
+      ) : (
+        row.original.disclosed_at_stage
+      ),
+  },
+  {
+    accessorKey: "share",
+    header: "Share in group",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => (row.original.suppressed ? "—" : percent(row.original.share)),
+  },
+  {
+    accessorKey: "note",
+    header: "Note",
+    meta: { cellClassName: "max-w-80 whitespace-normal text-xs text-muted-foreground" },
+  },
+];
 
 /**
  * How one self-disclosed group fares through the funnel. Disclosures are
@@ -125,44 +157,13 @@ export function DiversityPanel() {
             </p>
             <p className="text-xs text-muted-foreground">{data.coverage.note}</p>
           </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Stage</TableHead>
-                  <TableHead className="text-right">Disclosed at stage</TableHead>
-                  <TableHead className="text-right">Share in group</TableHead>
-                  <TableHead>Note</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.stages.map((row) =>
-                  row.suppressed ? (
-                    <TableRow key={row.stage}>
-                      <TableCell className="text-foreground">{stageLabel(row.stage)}</TableCell>
-                      <TableCell colSpan={2} className="text-right">
-                        <Badge variant="muted">Suppressed — too few to show</Badge>
-                      </TableCell>
-                      <TableCell className="max-w-80 whitespace-normal text-xs text-muted-foreground">
-                        {row.note}
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <TableRow key={row.stage}>
-                      <TableCell className="text-foreground">{stageLabel(row.stage)}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {row.disclosed_at_stage}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{percent(row.share)}</TableCell>
-                      <TableCell className="max-w-80 whitespace-normal text-xs text-muted-foreground">
-                        {row.note}
-                      </TableCell>
-                    </TableRow>
-                  ),
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          <DataTable
+            variant="plain"
+            bordered={false}
+            columns={STAGE_COLUMNS}
+            data={data.stages}
+            getRowId={(row) => row.stage}
+          />
           <div className="grid gap-1 px-5 text-sm">
             {data.largest_fall && <p className="text-foreground">{data.largest_fall.reading}</p>}
             <p className="text-xs text-muted-foreground">{data.note}</p>

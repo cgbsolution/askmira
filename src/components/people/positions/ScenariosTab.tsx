@@ -1,11 +1,13 @@
 "use client";
 
+import type { ColumnDef, SortingFn } from "@tanstack/react-table";
 import { FlaskConical, Loader2, Plus, TriangleAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,7 +29,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -52,6 +53,59 @@ const KIND_LABEL: Record<ScenarioChangeKind, string> = {
 };
 
 const STATUS_VARIANT = { draft: "secondary", committed: "success", discarded: "muted" } as const;
+
+type ScenarioChange = ScenarioProjection["changes"][number];
+type ScenarioComparison = ScenarioProjection["comparison"][number];
+
+function changeDetail(change: ScenarioChange): string {
+  return (
+    Object.entries(change.values)
+      .filter(([key]) => !key.endsWith("_id"))
+      .map(([key, value]) => `${key.replaceAll("_", " ")}: ${String(value)}`)
+      .join(" · ") || (change.position_id ? "Existing seat" : "—")
+  );
+}
+
+const CHANGE_COLUMNS: ColumnDef<ScenarioChange>[] = [
+  {
+    id: "kind",
+    header: "Change",
+    accessorFn: (change) => KIND_LABEL[change.kind],
+    cell: ({ row }) => <Badge variant="outline">{KIND_LABEL[row.original.kind]}</Badge>,
+  },
+  {
+    id: "detail",
+    header: "Detail",
+    accessorFn: changeDetail,
+    meta: { cellClassName: "text-xs text-muted-foreground" },
+  },
+  {
+    accessorKey: "reason",
+    header: "Reason",
+    meta: { cellClassName: "text-sm" },
+    cell: ({ row }) => row.original.reason || "—",
+  },
+];
+
+/** The deltas are signed decimal strings: sorted by value, so -5 comes before -1. */
+const byDelta: SortingFn<ScenarioComparison> = (a, b, id) => Number(a.getValue(id)) - Number(b.getValue(id));
+
+const COMPARISON_COLUMNS: ColumnDef<ScenarioComparison>[] = [
+  { accessorKey: "scope", header: "Scope", meta: { cellClassName: "font-medium text-foreground" } },
+  {
+    accessorKey: "fte_delta",
+    header: "FTE change",
+    sortingFn: byDelta,
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+  },
+  {
+    accessorKey: "cost_delta",
+    header: "Cost change",
+    sortingFn: byDelta,
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.cost_delta} />,
+  },
+];
 
 /**
  * What-if scenarios.
@@ -174,19 +228,29 @@ function ScenarioDetail({
 
   return (
     <div className="flex flex-col gap-4">
-      <DataPanel
+      <DataTable
         title={data?.name ?? "Scenario"}
         description={data ? `Projected as of ${formatDate(data.as_of)}. Nothing here is live until it is committed.` : undefined}
+        columns={CHANGE_COLUMNS}
+        data={data?.changes ?? []}
+        noun="changes"
+        exportName="scenario-changes"
+        searchPlaceholder="Search changes"
         actions={
           canManage && isDraft ? (
             <>
-              <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
+              <Button size="sm" variant="outline" className="h-9" onClick={() => setAdding(true)}>
                 <Plus /> Add change
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setConfirm("discard")}>
+              <Button size="sm" variant="outline" className="h-9" onClick={() => setConfirm("discard")}>
                 Discard
               </Button>
-              <Button size="sm" onClick={() => setConfirm("commit")} disabled={(data?.changes.length ?? 0) === 0}>
+              <Button
+                size="sm"
+                className="h-9"
+                onClick={() => setConfirm("commit")}
+                disabled={(data?.changes.length ?? 0) === 0}
+              >
                 Commit
               </Button>
             </>
@@ -195,35 +259,8 @@ function ScenarioDetail({
         isLoading={isLoading}
         error={error?.detail ?? null}
         onRetry={reload}
-        isEmpty={(data?.changes.length ?? 0) === 0}
         empty={{ icon: FlaskConical, title: "No changes yet", description: "Add a new seat, a move, a freeze or an abolition." }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Change</TableHead>
-              <TableHead>Detail</TableHead>
-              <TableHead>Reason</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(data?.changes ?? []).map((change, index) => (
-              <TableRow key={index}>
-                <TableCell>
-                  <Badge variant="outline">{KIND_LABEL[change.kind]}</Badge>
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {Object.entries(change.values)
-                    .filter(([key]) => !key.endsWith("_id"))
-                    .map(([key, value]) => `${key.replaceAll("_", " ")}: ${String(value)}`)
-                    .join(" · ") || (change.position_id ? "Existing seat" : "—")}
-                </TableCell>
-                <TableCell className="text-sm">{change.reason || "—"}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       {data && data.warnings.length > 0 && (
         <Alert>
@@ -240,28 +277,15 @@ function ScenarioDetail({
       )}
 
       {data && data.comparison.length > 0 && (
-        <DataPanel title="Live against projected">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Scope</TableHead>
-                <TableHead className="text-right">FTE change</TableHead>
-                <TableHead className="text-right">Cost change</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.comparison.map((row) => (
-                <TableRow key={row.scope}>
-                  <TableCell className="font-medium text-foreground">{row.scope}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.fte_delta}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.cost_delta} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </DataPanel>
+        <DataTable
+          title="Live against projected"
+          columns={COMPARISON_COLUMNS}
+          data={data.comparison}
+          getRowId={(row) => row.scope}
+          noun="scopes"
+          exportName="scenario-live-against-projected"
+          searchPlaceholder="Search scopes"
+        />
       )}
 
       <ChangeDialog

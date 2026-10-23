@@ -1,11 +1,13 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, Plus, TrendingUp } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
 import { NoEmployeeRecord, useHasEmployeeRecord } from "@/components/common/NoEmployeeRecord";
 import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
@@ -23,7 +25,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import { formatDay, toISODate } from "@/lib/utils";
@@ -177,6 +178,19 @@ function WhatIf() {
     asked ? `/esop/me/projection?price_per_unit=${encodeURIComponent(asked)}` : null,
   );
   const valid = /^\d+(\.\d{1,2})?$/.test(price.trim());
+  const timelineColumns: ColumnDef<Projection["timeline"][number]>[] = [
+    {
+      accessorKey: "date",
+      header: "On",
+      cell: ({ row }) => formatDay(row.original.date, true),
+    },
+    {
+      accessorKey: "value",
+      header: `Worth, at ₹${data?.price_per_unit ?? ""} a share`,
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.value} />,
+    },
+  ];
 
   return (
     <Card tier="tier2">
@@ -210,24 +224,12 @@ function WhatIf() {
                 </p>
               </div>
             </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>On</TableHead>
-                  <TableHead className="text-right">Worth, at ₹{data.price_per_unit} a share</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.timeline.map((point) => (
-                  <TableRow key={point.date}>
-                    <TableCell>{formatDay(point.date, true)}</TableCell>
-                    <TableCell className="text-right">
-                      <Money value={point.value} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable
+              variant="plain"
+              columns={timelineColumns}
+              data={data.timeline}
+              getRowId={(point) => point.date}
+            />
             <p className="text-xs text-muted-foreground">{data.note}</p>
           </>
         )}
@@ -246,10 +248,63 @@ export function EsopAdminScreen() {
   const portfolio = useApiQuery<Portfolio>(person ? `/esop/employees/${person.id}` : null);
   const [exercising, setExercising] = useState<Grant | null>(null);
 
+  const planColumns: ColumnDef<Plan>[] = [
+    {
+      accessorKey: "name",
+      header: "Plan",
+      meta: {
+        text: (plan) =>
+          `${plan.name} · ${plan.instrument} · ${plan.default_cliff_months}-month cliff, ${plan.default_vesting_months} months, every ${plan.default_frequency_months}`,
+      },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium">{row.original.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {row.original.instrument} · {row.original.default_cliff_months}-month cliff, {row.original.default_vesting_months} months, every {row.original.default_frequency_months}
+          </p>
+        </>
+      ),
+    },
+    {
+      accessorKey: "pool_units",
+      header: "Pool",
+      meta: { className: "text-right tabular-nums" },
+      cell: ({ row }) => row.original.pool_units.toLocaleString("en-IN"),
+    },
+    {
+      accessorKey: "granted_units",
+      header: "Granted",
+      meta: { className: "text-right tabular-nums" },
+      cell: ({ row }) => row.original.granted_units.toLocaleString("en-IN"),
+    },
+    {
+      id: "fair_value",
+      header: "Fair value",
+      accessorFn: (plan) =>
+        plan.fmv_per_unit ? `₹${plan.fmv_per_unit} from ${formatDay(plan.fmv_from ?? "", true)}` : "—",
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={() => setValuing(row.original)}>
+            Fair value
+          </Button>
+          <Button size="sm" onClick={() => setGranting(row.original)}>
+            Grant
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <PageShell title="Stock options" description="ESOP plans, fair values, grants and exercises. An exercise's perquisite is taxed in the next payroll run.">
       <div className="grid gap-6">
-        <DataPanel
+        <DataTable
           tier="tier1"
           title="Plans"
           actions={
@@ -257,49 +312,16 @@ export function EsopAdminScreen() {
               <Plus /> New plan
             </Button>
           }
+          columns={planColumns}
+          data={plans.data ?? []}
+          noun="plans"
+          exportName="esop-plans"
+          searchPlaceholder="Search plans"
           isLoading={plans.isLoading && !plans.data}
           error={plans.error?.detail ?? null}
           onRetry={plans.reload}
-          isEmpty={(plans.data ?? []).length === 0}
           empty={{ icon: TrendingUp, title: "No plans yet" }}
-        >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Plan</TableHead>
-                <TableHead className="text-right">Pool</TableHead>
-                <TableHead className="text-right">Granted</TableHead>
-                <TableHead>Fair value</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(plans.data ?? []).map((plan) => (
-                <TableRow key={plan.id}>
-                  <TableCell>
-                    <p className="font-medium">{plan.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {plan.instrument} · {plan.default_cliff_months}-month cliff, {plan.default_vesting_months} months, every {plan.default_frequency_months}
-                    </p>
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{plan.pool_units.toLocaleString("en-IN")}</TableCell>
-                  <TableCell className="text-right tabular-nums">{plan.granted_units.toLocaleString("en-IN")}</TableCell>
-                  <TableCell>{plan.fmv_per_unit ? `₹${plan.fmv_per_unit} from ${formatDay(plan.fmv_from ?? "", true)}` : "—"}</TableCell>
-                  <TableCell>
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setValuing(plan)}>
-                        Fair value
-                      </Button>
-                      <Button size="sm" onClick={() => setGranting(plan)}>
-                        Grant
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </DataPanel>
+        />
         <Card tier="tier1">
           <CardHeader>
             <CardTitle className="text-base">A person&apos;s grants</CardTitle>

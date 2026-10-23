@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { HandCoins, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { PersonCell } from "@/components/common/PersonCell";
@@ -26,14 +27,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -63,20 +56,95 @@ export function AdjustmentsScreen() {
   );
   const rows = query.data?.items ?? [];
 
+  const columns: ColumnDef<Adjustment>[] = [
+    {
+      id: "employee",
+      header: "Employee",
+      accessorFn: (row) => row.employee_name ?? "Unknown",
+      meta: { text: (row) => `${row.employee_name ?? "Unknown"} ${row.employee_code ?? ""}` },
+      cell: ({ row }) => (
+        <PersonCell name={row.original.employee_name ?? "Unknown"} subtitle={row.original.employee_code} size="sm" />
+      ),
+    },
+    {
+      accessorKey: "name",
+      header: "Adjustment",
+      meta: {
+        text: (row) =>
+          `${row.name} · ${CATEGORY_LABEL[row.category]} · ${row.kind === "earning" ? "earning" : "deduction"}`,
+      },
+      cell: ({ row }) => (
+        <>
+          <span className="font-medium text-foreground">{row.original.name}</span>
+          <span className="block text-xs text-muted-foreground">
+            {CATEGORY_LABEL[row.original.category]} · {row.original.kind === "earning" ? "earning" : "deduction"}
+          </span>
+        </>
+      ),
+    },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      meta: { className: "text-right" },
+      cell: ({ row }) => (
+        <>
+          <Money value={row.original.amount} />
+          {row.original.total_cap && (
+            <span className="block text-xs text-muted-foreground">
+              <Money value={row.original.amount_applied} /> of <Money value={row.original.total_cap} />
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "when",
+      header: "When",
+      // Sorts by the first month it pays; reads as the window.
+      accessorFn: (row) => row.start_year * 100 + row.start_month,
+      meta: { cellClassName: "text-sm text-muted-foreground", text: windowLabel },
+      cell: ({ row }) => windowLabel(row.original),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (row) => STATUS_LABEL[row.status].label },
+      cell: ({ row }) => (
+        <Badge variant={STATUS_LABEL[row.original.status].variant}>{STATUS_LABEL[row.original.status].label}</Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", headClassName: "w-24", text: false },
+      cell: ({ row }) => (
+        <Button variant="ghost" size="sm" onClick={() => setOpenId(row.original.id)}>
+          {row.original.caller_may_decide ? "Review" : "View"}
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Adjustments"
         description="Incentives, one-off bonuses, recoveries and court attachments outside the salary structure. A run pays each one once, after a second admin approves it."
+        columns={columns}
+        data={rows}
+        noun="adjustments"
+        exportName="payroll-adjustments"
+        searchPlaceholder="Search employee or adjustment"
         actions={
           <div className="flex flex-wrap gap-2">
             <ImportAdjustmentsDialog onImported={query.reload} />
             <NewAdjustmentDialog onCreated={query.reload} />
           </div>
         }
-        toolbar={
+        filters={
           <Select value={status} onValueChange={(v) => setStatus(v as AdjustmentStatus | "any")}>
-            <SelectTrigger size="sm" className="w-48" aria-label="Status">
+            <SelectTrigger className="h-9 w-48" aria-label="Status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -92,64 +160,14 @@ export function AdjustmentsScreen() {
         isLoading={query.isLoading}
         error={query.error?.detail}
         onRetry={query.reload}
-        isEmpty={rows.length === 0}
+        filtered={status !== "pending" && status !== "any"}
         empty={{
           icon: HandCoins,
           title: status === "pending" ? "Nothing awaiting approval" : "No adjustments here",
           description: "Key one in, or import a spreadsheet of incentives.",
         }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Adjustment</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>When</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-24" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>
-                  <PersonCell
-                    name={row.employee_name ?? "Unknown"}
-                    subtitle={row.employee_code}
-                    size="sm"
-                  />
-                </TableCell>
-                <TableCell>
-                  <span className="font-medium text-foreground">{row.name}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {CATEGORY_LABEL[row.category]} · {row.kind === "earning" ? "earning" : "deduction"}
-                  </span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={row.amount} />
-                  {row.total_cap && (
-                    <span className="block text-xs text-muted-foreground">
-                      <Money value={row.amount_applied} /> of <Money value={row.total_cap} />
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{windowLabel(row)}</TableCell>
-                <TableCell>
-                  <Badge variant={STATUS_LABEL[row.status].variant}>
-                    {STATUS_LABEL[row.status].label}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" onClick={() => setOpenId(row.id)}>
-                    {row.caller_may_decide ? "Review" : "View"}
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+        emptyMessage="No adjustments here."
+      />
       <AdjustmentSheet
         adjustmentId={openId}
         canCancel={hasRole("admin", "sub_admin")}

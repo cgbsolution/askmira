@@ -1,30 +1,37 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { FileWarning, Loader2, Upload } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { post } from "@/lib/api";
-import type { PunchImportResult } from "@/lib/types/attendance";
+import type { PunchImportResult, PunchImportRowError } from "@/lib/types/attendance";
 
 import { errorDetail } from "./shared";
 import { Field } from "./ShiftsTab";
 
 const MAX_BYTES = 2 * 1024 * 1024;
+
+const ERROR_COLUMNS: ColumnDef<PunchImportRowError>[] = [
+  { accessorKey: "row", header: "Row", meta: { cellClassName: "tabular-nums" } },
+  {
+    accessorKey: "employee_code",
+    header: "Employee code",
+    cell: ({ row }) => row.original.employee_code ?? "—",
+  },
+  {
+    accessorKey: "error",
+    header: "Error",
+    meta: { cellClassName: "whitespace-normal text-destructive" },
+  },
+];
 
 export function ImportPunchesTab() {
   const [file, setFile] = useState<File | null>(null);
@@ -167,33 +174,20 @@ function ImportResult({ result }: { result: PunchImportResult }) {
       )}
 
       <div className="mt-5">
-        {result.errors.length === 0 ? (
-          <EmptyState
-            icon={FileWarning}
-            className="py-8"
-            title="No row errors"
-            description="Every row was either imported, a duplicate, or had an unknown employee code."
-          />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-5">Row</TableHead>
-                <TableHead>Employee code</TableHead>
-                <TableHead className="pr-5">Error</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {result.errors.map((row, index) => (
-                <TableRow key={`${row.row}-${index}`}>
-                  <TableCell className="pl-5 tabular-nums">{row.row}</TableCell>
-                  <TableCell>{row.employee_code ?? "—"}</TableCell>
-                  <TableCell className="pr-5 whitespace-normal text-destructive">{row.error}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+        <DataTable
+          bordered={false}
+          columns={ERROR_COLUMNS}
+          data={result.errors}
+          getRowId={(row, index) => `${row.row}-${index}`}
+          noun="errors"
+          exportName="punch-import-errors"
+          searchPlaceholder="Search row errors"
+          empty={{
+            icon: FileWarning,
+            title: "No row errors",
+            description: "Every row was either imported, a duplicate, or had an unknown employee code.",
+          }}
+        />
       </div>
     </Card>
   );

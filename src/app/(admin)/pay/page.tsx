@@ -1,27 +1,82 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { ReceiptText } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { SalaryHistoryList } from "@/components/pay/SalaryHistoryList";
 import { periodLabel, RUN_TYPE } from "@/components/payroll/labels";
 import { DownloadButton } from "@/components/payroll-ops/shared";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { PayslipSummary, SalaryRecord } from "@/lib/types/payroll";
 import { formatDate } from "@/lib/utils";
+
+const PAYSLIP_COLUMNS: ColumnDef<PayslipSummary>[] = [
+  {
+    id: "month",
+    header: "Month",
+    // Sorts by period; searched and exported as the label shown.
+    accessorFn: (slip) => slip.period_year * 100 + slip.period_month,
+    meta: { text: (slip) => `${periodLabel(slip.period_year, slip.period_month)} ${RUN_TYPE[slip.run_type]}` },
+    cell: ({ row }) => (
+      <>
+        <Link href={`/pay/payslips/${row.original.id}`} className="font-medium text-foreground hover:underline">
+          {periodLabel(row.original.period_year, row.original.period_month)}
+        </Link>
+        <p className="text-xs text-muted-foreground">{RUN_TYPE[row.original.run_type]}</p>
+      </>
+    ),
+  },
+  {
+    accessorKey: "gross_earnings",
+    header: "Gross",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.gross_earnings} />,
+  },
+  {
+    accessorKey: "other_earnings",
+    header: "Other pay",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.other_earnings} />,
+  },
+  {
+    accessorKey: "total_deductions",
+    header: "Deductions",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.total_deductions} />,
+  },
+  {
+    accessorKey: "net_pay",
+    header: "Net pay",
+    meta: { className: "text-right", cellClassName: "font-semibold" },
+    cell: ({ row }) => <Money value={row.original.net_pay} />,
+  },
+  {
+    accessorKey: "published_at",
+    header: "Published",
+    meta: { cellClassName: "text-sm text-muted-foreground", text: (slip) => formatDate(slip.published_at) },
+    cell: ({ row }) => formatDate(row.original.published_at),
+  },
+  {
+    id: "actions",
+    header: "",
+    enableHiding: false,
+    meta: { className: "w-28 text-right", text: false },
+    cell: ({ row }) => (
+      <DownloadButton
+        path={`/payroll/my-payslips/${row.original.id}/pdf`}
+        fallbackName={`payslip-${row.original.period_year}-${String(row.original.period_month).padStart(2, "0")}.pdf`}
+        label="PDF"
+        variant="ghost"
+      />
+    ),
+  },
+];
 
 /** An employee's own payslips and salary history. Only published payslips appear. */
 export default function MyPayPage() {
@@ -33,12 +88,16 @@ export default function MyPayPage() {
 
   return (
     <PageShell title="Payslips" description="Your payslips and salary history.">
-      <DataPanel
+      <DataTable
         title="Payslips"
+        columns={PAYSLIP_COLUMNS}
+        data={rows}
+        noun="payslips"
+        exportName="my-payslips"
+        searchPlaceholder="Search by month or type"
         isLoading={payslips.isLoading && !payslips.data}
         error={payslips.error?.detail}
         onRetry={payslips.reload}
-        isEmpty={!linked || rows.length === 0}
         empty={{
           icon: ReceiptText,
           title: linked ? "No payslips yet" : "Your login is not linked to an employee record",
@@ -46,58 +105,7 @@ export default function MyPayPage() {
             ? "A payslip appears here once payroll for the month is approved and published."
             : "Ask your admin to link your login to your employee record.",
         }}
-      >
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Month</TableHead>
-                <TableHead className="text-right">Gross</TableHead>
-                <TableHead className="text-right">Other pay</TableHead>
-                <TableHead className="text-right">Deductions</TableHead>
-                <TableHead className="text-right">Net pay</TableHead>
-                <TableHead>Published</TableHead>
-                <TableHead className="w-28" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((slip) => (
-                <TableRow key={slip.id}>
-                  <TableCell>
-                    <Link href={`/pay/payslips/${slip.id}`} className="font-medium text-foreground hover:underline">
-                      {periodLabel(slip.period_year, slip.period_month)}
-                    </Link>
-                    <p className="text-xs text-muted-foreground">{RUN_TYPE[slip.run_type]}</p>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={slip.gross_earnings} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={slip.other_earnings} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={slip.total_deductions} />
-                  </TableCell>
-                  <TableCell className="text-right font-semibold">
-                    <Money value={slip.net_pay} />
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(slip.published_at)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DownloadButton
-                      path={`/payroll/my-payslips/${slip.id}/pdf`}
-                      fallbackName={`payslip-${slip.period_year}-${String(slip.period_month).padStart(2, "0")}.pdf`}
-                      label="PDF"
-                      variant="ghost"
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </DataPanel>
+      />
       {linked && (
         <SalaryHistoryList
           title="Your salary history"

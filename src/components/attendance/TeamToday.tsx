@@ -1,23 +1,15 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { CalendarDays, MapPin, MapPinOff, RefreshCw, Users } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { PersonCell } from "@/components/common/PersonCell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type {
   AttendanceSettingsRead,
@@ -64,6 +56,24 @@ const FILTERS: { key: TeamMemberState | "all" | "late"; label: string }[] = [
   { key: "work_from_home", label: "Remote" },
 ];
 
+/** "09:12 in" */
+function punchTime(member: TeamMemberToday): string {
+  return `${formatClock(member.last_punch_at)} ${member.last_direction === "in" ? "in" : "out"}`;
+}
+
+/** "At Pune office", "Away from Pune office" or "No location". */
+function punchPlace(member: TeamMemberToday): string {
+  return member.last_punch_location
+    ? `${member.last_punch_outside ? "Away from" : "At"} ${member.last_punch_location}`
+    : "No location";
+}
+
+function shiftText(member: TeamMemberToday): string {
+  return member.shift_name
+    ? `${member.shift_name}${member.shift_start ? ` · ${shortTime(member.shift_start)}` : ""}`
+    : "No shift";
+}
+
 /**
  * Today at a glance for a manager's team, or everyone for HR: who is in, who
  * has not punched yet, who is on leave or remote — straight from punches,
@@ -72,11 +82,9 @@ const FILTERS: { key: TeamMemberState | "all" | "late"; label: string }[] = [
 export function TeamToday() {
   const { data, error, isLoading, reload } = useApiQuery<TeamTodayData>("/attendance/team/today");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("all");
-  const [search, setSearch] = useState("");
   const [viewing, setViewing] = useState<TeamMemberToday | null>(null);
 
   const rows = useMemo(() => {
-    const term = search.trim().toLowerCase();
     return (data?.members ?? []).filter((member) => {
       if (filter === "late" && member.late_by_minutes <= 0) return false;
       if (filter === "work_from_home" && !["work_from_home", "on_duty"].includes(member.state)) {
@@ -85,13 +93,9 @@ export function TeamToday() {
       if (!["all", "late", "work_from_home"].includes(filter) && member.state !== filter) {
         return false;
       }
-      if (!term) return true;
-      return (
-        member.employee_name.toLowerCase().includes(term) ||
-        member.employee_code.toLowerCase().includes(term)
-      );
+      return true;
     });
-  }, [data, filter, search]);
+  }, [data, filter]);
 
   const settings = useApiQuery<AttendanceSettingsRead>("/attendance/settings");
   const located: MapPoint[] = (data?.members ?? [])
@@ -111,136 +115,139 @@ export function TeamToday() {
     return data.counts[key] ?? 0;
   };
 
+  const columns: ColumnDef<TeamMemberToday>[] = [
+    {
+      accessorKey: "employee_name",
+      header: "Person",
+      meta: { text: (member) => `${member.employee_name} ${member.employee_code}` },
+      cell: ({ row: { original: member } }) => (
+        <PersonCell name={member.employee_name} subtitle={member.designation ?? member.employee_code} />
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorFn: (member) => STATE_LABELS[member.state],
+      meta: {
+        text: (member) => [STATE_LABELS[member.state], member.detail].filter(Boolean).join(" · "),
+      },
+      cell: ({ row: { original: member } }) => (
+        <div className="flex flex-col gap-0.5">
+          <Badge variant={STATE_VARIANTS[member.state]}>{STATE_LABELS[member.state]}</Badge>
+          {member.detail && <span className="text-xs text-muted-foreground">{member.detail}</span>}
+        </div>
+      ),
+    },
+    {
+      id: "first_in",
+      header: "First in",
+      accessorFn: (member) => member.first_in ?? undefined,
+      meta: { cellClassName: "tabular-nums", text: (member) => formatClock(member.first_in) },
+      cell: ({ row }) => formatClock(row.original.first_in),
+    },
+    {
+      id: "last_punch",
+      header: "Last punch",
+      accessorFn: (member) => member.last_punch_at ?? undefined,
+      meta: {
+        text: (member) => (member.last_punch_at ? `${punchTime(member)} · ${punchPlace(member)}` : "—"),
+      },
+      cell: ({ row: { original: member } }) =>
+        member.last_punch_at ? (
+          <div className="flex flex-col gap-0.5">
+            <span className="tabular-nums">{punchTime(member)}</span>
+            <span
+              className={cn(
+                "flex items-center gap-1 text-xs",
+                member.last_punch_outside ? "text-mustard-900 dark:text-mustard-100" : "text-muted-foreground",
+              )}
+            >
+              {member.last_punch_location ? <MapPin className="size-3" /> : <MapPinOff className="size-3" />}
+              {punchPlace(member)}
+            </span>
+          </div>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      accessorKey: "late_by_minutes",
+      header: "Late by",
+      meta: {
+        cellClassName: "tabular-nums",
+        text: (member) => (member.late_by_minutes > 0 ? formatMinutes(member.late_by_minutes) : "—"),
+      },
+      cell: ({ row }) =>
+        row.original.late_by_minutes > 0 ? (
+          <span className="text-destructive">{formatMinutes(row.original.late_by_minutes)}</span>
+        ) : (
+          "—"
+        ),
+    },
+    { id: "shift", header: "Shift", accessorFn: shiftText, meta: { cellClassName: "text-muted-foreground" } },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button variant="outline" size="sm" onClick={() => setViewing(row.original)}>
+          <CalendarDays /> Month
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title={data ? `Today · ${formatDay(data.today, true)}` : "Today"}
         description="Live from punches, approved leave and approved on-duty or work-from-home."
         actions={
-          <Button variant="outline" size="sm" onClick={reload}>
+          <Button variant="outline" size="sm" className="h-9" onClick={reload}>
             <RefreshCw /> Refresh
           </Button>
         }
-        toolbar={
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-wrap gap-1.5">
-              {FILTERS.map((entry) => (
-                <Button
-                  key={entry.key}
-                  size="sm"
-                  variant={filter === entry.key ? "default" : "outline"}
-                  onClick={() => setFilter(entry.key)}
+        filters={
+          <div className="flex flex-wrap gap-1.5">
+            {FILTERS.map((entry) => (
+              <Button
+                key={entry.key}
+                size="sm"
+                variant={filter === entry.key ? "default" : "outline"}
+                onClick={() => setFilter(entry.key)}
+              >
+                {entry.label}
+                <span
+                  className={cn(
+                    "rounded-full px-1.5 text-[11px] tabular-nums",
+                    filter === entry.key ? "bg-primary-foreground/20" : "bg-muted",
+                  )}
                 >
-                  {entry.label}
-                  <span
-                    className={cn(
-                      "rounded-full px-1.5 text-[11px] tabular-nums",
-                      filter === entry.key ? "bg-primary-foreground/20" : "bg-muted",
-                    )}
-                  >
-                    {count(entry.key)}
-                  </span>
-                </Button>
-              ))}
-            </div>
-            <Input
-              className="h-9 sm:w-64"
-              placeholder="Search name or code"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
+                  {count(entry.key)}
+                </span>
+              </Button>
+            ))}
           </div>
         }
+        columns={columns}
+        data={rows}
+        getRowId={(member) => member.employee_id}
+        noun="people"
+        exportName={data ? `team-today-${data.today}` : "team-today"}
+        searchPlaceholder="Search name or code"
         isLoading={isLoading && !data}
         error={error?.detail}
         onRetry={reload}
-        isEmpty={rows.length === 0}
+        // With nobody in the team, a chip narrows nothing: the "nothing yet" state still applies.
+        filtered={filter !== "all" && Boolean(data?.members.length)}
         empty={{
           icon: Users,
-          title: data?.members.length ? "Nobody matches" : "Nobody reports to you",
-          description: data?.members.length
-            ? "Try another filter or search."
-            : "People in your reporting line appear here once they report to you in the org chart.",
+          title: "Nobody reports to you",
+          description: "People in your reporting line appear here once they report to you in the org chart.",
         }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="pl-6">Person</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>First in</TableHead>
-              <TableHead>Last punch</TableHead>
-              <TableHead>Late by</TableHead>
-              <TableHead>Shift</TableHead>
-              <TableHead className="pr-6 text-right">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((member) => (
-              <TableRow key={member.employee_id}>
-                <TableCell className="pl-6">
-                  <PersonCell
-                    name={member.employee_name}
-                    subtitle={member.designation ?? member.employee_code}
-                  />
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col gap-0.5">
-                    <Badge variant={STATE_VARIANTS[member.state]}>{STATE_LABELS[member.state]}</Badge>
-                    {member.detail && (
-                      <span className="text-xs text-muted-foreground">{member.detail}</span>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="tabular-nums">{formatClock(member.first_in)}</TableCell>
-                <TableCell>
-                  {member.last_punch_at ? (
-                    <div className="flex flex-col gap-0.5">
-                      <span className="tabular-nums">
-                        {formatClock(member.last_punch_at)} {member.last_direction === "in" ? "in" : "out"}
-                      </span>
-                      <span
-                        className={cn(
-                          "flex items-center gap-1 text-xs",
-                          member.last_punch_outside
-                            ? "text-mustard-900 dark:text-mustard-100"
-                            : "text-muted-foreground",
-                        )}
-                      >
-                        {member.last_punch_location ? <MapPin className="size-3" /> : <MapPinOff className="size-3" />}
-                        {member.last_punch_location
-                          ? `${member.last_punch_outside ? "Away from" : "At"} ${member.last_punch_location}`
-                          : "No location"}
-                      </span>
-                    </div>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell className="tabular-nums">
-                  {member.late_by_minutes > 0 ? (
-                    <span className="text-destructive">{formatMinutes(member.late_by_minutes)}</span>
-                  ) : (
-                    "—"
-                  )}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {member.shift_name
-                    ? `${member.shift_name}${member.shift_start ? ` · ${shortTime(member.shift_start)}` : ""}`
-                    : "No shift"}
-                </TableCell>
-                <TableCell className="pr-6 text-right">
-                  <Button variant="outline" size="sm" onClick={() => setViewing(member)}>
-                    <CalendarDays /> Month
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+        emptyMessage="Nobody matches. Try another filter or search."
+      />
 
       {located.length > 0 && (
         <Card tier="tier1" className="mt-6">

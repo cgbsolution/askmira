@@ -1,26 +1,62 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, FileWarning } from "lucide-react";
 import React from "react";
 
 import {
   isNegative,
 } from "@/components/payroll-ops/shared";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DetailField } from "@/components/payroll-ops/disbursements/common";
 import { Money } from "@/components/common/Money";
 import { displayPeriod, humanize } from "@/components/payroll-ops/arrears/labels";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import type { ArrearPreview } from "@/lib/types/payroll-ops";
+import type { ArrearComponentDiff, ArrearPreview } from "@/lib/types/payroll-ops";
 import { cn } from "@/lib/utils";
+
+const COMPONENT_COLUMNS: ColumnDef<ArrearComponentDiff>[] = [
+  {
+    accessorKey: "name",
+    header: "Component",
+    cell: ({ row }) => (
+      <>
+        <span className="text-foreground">{row.original.name}</span>
+        <span className="block text-xs text-muted-foreground">{row.original.code}</span>
+      </>
+    ),
+  },
+  {
+    accessorKey: "component_type",
+    header: "Type",
+    meta: { className: "hidden sm:table-cell", cellClassName: "text-muted-foreground" },
+    cell: ({ row }) => humanize(row.original.component_type),
+  },
+  {
+    accessorKey: "paid",
+    header: "Paid",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.paid} className="text-muted-foreground" />,
+  },
+  {
+    accessorKey: "should_have_been",
+    header: "Should have been",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.should_have_been} />,
+  },
+  {
+    accessorKey: "difference",
+    header: "Difference",
+    meta: { className: "text-right" },
+    cell: ({ row }) => (
+      <Money
+        value={row.original.difference}
+        className={cn("font-medium", isNegative(row.original.difference) && "text-destructive")}
+      />
+    ),
+  },
+];
 
 /** What a revision would pay: summary, guardrails, then every component difference. */
 export function PreviewResult({ preview }: { preview: ArrearPreview }) {
@@ -123,47 +159,13 @@ export function PreviewResult({ preview }: { preview: ArrearPreview }) {
                         Net payable <Money value={period.net_payable} className="text-foreground" />
                       </span>
                     </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Component</TableHead>
-                          <TableHead className="hidden sm:table-cell">Type</TableHead>
-                          <TableHead className="text-right">Paid</TableHead>
-                          <TableHead className="text-right">Should have been</TableHead>
-                          <TableHead className="text-right">Difference</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {period.components.map((component) => (
-                          <TableRow key={component.code}>
-                            <TableCell>
-                              <span className="text-foreground">{component.name}</span>
-                              <span className="block text-xs text-muted-foreground">
-                                {component.code}
-                              </span>
-                            </TableCell>
-                            <TableCell className="hidden text-muted-foreground sm:table-cell">
-                              {humanize(component.component_type)}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Money value={component.paid} className="text-muted-foreground" />
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Money value={component.should_have_been} />
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Money
-                                value={component.difference}
-                                className={cn(
-                                  "font-medium",
-                                  isNegative(component.difference) && "text-destructive",
-                                )}
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                    <DataTable
+                      variant="plain"
+                      bordered={false}
+                      columns={COMPONENT_COLUMNS}
+                      data={period.components}
+                      getRowId={(component) => component.code}
+                    />
                     {period.notes.length > 0 && (
                       <ul className="list-disc px-5 py-2 pl-9 text-xs text-muted-foreground">
                         {period.notes.map((note, index) => (

@@ -1,14 +1,14 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, Pencil, Plus, Table2, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { CustomFieldInputs } from "@/components/people/CustomFields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +21,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, patch, post } from "@/lib/api";
 import { CUSTOM_FIELD_TYPE, type CustomField, type CustomFieldType } from "@/lib/types/people";
@@ -49,9 +48,11 @@ interface TableDefinition {
 }
 
 interface TableWithRows extends TableDefinition {
-  rows: { id: string; values: Record<string, unknown> }[];
+  rows: TableRowValues[];
   can_edit: boolean;
 }
+
+type TableRowValues = { id: string; values: Record<string, unknown> };
 
 function failure(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;
@@ -67,6 +68,11 @@ function show(column: Column, value: unknown): string {
   if (column.field_type === "date") return formatDay(String(value), true);
   if (Array.isArray(value)) return value.join(", ");
   return String(value);
+}
+
+/** What a column sorts by: a date by its ISO value, anything else by what it shows. */
+function sortKey(column: Column, value: unknown): string {
+  return column.field_type === "date" && typeof value === "string" && value !== "" ? value : show(column, value);
 }
 
 /**
@@ -101,60 +107,62 @@ export function CustomTablesSection({ employeeId, tab = null }: { employeeId: st
     }
   };
 
+  const actionsColumn = (table: TableWithRows): ColumnDef<TableRowValues> => ({
+    id: "actions",
+    header: "",
+    enableHiding: false,
+    meta: { className: "w-20 text-right", text: false },
+    cell: ({ row }) => (
+      <div className="flex justify-end gap-1">
+        <Button size="icon" variant="ghost" aria-label="Edit" onClick={() => setEditing({ table, rowId: row.original.id, values: row.original.values })}>
+          <Pencil />
+        </Button>
+        <Button size="icon" variant="ghost" aria-label="Remove" onClick={() => void remove(row.original.id)}>
+          <Trash2 />
+        </Button>
+      </div>
+    ),
+  });
+
+  // Column ids carry a prefix: an admin may name a column "actions".
+  const columnsFor = (table: TableWithRows): ColumnDef<TableRowValues>[] => [
+    ...table.columns.map(
+      (c): ColumnDef<TableRowValues> => ({
+        id: `field_${c.key}`,
+        header: c.label,
+        accessorFn: (row) => sortKey(c, row.values[c.key]),
+        meta: { text: (row) => show(c, row.values[c.key]) },
+        cell: ({ row }) => show(c, row.original.values[c.key]),
+      }),
+    ),
+    ...(table.can_edit ? [actionsColumn(table)] : []),
+  ];
+
   return (
     <div className="grid gap-6">
       {tables.map((table) => (
-        <Card key={table.id} tier="tier2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
+        <DataTable
+          key={table.id}
+          tier="tier2"
+          title={
+            <span className="flex items-center gap-2">
               <Table2 className="size-4 text-primary" /> {table.label}
-            </CardTitle>
-            {table.can_edit && (
-              <CardAction>
-                <Button size="sm" variant="outline" onClick={() => setEditing({ table, rowId: null, values: {} })}>
-                  <Plus /> Add
-                </Button>
-              </CardAction>
-            )}
-          </CardHeader>
-          <CardContent>
-            {table.rows.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nothing recorded yet.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {table.columns.map((c) => (
-                      <TableHead key={c.key}>{c.label}</TableHead>
-                    ))}
-                    {table.can_edit && <TableHead className="w-20" />}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {table.rows.map((row) => (
-                    <TableRow key={row.id}>
-                      {table.columns.map((c) => (
-                        <TableCell key={c.key}>{show(c, row.values[c.key])}</TableCell>
-                      ))}
-                      {table.can_edit && (
-                        <TableCell>
-                          <div className="flex gap-1">
-                            <Button size="icon" variant="ghost" aria-label="Edit" onClick={() => setEditing({ table, rowId: row.id, values: row.values })}>
-                              <Pencil />
-                            </Button>
-                            <Button size="icon" variant="ghost" aria-label="Remove" onClick={() => void remove(row.id)}>
-                              <Trash2 />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+            </span>
+          }
+          actions={
+            table.can_edit && (
+              <Button size="sm" variant="outline" onClick={() => setEditing({ table, rowId: null, values: {} })}>
+                <Plus /> Add
+              </Button>
+            )
+          }
+          columns={columnsFor(table)}
+          data={table.rows}
+          noun="entries"
+          exportName={table.key.replace(/_/g, "-")}
+          searchPlaceholder="Search entries"
+          empty={{ icon: Table2, title: "Nothing recorded yet." }}
+        />
       ))}
       {editing && (
         <RowDialog
@@ -228,10 +236,54 @@ function RowDialog({
 export function CustomTablesPanel() {
   const { data, error, isLoading, reload } = useApiQuery<TableDefinition[]>("/org/custom-tables?include_inactive=true");
   const [editing, setEditing] = useState<TableDefinition | "new" | null>(null);
-  const rows = data ?? [];
+  const columns: ColumnDef<TableDefinition>[] = [
+    {
+      accessorKey: "label",
+      header: "Table",
+      meta: { text: (t) => `${t.label} ${t.key}` },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium">{row.original.label}</p>
+          <p className="font-mono text-xs text-muted-foreground">{row.original.key}</p>
+        </>
+      ),
+    },
+    {
+      id: "columns",
+      header: "Columns",
+      accessorFn: (t) => t.columns.map((c) => c.label).join(", "),
+      meta: { cellClassName: "text-sm" },
+    },
+    {
+      id: "rules",
+      header: "Rules",
+      accessorFn: (t) =>
+        [!t.active && "Off", t.is_sensitive && "Sensitive", t.employee_editable && "Person edits"]
+          .filter(Boolean)
+          .join(", "),
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {!row.original.active && <Badge variant="muted">Off</Badge>}
+          {row.original.is_sensitive && <Badge variant="warning">Sensitive</Badge>}
+          {row.original.employee_editable && <Badge variant="secondary">Person edits</Badge>}
+        </div>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "w-12 text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="icon" variant="ghost" aria-label={`Edit ${row.original.label}`} onClick={() => setEditing(row.original)}>
+          <Pencil />
+        </Button>
+      ),
+    },
+  ];
   return (
     <>
-      <DataPanel
+      <DataTable
         tier="tier1"
         title="Custom tables"
         description="Lists on every record — certifications, languages, licences. Each has typed columns."
@@ -240,46 +292,17 @@ export function CustomTablesPanel() {
             <Plus /> Add a table
           </Button>
         }
+        columns={columns}
+        data={data ?? []}
+        noun="tables"
+        exportName="custom-tables"
+        searchPlaceholder="Search tables"
+        rowClassName={(t) => (t.active ? undefined : "opacity-60")}
         isLoading={isLoading && !data}
         error={error?.detail ?? null}
         onRetry={reload}
-        isEmpty={rows.length === 0}
         empty={{ icon: Table2, title: "No custom tables" }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Table</TableHead>
-              <TableHead>Columns</TableHead>
-              <TableHead>Rules</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((t) => (
-              <TableRow key={t.id} className={t.active ? undefined : "opacity-60"}>
-                <TableCell>
-                  <p className="font-medium">{t.label}</p>
-                  <p className="font-mono text-xs text-muted-foreground">{t.key}</p>
-                </TableCell>
-                <TableCell className="text-sm">{t.columns.map((c) => c.label).join(", ")}</TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {!t.active && <Badge variant="muted">Off</Badge>}
-                    {t.is_sensitive && <Badge variant="warning">Sensitive</Badge>}
-                    {t.employee_editable && <Badge variant="secondary">Person edits</Badge>}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Button size="icon" variant="ghost" aria-label={`Edit ${t.label}`} onClick={() => setEditing(t)}>
-                    <Pencil />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       {editing && (
         <TableDialog
           table={editing === "new" ? null : editing}

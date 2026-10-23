@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Landmark, Loader2, Plus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { EmployeePicker } from "@/components/payroll/EmployeePicker";
@@ -29,18 +30,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { PfElection } from "@/lib/types/payroll";
 import { formatDay } from "@/lib/utils";
+
+/** "1 Apr 2026 – open": the dates an election applies between. */
+function periodText(row: PfElection): string {
+  return `${formatDay(row.effective_from, true)} – ${row.effective_to ? formatDay(row.effective_to, true) : "open"}`;
+}
 
 /** Each employee's PF ceiling election and voluntary PF, effective-dated. */
 export function PfElectionsPanel() {
@@ -82,61 +80,73 @@ export function PfElectionsPanel() {
     }
   };
 
-  const rows = data ?? [];
+  const columns: ColumnDef<PfElection>[] = [
+    {
+      id: "employee",
+      header: "Employee",
+      accessorFn: (row) => nameOf(row.employee_id),
+    },
+    {
+      accessorKey: "effective_from",
+      header: "Period",
+      meta: { cellClassName: "text-sm", text: periodText },
+      cell: ({ row }) => periodText(row.original),
+    },
+    {
+      accessorKey: "pf_on_actual_wage",
+      header: "PF wage",
+      meta: { text: (row) => (row.pf_on_actual_wage ? "Actual wage" : "Ceiling") },
+      cell: ({ row }) => (
+        <Badge variant={row.original.pf_on_actual_wage ? "accent" : "muted"}>
+          {row.original.pf_on_actual_wage ? "Actual wage" : "Ceiling"}
+        </Badge>
+      ),
+    },
+    {
+      // A percentage or a fixed amount: one column, so it is not sorted.
+      id: "voluntary_pf",
+      header: "Voluntary PF",
+      meta: {
+        cellClassName: "text-sm tabular-nums",
+        text: (row) =>
+          [row.vpf_percentage ? `${row.vpf_percentage}% of PF wage` : null, row.vpf_fixed_amount]
+            .filter(Boolean)
+            .join(" "),
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.vpf_percentage ? `${row.original.vpf_percentage}% of PF wage` : null}
+          {row.original.vpf_fixed_amount ? <Money value={row.original.vpf_fixed_amount} /> : null}
+          {!row.original.vpf_percentage && !row.original.vpf_fixed_amount && "—"}
+        </>
+      ),
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="PF elections"
         description="PF on actual wages instead of the ceiling, and voluntary PF. A new election closes the previous one."
+        columns={columns}
+        data={data ?? []}
+        noun="elections"
+        exportName="pf-elections"
+        searchPlaceholder="Search employees"
         actions={
-          <Button size="sm" onClick={() => setOpen(true)}>
+          <Button size="sm" className="h-9" onClick={() => setOpen(true)}>
             <Plus /> Record election
           </Button>
         }
         isLoading={isLoading && !data}
         error={error?.detail}
         onRetry={reload}
-        isEmpty={rows.length === 0}
         empty={{
           icon: Landmark,
           title: "No PF elections",
           description: "Without one, PF follows the approved rule set's ceiling and nobody contributes VPF.",
         }}
-      >
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead>PF wage</TableHead>
-                <TableHead>Voluntary PF</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{nameOf(row.employee_id)}</TableCell>
-                  <TableCell className="text-sm">
-                    {formatDay(row.effective_from, true)} –{" "}
-                    {row.effective_to ? formatDay(row.effective_to, true) : "open"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={row.pf_on_actual_wage ? "accent" : "muted"}>
-                      {row.pf_on_actual_wage ? "Actual wage" : "Ceiling"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm tabular-nums">
-                    {row.vpf_percentage ? `${row.vpf_percentage}% of PF wage` : null}
-                    {row.vpf_fixed_amount ? <Money value={row.vpf_fixed_amount} /> : null}
-                    {!row.vpf_percentage && !row.vpf_fixed_amount && "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </DataPanel>
+      />
 
       <Dialog open={open} onOpenChange={(next) => !saving && setOpen(next)}>
         <DialogContent className="sm:max-w-md">

@@ -1,26 +1,44 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Ban } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { post } from "@/lib/api";
-import type { TravelRequest } from "@/lib/types/expenses";
+import type { TravelApproval, TravelRequest, TravelRequestStatus } from "@/lib/types/expenses";
 import { formatDateRange } from "@/lib/utils";
 
 import { CITY_TIER_LABEL, TravelStatusBadge, errorDetail, formatDateTime, formatMoney } from "./shared";
+
+/** The status badge's words, for sorting, the search and the CSV. */
+const STATUS_TEXT: Record<TravelRequestStatus, string> = {
+  draft: "Draft",
+  pending_manager: "Awaiting manager",
+  submitted: "Awaiting finance",
+  approved: "Approved",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+  completed: "Completed",
+};
+
+/** "Mumbai (Tier A), Pune"; empty for a trip with no stops. */
+function destinationsText(trip: TravelRequest): string {
+  return trip.destinations
+    .map((stop) => (stop.city_tier ? `${stop.city} (${CITY_TIER_LABEL[stop.city_tier]})` : stop.city))
+    .join(", ");
+}
+
+/** "Approved by manager", "Rejected by finance", or just the decision for an old record. */
+function decisionLabel(step: TravelApproval): string {
+  return `${step.decision === "approved" ? "Approved" : "Rejected"}${
+    step.stage === "manager" ? " by manager" : step.stage === "finance" ? " by finance" : ""
+  }`;
+}
 
 /** The person's trips, with the advance asked for and given, and who decided. */
 export function TravelTripsTable({
@@ -46,75 +64,111 @@ export function TravelTripsTable({
     }
   };
 
-  return (
-    <Card tier="tier1" className="py-2">
-      <CardContent className="overflow-x-auto px-2">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Trip</TableHead>
-              <TableHead>Dates</TableHead>
-              <TableHead className="text-right">Estimated</TableHead>
-              <TableHead className="text-right">Advance requested / issued</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Decisions</TableHead>
-              <TableHead className="text-right">Action</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {trips.map((trip) => (
-              <TableRow key={trip.id}>
-                <TableCell className="max-w-xs whitespace-normal">
-                  <p className="font-medium text-foreground">{trip.purpose}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {trip.destinations
-                      .map((stop) => (stop.city_tier ? `${stop.city} (${CITY_TIER_LABEL[stop.city_tier]})` : stop.city))
-                      .join(", ") || "—"}
-                  </p>
-                </TableCell>
-                <TableCell className="whitespace-nowrap tabular-nums">
-                  {formatDateRange(trip.from_date, trip.to_date)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatMoney(trip.estimated_cost, currency)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatMoney(trip.advance_requested, currency)} /{" "}
-                  {formatMoney(trip.advance_issued, currency)}
-                </TableCell>
-                <TableCell>
-                  <TravelStatusBadge status={trip.status} />
-                </TableCell>
-                <TableCell className="max-w-xs whitespace-normal">
-                  {trip.approvals.length === 0 ? (
-                    <span className="text-muted-foreground">—</span>
-                  ) : (
-                    <ul className="space-y-1.5">
-                      {trip.approvals.map((step, index) => (
-                        <li key={`${step.user_id}-${step.at}-${index}`} className="text-xs">
-                          <Badge variant={step.decision === "approved" ? "success" : "destructive"}>
-                            {step.decision === "approved" ? "Approved" : "Rejected"}
-                            {step.stage === "manager" ? " by manager" : step.stage === "finance" ? " by finance" : ""}
-                          </Badge>{" "}
-                          <span className="text-muted-foreground tabular-nums">{formatDateTime(step.at)}</span>
-                          {step.note && <p className="mt-0.5 text-foreground">{step.note}</p>}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  {(trip.status === "submitted" || trip.status === "pending_manager") && (
-                    <Button size="sm" variant="outline" onClick={() => setCancelling(trip)}>
-                      <Ban /> Cancel
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
+  const columns: ColumnDef<TravelRequest>[] = [
+    {
+      accessorKey: "purpose",
+      header: "Trip",
+      meta: {
+        cellClassName: "max-w-xs whitespace-normal",
+        text: (trip) => [trip.purpose, destinationsText(trip)].filter(Boolean).join(" · "),
+      },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium text-foreground">{row.original.purpose}</p>
+          <p className="text-xs text-muted-foreground">{destinationsText(row.original) || "—"}</p>
+        </>
+      ),
+    },
+    {
+      accessorKey: "from_date",
+      header: "Dates",
+      meta: {
+        cellClassName: "whitespace-nowrap tabular-nums",
+        text: (trip) => formatDateRange(trip.from_date, trip.to_date),
+      },
+      cell: ({ row }) => formatDateRange(row.original.from_date, row.original.to_date),
+    },
+    {
+      accessorKey: "estimated_cost",
+      header: "Estimated",
+      // Decimal strings: compared digit group by digit group, so 9.00 sorts before 10.00.
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => formatMoney(row.original.estimated_cost, currency),
+    },
+    {
+      accessorKey: "advance_requested",
+      header: "Advance requested / issued",
+      sortingFn: "alphanumeric",
+      meta: {
+        className: "text-right",
+        cellClassName: "tabular-nums",
+        text: (trip) =>
+          `${formatMoney(trip.advance_requested, currency)} / ${formatMoney(trip.advance_issued, currency)}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {formatMoney(row.original.advance_requested, currency)} /{" "}
+          {formatMoney(row.original.advance_issued, currency)}
+        </>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorFn: (trip) => STATUS_TEXT[trip.status],
+      cell: ({ row }) => <TravelStatusBadge status={row.original.status} />,
+    },
+    {
+      id: "decisions",
+      header: "Decisions",
+      meta: {
+        cellClassName: "max-w-xs whitespace-normal",
+        text: (trip) =>
+          trip.approvals
+            .map((step) => [decisionLabel(step), formatDateTime(step.at), step.note].filter(Boolean).join(" · "))
+            .join("; "),
+      },
+      cell: ({ row }) =>
+        row.original.approvals.length === 0 ? (
+          <span className="text-muted-foreground">—</span>
+        ) : (
+          <ul className="space-y-1.5">
+            {row.original.approvals.map((step, index) => (
+              <li key={`${step.user_id}-${step.at}-${index}`} className="text-xs">
+                <Badge variant={step.decision === "approved" ? "success" : "destructive"}>
+                  {decisionLabel(step)}
+                </Badge>{" "}
+                <span className="text-muted-foreground tabular-nums">{formatDateTime(step.at)}</span>
+                {step.note && <p className="mt-0.5 text-foreground">{step.note}</p>}
+              </li>
             ))}
-          </TableBody>
-        </Table>
-      </CardContent>
+          </ul>
+        ),
+    },
+    {
+      id: "actions",
+      header: "Action",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) =>
+        (row.original.status === "submitted" || row.original.status === "pending_manager") && (
+          <Button size="sm" variant="outline" onClick={() => setCancelling(row.original)}>
+            <Ban /> Cancel
+          </Button>
+        ),
+    },
+  ];
+
+  return (
+    <>
+      <DataTable
+        columns={columns}
+        data={trips}
+        noun="trips"
+        exportName="my-travel-requests"
+        searchPlaceholder="Search trips"
+      />
 
       <ConfirmDialog
         open={cancelling !== null}
@@ -130,6 +184,6 @@ export function TravelTripsTable({
         destructive
         onConfirm={cancel}
       />
-    </Card>
+    </>
   );
 }

@@ -1,14 +1,15 @@
 "use client";
 
-import { Loader2, LogOut } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Loader2, Lock, LogOut } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { EmployeeCell, Fact, isWholeNumber } from "@/components/payroll-ops/loans/common";
 import { EmployeePicker } from "@/components/payroll-ops/loans/EmployeePicker";
-import { QueryPanel } from "@/components/payroll-ops/loans/QueryPanel";
 import { apiErrorMessage, InlineProblem } from "@/components/payroll-ops/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,14 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { EmployeeSummary } from "@/lib/types";
@@ -37,79 +30,116 @@ import { formatDay, formatDays, toISODate } from "@/lib/utils";
 
 import { EXIT_REASON_LABEL, WorkingButton } from "./common";
 
+const PAYOUT_COLUMNS: ColumnDef<GratuityPayout>[] = [
+  {
+    accessorKey: "employee_name",
+    header: "Employee",
+    meta: { text: (row) => [row.employee_name, row.employee_code].filter(Boolean).join(" ") },
+    cell: ({ row }) => (
+      <EmployeeCell name={row.original.employee_name} code={row.original.employee_code} />
+    ),
+  },
+  {
+    accessorKey: "exit_date",
+    header: "Exit",
+    meta: {
+      cellClassName: "text-sm",
+      text: (row) =>
+        [
+          formatDay(row.exit_date, true),
+          EXIT_REASON_LABEL[row.exit_reason],
+          row.eligibility_waived ? "Service requirement waived" : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+    },
+    cell: ({ row }) => (
+      <>
+        {formatDay(row.original.exit_date, true)}
+        <span className="block text-xs text-muted-foreground">
+          {EXIT_REASON_LABEL[row.original.exit_reason]}
+        </span>
+        {row.original.eligibility_waived && (
+          <Badge variant="outline" className="mt-1">
+            Service requirement waived
+          </Badge>
+        )}
+      </>
+    ),
+  },
+  {
+    accessorKey: "service_years",
+    header: "Service",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => `${formatDays(row.original.service_years)} yrs`,
+  },
+  {
+    accessorKey: "gross_amount",
+    header: "Gross",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.gross_amount} />,
+  },
+  {
+    accessorKey: "exempt_amount",
+    header: "Exempt",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.exempt_amount} />,
+  },
+  {
+    accessorKey: "taxable_amount",
+    header: "Taxable",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.taxable_amount} className="font-medium" />,
+  },
+  {
+    id: "actions",
+    header: "",
+    enableHiding: false,
+    meta: { className: "text-right", headClassName: "w-24", text: false },
+    cell: ({ row }) => (
+      <WorkingButton
+        title={`Gratuity working · ${row.original.employee_name ?? ""}`}
+        working={row.original.working}
+      />
+    ),
+  },
+];
+
 /** Gratuity computed for leavers: gross, the exempt part, and the taxable rest. */
 export function PayoutsPanel({ canCompute }: { canCompute: boolean }) {
   const payouts = useApiQuery<GratuityPayout[]>("/gratuity/payouts");
+  // A 403 is "no access", not a failed load: retrying will not help.
+  const forbidden = payouts.error?.status === 403;
 
   return (
     <div className="space-y-4">
       {canCompute && <ComputePayoutCard onComputed={payouts.reload} />}
 
-      <QueryPanel
-        query={payouts}
+      <DataTable
         title="Payouts at exit"
         description="The taxable part of each payout reaches the employee's TDS projection."
-        isEmpty={(rows) => rows.length === 0}
-        empty={{
-          icon: LogOut,
-          title: "No gratuity payouts yet",
-          description: "Gratuity computed for an employee's exit is recorded here.",
-        }}
-      >
-        {(rows) => (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Exit</TableHead>
-                <TableHead className="text-right">Service</TableHead>
-                <TableHead className="text-right">Gross</TableHead>
-                <TableHead className="text-right">Exempt</TableHead>
-                <TableHead className="text-right">Taxable</TableHead>
-                <TableHead className="w-24" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>
-                    <EmployeeCell name={row.employee_name} code={row.employee_code} />
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {formatDay(row.exit_date, true)}
-                    <span className="block text-xs text-muted-foreground">
-                      {EXIT_REASON_LABEL[row.exit_reason]}
-                    </span>
-                    {row.eligibility_waived && (
-                      <Badge variant="outline" className="mt-1">
-                        Service requirement waived
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatDays(row.service_years)} yrs
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.gross_amount} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.exempt_amount} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.taxable_amount} className="font-medium" />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <WorkingButton
-                      title={`Gratuity working · ${row.employee_name ?? ""}`}
-                      working={row.working}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </QueryPanel>
+        columns={PAYOUT_COLUMNS}
+        data={forbidden ? [] : (payouts.data ?? [])}
+        noun="payouts"
+        exportName="gratuity-payouts"
+        searchPlaceholder="Search payouts"
+        isLoading={payouts.isLoading && payouts.data === null}
+        error={forbidden ? null : (payouts.error?.detail ?? null)}
+        onRetry={payouts.reload}
+        empty={
+          forbidden
+            ? { icon: Lock, title: "You don't have access to this", description: payouts.error?.detail }
+            : {
+                icon: LogOut,
+                title: "No gratuity payouts yet",
+                description: "Gratuity computed for an employee's exit is recorded here.",
+              }
+        }
+      />
     </div>
   );
 }

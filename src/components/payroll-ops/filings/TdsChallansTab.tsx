@@ -1,9 +1,11 @@
 "use client";
 
-import { CheckCircle2, Link2, Loader2, Plus, Receipt } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { CheckCircle2, Link2, Loader2, Lock, Plus, Receipt } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { PersonCell } from "@/components/common/PersonCell";
@@ -15,7 +17,7 @@ import {
   longFinancialYear,
   recentFinancialYears,
 } from "@/components/payroll-ops/shared";
-import { QueryPanel, useEntityName } from "@/components/payroll-ops/disbursements/common";
+import { useEntityName } from "@/components/payroll-ops/disbursements/common";
 import { displayPeriod, fromPaise, toPaise } from "@/components/payroll-ops/filings/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,14 +39,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type {
@@ -71,6 +65,99 @@ export function TdsChallansTab({ entities }: { entities: LegalEntity[] }) {
   const unmapped = useApiQuery<UnmappedTds[]>(`/filings/unmapped-tds?${qs}`);
 
   const entityName = useEntityName(entities);
+  // A 403 reads as "no access", not as a failed load.
+  const unmappedForbidden = unmapped.error?.status === 403;
+  const challansForbidden = challans.error?.status === 403;
+
+  const unmappedColumns: ColumnDef<UnmappedTds>[] = [
+    {
+      accessorKey: "employee_name",
+      header: "Employee",
+      meta: { text: (row) => `${row.employee_name} ${row.employee_code}` },
+      cell: ({ row }) => (
+        <PersonCell size="sm" name={row.original.employee_name} subtitle={row.original.employee_code} />
+      ),
+    },
+    {
+      accessorKey: "period",
+      header: "Period",
+      meta: { text: (row) => displayPeriod(row.period) },
+      cell: ({ row }) => displayPeriod(row.original.period),
+    },
+    {
+      accessorKey: "tds_amount",
+      header: "TDS",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.tds_amount} />,
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", headClassName: "w-36", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="outline" onClick={() => setMapping(row.original)}>
+          <Link2 /> Map to challan
+        </Button>
+      ),
+    },
+  ];
+
+  const challanColumns: ColumnDef<TdsChallan>[] = [
+    {
+      accessorKey: "bsr_code",
+      header: "BSR code",
+      meta: {
+        cellClassName: "tabular-nums",
+        text: (row) => `${row.bsr_code} · ${row.form}${row.is_book_entry ? " · Book entry" : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.bsr_code}
+          <Badge variant="outline" className="ml-2">
+            {row.original.form}
+          </Badge>
+          {row.original.is_book_entry && (
+            <Badge variant="muted" className="ml-2">
+              Book entry
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "deposit_date",
+      header: "Deposited",
+      meta: { text: (row) => formatDay(row.deposit_date, true) },
+      cell: ({ row }) => formatDay(row.original.deposit_date, true),
+    },
+    {
+      accessorKey: "challan_serial",
+      header: "Serial",
+      meta: { cellClassName: "tabular-nums" },
+    },
+    {
+      id: "entity",
+      header: "Entity",
+      accessorFn: (row) => entityName(row.legal_entity_id),
+      meta: { className: "hidden md:table-cell", cellClassName: "text-muted-foreground" },
+    },
+    {
+      accessorKey: "tds_amount",
+      header: "TDS",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.tds_amount} />,
+    },
+    {
+      accessorKey: "total_amount",
+      header: "Total",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.total_amount} />,
+    },
+  ];
 
   return (
     <div className="grid gap-4">
@@ -106,110 +193,53 @@ export function TdsChallansTab({ entities }: { entities: LegalEntity[] }) {
         </RequireRole>
       </div>
 
-      <QueryPanel
-        query={unmapped}
-        loadingRows={3}
+      <DataTable
         title="Unmapped TDS"
         description={`Payslips in FY ${financialYear} Q${quarter} whose TDS is not tied to a deposited challan. This list must be empty before the quarter's 24Q can be generated.`}
-        isEmpty={(rows) => rows.length === 0}
-        empty={{
-          icon: CheckCircle2,
-          title: "All TDS in this quarter is mapped",
-          description: "Every payslip's TDS is tied to a challan, so nothing here stops a 24Q.",
-        }}
-      >
-        {(rows) => (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Period</TableHead>
-                      <TableHead className="text-right">TDS</TableHead>
-                      <TableHead className="w-36" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((row) => (
-                      <TableRow key={row.payslip_id}>
-                        <TableCell>
-                          <PersonCell
-                            size="sm"
-                            name={row.employee_name}
-                            subtitle={row.employee_code}
-                          />
-                        </TableCell>
-                        <TableCell>{displayPeriod(row.period)}</TableCell>
-                        <TableCell className="text-right">
-                          <Money value={row.tds_amount} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button size="sm" variant="outline" onClick={() => setMapping(row)}>
-                            <Link2 /> Map to challan
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-        )}
-      </QueryPanel>
-
-      <QueryPanel
-        query={challans}
+        columns={unmappedColumns}
+        data={unmappedForbidden ? [] : (unmapped.data ?? [])}
+        getRowId={(row) => row.payslip_id}
+        noun="payslips"
+        exportName={`unmapped-tds-${financialYear}-q${quarter}`}
+        searchPlaceholder="Search employees"
+        isLoading={unmapped.isLoading && unmapped.data === null}
         loadingRows={3}
+        error={unmappedForbidden ? null : (unmapped.error?.detail ?? null)}
+        onRetry={unmapped.reload}
+        empty={
+          unmappedForbidden
+            ? { icon: Lock, title: "You don't have access to this", description: unmapped.error?.detail }
+            : {
+                icon: CheckCircle2,
+                title: "All TDS in this quarter is mapped",
+                description: "Every payslip's TDS is tied to a challan, so nothing here stops a 24Q.",
+              }
+        }
+      />
+
+      <DataTable
         title="Challans"
         description={`TDS deposits recorded for FY ${financialYear} Q${quarter}.`}
-        isEmpty={(rows) => rows.length === 0}
-        empty={{
-          icon: Receipt,
-          title: "No challans recorded for this quarter",
-          description:
-            "Record each TDS deposit with its BSR code, date and serial number as printed on the challan counterfoil.",
-        }}
-      >
-        {(rows) => (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>BSR code</TableHead>
-                      <TableHead>Deposited</TableHead>
-                      <TableHead>Serial</TableHead>
-                      <TableHead className="hidden md:table-cell">Entity</TableHead>
-                      <TableHead className="text-right">TDS</TableHead>
-                      <TableHead className="text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="tabular-nums">
-                          {row.bsr_code}
-                          <Badge variant="outline" className="ml-2">
-                            {row.form}
-                          </Badge>
-                          {row.is_book_entry && (
-                            <Badge variant="muted" className="ml-2">
-                              Book entry
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>{formatDay(row.deposit_date, true)}</TableCell>
-                        <TableCell className="tabular-nums">{row.challan_serial}</TableCell>
-                        <TableCell className="hidden text-muted-foreground md:table-cell">
-                          {entityName(row.legal_entity_id)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Money value={row.tds_amount} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Money value={row.total_amount} />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-        )}
-      </QueryPanel>
+        columns={challanColumns}
+        data={challansForbidden ? [] : (challans.data ?? [])}
+        noun="challans"
+        exportName={`tds-challans-${financialYear}-q${quarter}`}
+        searchPlaceholder="Search challans"
+        isLoading={challans.isLoading && challans.data === null}
+        loadingRows={3}
+        error={challansForbidden ? null : (challans.error?.detail ?? null)}
+        onRetry={challans.reload}
+        empty={
+          challansForbidden
+            ? { icon: Lock, title: "You don't have access to this", description: challans.error?.detail }
+            : {
+                icon: Receipt,
+                title: "No challans recorded for this quarter",
+                description:
+                  "Record each TDS deposit with its BSR code, date and serial number as printed on the challan counterfoil.",
+              }
+        }
+      />
 
       <AddChallanDialog
         open={addOpen}

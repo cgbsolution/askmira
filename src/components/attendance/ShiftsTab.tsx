@@ -1,14 +1,14 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Clock, Loader2, Pencil, Plus } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -22,28 +22,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { post, put } from "@/lib/api";
+import { post, put, type ApiError } from "@/lib/api";
 import type { Shift, ShiftCreateInput, ShiftInput, ShiftUpdateInput } from "@/lib/types/attendance";
 import { cn } from "@/lib/utils";
 
-import {
-  errorDetail,
-  LoadError,
-  parseWholeNumber,
-  shortTime,
-  TableSkeleton,
-  WEEKDAYS,
-} from "./shared";
+import { errorDetail, parseWholeNumber, shortTime, WEEKDAYS } from "./shared";
+
+/**
+ * LoadError's words, split the way DataTable takes them: a 403 is said as a
+ * lack of access and offers no retry, since trying again cannot fix it.
+ */
+export function loadErrorProps(
+  error: ApiError | null,
+  onRetry: () => void,
+): { error: string | null; onRetry?: () => void } {
+  if (!error) return { error: null, onRetry };
+  if (error.status === 403) {
+    return {
+      error: `You don't have access to this. ${error.detail} If you think you should, ask your admin to check your role.`,
+    };
+  }
+  return { error: error.detail, onRetry };
+}
 
 export function ShiftsTab() {
   const { data, error, isLoading, reload } = useApiQuery<Shift[]>(
@@ -75,125 +77,161 @@ export function ShiftsTab() {
     }
   };
 
+  const site = (shift: Shift) =>
+    [shift.location_id ? org.locationName(shift.location_id) : null, shift.work_area]
+      .filter(Boolean)
+      .join(" · ");
+  const hours = (shift: Shift) => `${shortTime(shift.start_time)}–${shortTime(shift.end_time)}`;
+
+  const columns: ColumnDef<Shift>[] = [
+    { accessorKey: "code", header: "Code", meta: { cellClassName: "font-medium" } },
+    {
+      accessorKey: "name",
+      header: "Name",
+      meta: {
+        text: (shift) =>
+          [shift.name, site(shift), shift.is_default ? "Default" : null].filter(Boolean).join(" · "),
+      },
+      cell: ({ row: { original: shift } }) => (
+        <>
+          {shift.name}
+          {(shift.work_area || shift.location_id) && (
+            <span className="block text-xs text-muted-foreground">{site(shift)}</span>
+          )}
+          {shift.is_default && (
+            <Badge variant="success" className="ml-2">
+              Default
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "hours",
+      header: "Hours",
+      accessorFn: hours,
+      meta: {
+        cellClassName: "whitespace-nowrap tabular-nums",
+        text: (shift) => `${hours(shift)}${shift.is_night_shift ? " Night" : ""}`,
+      },
+      cell: ({ row: { original: shift } }) => (
+        <>
+          {hours(shift)}
+          {shift.is_night_shift && (
+            <Badge variant="secondary" className="ml-2">
+              Night
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "break",
+      header: "Break",
+      accessorFn: (shift) => `${shift.break_minutes} min`,
+      sortingFn: "alphanumeric",
+      meta: { cellClassName: "tabular-nums" },
+    },
+    {
+      id: "grace",
+      header: "Grace in / out",
+      accessorFn: (shift) => `${shift.grace_in_minutes} / ${shift.grace_out_minutes} min`,
+      sortingFn: "alphanumeric",
+      meta: { cellClassName: "tabular-nums" },
+    },
+    {
+      id: "thresholds",
+      header: "Half / full day",
+      accessorFn: (shift) => `${shift.half_day_threshold_minutes} / ${shift.full_day_threshold_minutes} min`,
+      sortingFn: "alphanumeric",
+      meta: { cellClassName: "tabular-nums" },
+    },
+    {
+      id: "weekly_off",
+      header: "Weekly off",
+      accessorFn: (shift) =>
+        shift.weekly_off_days.length === 0
+          ? "None"
+          : WEEKDAYS.filter((day) => shift.weekly_off_days.includes(day.iso))
+              .map((day) => day.label)
+              .join(", "),
+    },
+    {
+      id: "state",
+      header: "State",
+      accessorFn: (shift) => (shift.active ? "Active" : "Inactive"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.active ? "success" : "muted"}>
+          {row.original.active ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      enableHiding: false,
+      meta: { className: "text-right", cellClassName: "whitespace-nowrap", text: false },
+      cell: ({ row: { original: shift } }) => (
+        <>
+          {!shift.is_default && shift.active && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={defaulting !== null}
+              onClick={() => void makeDefault(shift)}
+            >
+              {defaulting === shift.id && <Loader2 className="animate-spin" />}
+              Make default
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => setEditing(shift)}>
+            <Pencil /> Edit
+          </Button>
+        </>
+      ),
+    },
+  ];
+
   return (
-    <Card tier="tier1" className="pb-0">
-      <CardHeader>
-        <CardTitle>Shifts</CardTitle>
-        <CardDescription>Working hours, grace periods and the thresholds for a half or full day.</CardDescription>
-        <CardAction>
-          <Button size="sm" onClick={() => setEditing("new")}>
+    <>
+      <DataTable
+        tier="tier1"
+        title="Shifts"
+        description="Working hours, grace periods and the thresholds for a half or full day."
+        actions={
+          <Button size="sm" className="h-9" onClick={() => setEditing("new")}>
             <Plus /> New shift
           </Button>
-        </CardAction>
-      </CardHeader>
-
-      {!isLoading && !error && shifts.length > 0 && !hasDefault && (
-        <div className="px-5 pb-4">
-          <Alert variant="warning">
-            <AlertDescription>
-              No default shift. Anyone without a shift or roster assignment cannot be judged present
-              or absent — their days show as needing regularisation. Make one shift the default.
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-
-      {isLoading ? (
-        <div className="pb-5">
-          <TableSkeleton />
-        </div>
-      ) : error ? (
-        <LoadError error={error} onRetry={reload} />
-      ) : shifts.length === 0 ? (
-        <EmptyState
-          icon={Clock}
-          title="No shifts defined"
-          description="Create a shift so attendance can be computed against working hours. The first shift you create becomes the company default for everyone without an assignment."
-        />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="pl-5">Code</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Hours</TableHead>
-              <TableHead>Break</TableHead>
-              <TableHead>Grace in / out</TableHead>
-              <TableHead>Half / full day</TableHead>
-              <TableHead>Weekly off</TableHead>
-              <TableHead>State</TableHead>
-              <TableHead className="pr-5 text-right">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {shifts.map((shift) => (
-              <TableRow key={shift.id} className={cn(!shift.active && "text-muted-foreground")}>
-                <TableCell className="pl-5 font-medium">{shift.code}</TableCell>
-                <TableCell>
-                  {shift.name}
-                  {(shift.work_area || shift.location_id) && (
-                    <span className="block text-xs text-muted-foreground">
-                      {[shift.location_id ? org.locationName(shift.location_id) : null, shift.work_area]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  )}
-                  {shift.is_default && (
-                    <Badge variant="success" className="ml-2">
-                      Default
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="whitespace-nowrap tabular-nums">
-                  {shortTime(shift.start_time)}–{shortTime(shift.end_time)}
-                  {shift.is_night_shift && (
-                    <Badge variant="secondary" className="ml-2">
-                      Night
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="tabular-nums">{shift.break_minutes} min</TableCell>
-                <TableCell className="tabular-nums">
-                  {shift.grace_in_minutes} / {shift.grace_out_minutes} min
-                </TableCell>
-                <TableCell className="tabular-nums">
-                  {shift.half_day_threshold_minutes} / {shift.full_day_threshold_minutes} min
-                </TableCell>
-                <TableCell>
-                  {shift.weekly_off_days.length === 0
-                    ? "None"
-                    : WEEKDAYS.filter((day) => shift.weekly_off_days.includes(day.iso))
-                        .map((day) => day.label)
-                        .join(", ")}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={shift.active ? "success" : "muted"}>
-                    {shift.active ? "Active" : "Inactive"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="pr-5 text-right whitespace-nowrap">
-                  {!shift.is_default && shift.active && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={defaulting !== null}
-                      onClick={() => void makeDefault(shift)}
-                    >
-                      {defaulting === shift.id && <Loader2 className="animate-spin" />}
-                      Make default
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => setEditing(shift)}>
-                    <Pencil /> Edit
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+        }
+        // Under the header, where the card showed it before.
+        tabs={
+          !isLoading &&
+          !error &&
+          shifts.length > 0 &&
+          !hasDefault && (
+            <Alert variant="warning">
+              <AlertDescription>
+                No default shift. Anyone without a shift or roster assignment cannot be judged present
+                or absent — their days show as needing regularisation. Make one shift the default.
+              </AlertDescription>
+            </Alert>
+          )
+        }
+        columns={columns}
+        data={shifts}
+        noun="shifts"
+        searchPlaceholder="Search shifts"
+        rowClassName={(shift) => cn(!shift.active && "text-muted-foreground")}
+        isLoading={isLoading && !data}
+        loadingRows={4}
+        {...loadErrorProps(error, reload)}
+        empty={{
+          icon: Clock,
+          title: "No shifts defined",
+          description:
+            "Create a shift so attendance can be computed against working hours. The first shift you create becomes the company default for everyone without an assignment.",
+        }}
+      />
 
       <ShiftDialog
         target={editing}
@@ -203,7 +241,7 @@ export function ShiftsTab() {
           reload();
         }}
       />
-    </Card>
+    </>
   );
 }
 

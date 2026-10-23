@@ -1,14 +1,14 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Building2, Info, MapPin, Network, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { PageShell } from "@/components/common/PageShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -57,6 +57,162 @@ export function OrganisationScreen() {
     [departments.data],
   );
 
+  const entityEditColumn: ColumnDef<LegalEntity> = {
+    id: "actions",
+    header: "Actions",
+    enableHiding: false,
+    meta: { className: "text-right", text: false },
+    cell: ({ row }) => (
+      <Button variant="outline" size="sm" onClick={() => setEntityForm({ open: true, editing: row.original })}>
+        Edit
+      </Button>
+    ),
+  };
+  const entityColumns: ColumnDef<LegalEntity>[] = [
+    {
+      accessorKey: "name",
+      header: "Entity",
+      meta: { text: (row) => [row.name, row.code, !row.is_active && "Inactive"].filter(Boolean).join(" · ") },
+      cell: ({ row }) => (
+        <>
+          <div className="font-medium text-foreground">{row.original.name}</div>
+          <div className="font-mono text-xs text-muted-foreground">{row.original.code}</div>
+          {!row.original.is_active && (
+            <Badge variant="outline" className="mt-1">
+              Inactive
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "pan_tan",
+      header: "PAN / TAN",
+      accessorFn: (row) => `${registration(row.pan, "PAN")} / ${registration(row.tan, "TAN")}`,
+      meta: { cellClassName: "font-mono text-xs" },
+      cell: ({ row }) => (
+        <>
+          <Missing value={row.original.pan} label="PAN" />
+          <br />
+          <Missing value={row.original.tan} label="TAN" />
+        </>
+      ),
+    },
+    {
+      id: "pf_esi",
+      header: "PF / ESI",
+      accessorFn: (row) =>
+        `${registration(row.pf_registration_no, "PF")} / ${registration(row.esi_registration_no, "ESI")}`,
+      meta: { cellClassName: "font-mono text-xs" },
+      cell: ({ row }) => (
+        <>
+          <Missing value={row.original.pf_registration_no} label="PF" />
+          <br />
+          <Missing value={row.original.esi_registration_no} label="ESI" />
+        </>
+      ),
+    },
+    {
+      id: "gstin",
+      header: "GSTIN",
+      accessorFn: (row) => registration(row.gstin, "GSTIN"),
+      meta: { cellClassName: "font-mono text-xs" },
+      cell: ({ row }) => <Missing value={row.original.gstin} label="GSTIN" />,
+    },
+    ...(canManage ? [entityEditColumn] : []),
+  ];
+
+  const locationEditColumn: ColumnDef<Location> = {
+    id: "actions",
+    header: "Actions",
+    enableHiding: false,
+    meta: { className: "text-right", text: false },
+    cell: ({ row }) => (
+      <Button variant="outline" size="sm" onClick={() => setLocationForm({ open: true, editing: row.original })}>
+        Edit
+      </Button>
+    ),
+  };
+  const locationColumns: ColumnDef<Location>[] = [
+    {
+      accessorKey: "name",
+      header: "Location",
+      meta: {
+        text: (row) =>
+          `${row.name} · ${row.code}${row.city ? ` · ${row.city}` : ""}${row.pincode ? ` ${row.pincode}` : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          <div className="font-medium text-foreground">{row.original.name}</div>
+          <div className="text-xs text-muted-foreground">
+            <span className="font-mono">{row.original.code}</span>
+            {row.original.city && ` · ${row.original.city}`}
+            {row.original.pincode && ` ${row.original.pincode}`}
+          </div>
+        </>
+      ),
+    },
+    {
+      id: "legal_entity",
+      header: "Legal entity",
+      accessorFn: (row) => entityName.get(row.legal_entity_id) ?? "—",
+      meta: { cellClassName: "text-sm" },
+    },
+    {
+      accessorKey: "state_code",
+      header: "State",
+      cell: ({ row }) => (
+        <Badge variant="outline" className="font-mono">
+          {row.original.state_code}
+        </Badge>
+      ),
+    },
+    { accessorKey: "timezone", header: "Timezone", meta: { cellClassName: "text-xs text-muted-foreground" } },
+    ...(canManage ? [locationEditColumn] : []),
+  ];
+
+  const departmentEditColumn: ColumnDef<Department> = {
+    id: "actions",
+    header: "Actions",
+    enableHiding: false,
+    meta: { className: "text-right", text: false },
+    cell: ({ row }) => (
+      <Button variant="outline" size="sm" onClick={() => setDepartmentForm({ open: true, editing: row.original })}>
+        Edit
+      </Button>
+    ),
+  };
+  const departmentColumns: ColumnDef<Department>[] = [
+    {
+      accessorKey: "name",
+      header: "Department",
+      meta: { text: (row) => `${row.name} · ${row.code}` },
+      cell: ({ row }) => (
+        <>
+          <div className="font-medium text-foreground">{row.original.name}</div>
+          <div className="font-mono text-xs text-muted-foreground">{row.original.code}</div>
+        </>
+      ),
+    },
+    {
+      id: "parent",
+      header: "Parent",
+      accessorFn: (row) => (row.parent_id ? (departmentName.get(row.parent_id) ?? "—") : "Top level"),
+      meta: { cellClassName: "text-sm text-muted-foreground" },
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorFn: (row) => (row.is_active ? "Active" : "Inactive"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.is_active ? "secondary" : "outline"}>
+          {row.original.is_active ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+    ...(canManage ? [departmentEditColumn] : []),
+  ];
+
   return (
     <PageShell
       title="Organisation"
@@ -80,76 +236,30 @@ export function OrganisationScreen() {
             </AlertDescription>
           </Alert>
 
-          <DataPanel
+          <DataTable
             title="Legal entities"
+            columns={entityColumns}
+            data={entities.data ?? []}
+            noun="entities"
+            exportName="legal-entities"
+            searchPlaceholder="Search entities"
+            rowClassName={(row) => (row.is_active ? undefined : "opacity-60")}
             actions={
               canManage ? (
-                <Button size="sm" onClick={() => setEntityForm({ open: true, editing: null })}>
+                <Button size="sm" className="h-9" onClick={() => setEntityForm({ open: true, editing: null })}>
                   <Plus /> Add entity
                 </Button>
               ) : undefined
             }
             isLoading={entities.isLoading}
-            error={entities.error?.detail ?? null}
+            error={entities.error?.detail}
             onRetry={entities.reload}
-            isEmpty={(entities.data ?? []).length === 0}
             empty={{
               icon: Building2,
               title: "No legal entities yet",
               description: "Payroll cannot be run until at least one entity exists.",
             }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Entity</TableHead>
-                  <TableHead>PAN / TAN</TableHead>
-                  <TableHead>PF / ESI</TableHead>
-                  <TableHead>GSTIN</TableHead>
-                  {canManage && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(entities.data ?? []).map((row) => (
-                  <TableRow key={row.id} className={row.is_active ? undefined : "opacity-60"}>
-                    <TableCell>
-                      <div className="font-medium text-foreground">{row.name}</div>
-                      <div className="font-mono text-xs text-muted-foreground">{row.code}</div>
-                      {!row.is_active && (
-                        <Badge variant="outline" className="mt-1">
-                          Inactive
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      <Missing value={row.pan} label="PAN" />
-                      <br />
-                      <Missing value={row.tan} label="TAN" />
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      <Missing value={row.pf_registration_no} label="PF" />
-                      <br />
-                      <Missing value={row.esi_registration_no} label="ESI" />
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">
-                      <Missing value={row.gstin} label="GSTIN" />
-                    </TableCell>
-                    {canManage && (
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEntityForm({ open: true, editing: row })}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </TabsContent>
 
         <TabsContent value="locations" className="mt-4 flex flex-col gap-4">
@@ -163,12 +273,19 @@ export function OrganisationScreen() {
             </AlertDescription>
           </Alert>
 
-          <DataPanel
+          <DataTable
             title="Work locations"
+            columns={locationColumns}
+            data={locations.data ?? []}
+            noun="locations"
+            exportName="work-locations"
+            searchPlaceholder="Search locations"
+            rowClassName={(row) => (row.is_active ? undefined : "opacity-60")}
             actions={
               canManage ? (
                 <Button
                   size="sm"
+                  className="h-9"
                   onClick={() => setLocationForm({ open: true, editing: null })}
                   disabled={(entities.data ?? []).length === 0}
                 >
@@ -177,9 +294,8 @@ export function OrganisationScreen() {
               ) : undefined
             }
             isLoading={locations.isLoading}
-            error={locations.error?.detail ?? null}
+            error={locations.error?.detail}
             onRetry={locations.reload}
-            isEmpty={(locations.data ?? []).length === 0}
             empty={{
               icon: MapPin,
               title: "No locations yet",
@@ -188,112 +304,35 @@ export function OrganisationScreen() {
                   ? "Add a legal entity first — every location belongs to one."
                   : "Employees are assigned to a location, which decides their state taxes.",
             }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Legal entity</TableHead>
-                  <TableHead>State</TableHead>
-                  <TableHead>Timezone</TableHead>
-                  {canManage && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(locations.data ?? []).map((row) => (
-                  <TableRow key={row.id} className={row.is_active ? undefined : "opacity-60"}>
-                    <TableCell>
-                      <div className="font-medium text-foreground">{row.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        <span className="font-mono">{row.code}</span>
-                        {row.city && ` · ${row.city}`}
-                        {row.pincode && ` ${row.pincode}`}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {entityName.get(row.legal_entity_id) ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-mono">
-                        {row.state_code}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{row.timezone}</TableCell>
-                    {canManage && (
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setLocationForm({ open: true, editing: row })}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </TabsContent>
 
         <TabsContent value="departments" className="mt-4">
-          <DataPanel
+          <DataTable
             title="Departments"
             description="Departments nest. The tree is what reports, approvals and the org chart group by."
+            columns={departmentColumns}
+            data={departments.data ?? []}
+            noun="departments"
+            exportName="departments"
+            searchPlaceholder="Search departments"
+            rowClassName={(row) => (row.is_active ? undefined : "opacity-60")}
             actions={
               canManage ? (
-                <Button size="sm" onClick={() => setDepartmentForm({ open: true, editing: null })}>
+                <Button
+                  size="sm"
+                  className="h-9"
+                  onClick={() => setDepartmentForm({ open: true, editing: null })}
+                >
                   <Plus /> Add department
                 </Button>
               ) : undefined
             }
             isLoading={departments.isLoading}
-            error={departments.error?.detail ?? null}
+            error={departments.error?.detail}
             onRetry={departments.reload}
-            isEmpty={(departments.data ?? []).length === 0}
             empty={{ icon: Network, title: "No departments yet" }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Parent</TableHead>
-                  <TableHead>Status</TableHead>
-                  {canManage && <TableHead className="text-right">Actions</TableHead>}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(departments.data ?? []).map((row) => (
-                  <TableRow key={row.id} className={row.is_active ? undefined : "opacity-60"}>
-                    <TableCell>
-                      <div className="font-medium text-foreground">{row.name}</div>
-                      <div className="font-mono text-xs text-muted-foreground">{row.code}</div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {row.parent_id ? (departmentName.get(row.parent_id) ?? "—") : "Top level"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={row.is_active ? "secondary" : "outline"}>
-                        {row.is_active ? "Active" : "Inactive"}
-                      </Badge>
-                    </TableCell>
-                    {canManage && (
-                      <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setDepartmentForm({ open: true, editing: row })}
-                        >
-                          Edit
-                        </Button>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </TabsContent>
       </Tabs>
 
@@ -323,6 +362,11 @@ export function OrganisationScreen() {
       />
     </PageShell>
   );
+}
+
+/** A registration number as the search and the CSV read it: the number, or that it is not set. */
+function registration(value: string | null, label: string): string {
+  return value || `${label} not set`;
 }
 
 /** A registration number that is absent is a filing that will fail, so say so. */

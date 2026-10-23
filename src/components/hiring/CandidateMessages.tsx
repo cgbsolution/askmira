@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Eye, Loader2, Mail, Send, Undo2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { formatDateTime } from "@/components/hiring/labels";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +21,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
@@ -45,6 +45,24 @@ const STATUS: Record<CandidateMessageStatus, { label: string; variant: "success"
   dead_letter: { label: "Gave up", variant: "destructive" },
   cancelled: { label: "Withdrawn", variant: "muted" },
 };
+
+/** "Email · Interview booked · automatic": how it went and why. */
+function messageDetail(message: CandidateMessage): string {
+  return (
+    (message.channel === "whatsapp" ? "WhatsApp · " : "Email · ") +
+    (EVENT_LABEL[message.event_key] ?? message.event_key) +
+    (message.sent_by ? ` · by ${message.sent_by}` : " · automatic")
+  );
+}
+
+/** When it went, when a queued one goes, or else when it was made. */
+function messageWhen(message: CandidateMessage): string {
+  return message.sent_at
+    ? `Sent ${formatDateTime(message.sent_at)}`
+    : message.status === "queued" && message.scheduled_for
+      ? `Goes ${formatDateTime(message.scheduled_for)}`
+      : formatDateTime(message.created_at);
+}
 
 /**
  * Every email to this candidate — automatic ones on hiring events, and ones a
@@ -71,9 +89,69 @@ export function CandidateMessages({ candidateId, email }: { candidateId: string;
     }
   };
 
+  const columns: ColumnDef<CandidateMessage>[] = [
+    {
+      accessorKey: "subject",
+      header: "Message",
+      meta: { text: (message) => `${message.subject} ${messageDetail(message)}` },
+      cell: ({ row }) => (
+        <>
+          <div className="font-medium text-foreground">{row.original.subject}</div>
+          <div className="text-xs text-muted-foreground">{messageDetail(row.original)}</div>
+        </>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: {
+        text: (message) =>
+          `${STATUS[message.status].label}${message.failure_reason ? ` · ${message.failure_reason}` : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          <Badge variant={STATUS[row.original.status].variant}>{STATUS[row.original.status].label}</Badge>
+          {row.original.failure_reason && (
+            <p className="mt-1 max-w-xs text-xs text-muted-foreground">{row.original.failure_reason}</p>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "when",
+      header: "When",
+      accessorFn: (message) =>
+        message.sent_at ??
+        (message.status === "queued" && message.scheduled_for ? message.scheduled_for : message.created_at),
+      meta: { cellClassName: "text-xs text-muted-foreground", text: messageWhen },
+      cell: ({ row }) => messageWhen(row.original),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => {
+        const message = row.original;
+        return (
+          <div className="flex justify-end gap-1">
+            <Button size="sm" variant="ghost" aria-label={`Read ${message.subject}`} onClick={() => setViewing(message)}>
+              <Eye />
+            </Button>
+            {message.status === "queued" && (
+              <Button size="sm" variant="outline" disabled={busy === message.id} onClick={() => void withdraw(message)}>
+                {busy === message.id ? <Loader2 className="animate-spin" /> : <Undo2 />} Withdraw
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Messages"
         description={`Emails to ${email}, automatic and written.`}
         actions={
@@ -81,62 +159,16 @@ export function CandidateMessages({ candidateId, email }: { candidateId: string;
             <Mail /> Email candidate
           </Button>
         }
+        columns={columns}
+        data={data ?? []}
+        noun="messages"
+        exportName="candidate-messages"
+        searchPlaceholder="Search messages"
         isLoading={isLoading}
         error={error?.detail ?? null}
         onRetry={reload}
-        isEmpty={(data ?? []).length === 0}
         empty={{ icon: Mail, title: "Nothing sent yet", description: "Hiring events email the candidate on their own; you can also write to them." }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Message</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>When</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(data ?? []).map((message) => (
-              <TableRow key={message.id}>
-                <TableCell>
-                  <div className="font-medium text-foreground">{message.subject}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {message.channel === "whatsapp" ? "WhatsApp · " : "Email · "}
-                    {EVENT_LABEL[message.event_key] ?? message.event_key}
-                    {message.sent_by ? ` · by ${message.sent_by}` : " · automatic"}
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={STATUS[message.status].variant}>{STATUS[message.status].label}</Badge>
-                  {message.failure_reason && (
-                    <p className="mt-1 max-w-xs text-xs text-muted-foreground">{message.failure_reason}</p>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {message.sent_at
-                    ? `Sent ${formatDateTime(message.sent_at)}`
-                    : message.status === "queued" && message.scheduled_for
-                      ? `Goes ${formatDateTime(message.scheduled_for)}`
-                      : formatDateTime(message.created_at)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end gap-1">
-                    <Button size="sm" variant="ghost" aria-label={`Read ${message.subject}`} onClick={() => setViewing(message)}>
-                      <Eye />
-                    </Button>
-                    {message.status === "queued" && (
-                      <Button size="sm" variant="outline" disabled={busy === message.id} onClick={() => void withdraw(message)}>
-                        {busy === message.id ? <Loader2 className="animate-spin" /> : <Undo2 />} Withdraw
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       <Dialog open={viewing !== null} onOpenChange={(open) => !open && setViewing(null)}>
         <DialogContent className="sm:max-w-lg">

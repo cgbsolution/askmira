@@ -1,22 +1,16 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { ClipboardList, UserX } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { type ApiError, post } from "@/lib/api";
@@ -35,10 +29,9 @@ import { MyShiftSwaps } from "./ShiftSwaps";
 import {
   errorDetail,
   formatClock,
-  LoadError,
   RegularisationStatusBadge,
+  STATUS_LABELS,
   StatusBadge,
-  TableSkeleton,
 } from "./shared";
 
 interface RequestTarget {
@@ -144,6 +137,27 @@ export function MyAttendance() {
 
 // ── My requests ─────────────────────────────────────────────────────────────
 
+/**
+ * LoadError's words as DataTable's `error` and `onRetry`: a 403 reads as a
+ * lack of access, with nothing to retry.
+ */
+function loadErrorProps(error: ApiError | null, onRetry: () => void) {
+  if (error?.status === 403) {
+    return {
+      error: `You don't have access to this. ${error.detail} If you think you should, ask your admin to check your role.`,
+      onRetry: undefined,
+    };
+  }
+  return { error: error?.detail ?? null, onRetry };
+}
+
+/** "09:30 – 18:00" asked for, or null when the request names no times. */
+function requestedTimes(row: Regularisation): string | null {
+  return row.requested_first_in || row.requested_last_out
+    ? `${formatClock(row.requested_first_in)} – ${formatClock(row.requested_last_out)}`
+    : null;
+}
+
 function MyRegularisations({
   rows: data,
   error,
@@ -181,83 +195,92 @@ function MyRegularisations({
     }
   };
 
-  return (
-    <Card tier="tier1" className="pb-0">
-      <CardHeader>
-        <CardTitle>My requests</CardTitle>
-        <CardDescription>
-          Missed punches, corrections, on-duty and work-from-home — and what was decided.
-        </CardDescription>
-      </CardHeader>
+  const columns: ColumnDef<Regularisation>[] = [
+    {
+      accessorKey: "attendance_date",
+      header: "Date",
+      meta: { cellClassName: "whitespace-nowrap", text: (row) => formatDay(row.attendance_date, true) },
+      cell: ({ row }) => formatDay(row.original.attendance_date, true),
+    },
+    {
+      accessorKey: "kind",
+      header: "Type",
+      meta: { text: (row) => KIND_LABELS[row.kind] },
+      cell: ({ row }) => <Badge variant="outline">{KIND_LABELS[row.original.kind]}</Badge>,
+    },
+    {
+      accessorKey: "requested_status",
+      header: "Asks for",
+      meta: { text: (row) => STATUS_LABELS[row.requested_status] },
+      cell: ({ row }) => <StatusBadge status={row.original.requested_status} />,
+    },
+    {
+      id: "times",
+      header: "Times",
+      accessorFn: (row) => requestedTimes(row),
+      meta: { cellClassName: "tabular-nums" },
+      cell: ({ row }) => requestedTimes(row.original) ?? "—",
+    },
+    {
+      accessorKey: "reason",
+      header: "Reason",
+      meta: { cellClassName: "min-w-48 max-w-72 whitespace-normal" },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => <RegularisationStatusBadge status={row.original.status} />,
+    },
+    {
+      accessorKey: "decision_note",
+      header: "Decision note",
+      meta: { cellClassName: "max-w-64 whitespace-normal text-muted-foreground" },
+      cell: ({ row }) => row.original.decision_note ?? "—",
+    },
+    {
+      accessorKey: "created_at",
+      header: "Raised",
+      meta: {
+        cellClassName: "whitespace-nowrap text-muted-foreground",
+        text: (row) => (row.created_at ? formatDate(row.created_at) : null),
+      },
+      cell: ({ row }) => formatDate(row.original.created_at),
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) =>
+        row.original.status === "pending" && (
+          <Button variant="outline" size="sm" onClick={() => setCancelling(row.original)}>
+            Withdraw
+          </Button>
+        ),
+    },
+  ];
 
-      {isLoading && !data ? (
-        <div className="pb-5">
-          <TableSkeleton rows={3} />
-        </div>
-      ) : error ? (
-        <LoadError error={error} onRetry={reload} />
-      ) : rows.length === 0 ? (
-        <EmptyState
-          icon={ClipboardList}
-          title="No requests yet"
-          description="Pick a day on the calendar above to report a missed punch, correct a day, or ask for on-duty or work-from-home. Your requests and their decisions appear here."
-        />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="pl-6">Date</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Asks for</TableHead>
-              <TableHead>Times</TableHead>
-              <TableHead>Reason</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Decision note</TableHead>
-              <TableHead>Raised</TableHead>
-              <TableHead className="pr-6 text-right">
-                <span className="sr-only">Actions</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="pl-6 whitespace-nowrap">
-                  {formatDay(row.attendance_date, true)}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{KIND_LABELS[row.kind]}</Badge>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={row.requested_status} />
-                </TableCell>
-                <TableCell className="tabular-nums">
-                  {row.requested_first_in || row.requested_last_out
-                    ? `${formatClock(row.requested_first_in)} – ${formatClock(row.requested_last_out)}`
-                    : "—"}
-                </TableCell>
-                <TableCell className="min-w-48 max-w-72 whitespace-normal">{row.reason}</TableCell>
-                <TableCell>
-                  <RegularisationStatusBadge status={row.status} />
-                </TableCell>
-                <TableCell className="max-w-64 whitespace-normal text-muted-foreground">
-                  {row.decision_note ?? "—"}
-                </TableCell>
-                <TableCell className="whitespace-nowrap text-muted-foreground">
-                  {formatDate(row.created_at)}
-                </TableCell>
-                <TableCell className="pr-6 text-right">
-                  {row.status === "pending" && (
-                    <Button variant="outline" size="sm" onClick={() => setCancelling(row)}>
-                      Withdraw
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
+  return (
+    <>
+      <DataTable
+        tier="tier1"
+        title="My requests"
+        description="Missed punches, corrections, on-duty and work-from-home — and what was decided."
+        columns={columns}
+        data={rows}
+        noun="requests"
+        exportName="my-attendance-requests"
+        searchPlaceholder="Search requests"
+        isLoading={isLoading && !data}
+        loadingRows={3}
+        {...loadErrorProps(error, reload)}
+        empty={{
+          icon: ClipboardList,
+          title: "No requests yet",
+          description:
+            "Pick a day on the calendar above to report a missed punch, correct a day, or ask for on-duty or work-from-home. Your requests and their decisions appear here.",
+        }}
+      />
 
       <ConfirmDialog
         open={cancelling !== null}
@@ -273,6 +296,6 @@ function MyRegularisations({
         destructive
         onConfirm={cancel}
       />
-    </Card>
+    </>
   );
 }

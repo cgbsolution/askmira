@@ -1,17 +1,19 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Check, CircleDollarSign, Loader2, Mail, Plus, TrendingUp, X } from "lucide-react";
 import React, { useState } from "react";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
-import { StatusBadge, useAction } from "@/components/performance/shared";
+import { humanize, StatusBadge, useAction } from "@/components/performance/shared";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,14 +37,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { ADMIN } from "@/lib/access";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -143,6 +137,154 @@ function CycleView({ cycleId }: { cycleId: string }) {
   const { cycle, bands, viewer } = detail.data;
   const open = cycle.status === "open" || cycle.status === "approvals";
 
+  const columns: ColumnDef<IncrementCandidate>[] = [
+    {
+      accessorKey: "name",
+      header: "Person",
+      meta: { text: (row) => [row.name, row.employee_code, row.grade, row.department].filter(Boolean).join(" · ") },
+      cell: ({ row }) => (
+        <PersonCell
+          name={row.original.name}
+          subtitle={[row.original.grade, row.original.department].filter(Boolean).join(" · ")}
+          size="sm"
+        />
+      ),
+    },
+    {
+      accessorKey: "rating_label",
+      header: "Rating",
+      meta: {
+        text: (row) =>
+          `${row.rating_label ?? "No rating"}${row.band ? ` (${row.band.min}–${row.band.max}%)` : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.rating_label ?? <span className="text-muted-foreground">No rating</span>}
+          {row.original.band && (
+            <span className="block text-xs text-muted-foreground">
+              {row.original.band.min}–{row.original.band.max}%
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "current_ctc",
+      header: "Current CTC",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right tabular-nums", text: (row) => row.current_ctc ?? "No salary" },
+      cell: ({ row }) =>
+        row.original.current_ctc ? (
+          <Money value={row.original.current_ctc} />
+        ) : (
+          <span className="text-muted-foreground">No salary</span>
+        ),
+    },
+    {
+      id: "recommended",
+      header: "Recommended",
+      accessorFn: (row) => row.recommendation?.recommended_ctc ?? null,
+      sortingFn: "alphanumeric",
+      meta: {
+        className: "text-right tabular-nums",
+        text: (row) => {
+          const rec = row.recommendation;
+          if (!rec) return "—";
+          return [
+            `${rec.percentage}% · ${rec.recommended_ctc}`,
+            !rec.within_band ? "Outside band" : null,
+            rec.promotion_to_grade ? `→ ${rec.promotion_to_grade}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+        },
+      },
+      cell: ({ row }) => {
+        const rec = row.original.recommendation;
+        return rec ? (
+          <>
+            {rec.percentage}% · <Money value={rec.recommended_ctc} />
+            {!rec.within_band && <Badge variant="warning" className="ml-1">Outside band</Badge>}
+            {rec.promotion_to_grade && <Badge variant="accent" className="ml-1">→ {rec.promotion_to_grade}</Badge>}
+          </>
+        ) : (
+          "—"
+        );
+      },
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorFn: (row) => row.recommendation?.status ?? null,
+      meta: {
+        text: (row) => {
+          const rec = row.recommendation;
+          return [
+            rec ? humanize(rec.status) : "—",
+            rec?.requires_escalation ? "Over budget" : null,
+            rec?.promotion_applied ? "Promoted" : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+        },
+      },
+      cell: ({ row }) => {
+        const rec = row.original.recommendation;
+        return (
+          <>
+            {rec ? <StatusBadge status={rec.status} /> : "—"}
+            {rec?.requires_escalation && <Badge variant="warning" className="ml-1">Over budget</Badge>}
+            {rec?.promotion_applied && <Badge variant="success" className="ml-1">Promoted</Badge>}
+          </>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => {
+        const candidate = row.original;
+        const rec = candidate.recommendation;
+        return (
+          <div className="flex justify-end gap-1">
+            {open && candidate.can_recommend && (
+              <Button size="sm" variant={rec ? "ghost" : "outline"} onClick={() => setRecommending(candidate)}>
+                {rec ? "Revise" : "Recommend"}
+              </Button>
+            )}
+            {candidate.can_decide && (
+              <>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="Approve"
+                  onClick={() => setDeciding({ row: candidate, approve: true })}
+                >
+                  <Check />
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="Reject"
+                  onClick={() => setDeciding({ row: candidate, approve: false })}
+                >
+                  <X />
+                </Button>
+              </>
+            )}
+            {candidate.can_promote && (
+              <Button size="sm" onClick={() => setPromoting(candidate)}>
+                Apply promotion
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="space-y-4">
       <Card tier="tier1">
@@ -180,87 +322,20 @@ function CycleView({ cycleId }: { cycleId: string }) {
         </CardContent>
       </Card>
 
-      <DataPanel
+      <DataTable
         title="Recommendations"
         description="Current pay comes from each person's salary assignment and the rating from their review."
-        isLoading={candidates.isLoading}
+        columns={columns}
+        data={candidates.data?.rows ?? []}
+        getRowId={(row) => row.employee_id}
+        noun="people"
+        exportName="increment-recommendations"
+        searchPlaceholder="Search people"
+        isLoading={candidates.isLoading && !candidates.data}
         error={candidates.error?.detail}
         onRetry={candidates.reload}
-        isEmpty={(candidates.data?.rows ?? []).length === 0}
         empty={{ icon: CircleDollarSign, title: "Nobody to recommend for", description: "People in your reporting line appear here." }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Person</TableHead>
-              <TableHead>Rating</TableHead>
-              <TableHead className="text-right">Current CTC</TableHead>
-              <TableHead className="text-right">Recommended</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {candidates.data?.rows.map((row) => {
-              const rec = row.recommendation;
-              return (
-                <TableRow key={row.employee_id}>
-                  <TableCell>
-                    <PersonCell name={row.name} subtitle={[row.grade, row.department].filter(Boolean).join(" · ")} size="sm" />
-                  </TableCell>
-                  <TableCell>
-                    {row.rating_label ?? <span className="text-muted-foreground">No rating</span>}
-                    {row.band && <span className="block text-xs text-muted-foreground">{row.band.min}–{row.band.max}%</span>}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {row.current_ctc ? <Money value={row.current_ctc} /> : <span className="text-muted-foreground">No salary</span>}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {rec ? (
-                      <>
-                        {rec.percentage}% · <Money value={rec.recommended_ctc} />
-                        {!rec.within_band && <Badge variant="warning" className="ml-1">Outside band</Badge>}
-                        {rec.promotion_to_grade && <Badge variant="accent" className="ml-1">→ {rec.promotion_to_grade}</Badge>}
-                      </>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {rec ? <StatusBadge status={rec.status} /> : "—"}
-                    {rec?.requires_escalation && <Badge variant="warning" className="ml-1">Over budget</Badge>}
-                    {rec?.promotion_applied && <Badge variant="success" className="ml-1">Promoted</Badge>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      {open && row.can_recommend && (
-                        <Button size="sm" variant={rec ? "ghost" : "outline"} onClick={() => setRecommending(row)}>
-                          {rec ? "Revise" : "Recommend"}
-                        </Button>
-                      )}
-                      {row.can_decide && (
-                        <>
-                          <Button size="icon-sm" variant="ghost" aria-label="Approve" onClick={() => setDeciding({ row, approve: true })}>
-                            <Check />
-                          </Button>
-                          <Button size="icon-sm" variant="ghost" aria-label="Reject" onClick={() => setDeciding({ row, approve: false })}>
-                            <X />
-                          </Button>
-                        </>
-                      )}
-                      {row.can_promote && (
-                        <Button size="sm" onClick={() => setPromoting(row)}>
-                          Apply promotion
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       {recommending && (
         <RecommendDialog

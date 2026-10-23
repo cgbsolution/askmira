@@ -1,14 +1,14 @@
 "use client";
 
+import type { ColumnDef, SortingFn } from "@tanstack/react-table";
 import { Loader2, MapPin, Plus } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -25,24 +25,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { OrgLocationOption, WorkLocation, WorkLocationInput } from "@/lib/types/attendance";
 import { cn } from "@/lib/utils";
 
-import { errorDetail, LoadError, parseWholeNumber, TableSkeleton } from "./shared";
-import { Field } from "./ShiftsTab";
+import { errorDetail, parseWholeNumber } from "./shared";
+import { Field, loadErrorProps } from "./ShiftsTab";
 
 const NO_ORG_LOCATION = "__none__";
 const DECIMAL = /^-?\d{1,3}(\.\d{1,8})?$/;
+
+/** Coordinates arrive as decimal strings; they sort as numbers. */
+const byNumber: SortingFn<WorkLocation> = (a, b, columnId) =>
+  Number(a.getValue(columnId)) - Number(b.getValue(columnId));
+
+function radiusText(row: WorkLocation): string {
+  return `${row.radius_metres.toLocaleString("en-IN")} m`;
+}
 
 export function WorkLocationsTab() {
   const { data, error, isLoading, reload } = useApiQuery<WorkLocation[]>("/attendance/work-locations");
@@ -57,71 +57,71 @@ export function WorkLocationsTab() {
   const rows = [...(data ?? [])].sort(
     (a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name),
   );
+  const orgLocationText = (row: WorkLocation) => {
+    const org = row.location_id ? orgById.get(row.location_id) : undefined;
+    return row.location_id ? (org ? `${org.name}${org.city ? `, ${org.city}` : ""}` : "Linked") : "—";
+  };
+
+  const columns: ColumnDef<WorkLocation>[] = [
+    { accessorKey: "name", header: "Name", meta: { cellClassName: "font-medium" } },
+    {
+      accessorKey: "latitude",
+      header: "Latitude",
+      sortingFn: byNumber,
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "longitude",
+      header: "Longitude",
+      sortingFn: byNumber,
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "radius_metres",
+      header: "Radius",
+      meta: { className: "text-right", cellClassName: "tabular-nums", text: radiusText },
+      cell: ({ row }) => radiusText(row.original),
+    },
+    { id: "org_location", header: "Org location", accessorFn: orgLocationText },
+    {
+      id: "state",
+      header: "State",
+      accessorFn: (row) => (row.active ? "Active" : "Inactive"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.active ? "success" : "muted"}>
+          {row.original.active ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+  ];
 
   return (
-    <Card tier="tier1" className="pb-0">
-      <CardHeader>
-        <CardTitle>Work locations</CardTitle>
-        <CardDescription>
-          Geofences for located punches. A punch outside every radius is recorded and flagged for
-          HR, never rejected.
-        </CardDescription>
-        <CardAction>
-          <Button size="sm" onClick={() => setAdding(true)}>
+    <>
+      <DataTable
+        tier="tier1"
+        title="Work locations"
+        description="Geofences for located punches. A punch outside every radius is recorded and flagged for HR, never rejected."
+        actions={
+          <Button size="sm" className="h-9" onClick={() => setAdding(true)}>
             <Plus /> Add location
           </Button>
-        </CardAction>
-      </CardHeader>
-
-      {isLoading ? (
-        <div className="pb-5">
-          <TableSkeleton rows={3} />
-        </div>
-      ) : error ? (
-        <LoadError error={error} onRetry={reload} />
-      ) : rows.length === 0 ? (
-        <EmptyState
-          icon={MapPin}
-          title="No work locations"
-          description="Without a work location, no punch can be flagged as outside a geofence. Add your offices and sites."
-        />
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="pl-5">Name</TableHead>
-              <TableHead className="text-right">Latitude</TableHead>
-              <TableHead className="text-right">Longitude</TableHead>
-              <TableHead className="text-right">Radius</TableHead>
-              <TableHead>Org location</TableHead>
-              <TableHead className="pr-5">State</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => {
-              const org = row.location_id ? orgById.get(row.location_id) : undefined;
-              return (
-                <TableRow key={row.id} className={cn(!row.active && "text-muted-foreground")}>
-                  <TableCell className="pl-5 font-medium">{row.name}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.latitude}</TableCell>
-                  <TableCell className="text-right tabular-nums">{row.longitude}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {row.radius_metres.toLocaleString("en-IN")} m
-                  </TableCell>
-                  <TableCell>
-                    {row.location_id ? (org ? `${org.name}${org.city ? `, ${org.city}` : ""}` : "Linked") : "—"}
-                  </TableCell>
-                  <TableCell className="pr-5">
-                    <Badge variant={row.active ? "success" : "muted"}>
-                      {row.active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      )}
+        }
+        columns={columns}
+        data={rows}
+        noun="work locations"
+        exportName="work-locations"
+        searchPlaceholder="Search locations"
+        rowClassName={(row) => cn(!row.active && "text-muted-foreground")}
+        isLoading={isLoading && !data}
+        loadingRows={3}
+        {...loadErrorProps(error, reload)}
+        empty={{
+          icon: MapPin,
+          title: "No work locations",
+          description:
+            "Without a work location, no punch can be flagged as outside a geofence. Add your offices and sites.",
+        }}
+      />
 
       <AddLocationDialog
         open={adding}
@@ -132,7 +132,7 @@ export function WorkLocationsTab() {
           reload();
         }}
       />
-    </Card>
+    </>
   );
 }
 

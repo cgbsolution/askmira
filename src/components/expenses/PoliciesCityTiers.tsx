@@ -1,15 +1,15 @@
 "use client";
 
-import { Loader2, MapPin, Pencil } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Loader2, Lock, MapPin, Pencil } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/EmptyState";
-import { InlineProblem, QueryBoundary, errorDetail } from "@/components/expenses/ReviewCommon";
+import { DataTable } from "@/components/common/data-table/DataTable";
+import { InlineProblem, errorDetail } from "@/components/expenses/ReviewCommon";
 import { CITY_TIER_LABEL } from "@/components/expenses/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -26,14 +26,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { put } from "@/lib/api";
@@ -43,66 +35,79 @@ import type { CityTier, CityTierInput, CityTierRow } from "@/lib/types/expenses"
 export function PoliciesCityTiers({ canAdmin }: { canAdmin: boolean }) {
   const query = useApiQuery<CityTierRow[]>("/expenses/city-tiers");
   const [editing, setEditing] = useState<CityTierRow | null>(null);
+  // A 403 reads as "no access", not as a failed load that a retry could fix.
+  const forbidden = query.error?.status === 403;
+
+  const columns: ColumnDef<CityTierRow>[] = [
+    {
+      accessorKey: "location_name",
+      header: "Location",
+      meta: { cellClassName: "font-medium text-foreground" },
+    },
+    {
+      accessorKey: "city",
+      header: "City",
+      cell: ({ row }) => row.original.city ?? "—",
+    },
+    {
+      id: "tier",
+      header: "Tier",
+      accessorFn: (row) => (row.city_tier ? CITY_TIER_LABEL[row.city_tier] : "Not set"),
+      cell: ({ row }) =>
+        row.original.city_tier ? (
+          <Badge variant="secondary">{CITY_TIER_LABEL[row.original.city_tier]}</Badge>
+        ) : (
+          <Badge variant="warning">Not set</Badge>
+        ),
+    },
+    {
+      accessorKey: "note",
+      header: "Note",
+      meta: { cellClassName: "max-w-72 whitespace-normal text-muted-foreground" },
+      cell: ({ row }) => row.original.note ?? "—",
+    },
+    ...(canAdmin
+      ? [
+          {
+            id: "actions",
+            header: "",
+            enableHiding: false,
+            meta: { className: "text-right", text: false },
+            cell: ({ row }) => (
+              <Button variant="outline" size="sm" onClick={() => setEditing(row.original)}>
+                <Pencil /> {row.original.city_tier ? "Change" : "Set tier"}
+              </Button>
+            ),
+          } satisfies ColumnDef<CityTierRow>,
+        ]
+      : []),
+  ];
 
   return (
-    <Card tier="tier1">
-      <CardHeader>
-        <CardTitle>City tiers</CardTitle>
-        <CardDescription>
-          The tier a location&apos;s claims are checked against. A location without a tier has no tier-specific
-          limits applied until one is set.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-0">
-        <QueryBoundary query={query}>
-          {(rows) =>
-            rows.length === 0 ? (
-              <EmptyState
-                icon={MapPin}
-                title="No locations yet"
-                description="Locations are set up under the organisation. They appear here to be given a tier."
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-5">Location</TableHead>
-                    <TableHead>City</TableHead>
-                    <TableHead>Tier</TableHead>
-                    <TableHead>Note</TableHead>
-                    {canAdmin && <TableHead className="pr-5" />}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow key={row.location_id}>
-                      <TableCell className="pl-5 font-medium text-foreground">{row.location_name}</TableCell>
-                      <TableCell>{row.city ?? "—"}</TableCell>
-                      <TableCell>
-                        {row.city_tier ? (
-                          <Badge variant="secondary">{CITY_TIER_LABEL[row.city_tier]}</Badge>
-                        ) : (
-                          <Badge variant="warning">Not set</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-72 whitespace-normal text-muted-foreground">
-                        {row.note ?? "—"}
-                      </TableCell>
-                      {canAdmin && (
-                        <TableCell className="pr-5 text-right">
-                          <Button variant="outline" size="sm" onClick={() => setEditing(row)}>
-                            <Pencil /> {row.city_tier ? "Change" : "Set tier"}
-                          </Button>
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )
-          }
-        </QueryBoundary>
-      </CardContent>
+    <>
+      <DataTable
+        title="City tiers"
+        description="The tier a location's claims are checked against. A location without a tier has no tier-specific limits applied until one is set."
+        columns={columns}
+        data={forbidden ? [] : (query.data ?? [])}
+        getRowId={(row) => row.location_id}
+        noun="locations"
+        exportName="city-tiers"
+        searchPlaceholder="Search locations"
+        loadingRows={3}
+        isLoading={query.isLoading && query.data === null}
+        error={forbidden ? null : (query.error?.detail ?? null)}
+        onRetry={query.reload}
+        empty={
+          forbidden
+            ? { icon: Lock, title: "You don't have access to this", description: query.error?.detail }
+            : {
+                icon: MapPin,
+                title: "No locations yet",
+                description: "Locations are set up under the organisation. They appear here to be given a tier.",
+              }
+        }
+      />
 
       {canAdmin && (
         <TierDialog
@@ -114,7 +119,7 @@ export function PoliciesCityTiers({ canAdmin }: { canAdmin: boolean }) {
           }}
         />
       )}
-    </Card>
+    </>
   );
 }
 

@@ -1,9 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { CalendarClock, Loader2, UserSearch } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -32,16 +34,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { post } from "@/lib/api";
+import { type ApiError, post } from "@/lib/api";
 import type { EmployeeSummary } from "@/lib/types";
 import type {
   Assignment,
@@ -56,11 +50,23 @@ import {
   EmployeePicker,
   employeeName,
   errorDetail,
-  LoadError,
   shortTime,
-  TableSkeleton,
 } from "./shared";
 import { Field } from "./ShiftsTab";
+
+/**
+ * LoadError's words as DataTable's `error` and `onRetry`: a 403 reads as a
+ * lack of access, with nothing to retry.
+ */
+function loadErrorProps(error: ApiError | null, onRetry: () => void) {
+  if (error?.status === 403) {
+    return {
+      error: `You don't have access to this. ${error.detail} If you think you should, ask your admin to check your role.`,
+      onRetry: undefined,
+    };
+  }
+  return { error: error?.detail ?? null, onRetry };
+}
 
 export function AssignmentsTab() {
   const [employee, setEmployee] = useState<EmployeeSummary | null>(null);
@@ -73,6 +79,55 @@ export function AssignmentsTab() {
   const rows = employee
     ? [...(data ?? [])].sort((a, b) => b.effective_from.localeCompare(a.effective_from))
     : [];
+
+  const columns: ColumnDef<Assignment>[] = [
+    {
+      accessorKey: "kind",
+      header: "Kind",
+      meta: { text: (row) => (row.kind === "shift" ? "Shift" : "Roster") },
+      cell: ({ row }) => (
+        <Badge variant={row.original.kind === "shift" ? "secondary" : "outline"} className="capitalize">
+          {row.original.kind}
+        </Badge>
+      ),
+    },
+    { accessorKey: "target_name", header: "Shift / roster", meta: { cellClassName: "font-medium" } },
+    {
+      accessorKey: "cycle_start_date",
+      header: "Cycle start",
+      meta: { text: (row) => (row.cycle_start_date ? formatDay(row.cycle_start_date, true) : null) },
+      cell: ({ row }) => (row.original.cycle_start_date ? formatDay(row.original.cycle_start_date, true) : "—"),
+    },
+    {
+      accessorKey: "effective_from",
+      header: "From",
+      meta: { text: (row) => formatDay(row.effective_from, true) },
+      cell: ({ row }) => formatDay(row.original.effective_from, true),
+    },
+    {
+      accessorKey: "effective_to",
+      header: "To",
+      meta: { text: (row) => (row.effective_to ? formatDay(row.effective_to, true) : "Open") },
+      cell: ({ row }) =>
+        row.original.effective_to ? (
+          formatDay(row.original.effective_to, true)
+        ) : (
+          <Badge variant="success">Open</Badge>
+        ),
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) =>
+        row.original.effective_to === null && (
+          <Button variant="outline" size="sm" onClick={() => setEnding(row.original)}>
+            End
+          </Button>
+        ),
+    },
+  ];
 
   return (
     <Card tier="tier1" className="pb-0">
@@ -105,57 +160,26 @@ export function AssignmentsTab() {
             title="Choose an employee"
             description="Their shift and roster assignments appear here."
           />
-        ) : isLoading ? (
-          <div className="pb-5">
-            <TableSkeleton rows={3} />
-          </div>
-        ) : error ? (
-          <LoadError error={error} onRetry={reload} />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            icon={CalendarClock}
-            title={`${employeeName(employee)} has no assignments`}
-            description="Without a shift or roster, their attendance cannot be computed against working hours. Assign one above."
-          />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-5">Kind</TableHead>
-                <TableHead>Shift / roster</TableHead>
-                <TableHead>Cycle start</TableHead>
-                <TableHead>From</TableHead>
-                <TableHead>To</TableHead>
-                <TableHead className="pr-5 text-right">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={`${row.kind}-${row.id}`}>
-                  <TableCell className="pl-5">
-                    <Badge variant={row.kind === "shift" ? "secondary" : "outline"} className="capitalize">
-                      {row.kind}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-medium">{row.target_name}</TableCell>
-                  <TableCell>{row.cycle_start_date ? formatDay(row.cycle_start_date, true) : "—"}</TableCell>
-                  <TableCell>{formatDay(row.effective_from, true)}</TableCell>
-                  <TableCell>
-                    {row.effective_to ? formatDay(row.effective_to, true) : <Badge variant="success">Open</Badge>}
-                  </TableCell>
-                  <TableCell className="pr-5 text-right">
-                    {row.effective_to === null && (
-                      <Button variant="outline" size="sm" onClick={() => setEnding(row)}>
-                        End
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            bordered={false}
+            columns={columns}
+            // A newly chosen employee never shows the previous one's rows while theirs load.
+            data={isLoading ? [] : rows}
+            getRowId={(row) => `${row.kind}-${row.id}`}
+            noun="assignments"
+            exportName={`assignments-${employee.employee_code}`}
+            searchPlaceholder="Search assignments"
+            isLoading={isLoading}
+            loadingRows={3}
+            {...loadErrorProps(error, reload)}
+            empty={{
+              icon: CalendarClock,
+              title: `${employeeName(employee)} has no assignments`,
+              description:
+                "Without a shift or roster, their attendance cannot be computed against working hours. Assign one above.",
+            }}
+          />
         )}
       </div>
 

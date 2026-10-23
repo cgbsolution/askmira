@@ -1,9 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { PiggyBank } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmployeePicker } from "@/components/common/EmployeePicker";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
@@ -14,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post, put } from "@/lib/api";
@@ -52,6 +53,23 @@ const STATUS: Record<Flexi["status"], { label: string; variant: "secondary" | "o
 const failed = (caught: unknown, fallback: string) =>
   toast.error(caught instanceof ApiError ? caught.detail : fallback);
 
+/** HR's read-only view of how a person split their pot. */
+const SPLIT_COLUMNS: ColumnDef<FlexiComponent>[] = [
+  { accessorKey: "name", header: "Component" },
+  {
+    accessorKey: "limit",
+    header: "Limit",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.limit} />,
+  },
+  {
+    accessorKey: "amount",
+    header: "Declared",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.amount} />,
+  },
+];
+
 /** The person's flexi-benefit pot for a year, and how they split it across components. */
 export function MyFlexiDeclaration({ year, onChanged }: { year: string; onChanged: () => void }) {
   const { data, error, isLoading, reload } = useApiQuery<Flexi>(
@@ -71,6 +89,33 @@ export function MyFlexiDeclaration({ year, onChanged }: { year: string; onChange
   const locked = data.status === "approved" || data.status === "submitted";
   const invalid = Object.values(amounts).some((value) => value !== "" && !isMoneyInput(value));
   const total = Object.values(amounts).reduce((sum, value) => sum + (Number(value) || 0), 0);
+
+  const columns: ColumnDef<FlexiComponent>[] = [
+    { accessorKey: "name", header: "Component" },
+    {
+      accessorKey: "limit",
+      header: "Up to",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.limit} />,
+    },
+    {
+      id: "amount",
+      header: "Your amount",
+      meta: { className: "text-right", headClassName: "w-44" },
+      cell: ({ row }) => (
+        <Input
+          aria-label={`Amount for ${row.original.name}`}
+          inputMode="decimal"
+          className="ml-auto w-36 text-right"
+          disabled={locked}
+          value={amounts[row.original.code] ?? ""}
+          onChange={(event) =>
+            setAmounts((prev) => ({ ...prev, [row.original.code]: event.target.value }))
+          }
+        />
+      ),
+    },
+  ];
 
   const save = async (submit: boolean) => {
     setBusy(true);
@@ -105,35 +150,13 @@ export function MyFlexiDeclaration({ year, onChanged }: { year: string; onChange
         {data.status === "rejected" && data.decision_note && (
           <p className="text-sm text-destructive">HR: {data.decision_note}</p>
         )}
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Component</TableHead>
-              <TableHead className="text-right">Up to</TableHead>
-              <TableHead className="w-44 text-right">Your amount</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.components.map((component) => (
-              <TableRow key={component.code}>
-                <TableCell>{component.name}</TableCell>
-                <TableCell className="text-right">
-                  <Money value={component.limit} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Input
-                    aria-label={`Amount for ${component.name}`}
-                    inputMode="decimal"
-                    className="ml-auto w-36 text-right"
-                    disabled={locked}
-                    value={amounts[component.code] ?? ""}
-                    onChange={(event) => setAmounts((prev) => ({ ...prev, [component.code]: event.target.value }))}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable
+          variant="plain"
+          columns={columns}
+          data={data.components}
+          getRowId={(component) => component.code}
+          noun="components"
+        />
         <p className="text-sm text-muted-foreground">
           Declared {total.toLocaleString("en-IN")} of <Money value={data.pot} />. The rest is paid as taxable
           salary.
@@ -233,28 +256,13 @@ export function FlexiDeclarationsPanel() {
             </div>
 
             {data.status !== "none" && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Component</TableHead>
-                    <TableHead className="text-right">Limit</TableHead>
-                    <TableHead className="text-right">Declared</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data.components.map((component) => (
-                    <TableRow key={component.code}>
-                      <TableCell>{component.name}</TableCell>
-                      <TableCell className="text-right">
-                        <Money value={component.limit} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Money value={component.amount} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <DataTable
+                variant="plain"
+                columns={SPLIT_COLUMNS}
+                data={data.components}
+                getRowId={(component) => component.code}
+                noun="components"
+              />
             )}
 
             {data.id && data.status === "submitted" && (

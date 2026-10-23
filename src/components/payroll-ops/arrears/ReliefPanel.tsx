@@ -1,5 +1,6 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Calculator, FileCheck2, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -12,6 +13,7 @@ import {
   isZero,
   QueryBoundary,
 } from "@/components/payroll-ops/shared";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { FormField } from "@/components/common/FormField";
 import { employeeDisplayName } from "@/components/payroll-ops/disbursements/labels";
@@ -26,25 +28,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { EmployeeSummary } from "@/lib/types";
 import type {
   IssuedDocument,
+  ReliefAllocation,
   ReliefInput,
   ReliefYears,
   SectionRelief,
 } from "@/lib/types/payroll-ops";
 
 type Regime = "old" | "new";
+
+const ALLOCATION_COLUMNS: ColumnDef<ReliefAllocation>[] = [
+  { accessorKey: "financial_year", header: "Financial year" },
+  {
+    accessorKey: "original_income",
+    header: "Original income",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.original_income} />,
+  },
+  {
+    accessorKey: "arrear_portion",
+    header: "Arrear portion",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.arrear_portion} />,
+  },
+  {
+    accessorKey: "tax_on_original",
+    header: "Tax on original",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.tax_on_original} />,
+  },
+  {
+    accessorKey: "tax_with_arrear",
+    header: "Tax with arrear",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.tax_with_arrear} />,
+  },
+  {
+    accessorKey: "additional_tax",
+    header: "Additional tax",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.additional_tax} className="font-medium" />,
+  },
+];
 
 /** Section 89(1) relief for one employee's arrears in a batch, and its Form 10E. */
 export function ReliefPanel({
@@ -340,40 +369,13 @@ export function ReliefResult({
 
       {working.allocations.length > 0 && (
         <div className="overflow-hidden rounded-md border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Financial year</TableHead>
-                <TableHead className="text-right">Original income</TableHead>
-                <TableHead className="text-right">Arrear portion</TableHead>
-                <TableHead className="text-right">Tax on original</TableHead>
-                <TableHead className="text-right">Tax with arrear</TableHead>
-                <TableHead className="text-right">Additional tax</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {working.allocations.map((allocation) => (
-                <TableRow key={allocation.financial_year}>
-                  <TableCell>{allocation.financial_year}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={allocation.original_income} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={allocation.arrear_portion} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={allocation.tax_on_original} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={allocation.tax_with_arrear} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={allocation.additional_tax} className="font-medium" />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            variant="plain"
+            bordered={false}
+            columns={ALLOCATION_COLUMNS}
+            data={working.allocations}
+            getRowId={(allocation) => allocation.financial_year}
+          />
         </div>
       )}
 

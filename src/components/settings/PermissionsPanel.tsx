@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Info, Loader2, RotateCcw, Save, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, put } from "@/lib/api";
@@ -48,6 +48,13 @@ interface AccessOverview {
   }>;
   note: string;
 }
+
+type Area = AccessOverview["areas"][number];
+type Person = AccessOverview["people"][number];
+
+const ROLE_MATRIX_TITLE = "What every sub-admin may do";
+const ROLE_MATRIX_DESCRIPTION =
+  "Per area. Untick a right to withhold it from every sub-admin, unless a person has their own rights.";
 
 interface OrgOption {
   id: string;
@@ -87,92 +94,35 @@ export function PermissionsPanel() {
           <TabsTrigger value="people">People</TabsTrigger>
         </TabsList>
         <TabsContent value="role" className="mt-4">
-          <DataPanel
-            tier="tier1"
-            title="What every sub-admin may do"
-            description="Per area. Untick a right to withhold it from every sub-admin, unless a person has their own rights."
-            isLoading={isLoading}
-            error={error?.detail ?? null}
-            onRetry={reload}
-          >
-            {data && <RoleMatrix overview={data} onChanged={reload} />}
-          </DataPanel>
+          {/* The matrix mounts only once the overview is loaded, so its draft starts
+              from it; until then its card shows the loading or the error. */}
+          {data && !isLoading && !error ? (
+            <RoleMatrix overview={data} onChanged={reload} />
+          ) : (
+            <DataTable
+              variant="plain"
+              tier="tier1"
+              title={ROLE_MATRIX_TITLE}
+              description={ROLE_MATRIX_DESCRIPTION}
+              columns={[]}
+              data={[]}
+              isLoading={isLoading}
+              error={error?.detail}
+              onRetry={reload}
+            />
+          )}
         </TabsContent>
         <TabsContent value="people" className="mt-4">
-          <DataPanel
-            tier="tier1"
-            title="Sub-admins"
-            description="Give one person different rights, or limit them to some departments or locations."
+          <PeopleTable
+            overview={data}
             isLoading={isLoading}
-            error={error?.detail ?? null}
+            error={error?.detail}
             onRetry={reload}
-            isEmpty={(data?.people ?? []).length === 0}
-            empty={{ icon: ShieldCheck, title: "No sub-admins", description: "Give somebody the sub-admin role under Users & roles first." }}
-          >
-            {data && <PeopleTable overview={data} onChanged={reload} />}
-          </DataPanel>
+            onChanged={reload}
+          />
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-function RightsRow({
-  area,
-  description,
-  rights,
-  value,
-  isDefault,
-  busy,
-  onToggle,
-  onSave,
-  onReset,
-  dirty,
-}: {
-  area: string;
-  description: string;
-  rights: string[];
-  value: Rights;
-  isDefault: boolean;
-  busy: boolean;
-  onToggle: (right: string, on: boolean) => void;
-  onSave: () => void;
-  onReset: () => void;
-  dirty: boolean;
-}) {
-  return (
-    <TableRow>
-      <TableCell>
-        <div className="font-medium capitalize text-foreground">{area}</div>
-        <div className="max-w-xs text-xs text-muted-foreground">{description}</div>
-        {isDefault && !dirty && (
-          <Badge variant="muted" className="mt-1">
-            Default: full
-          </Badge>
-        )}
-      </TableCell>
-      {rights.map((right) => (
-        <TableCell key={right} className="text-center">
-          <Checkbox
-            aria-label={`${area} ${RIGHT_LABEL[right] ?? right}`}
-            checked={value[right] ?? false}
-            onCheckedChange={(on) => onToggle(right, on === true)}
-          />
-        </TableCell>
-      ))}
-      <TableCell className="text-right">
-        <div className="flex justify-end gap-1">
-          <Button size="sm" disabled={!dirty || busy} onClick={onSave}>
-            {busy ? <Loader2 className="animate-spin" /> : <Save />} Save
-          </Button>
-          {!isDefault && (
-            <Button size="sm" variant="ghost" disabled={busy} onClick={onReset} aria-label={`Reset ${area}`}>
-              <RotateCcw />
-            </Button>
-          )}
-        </div>
-      </TableCell>
-    </TableRow>
   );
 }
 
@@ -214,93 +164,176 @@ function RoleMatrix({ overview, onChanged }: { overview: AccessOverview; onChang
     }
   };
 
+  const isDirty = (area: string) => JSON.stringify(draft[area]) !== JSON.stringify(initial[area]);
+
+  const columns: ColumnDef<Area>[] = [
+    {
+      id: "area",
+      header: "Area",
+      cell: ({ row }) => (
+        <>
+          <div className="font-medium capitalize text-foreground">{row.original.key}</div>
+          <div className="max-w-xs text-xs text-muted-foreground">{row.original.description}</div>
+          {!overview.role_rights[row.original.key] && !isDirty(row.original.key) && (
+            <Badge variant="muted" className="mt-1">
+              Default: full
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    ...overview.rights.map(
+      (right): ColumnDef<Area> => ({
+        id: right,
+        header: RIGHT_LABEL[right] ?? right,
+        meta: { className: "text-center" },
+        cell: ({ row }) => (
+          <Checkbox
+            aria-label={`${row.original.key} ${RIGHT_LABEL[right] ?? right}`}
+            checked={draft[row.original.key]?.[right] ?? false}
+            onCheckedChange={(on) =>
+              setDraft((current) => ({
+                ...current,
+                [row.original.key]: { ...current[row.original.key], [right]: on === true },
+              }))
+            }
+          />
+        ),
+      }),
+    ),
+    {
+      id: "actions",
+      header: "",
+      meta: { className: "text-right" },
+      cell: ({ row }) => {
+        const area = row.original.key;
+        const isDefault = !overview.role_rights[area];
+        const working = busy === area;
+        return (
+          <div className="flex justify-end gap-1">
+            <Button size="sm" disabled={!isDirty(area) || working} onClick={() => void save(area)}>
+              {working ? <Loader2 className="animate-spin" /> : <Save />} Save
+            </Button>
+            {!isDefault && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={working}
+                onClick={() => void reset(area)}
+                aria-label={`Reset ${area}`}
+              >
+                <RotateCcw />
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
+  // A form grid: every area on show, each saved by its own row.
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Area</TableHead>
-            {overview.rights.map((right) => (
-              <TableHead key={right} className="text-center">
-                {RIGHT_LABEL[right] ?? right}
-              </TableHead>
-            ))}
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {overview.areas.map((area) => (
-            <RightsRow
-              key={area.key}
-              area={area.key}
-              description={area.description}
-              rights={overview.rights}
-              value={draft[area.key] ?? {}}
-              isDefault={!overview.role_rights[area.key]}
-              busy={busy === area.key}
-              dirty={JSON.stringify(draft[area.key]) !== JSON.stringify(initial[area.key])}
-              onToggle={(right, on) =>
-                setDraft((current) => ({ ...current, [area.key]: { ...current[area.key], [right]: on } }))
-              }
-              onSave={() => void save(area.key)}
-              onReset={() => void reset(area.key)}
-            />
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      variant="plain"
+      tier="tier1"
+      title={ROLE_MATRIX_TITLE}
+      description={ROLE_MATRIX_DESCRIPTION}
+      columns={columns}
+      data={overview.areas}
+      getRowId={(area) => area.key}
+    />
   );
 }
 
-function PeopleTable({ overview, onChanged }: { overview: AccessOverview; onChanged: () => void }) {
-  const [editing, setEditing] = useState<AccessOverview["people"][number] | null>(null);
+function PeopleTable({
+  overview,
+  isLoading,
+  error,
+  onRetry,
+  onChanged,
+}: {
+  overview: AccessOverview | null;
+  isLoading: boolean;
+  error?: string;
+  onRetry: () => void;
+  onChanged: () => void;
+}) {
+  const [editing, setEditing] = useState<Person | null>(null);
+
+  const columns: ColumnDef<Person>[] = [
+    {
+      accessorKey: "full_name",
+      header: "Sub-admin",
+      meta: { text: (person) => `${person.full_name} ${person.email}` },
+      cell: ({ row }) => (
+        <>
+          <div className="font-medium text-foreground">{row.original.full_name}</div>
+          <div className="text-xs text-muted-foreground">{row.original.email}</div>
+        </>
+      ),
+    },
+    {
+      id: "own_rights",
+      header: "Own rights",
+      accessorFn: (person) =>
+        Object.keys(person.rights).length === 0 ? "The role's" : Object.keys(person.rights).join(", "),
+      cell: ({ row }) =>
+        Object.keys(row.original.rights).length === 0 ? (
+          <span className="text-sm text-muted-foreground">The role&apos;s</span>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {Object.keys(row.original.rights).map((area) => (
+              <Badge key={area} variant="outline" className="capitalize">
+                {area}
+              </Badge>
+            ))}
+          </div>
+        ),
+    },
+    {
+      id: "covers",
+      header: "Covers",
+      accessorFn: (person) =>
+        person.scope
+          ? `${person.scope.department_ids.length} department(s), ${person.scope.location_ids.length} location(s)`
+          : "Everybody",
+      meta: { cellClassName: "text-sm" },
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="outline" onClick={() => setEditing(row.original)}>
+          <SlidersHorizontal /> Customise
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Sub-admin</TableHead>
-            <TableHead>Own rights</TableHead>
-            <TableHead>Covers</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {overview.people.map((person) => (
-            <TableRow key={person.user_id}>
-              <TableCell>
-                <div className="font-medium text-foreground">{person.full_name}</div>
-                <div className="text-xs text-muted-foreground">{person.email}</div>
-              </TableCell>
-              <TableCell>
-                {Object.keys(person.rights).length === 0 ? (
-                  <span className="text-sm text-muted-foreground">The role&apos;s</span>
-                ) : (
-                  <div className="flex flex-wrap gap-1">
-                    {Object.keys(person.rights).map((area) => (
-                      <Badge key={area} variant="outline" className="capitalize">
-                        {area}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </TableCell>
-              <TableCell className="text-sm">
-                {person.scope
-                  ? `${person.scope.department_ids.length} department(s), ${person.scope.location_ids.length} location(s)`
-                  : "Everybody"}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button size="sm" variant="outline" onClick={() => setEditing(person)}>
-                  <SlidersHorizontal /> Customise
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      {editing && (
+      <DataTable
+        tier="tier1"
+        title="Sub-admins"
+        description="Give one person different rights, or limit them to some departments or locations."
+        columns={columns}
+        data={overview?.people ?? []}
+        getRowId={(person) => person.user_id}
+        noun="sub-admins"
+        exportName="sub-admins"
+        searchPlaceholder="Search sub-admins"
+        isLoading={isLoading}
+        error={error}
+        onRetry={onRetry}
+        empty={{
+          icon: ShieldCheck,
+          title: "No sub-admins",
+          description: "Give somebody the sub-admin role under Users & roles first.",
+        }}
+      />
+      {editing && overview && (
         <PersonDialog
           overview={overview}
           person={editing}
@@ -372,6 +405,47 @@ function PersonDialog({
     return next;
   };
 
+  const columns: ColumnDef<Area>[] = [
+    {
+      id: "area",
+      header: "Area",
+      meta: { cellClassName: "font-medium capitalize" },
+      cell: ({ row }) => row.original.key,
+    },
+    {
+      id: "own",
+      header: "Own",
+      meta: { className: "text-center" },
+      cell: ({ row }) => (
+        <Checkbox
+          aria-label={`Own rights in ${row.original.key}`}
+          checked={own.has(row.original.key)}
+          onCheckedChange={(on) => setOwn((current) => toggleSet(current, row.original.key, on === true))}
+        />
+      ),
+    },
+    ...overview.rights.map(
+      (right): ColumnDef<Area> => ({
+        id: right,
+        header: RIGHT_LABEL[right] ?? right,
+        meta: { className: "text-center" },
+        cell: ({ row }) => (
+          <Checkbox
+            aria-label={`${row.original.key} ${RIGHT_LABEL[right] ?? right}`}
+            disabled={!own.has(row.original.key)}
+            checked={rights[row.original.key]?.[right] ?? false}
+            onCheckedChange={(on) =>
+              setRights((current) => ({
+                ...current,
+                [row.original.key]: { ...current[row.original.key], [right]: on === true },
+              }))
+            }
+          />
+        ),
+      }),
+    ),
+  ];
+
   return (
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
@@ -382,47 +456,7 @@ function PersonDialog({
             location unticked to let them cover everybody.
           </DialogDescription>
         </DialogHeader>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Area</TableHead>
-                <TableHead className="text-center">Own</TableHead>
-                {overview.rights.map((right) => (
-                  <TableHead key={right} className="text-center">
-                    {RIGHT_LABEL[right] ?? right}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {overview.areas.map((area) => (
-                <TableRow key={area.key}>
-                  <TableCell className="font-medium capitalize">{area.key}</TableCell>
-                  <TableCell className="text-center">
-                    <Checkbox
-                      aria-label={`Own rights in ${area.key}`}
-                      checked={own.has(area.key)}
-                      onCheckedChange={(on) => setOwn((current) => toggleSet(current, area.key, on === true))}
-                    />
-                  </TableCell>
-                  {overview.rights.map((right) => (
-                    <TableCell key={right} className="text-center">
-                      <Checkbox
-                        aria-label={`${area.key} ${RIGHT_LABEL[right] ?? right}`}
-                        disabled={!own.has(area.key)}
-                        checked={rights[area.key]?.[right] ?? false}
-                        onCheckedChange={(on) =>
-                          setRights((current) => ({ ...current, [area.key]: { ...current[area.key], [right]: on === true } }))
-                        }
-                      />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable variant="plain" columns={columns} data={overview.areas} getRowId={(area) => area.key} />
         <div className="grid gap-4 sm:grid-cols-2">
           <fieldset className="grid gap-2">
             <legend className="mb-1 text-sm font-medium">Departments</legend>

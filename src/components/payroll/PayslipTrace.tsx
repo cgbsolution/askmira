@@ -1,21 +1,14 @@
+import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, Info } from "lucide-react";
 import React from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { COMPONENT_TYPE_LABEL, isZero, periodLabel, RULE_TYPE_LABEL } from "@/components/payroll/labels";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import type { Payslip, PayslipInputLine } from "@/lib/types/payroll";
+import type { Payslip, PayslipInputLine, RuleSetUsed, TdsWorking } from "@/lib/types/payroll";
 import { formatDay, formatDays } from "@/lib/utils";
 
 const INPUT_KIND_LABEL: Record<PayslipInputLine["kind"], string> = {
@@ -26,6 +19,152 @@ const INPUT_KIND_LABEL: Record<PayslipInputLine["kind"], string> = {
   perquisite: "Perquisite (non-cash)",
   employer_contribution: "Employer",
 };
+
+/** A salary or statutory line of the payslip, or its income tax line. */
+type TraceLine = {
+  key: string;
+  code: string;
+  name: string;
+  typeLabel: string;
+  basis: string;
+  amount: string;
+  rule?: RuleSetUsed;
+};
+
+type TaxSlab = TdsWorking["computation"]["slabs"][number];
+
+const TRACE_COLUMNS: ColumnDef<TraceLine>[] = [
+  {
+    accessorKey: "name",
+    header: "Line",
+    meta: { text: (line) => `${line.name} ${line.code}` },
+    cell: ({ row }) => (
+      <>
+        <p className="font-medium text-foreground">{row.original.name}</p>
+        <p className="text-xs text-muted-foreground">{row.original.code}</p>
+      </>
+    ),
+  },
+  {
+    accessorKey: "typeLabel",
+    header: "Type",
+    cell: ({ row }) => <Badge variant="muted">{row.original.typeLabel}</Badge>,
+  },
+  {
+    accessorKey: "basis",
+    header: "How it was worked out",
+    meta: { cellClassName: "max-w-md whitespace-normal text-sm text-muted-foreground" },
+    cell: ({ row }) => {
+      const { basis, rule } = row.original;
+      return (
+        <>
+          {basis}
+          {rule && (
+            <span className="block text-xs">
+              {RULE_TYPE_LABEL[rule.rule_type] ?? rule.rule_type} · {rule.jurisdiction}{" "}
+              · version {rule.version} from {formatDay(rule.effective_from, true)}
+            </span>
+          )}
+        </>
+      );
+    },
+  },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.amount} />,
+  },
+];
+
+const INPUT_COLUMNS: ColumnDef<PayslipInputLine>[] = [
+  {
+    accessorKey: "name",
+    header: "Line",
+    meta: { text: (line) => `${line.name} ${line.code}` },
+    cell: ({ row }) => (
+      <>
+        <p className="font-medium text-foreground">{row.original.name}</p>
+        <p className="text-xs text-muted-foreground">
+          {row.original.code} · {String(row.original.source.type ?? row.original.provider)}
+        </p>
+      </>
+    ),
+  },
+  {
+    accessorKey: "kind",
+    header: "Kind",
+    meta: { text: (line) => INPUT_KIND_LABEL[line.kind] ?? line.kind },
+    cell: ({ row }) => (
+      <div className="flex flex-wrap gap-1">
+        <Badge variant="muted">{INPUT_KIND_LABEL[row.original.kind] ?? row.original.kind}</Badge>
+        {row.original.skipped && <Badge variant="warning">Not taken this month</Badge>}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "basis",
+    header: "Why",
+    meta: { cellClassName: "max-w-md whitespace-normal text-sm text-muted-foreground" },
+  },
+  {
+    accessorKey: "taxable_amount",
+    header: "Taxable",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.taxable_amount} />,
+  },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    meta: { className: "text-right" },
+    cell: ({ row }) => (
+      <>
+        <Money value={row.original.amount} />
+        {row.original.skipped && (
+          <p className="text-xs text-muted-foreground">
+            of <Money value={row.original.requested} /> due
+          </p>
+        )}
+      </>
+    ),
+  },
+];
+
+/** The projection's tax slabs, with its rebate, surcharge and cess beneath. */
+function slabColumns(computation: TdsWorking["computation"]): ColumnDef<TaxSlab>[] {
+  return [
+    {
+      id: "slab",
+      header: "Slab",
+      accessorFn: (slab) => `${slab.from} – ${slab.to}`,
+      cell: ({ row }) => (
+        <>
+          <Money value={row.original.from} /> – <Money value={row.original.to} />
+        </>
+      ),
+      footer: () => "Rebate · surcharge · cess",
+    },
+    {
+      accessorKey: "rate",
+      header: "Rate",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => `${row.original.rate}%`,
+      footer: () => null,
+    },
+    {
+      accessorKey: "tax",
+      header: "Tax",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.tax} />,
+      footer: () => (
+        <>
+          <Money value={computation.rebate} /> · <Money value={computation.surcharge} /> ·{" "}
+          <Money value={computation.cess} />
+        </>
+      ),
+    },
+  ];
+}
 
 function Figure({ label, value }: { label: string; value: string }) {
   return (
@@ -46,6 +185,25 @@ function Figure({ label, value }: { label: string; value: string }) {
 export function PayslipTrace({ payslip }: { payslip: Payslip }) {
   const ruleSetById = new Map(payslip.rule_sets.map((rs) => [rs.id, rs]));
   const tds = payslip.tds_working;
+  const traceLines: TraceLine[] = [
+    ...payslip.lines.map((line) => ({
+      key: line.code,
+      code: line.code,
+      name: line.name,
+      typeLabel: COMPONENT_TYPE_LABEL[line.type] ?? line.type,
+      basis: line.basis,
+      amount: line.amount,
+      rule: line.rule_set_id ? ruleSetById.get(line.rule_set_id) : undefined,
+    })),
+    {
+      key: "__income-tax",
+      code: "TDS",
+      name: "Income tax (TDS)",
+      typeLabel: "Deduction",
+      basis: payslip.tds_note,
+      amount: payslip.tds,
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-4">
@@ -100,125 +258,26 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
         </Alert>
       )}
 
-      <Card tier="tier1" className="gap-0 py-0">
-        <CardHeader className="border-b border-border py-4">
-          <CardTitle>Salary and statutory lines</CardTitle>
-          <CardDescription>
-            Each line says how it was worked out and which approved rule version it used.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="overflow-x-auto p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Line</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>How it was worked out</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {payslip.lines.map((line) => {
-                const rule = line.rule_set_id ? ruleSetById.get(line.rule_set_id) : undefined;
-                return (
-                  <TableRow key={line.code}>
-                    <TableCell>
-                      <p className="font-medium text-foreground">{line.name}</p>
-                      <p className="text-xs text-muted-foreground">{line.code}</p>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="muted">{COMPONENT_TYPE_LABEL[line.type] ?? line.type}</Badge>
-                    </TableCell>
-                    <TableCell className="max-w-md whitespace-normal text-sm text-muted-foreground">
-                      {line.basis}
-                      {rule && (
-                        <span className="block text-xs">
-                          {RULE_TYPE_LABEL[rule.rule_type] ?? rule.rule_type} · {rule.jurisdiction}{" "}
-                          · version {rule.version} from {formatDay(rule.effective_from, true)}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Money value={line.amount} />
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              <TableRow>
-                <TableCell>
-                  <p className="font-medium text-foreground">Income tax (TDS)</p>
-                  <p className="text-xs text-muted-foreground">TDS</p>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="muted">Deduction</Badge>
-                </TableCell>
-                <TableCell className="max-w-md whitespace-normal text-sm text-muted-foreground">
-                  {payslip.tds_note}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={payslip.tds} />
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <DataTable
+        variant="plain"
+        tier="tier1"
+        title="Salary and statutory lines"
+        description="Each line says how it was worked out and which approved rule version it used."
+        columns={TRACE_COLUMNS}
+        data={traceLines}
+        getRowId={(line) => line.key}
+      />
 
       {payslip.input_lines.length > 0 && (
-        <Card tier="tier1" className="gap-0 py-0">
-          <CardHeader className="border-b border-border py-4">
-            <CardTitle>From other modules</CardTitle>
-            <CardDescription>
-              Loans, reimbursements, arrears, bonuses and recoveries, each with the record it
-              came from.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-x-auto p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Line</TableHead>
-                  <TableHead>Kind</TableHead>
-                  <TableHead>Why</TableHead>
-                  <TableHead className="text-right">Taxable</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payslip.input_lines.map((line, index) => (
-                  <TableRow key={`${line.code}-${index}`}>
-                    <TableCell>
-                      <p className="font-medium text-foreground">{line.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {line.code} · {String(line.source.type ?? line.provider)}
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        <Badge variant="muted">{INPUT_KIND_LABEL[line.kind] ?? line.kind}</Badge>
-                        {line.skipped && <Badge variant="warning">Not taken this month</Badge>}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-md whitespace-normal text-sm text-muted-foreground">
-                      {line.basis}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Money value={line.taxable_amount} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Money value={line.amount} />
-                      {line.skipped && (
-                        <p className="text-xs text-muted-foreground">
-                          of <Money value={line.requested} /> due
-                        </p>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <DataTable
+          variant="plain"
+          tier="tier1"
+          title="From other modules"
+          description="Loans, reimbursements, arrears, bonuses and recoveries, each with the record it came from."
+          columns={INPUT_COLUMNS}
+          data={payslip.input_lines}
+          getRowId={(line, index) => `${line.code}-${index}`}
+        />
       )}
 
       <Card tier="tier1">
@@ -273,38 +332,12 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
                   {tds.declaration_basis}
                 </p>
                 {tds.computation.slabs.length > 0 && (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Slab</TableHead>
-                        <TableHead className="text-right">Rate</TableHead>
-                        <TableHead className="text-right">Tax</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tds.computation.slabs.map((slab) => (
-                        <TableRow key={`${slab.from}-${slab.to}`}>
-                          <TableCell>
-                            <Money value={slab.from} /> – <Money value={slab.to} />
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">{slab.rate}%</TableCell>
-                          <TableCell className="text-right">
-                            <Money value={slab.tax} />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow>
-                        <TableCell colSpan={2}>Rebate · surcharge · cess</TableCell>
-                        <TableCell className="text-right">
-                          <Money value={tds.computation.rebate} /> ·{" "}
-                          <Money value={tds.computation.surcharge} /> ·{" "}
-                          <Money value={tds.computation.cess} />
-                        </TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
+                  <DataTable
+                    variant="plain"
+                    columns={slabColumns(tds.computation)}
+                    data={tds.computation.slabs}
+                    getRowId={(slab) => `${slab.from}-${slab.to}`}
+                  />
                 )}
                 {tds.computation.deductions.length > 0 && (
                   <ul className="space-y-1 text-sm">

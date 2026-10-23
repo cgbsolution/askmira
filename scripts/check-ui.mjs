@@ -35,16 +35,29 @@ function walk(dir) {
   });
 }
 
+/*
+ * Every table is a DataTable (search, columns, export, checkboxes, paging, one
+ * look). The shadcn <Table> is for DataTable itself; anywhere else it needs a
+ * `table-ok: <reason>` comment on the line above — a rowSpan grid, a calendar,
+ * a printable page — so each exception is deliberate and visible.
+ */
+const dataTableDir = path.join(root, "components", "common", "data-table") + path.sep;
+const TABLE = /<Table(\s|>|$)/;
+
 const problems = [];
 for (const file of walk(root)) {
   if (file.startsWith(allowedDir)) continue;
   const lines = fs.readFileSync(file, "utf8").split(/\r?\n/);
   lines.forEach((line, index) => {
     if (line.trim().startsWith("//") || line.trim().startsWith("*")) return;
+    const where = `${path.relative(path.dirname(root), file).split(path.sep).join("/")}:${index + 1}`;
     for (const rule of RULES) {
       for (const match of line.matchAll(rule.pattern)) {
-        problems.push(`${path.relative(path.dirname(root), file)}:${index + 1}  ${rule.message(match)}`);
+        problems.push(`${where}  ${rule.message(match)}`);
       }
+    }
+    if (TABLE.test(line) && !file.startsWith(dataTableDir) && !/table-ok:/.test(lines[index - 1] ?? "")) {
+      problems.push(`${where}  hand-built <Table> — use DataTable from @/components/common/data-table/DataTable`);
     }
   });
 }

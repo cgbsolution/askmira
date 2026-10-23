@@ -1,9 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Download, FileSpreadsheet, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { QueryBoundary, errorDetail } from "@/components/expenses/ReviewCommon";
 import { EligibilityBadge, ReconciliationBadge, formatMoney } from "@/components/expenses/shared";
@@ -11,65 +13,87 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { downloadFile } from "@/lib/api";
-import type { GstRegister, GstRegisterLine } from "@/lib/types/expenses";
+import type { GstEligibility, GstRegister, GstRegisterLine, Gstr2bMatch } from "@/lib/types/expenses";
 import { formatDay } from "@/lib/utils";
 
-function RegisterTable({ lines }: { lines: GstRegisterLine[] }) {
-  return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className="pl-5">Invoice</TableHead>
-          <TableHead>Vendor GSTIN</TableHead>
-          <TableHead>HSN / SAC</TableHead>
-          <TableHead>Place of supply</TableHead>
-          <TableHead className="text-right">Taxable</TableHead>
-          <TableHead className="text-right">CGST</TableHead>
-          <TableHead className="text-right">SGST</TableHead>
-          <TableHead className="text-right">IGST</TableHead>
-          <TableHead className="text-right">Cess</TableHead>
-          <TableHead>Eligibility</TableHead>
-          <TableHead className="pr-5">GSTR-2B</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {lines.map((line, index) => (
-          <TableRow key={`${line.vendor_gstin}-${line.invoice_number}-${index}`} className="align-top">
-            <TableCell className="pl-5">
-              <p className="font-medium text-foreground">{line.invoice_number}</p>
-              <p className="text-xs text-muted-foreground">{formatDay(line.invoice_date, true)}</p>
-            </TableCell>
-            <TableCell className="tabular-nums">{line.vendor_gstin}</TableCell>
-            <TableCell>{line.hsn_sac ?? "—"}</TableCell>
-            <TableCell>{line.place_of_supply ?? "—"}</TableCell>
-            <TableCell className="text-right tabular-nums">{formatMoney(line.taxable_value)}</TableCell>
-            <TableCell className="text-right tabular-nums">{formatMoney(line.cgst)}</TableCell>
-            <TableCell className="text-right tabular-nums">{formatMoney(line.sgst)}</TableCell>
-            <TableCell className="text-right tabular-nums">{formatMoney(line.igst)}</TableCell>
-            <TableCell className="text-right tabular-nums">{formatMoney(line.cess)}</TableCell>
-            <TableCell className="max-w-64 whitespace-normal">
-              <EligibilityBadge eligibility={line.eligibility} />
-              <p className="mt-1 text-xs text-muted-foreground">{line.eligibility_reason}</p>
-            </TableCell>
-            <TableCell className="pr-5">
-              <ReconciliationBadge status={line.reconciliation_status} />
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  );
+/** The badges' words, for sorting, the search and the CSV. */
+const ELIGIBILITY_TEXT: Record<GstEligibility, string> = {
+  eligible: "Eligible",
+  ineligible: "Ineligible",
+  uncertain: "Needs review",
+};
+
+const MATCH_TEXT: Record<Gstr2bMatch, string> = {
+  not_reconciled: "Not reconciled",
+  matched: "Matched in 2B",
+  missing_in_2b: "Missing in 2B",
+  value_mismatch: "Value mismatch",
+};
+
+function moneyColumn(key: "taxable_value" | "cgst" | "sgst" | "igst" | "cess", header: string): ColumnDef<GstRegisterLine> {
+  return {
+    accessorKey: key,
+    header,
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => formatMoney(row.original[key]),
+  };
 }
+
+const COLUMNS: ColumnDef<GstRegisterLine>[] = [
+  {
+    accessorKey: "invoice_number",
+    header: "Invoice",
+    meta: { text: (line) => `${line.invoice_number} · ${formatDay(line.invoice_date, true)}` },
+    cell: ({ row }) => (
+      <>
+        <p className="font-medium text-foreground">{row.original.invoice_number}</p>
+        <p className="text-xs text-muted-foreground">{formatDay(row.original.invoice_date, true)}</p>
+      </>
+    ),
+  },
+  { accessorKey: "vendor_gstin", header: "Vendor GSTIN", meta: { cellClassName: "tabular-nums" } },
+  {
+    accessorKey: "hsn_sac",
+    header: "HSN / SAC",
+    cell: ({ row }) => row.original.hsn_sac ?? "—",
+  },
+  {
+    accessorKey: "place_of_supply",
+    header: "Place of supply",
+    cell: ({ row }) => row.original.place_of_supply ?? "—",
+  },
+  moneyColumn("taxable_value", "Taxable"),
+  moneyColumn("cgst", "CGST"),
+  moneyColumn("sgst", "SGST"),
+  moneyColumn("igst", "IGST"),
+  moneyColumn("cess", "Cess"),
+  {
+    id: "eligibility",
+    header: "Eligibility",
+    accessorFn: (line) => ELIGIBILITY_TEXT[line.eligibility],
+    meta: {
+      cellClassName: "max-w-64 whitespace-normal",
+      text: (line) => [ELIGIBILITY_TEXT[line.eligibility], line.eligibility_reason].filter(Boolean).join(" · "),
+    },
+    cell: ({ row }) => (
+      <>
+        <EligibilityBadge eligibility={row.original.eligibility} />
+        <p className="mt-1 text-xs text-muted-foreground">{row.original.eligibility_reason}</p>
+      </>
+    ),
+  },
+  {
+    id: "gstr2b",
+    header: "GSTR-2B",
+    accessorFn: (line) => MATCH_TEXT[line.reconciliation_status] ?? line.reconciliation_status,
+    cell: ({ row }) => <ReconciliationBadge status={row.original.reconciliation_status} />,
+  },
+];
+
+const lineId = (line: GstRegisterLine, index: number) => `${line.vendor_gstin}-${line.invoice_number}-${index}`;
 
 /**
  * The register a CA prepares GSTR-3B from. Lines still awaiting review are
@@ -148,39 +172,37 @@ export function GstRegisterPanel() {
           {(register) => (
             <div className="grid gap-4">
               {register.note && <p className="text-sm text-muted-foreground">{register.note}</p>}
-              <Card tier="tier1">
-                <CardHeader>
-                  <CardTitle>Eligible</CardTitle>
-                  <CardDescription>
+              <DataTable
+                title="Eligible"
+                description={
+                  <>
                     {formatDay(register.period_start, true)} – {formatDay(register.period_end, true)} · total tax{" "}
                     <span className="font-medium tabular-nums text-foreground">
                       {formatMoney(register.eligible_total_tax)}
                     </span>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {register.eligible.length === 0 ? (
-                    <p className="px-5 pb-2 text-sm text-muted-foreground">No eligible lines in this period.</p>
-                  ) : (
-                    <RegisterTable lines={register.eligible} />
-                  )}
-                </CardContent>
-              </Card>
-              <Card tier="tier1">
-                <CardHeader>
-                  <CardTitle>Awaiting review</CardTitle>
-                  <CardDescription>
-                    Not in the eligible total. Decide them on the Review queue tab before filing.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {register.awaiting_review.length === 0 ? (
-                    <p className="px-5 pb-2 text-sm text-muted-foreground">Nothing awaiting review in this period.</p>
-                  ) : (
-                    <RegisterTable lines={register.awaiting_review} />
-                  )}
-                </CardContent>
-              </Card>
+                  </>
+                }
+                columns={COLUMNS}
+                data={register.eligible}
+                getRowId={lineId}
+                noun="lines"
+                exportName={`gst-register-eligible-${register.period_start}-${register.period_end}`}
+                searchPlaceholder="Search invoice or GSTIN"
+                rowClassName={() => "align-top"}
+                empty={{ icon: FileSpreadsheet, title: "No eligible lines in this period" }}
+              />
+              <DataTable
+                title="Awaiting review"
+                description="Not in the eligible total. Decide them on the Review queue tab before filing."
+                columns={COLUMNS}
+                data={register.awaiting_review}
+                getRowId={lineId}
+                noun="lines"
+                exportName={`gst-register-awaiting-review-${register.period_start}-${register.period_end}`}
+                searchPlaceholder="Search invoice or GSTIN"
+                rowClassName={() => "align-top"}
+                empty={{ icon: FileSpreadsheet, title: "Nothing awaiting review in this period" }}
+              />
             </div>
           )}
         </QueryBoundary>

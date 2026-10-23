@@ -1,11 +1,13 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Ban, FileWarning, Loader2, ShieldCheck, Users } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { DetailField } from "@/components/payroll-ops/disbursements/common";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { FormField } from "@/components/common/FormField";
 import { EmptyState } from "@/components/common/EmptyState";
@@ -34,14 +36,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -402,97 +396,104 @@ function BatchBody({ batch, onApproved }: { batch: ArrearBatch; onApproved: () =
   );
 }
 
-/** Lines grouped by employee, then by period. */
+const LINE_COLUMNS: ColumnDef<ArrearLine>[] = [
+  {
+    id: "employee",
+    header: "Employee",
+    accessorFn: (line) => line.employee_name ?? "Employee",
+    meta: { text: (line) => `${line.employee_name ?? "Employee"} ${line.employee_code ?? ""}` },
+    cell: ({ row }) => (
+      <>
+        <span className="font-medium text-foreground">{row.original.employee_name ?? "Employee"}</span>
+        <span className="block text-xs text-muted-foreground">{row.original.employee_code ?? ""}</span>
+      </>
+    ),
+  },
+  {
+    accessorKey: "period",
+    header: "Period",
+    meta: { className: "whitespace-nowrap", text: (line) => displayPeriod(line.period) },
+    cell: ({ row }) => displayPeriod(row.original.period),
+  },
+  {
+    accessorKey: "component_name",
+    header: "Component",
+    meta: { text: (line) => `${line.component_name} ${line.component_code}` },
+    cell: ({ row }) => (
+      <>
+        <span className="text-foreground">{row.original.component_name}</span>
+        <span className="block text-xs text-muted-foreground">{row.original.component_code}</span>
+      </>
+    ),
+  },
+  {
+    accessorKey: "component_type",
+    header: "Type",
+    meta: {
+      className: "hidden sm:table-cell",
+      cellClassName: "text-muted-foreground",
+      text: (line) => humanize(line.component_type),
+    },
+    cell: ({ row }) => humanize(row.original.component_type),
+  },
+  {
+    accessorKey: "paid_amount",
+    header: "Paid",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.paid_amount} className="text-muted-foreground" />,
+  },
+  {
+    accessorKey: "should_have_been_amount",
+    header: "Should have been",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.should_have_been_amount} />,
+  },
+  {
+    accessorKey: "difference",
+    header: "Difference",
+    meta: { className: "text-right" },
+    cell: ({ row }) => (
+      <Money
+        value={row.original.difference}
+        className={cn("font-medium", isNegative(row.original.difference) && "text-destructive")}
+      />
+    ),
+  },
+];
+
+/** Lines by employee, then by period: each row names its employee and period. */
 function GroupedLines({ rows, filtered }: { rows: ArrearLine[]; filtered: boolean }) {
-  const groups = useMemo(() => {
-    const byEmployee = new Map<string, { label: string; code: string; periods: Map<string, ArrearLine[]> }>();
+  // Employees in the order they first appear, each one's periods oldest first.
+  const ordered = useMemo(() => {
+    const byEmployee = new Map<string, Map<string, ArrearLine[]>>();
     for (const line of rows) {
-      let group = byEmployee.get(line.employee_id);
-      if (!group) {
-        group = {
-          label: line.employee_name ?? "Employee",
-          code: line.employee_code ?? "",
-          periods: new Map(),
-        };
-        byEmployee.set(line.employee_id, group);
+      let periods = byEmployee.get(line.employee_id);
+      if (!periods) {
+        periods = new Map();
+        byEmployee.set(line.employee_id, periods);
       }
-      const list = group.periods.get(line.period) ?? [];
+      const list = periods.get(line.period) ?? [];
       list.push(line);
-      group.periods.set(line.period, list);
+      periods.set(line.period, list);
     }
-    return Array.from(byEmployee.entries()).map(([id, group]) => ({
-      id,
-      ...group,
-      periods: Array.from(group.periods.entries()).sort(([a], [b]) => a.localeCompare(b)),
-    }));
+    return Array.from(byEmployee.values()).flatMap((periods) =>
+      Array.from(periods.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .flatMap(([, periodLines]) => periodLines),
+    );
   }, [rows]);
 
-  if (rows.length === 0) {
-    return (
-      <EmptyState
-        icon={Users}
-        title={filtered ? "No arrears for this employee in this batch" : "This batch has no lines"}
-      />
-    );
-  }
-
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Component</TableHead>
-          <TableHead className="hidden sm:table-cell">Type</TableHead>
-          <TableHead className="text-right">Paid</TableHead>
-          <TableHead className="text-right">Should have been</TableHead>
-          <TableHead className="text-right">Difference</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {groups.map((group) => (
-          <React.Fragment key={group.id}>
-            <TableRow className="bg-muted/60 hover:bg-muted/60">
-              <TableCell colSpan={5} className="font-semibold text-foreground">
-                {group.label}{" "}
-                <span className="font-normal text-muted-foreground">{group.code}</span>
-              </TableCell>
-            </TableRow>
-            {group.periods.map(([period, periodLines]) => (
-              <React.Fragment key={`${group.id}-${period}`}>
-                <TableRow className="hover:bg-transparent">
-                  <TableCell colSpan={5} className="py-1.5 pl-6 text-xs font-medium text-muted-foreground">
-                    {displayPeriod(period)}
-                  </TableCell>
-                </TableRow>
-                {periodLines.map((line) => (
-                  <TableRow key={line.id}>
-                    <TableCell className="pl-6">
-                      <span className="text-foreground">{line.component_name}</span>
-                      <span className="block text-xs text-muted-foreground">
-                        {line.component_code}
-                      </span>
-                    </TableCell>
-                    <TableCell className="hidden text-muted-foreground sm:table-cell">
-                      {humanize(line.component_type)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Money value={line.paid_amount} className="text-muted-foreground" />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Money value={line.should_have_been_amount} />
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Money
-                        value={line.difference}
-                        className={cn("font-medium", isNegative(line.difference) && "text-destructive")}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </React.Fragment>
-            ))}
-          </React.Fragment>
-        ))}
-      </TableBody>
-    </Table>
+    <DataTable
+      bordered={false}
+      columns={LINE_COLUMNS}
+      data={ordered}
+      noun="lines"
+      exportName="arrear-lines"
+      searchPlaceholder="Search employee or component"
+      filtered={filtered}
+      empty={{ icon: Users, title: "This batch has no lines" }}
+      emptyMessage="No arrears for this employee in this batch."
+    />
   );
 }

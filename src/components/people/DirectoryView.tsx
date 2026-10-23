@@ -1,12 +1,13 @@
 "use client";
 
-import { Download, Loader2, Search, Users } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Download, Loader2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
@@ -14,7 +15,6 @@ import { EMPLOYMENT_STATUS, NONE, fromSelect, personName } from "@/components/pe
 import { EmploymentStatusBadge } from "@/components/people/StatusBadges";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -22,14 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { HR } from "@/lib/access";
 import { ApiError, downloadFile } from "@/lib/api";
@@ -52,6 +44,7 @@ export function DirectoryView() {
 
   const [term, setTerm] = useState(params.get("search") ?? "");
   const [debounced, setDebounced] = useState(term);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const department = params.get("department") ?? NONE;
   const location = params.get("location") ?? NONE;
   const status = params.get("status") ?? NONE;
@@ -84,7 +77,7 @@ export function DirectoryView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term]);
 
-  const query = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
+  const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   if (debounced.trim()) query.set("search", debounced.trim());
   if (fromSelect(department)) query.set("department_id", department);
   if (fromSelect(location)) query.set("location_id", location);
@@ -93,9 +86,6 @@ export function DirectoryView() {
     `/employees?${query}`,
   );
 
-  const rows = data?.items ?? [];
-  const total = data?.total ?? 0;
-  const lastPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const [exporting, setExporting] = useState(false);
   const exportCsv = async () => {
     const filters = new URLSearchParams(query);
@@ -113,6 +103,49 @@ export function DirectoryView() {
   const filtered =
     Boolean(debounced.trim()) || [department, location, status].some((v) => v !== NONE);
 
+  const columns: ColumnDef<DirectoryEmployee>[] = [
+    {
+      id: "employee",
+      header: "Employee",
+      accessorFn: (row) => personName(row),
+      cell: ({ row }) => (
+        <Link
+          href={`/people/${row.original.id}`}
+          className="block rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+        >
+          <PersonCell
+            name={personName(row.original)}
+            photoUrl={row.original.photo_url}
+            subtitle={row.original.designation ?? row.original.work_email}
+          />
+        </Link>
+      ),
+    },
+    {
+      accessorKey: "employee_code",
+      header: "Code",
+      meta: { cellClassName: "text-muted-foreground" },
+    },
+    {
+      id: "department",
+      header: "Department",
+      accessorFn: (row) => org.departmentName(row.department_id),
+      meta: { cellClassName: "text-muted-foreground" },
+    },
+    {
+      id: "location",
+      header: "Location",
+      accessorFn: (row) => org.locationName(row.location_id),
+      meta: { cellClassName: "text-muted-foreground" },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (row) => EMPLOYMENT_STATUS[row.status].label },
+      cell: ({ row }) => <EmploymentStatusBadge status={row.original.status} />,
+    },
+  ];
+
   return (
     <PageShell
       title="Employees"
@@ -125,32 +158,28 @@ export function DirectoryView() {
         </RequireRole>
       }
     >
-      <DataPanel
+      <DataTable
+        columns={columns}
+        data={data?.items ?? []}
+        noun="people"
+        exportName="directory"
         isLoading={isLoading && !data}
         error={error?.detail}
         onRetry={reload}
-        isEmpty={rows.length === 0}
+        filtered={filtered}
         empty={{
           icon: Users,
-          title: filtered ? "No one matches these filters" : "No employees yet",
-          description: filtered
-            ? "Try a different name, or clear a filter."
-            : "People appear here once HR adds them under Onboarding → Add employees.",
+          title: "No employees yet",
+          description: "People appear here once HR adds them under Onboarding → Add employees.",
         }}
-        toolbar={
+        emptyMessage="No one matches these filters. Try a different name, or clear a filter."
+        searchPlaceholder="Name, code, email or title"
+        search={term}
+        onSearchChange={setTerm}
+        filters={
           <>
-            <div className="relative w-full max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={term}
-                onChange={(event) => setTerm(event.target.value)}
-                placeholder="Name, code, email or title"
-                className="pl-9"
-                aria-label="Search people"
-              />
-            </div>
             <Select value={department} onValueChange={(v) => update({ department: v })}>
-              <SelectTrigger aria-label="Department" className="w-44">
+              <SelectTrigger aria-label="Department" className="h-9 w-44">
                 <SelectValue placeholder="Department" />
               </SelectTrigger>
               <SelectContent>
@@ -163,7 +192,7 @@ export function DirectoryView() {
               </SelectContent>
             </Select>
             <Select value={location} onValueChange={(v) => update({ location: v })}>
-              <SelectTrigger aria-label="Location" className="w-44">
+              <SelectTrigger aria-label="Location" className="h-9 w-44">
                 <SelectValue placeholder="Location" />
               </SelectTrigger>
               <SelectContent>
@@ -176,7 +205,7 @@ export function DirectoryView() {
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={(v) => update({ status: v })}>
-              <SelectTrigger aria-label="Status" className="w-36">
+              <SelectTrigger aria-label="Status" className="h-9 w-36">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -188,79 +217,19 @@ export function DirectoryView() {
                 ))}
               </SelectContent>
             </Select>
-            <span className="ml-auto text-sm text-muted-foreground tabular-nums">
-              {total} {total === 1 ? "person" : "people"}
-            </span>
           </>
         }
-        footer={
-          total > PAGE_SIZE ? (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                Page {page} of {lastPage}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => update({ page: String(page - 1) })}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= lastPage}
-                  onClick={() => update({ page: String(page + 1) })}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          ) : undefined
-        }
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead>Code</TableHead>
-              <TableHead>Department</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>
-                  <Link
-                    href={`/people/${row.id}`}
-                    className="block rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
-                  >
-                    <PersonCell
-                      name={personName(row)}
-                      photoUrl={row.photo_url}
-                      subtitle={row.designation ?? row.work_email}
-                    />
-                  </Link>
-                </TableCell>
-                <TableCell className="text-muted-foreground">{row.employee_code}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {org.departmentName(row.department_id)}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {org.locationName(row.location_id)}
-                </TableCell>
-                <TableCell>
-                  <EmploymentStatusBadge status={row.status} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+        server={{
+          page,
+          pageSize,
+          total: data?.total ?? 0,
+          onPageChange: (next) => update({ page: String(next) }),
+          onPageSizeChange: (size) => {
+            setPageSize(size);
+            update({ page: null });
+          },
+        }}
+      />
     </PageShell>
   );
 }

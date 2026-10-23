@@ -1,23 +1,17 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, Filter, TrendingDown } from "lucide-react";
 import React from "react";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DataPanel } from "@/components/common/DataPanel";
 import { type GroupBy, stageLabel } from "@/components/hiring/AnalyticsNames";
 import { percent } from "@/components/hiring/labels";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { type ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Progress } from "@/components/ui/progress";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { FunnelReport, FunnelStageRow } from "@/lib/types/hiring";
 
 const GROUP_TITLE: Record<GroupBy, string> = {
@@ -48,44 +42,52 @@ export function FunnelChart({ stages }: { stages: FunnelStageRow[] }) {
 
 /** One funnel as rows: stage, count, drop-off from the stage before, and a bar of the share. */
 export function FunnelStageTable({ stages, total }: { stages: FunnelStageRow[]; total: number }) {
+  const columns: ColumnDef<FunnelStageRow>[] = [
+    {
+      accessorKey: "stage",
+      header: "Stage",
+      meta: { cellClassName: "font-medium text-foreground" },
+      cell: ({ row }) => stageLabel(row.original.stage),
+    },
+    {
+      accessorKey: "count",
+      header: "Candidates",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "dropped_from_previous",
+      header: "Dropped",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => row.original.dropped_from_previous ?? "—",
+    },
+    {
+      accessorKey: "drop_off_rate",
+      header: "Drop-off",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => percent(row.original.drop_off_rate),
+    },
+    {
+      id: "share",
+      header: "Share of all candidates",
+      meta: { headClassName: "w-2/5" },
+      cell: ({ row }) => {
+        const share = total > 0 ? (row.original.count / total) * 100 : 0;
+        return (
+          <div className="flex items-center gap-2">
+            <Progress
+              value={share}
+              aria-label={`${stageLabel(row.original.stage)}: ${Math.round(share)}% of candidates`}
+            />
+            <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
+              {Math.round(share)}%
+            </span>
+          </div>
+        );
+      },
+    },
+  ];
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Stage</TableHead>
-          <TableHead className="text-right">Candidates</TableHead>
-          <TableHead className="text-right">Dropped</TableHead>
-          <TableHead className="text-right">Drop-off</TableHead>
-          <TableHead className="w-2/5">Share of all candidates</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {stages.map((row) => {
-          const share = total > 0 ? (row.count / total) * 100 : 0;
-          return (
-            <TableRow key={row.stage}>
-              <TableCell className="font-medium text-foreground">{stageLabel(row.stage)}</TableCell>
-              <TableCell className="text-right tabular-nums">{row.count}</TableCell>
-              <TableCell className="text-right tabular-nums">
-                {row.dropped_from_previous ?? "—"}
-              </TableCell>
-              <TableCell className="text-right tabular-nums">{percent(row.drop_off_rate)}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Progress
-                    value={share}
-                    aria-label={`${stageLabel(row.stage)}: ${Math.round(share)}% of candidates`}
-                  />
-                  <span className="w-10 shrink-0 text-right text-xs tabular-nums text-muted-foreground">
-                    {Math.round(share)}%
-                  </span>
-                </div>
-              </TableCell>
-            </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+    <DataTable variant="plain" bordered={false} columns={columns} data={stages} getRowId={(row) => row.stage} />
   );
 }
 
@@ -159,9 +161,7 @@ export function FunnelPanel({
           <div className="px-5 pt-2">
             <FunnelChart stages={funnel.stages} />
           </div>
-          <div className="overflow-x-auto">
-            <FunnelStageTable stages={funnel.stages} total={funnel.total_candidates} />
-          </div>
+          <FunnelStageTable stages={funnel.stages} total={funnel.total_candidates} />
           <div className="grid gap-3 px-5">
             {funnel.largest_drop_off && (
               <Alert variant="warning">
@@ -193,9 +193,7 @@ export function FunnelPanel({
                       · {group.total} candidates
                     </span>
                   </p>
-                  <div className="overflow-x-auto">
-                    <FunnelStageTable stages={group.stages} total={group.total} />
-                  </div>
+                  <FunnelStageTable stages={group.stages} total={group.total} />
                 </div>
               ))}
             </section>

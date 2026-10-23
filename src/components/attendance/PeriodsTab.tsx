@@ -1,12 +1,13 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, Lock, LockOpen, RefreshCw, Users } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { PersonCell } from "@/components/common/PersonCell";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,21 +28,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { post } from "@/lib/api";
+import { type ApiError, post } from "@/lib/api";
 import { ADMIN } from "@/lib/access";
 import type {
   AttendanceSummaryResponse,
+  EmployeeAttendanceSummary,
   PeriodLock,
 } from "@/lib/types/attendance";
 import { formatDateRange, formatDays } from "@/lib/utils";
@@ -51,12 +45,79 @@ import {
   daysInclusive,
   errorDetail,
   formatDateTime,
-  LoadError,
-  TableSkeleton,
 } from "./shared";
 import { Field } from "./ShiftsTab";
 
 const MAX_RECOMPUTE_DAYS = 93;
+
+/**
+ * LoadError's words as DataTable's `error` and `onRetry`: a 403 reads as a
+ * lack of access, with nothing to retry.
+ */
+function loadErrorProps(error: ApiError | null, onRetry: () => void) {
+  if (error?.status === 403) {
+    return {
+      error: `You don't have access to this. ${error.detail} If you think you should, ask your admin to check your role.`,
+      onRetry: undefined,
+    };
+  }
+  return { error: error?.detail ?? null, onRetry };
+}
+
+/** A day count from the API ("21.50"): sorted by its value, shown and exported as the screen shows it. */
+function daysColumn(
+  key: "payable_days" | "lop_days",
+  header: string,
+  cellClassName: string,
+): ColumnDef<EmployeeAttendanceSummary> {
+  return {
+    id: key,
+    header,
+    accessorFn: (row) => Number(row[key]),
+    meta: { className: "text-right", cellClassName, text: (row) => formatDays(row[key]) },
+    cell: ({ row }) => formatDays(row.original[key]),
+  };
+}
+
+function countColumn(
+  key: "present_days" | "half_days" | "absent_days" | "on_leave_days" | "late_count",
+  header: string,
+): ColumnDef<EmployeeAttendanceSummary> {
+  return { accessorKey: key, header, meta: { className: "text-right", cellClassName: "tabular-nums" } };
+}
+
+const SUMMARY_COLUMNS: ColumnDef<EmployeeAttendanceSummary>[] = [
+  {
+    accessorKey: "employee_name",
+    header: "Employee",
+    meta: { text: (row) => `${row.employee_name} ${row.employee_code}` },
+    cell: ({ row }) => (
+      <PersonCell
+        size="sm"
+        name={row.original.employee_name}
+        subtitle={`${row.original.employee_code} · ${row.original.days_computed} days computed`}
+      />
+    ),
+  },
+  daysColumn("payable_days", "Payable", "font-medium tabular-nums"),
+  daysColumn("lop_days", "LOP", "tabular-nums"),
+  countColumn("present_days", "Present"),
+  countColumn("half_days", "Half"),
+  countColumn("absent_days", "Absent"),
+  countColumn("on_leave_days", "On leave"),
+  countColumn("late_count", "Late"),
+  {
+    accessorKey: "needs_regularisation",
+    header: "Needs regularisation",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) =>
+      row.original.needs_regularisation > 0 ? (
+        <Badge variant="warning">{row.original.needs_regularisation}</Badge>
+      ) : (
+        0
+      ),
+  },
+];
 
 export function PeriodsTab() {
   const { hasRole } = useAuth();
@@ -93,6 +154,59 @@ export function PeriodsTab() {
 
   const isLocked = Boolean(summary.data?.is_locked);
   const pendingTotal = employees.reduce((sum, row) => sum + row.needs_regularisation, 0);
+
+  const lockColumns: ColumnDef<PeriodLock>[] = [
+    {
+      id: "period",
+      header: "Period",
+      accessorFn: (row) => row.period_start,
+      meta: {
+        cellClassName: "whitespace-nowrap font-medium",
+        text: (row) => formatDateRange(row.period_start, row.period_end),
+      },
+      cell: ({ row }) => formatDateRange(row.original.period_start, row.original.period_end),
+    },
+    {
+      accessorKey: "locked_at",
+      header: "Locked",
+      meta: { cellClassName: "whitespace-nowrap tabular-nums", text: (row) => formatDateTime(row.locked_at) },
+      cell: ({ row }) => formatDateTime(row.original.locked_at),
+    },
+    {
+      id: "state",
+      header: "State",
+      accessorFn: (row) => (row.unlocked_at ? `Unlocked ${formatDateTime(row.unlocked_at)}` : "Locked"),
+      cell: ({ row }) =>
+        row.original.unlocked_at ? (
+          <span className="text-sm text-muted-foreground">
+            Unlocked <span className="tabular-nums">{formatDateTime(row.original.unlocked_at)}</span>
+          </span>
+        ) : (
+          <Badge variant="outline">
+            <Lock /> Locked
+          </Badge>
+        ),
+    },
+    {
+      accessorKey: "unlock_reason",
+      header: "Unlock reason",
+      meta: { cellClassName: "max-w-64 whitespace-normal text-muted-foreground" },
+      cell: ({ row }) => row.original.unlock_reason ?? "—",
+    },
+    {
+      id: "actions",
+      header: () => <span className="sr-only">Actions</span>,
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) =>
+        canLock &&
+        !row.original.unlocked_at && (
+          <Button variant="outline" size="sm" onClick={() => setUnlocking(row.original)}>
+            <LockOpen /> Unlock
+          </Button>
+        ),
+    },
+  ];
 
   const recompute = async () => {
     setRecomputeError(null);
@@ -207,21 +321,9 @@ export function PeriodsTab() {
         </CardContent>
 
         <div className="mt-5">
-          {!rangeOk ? null : summary.isLoading ? (
-            <div className="pb-5">
-              <TableSkeleton rows={5} />
-            </div>
-          ) : summary.error ? (
-            <LoadError error={summary.error} onRetry={summary.reload} />
-          ) : employees.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title="No attendance computed for this period"
-              description="No employee has computed days between these dates. Check assignments, or recompute the range."
-            />
-          ) : (
+          {rangeOk && (
             <>
-              {pendingTotal > 0 && !isLocked && (
+              {!summary.isLoading && !summary.error && pendingTotal > 0 && !isLocked && (
                 <div className="px-5 pb-3">
                   <Alert variant="warning">
                     <AlertDescription>
@@ -232,126 +334,50 @@ export function PeriodsTab() {
                   </Alert>
                 </div>
               )}
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-5">Employee</TableHead>
-                    <TableHead className="text-right">Payable</TableHead>
-                    <TableHead className="text-right">LOP</TableHead>
-                    <TableHead className="text-right">Present</TableHead>
-                    <TableHead className="text-right">Half</TableHead>
-                    <TableHead className="text-right">Absent</TableHead>
-                    <TableHead className="text-right">On leave</TableHead>
-                    <TableHead className="text-right">Late</TableHead>
-                    <TableHead className="pr-5 text-right">Needs regularisation</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {employees.map((row) => (
-                    <TableRow key={row.employee_id}>
-                      <TableCell className="pl-5">
-                        <PersonCell
-                          size="sm"
-                          name={row.employee_name}
-                          subtitle={`${row.employee_code} · ${row.days_computed} days computed`}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-medium tabular-nums">
-                        {formatDays(row.payable_days)}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{formatDays(row.lop_days)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.present_days}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.half_days}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.absent_days}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.on_leave_days}</TableCell>
-                      <TableCell className="text-right tabular-nums">{row.late_count}</TableCell>
-                      <TableCell className="pr-5 text-right tabular-nums">
-                        {row.needs_regularisation > 0 ? (
-                          <Badge variant="warning">{row.needs_regularisation}</Badge>
-                        ) : (
-                          0
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <DataTable
+                bordered={false}
+                columns={SUMMARY_COLUMNS}
+                // A new range never shows the previous range's rows while it loads.
+                data={summary.isLoading ? [] : employees}
+                getRowId={(row) => row.employee_id}
+                noun="employees"
+                exportName={`attendance-summary-${start}-${end}`}
+                searchPlaceholder="Search employees"
+                isLoading={summary.isLoading}
+                loadingRows={5}
+                {...loadErrorProps(summary.error, summary.reload)}
+                empty={{
+                  icon: Users,
+                  title: "No attendance computed for this period",
+                  description:
+                    "No employee has computed days between these dates. Check assignments, or recompute the range.",
+                }}
+              />
             </>
           )}
         </div>
       </Card>
 
-      <Card tier="tier1" className="pb-0">
-        <CardHeader>
-          <CardTitle>Payroll locks</CardTitle>
-          <CardDescription>
-            A locked period cannot be recomputed and its regularisations cannot be approved. Every
-            unlock is audited with its reason.
-          </CardDescription>
-        </CardHeader>
-        {locks.isLoading ? (
-          <div className="pb-5">
-            <TableSkeleton rows={3} />
-          </div>
-        ) : locks.error ? (
-          <LoadError error={locks.error} onRetry={locks.reload} />
-        ) : lockRows.length === 0 ? (
-          <EmptyState
-            icon={Lock}
-            title="No periods have been locked"
-            description={
-              canLock
-                ? "Lock a period once its attendance is final, before payroll runs."
-                : "An admin locks a period once its attendance is final."
-            }
-          />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-5">Period</TableHead>
-                <TableHead>Locked</TableHead>
-                <TableHead>State</TableHead>
-                <TableHead>Unlock reason</TableHead>
-                <TableHead className="pr-5 text-right">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {lockRows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="pl-5 whitespace-nowrap font-medium">
-                    {formatDateRange(row.period_start, row.period_end)}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap tabular-nums">{formatDateTime(row.locked_at)}</TableCell>
-                  <TableCell>
-                    {row.unlocked_at ? (
-                      <span className="text-sm text-muted-foreground">
-                        Unlocked <span className="tabular-nums">{formatDateTime(row.unlocked_at)}</span>
-                      </span>
-                    ) : (
-                      <Badge variant="outline">
-                        <Lock /> Locked
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="max-w-64 whitespace-normal text-muted-foreground">
-                    {row.unlock_reason ?? "—"}
-                  </TableCell>
-                  <TableCell className="pr-5 text-right">
-                    {canLock && !row.unlocked_at && (
-                      <Button variant="outline" size="sm" onClick={() => setUnlocking(row)}>
-                        <LockOpen /> Unlock
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </Card>
+      <DataTable
+        tier="tier1"
+        title="Payroll locks"
+        description="A locked period cannot be recomputed and its regularisations cannot be approved. Every unlock is audited with its reason."
+        columns={lockColumns}
+        data={locks.isLoading ? [] : lockRows}
+        noun="locks"
+        exportName="payroll-locks"
+        searchPlaceholder="Search locks"
+        isLoading={locks.isLoading}
+        loadingRows={3}
+        {...loadErrorProps(locks.error, locks.reload)}
+        empty={{
+          icon: Lock,
+          title: "No periods have been locked",
+          description: canLock
+            ? "Lock a period once its attendance is final, before payroll runs."
+            : "An admin locks a period once its attendance is final.",
+        }}
+      />
 
       <ConfirmDialog
         open={confirmRecompute}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, RefreshCw, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, RefreshCw, Search } from "lucide-react";
 import Link from "next/link";
 import React, { useMemo, useState } from "react";
 
@@ -138,9 +138,10 @@ const VIEWS: Record<Product, Record<string, ViewConfig>> = {
     },
     register: {
       title: "Asset register",
-      description: "The company's assets in CGB Helpdesk and who holds each. For IT and HR.",
+      description:
+        "Assets in CGB Helpdesk and who holds each: every organization it serves for its IT team, your own company's for HR.",
       statuses: ["in_use", "spare", "retired"],
-      search: "Asset code, type or model",
+      search: "Asset code, type, model or organization",
     },
   },
 };
@@ -169,6 +170,10 @@ export function LinkedProductView({ product, view }: { product: string; view: st
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [scope, setScope] = useState<"mine" | "company">("mine");
+  // The page of a long list. Narrowing the list starts again from its first page.
+  const narrowing = `${status}|${applied}|${from}|${to}|${scope}`;
+  const [paging, setPaging] = useState({ narrowing, page: 1 });
+  const page = paging.narrowing === narrowing ? paging.page : 1;
 
   const path = useMemo(() => {
     if (!config) return null;
@@ -178,11 +183,16 @@ export function LinkedProductView({ product, view }: { product: string; view: st
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     if (config.scopeToggle && scope === "company") params.set("scope", "company");
+    if (page > 1) params.set("page", String(page));
     const query = params.toString();
     return `/products/${product}/views/${view}${query ? `?${query}` : ""}`;
-  }, [config, product, view, status, applied, from, to, scope]);
+  }, [config, product, view, status, applied, from, to, scope, page]);
 
   const { data, error, isLoading, reload } = useApiQuery<{ cards: CompanionCard[] }>(path);
+  // A list that pages says so on its table: which page, of how many rows.
+  const pageInfo = data?.cards.flatMap((card) => (card.type === "table" && card.page ? [card.page] : []))[0];
+  const pages = pageInfo ? Math.max(1, Math.ceil(pageInfo.total / pageInfo.size)) : page;
+  const goTo = (next: number) => setPaging({ narrowing, page: Math.max(1, next) });
 
   if (!config) {
     return (
@@ -289,6 +299,20 @@ export function LinkedProductView({ product, view }: { product: string; view: st
         ) : (
           (data?.cards ?? []).map((card, index) => <CompanionCardView key={index} card={card} />)
         )}
+
+        {pageInfo || page > 1 ? (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="text-sm text-muted-foreground tabular-nums">
+              Page {page} of {pages}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => goTo(page - 1)} disabled={page <= 1 || isLoading}>
+              <ChevronLeft /> Previous
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => goTo(page + 1)} disabled={page >= pages || isLoading}>
+              Next <ChevronRight />
+            </Button>
+          </div>
+        ) : null}
       </div>
     </PageShell>
   );

@@ -1,15 +1,16 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { CreditCard, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import { formatDay } from "@/lib/utils";
@@ -52,6 +53,34 @@ export function KioskBadgesCard({ employeeId }: { employeeId: string }) {
   };
 
   const rows = data ?? [];
+  const columns: ColumnDef<IssuedBadge>[] = [
+    {
+      accessorKey: "last_four",
+      header: "Card",
+      meta: { cellClassName: "font-mono", text: (row) => `…${row.last_four}` },
+      cell: ({ row }) => `…${row.original.last_four}`,
+    },
+    {
+      accessorKey: "issued_at",
+      header: "Issued",
+      meta: { text: (row) => (row.issued_at ? formatDay(row.issued_at, true) : null) },
+      cell: ({ row }) => (row.original.issued_at ? formatDay(row.original.issued_at, true) : "—"),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", label: "Status", text: (row) => (row.revoked_at ? "Revoked" : "Active") },
+      cell: ({ row }) =>
+        row.original.revoked_at ? (
+          <Badge variant="muted">Revoked</Badge>
+        ) : (
+          <Button size="sm" variant="ghost" onClick={() => void revoke(row.original.id)}>
+            Revoke
+          </Button>
+        ),
+    },
+  ];
   return (
     <Card tier="tier1">
       <CardHeader>
@@ -62,32 +91,13 @@ export function KioskBadgesCard({ employeeId }: { employeeId: string }) {
       </CardHeader>
       <CardContent className="grid gap-4">
         {rows.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Card</TableHead>
-                <TableHead>Issued</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="font-mono">…{row.last_four}</TableCell>
-                  <TableCell>{row.issued_at ? formatDay(row.issued_at, true) : "—"}</TableCell>
-                  <TableCell className="text-right">
-                    {row.revoked_at ? (
-                      <Badge variant="muted">Revoked</Badge>
-                    ) : (
-                      <Button size="sm" variant="ghost" onClick={() => void revoke(row.id)}>
-                        Revoke
-                      </Button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <DataTable
+            columns={columns}
+            data={rows}
+            noun="badges"
+            exportName="kiosk-badges"
+            searchPlaceholder="Search badges"
+          />
         )}
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
           <FormField htmlFor="badge-number" label="Card number" hint="Tap the card on a reader here, or type the number printed on it.">

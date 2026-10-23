@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Bot, Copy, KeyRound, Loader2, Plus, Webhook } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +24,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, patch, post } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
@@ -69,6 +69,39 @@ const SCOPES: Record<string, string> = {
 function failure(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;
 }
+
+/** The record types a webhook sends, as its row shows them. */
+function sendsOf(hook: WebhookRow): string {
+  return hook.entity_types.length ? hook.entity_types.join(", ") : "Every change";
+}
+
+const DELIVERY_COLUMNS: ColumnDef<Delivery>[] = [
+  { accessorKey: "event", header: "Event", meta: { cellClassName: "font-mono text-xs" } },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { text: (row) => (row.last_error ? `${row.status} · ${row.last_error}` : row.status) },
+    cell: ({ row }) => (
+      <>
+        <Badge
+          variant={row.original.status === "sent" ? "success" : row.original.status === "failed" ? "warning" : "outline"}
+        >
+          {row.original.status}
+        </Badge>
+        {row.original.last_error && (
+          <p className="max-w-60 truncate text-xs text-muted-foreground">{row.original.last_error}</p>
+        )}
+      </>
+    ),
+  },
+  { accessorKey: "attempts", header: "Tries", meta: { cellClassName: "tabular-nums" } },
+  {
+    accessorKey: "created_at",
+    header: "When",
+    meta: { cellClassName: "text-xs", text: (row) => (row.created_at ? formatDate(row.created_at) : "") },
+    cell: ({ row }) => (row.original.created_at ? formatDate(row.original.created_at) : ""),
+  },
+];
 
 async function copy(text: string) {
   try {
@@ -184,106 +217,150 @@ export function IntegrationsPanel() {
     }
   };
 
+  const keyColumns: ColumnDef<ApiKeyRow>[] = [
+    {
+      accessorKey: "name",
+      header: "Key",
+      meta: { text: (row) => `${row.name} ${row.key_hint}` },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium">{row.original.name}</p>
+          <p className="font-mono text-xs text-muted-foreground">{row.original.key_hint}</p>
+        </>
+      ),
+    },
+    {
+      id: "reads",
+      header: "Reads",
+      accessorFn: (row) => row.scopes.map((s) => SCOPES[s] ?? s).join(", "),
+      meta: { cellClassName: "text-sm" },
+    },
+    {
+      accessorKey: "last_used_at",
+      header: "Last used",
+      meta: {
+        cellClassName: "text-sm",
+        text: (row) => (row.last_used_at ? formatDate(row.last_used_at) : "Never"),
+      },
+      cell: ({ row }) => (row.original.last_used_at ? formatDate(row.original.last_used_at) : "Never"),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) =>
+        row.original.revoked_at ? (
+          <Badge variant="muted">Revoked</Badge>
+        ) : (
+          <Button size="sm" variant="outline" onClick={() => void revoke(row.original)}>
+            Revoke
+          </Button>
+        ),
+    },
+  ];
+
+  const hookColumns: ColumnDef<WebhookRow>[] = [
+    {
+      accessorKey: "name",
+      header: "Webhook",
+      meta: { text: (row) => `${row.name} ${row.url}` },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium">{row.original.name}</p>
+          <p className="max-w-80 truncate text-xs text-muted-foreground">{row.original.url}</p>
+        </>
+      ),
+    },
+    {
+      id: "sends",
+      header: "Sends",
+      accessorFn: sendsOf,
+      meta: {
+        cellClassName: "text-sm",
+        text: (row) => `${sendsOf(row)}${row.format === "chat" ? " · Chat" : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {sendsOf(row.original)}
+          {row.original.format === "chat" && (
+            <Badge variant="outline" className="ml-2">
+              Chat
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "active",
+      header: "On",
+      cell: ({ row }) => (
+        <Switch
+          aria-label={`${row.original.name} on`}
+          checked={row.original.active}
+          onCheckedChange={() => void toggle(row.original)}
+        />
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="ghost" onClick={() => setViewing(row.original)}>
+          Deliveries
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div className="grid gap-6">
-      <DataPanel
+      {/* No Export on either list: key hints and webhook URLs (a Slack or Teams
+          address carries its own token) stay on screen, not in a file. */}
+      <DataTable
         tier="tier1"
         title="API keys"
         description="Keys for your own systems: send one as a Bearer token to /api/v1/ext/…. A key can do only what its scopes name; changes are audited as the key."
+        columns={keyColumns}
+        data={keys.data ?? []}
+        noun="keys"
+        exportName={false}
+        searchPlaceholder="Search keys"
+        rowClassName={(row) => (row.revoked_at ? "opacity-60" : undefined)}
         actions={
-          <Button size="sm" onClick={() => setCreatingKey(true)}>
+          <Button size="sm" className="h-9" onClick={() => setCreatingKey(true)}>
             <Plus /> New key
           </Button>
         }
         isLoading={keys.isLoading && !keys.data}
-        error={keys.error?.detail ?? null}
+        error={keys.error?.detail}
         onRetry={keys.reload}
-        isEmpty={(keys.data ?? []).length === 0}
         empty={{ icon: KeyRound, title: "No API keys" }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Key</TableHead>
-              <TableHead>Reads</TableHead>
-              <TableHead>Last used</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(keys.data ?? []).map((key) => (
-              <TableRow key={key.id} className={key.revoked_at ? "opacity-60" : undefined}>
-                <TableCell>
-                  <p className="font-medium">{key.name}</p>
-                  <p className="font-mono text-xs text-muted-foreground">{key.key_hint}</p>
-                </TableCell>
-                <TableCell className="text-sm">{key.scopes.map((s) => SCOPES[s] ?? s).join(", ")}</TableCell>
-                <TableCell className="text-sm">{key.last_used_at ? formatDate(key.last_used_at) : "Never"}</TableCell>
-                <TableCell className="text-right">
-                  {key.revoked_at ? (
-                    <Badge variant="muted">Revoked</Badge>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={() => void revoke(key)}>
-                      Revoke
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       <McpCard />
 
-      <DataPanel
+      <DataTable
         tier="tier1"
         title="Webhooks"
         description="Each committed change is sent to your endpoint, signed with its secret (X-AskMira-Signature: sha256=…). A Slack or Teams incoming-webhook URL works with the chat format."
+        columns={hookColumns}
+        data={hooks.data ?? []}
+        noun="webhooks"
+        exportName={false}
+        searchPlaceholder="Search webhooks"
         actions={
-          <Button size="sm" onClick={() => setCreatingHook(true)}>
+          <Button size="sm" className="h-9" onClick={() => setCreatingHook(true)}>
             <Plus /> New webhook
           </Button>
         }
         isLoading={hooks.isLoading && !hooks.data}
-        error={hooks.error?.detail ?? null}
+        error={hooks.error?.detail}
         onRetry={hooks.reload}
-        isEmpty={(hooks.data ?? []).length === 0}
         empty={{ icon: Webhook, title: "No webhooks" }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Webhook</TableHead>
-              <TableHead>Sends</TableHead>
-              <TableHead>On</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(hooks.data ?? []).map((hook) => (
-              <TableRow key={hook.id}>
-                <TableCell>
-                  <p className="font-medium">{hook.name}</p>
-                  <p className="max-w-80 truncate text-xs text-muted-foreground">{hook.url}</p>
-                </TableCell>
-                <TableCell className="text-sm">
-                  {hook.entity_types.length ? hook.entity_types.join(", ") : "Every change"}
-                  {hook.format === "chat" && <Badge variant="outline" className="ml-2">Chat</Badge>}
-                </TableCell>
-                <TableCell>
-                  <Switch aria-label={`${hook.name} on`} checked={hook.active} onCheckedChange={() => void toggle(hook)} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" onClick={() => setViewing(hook)}>
-                    Deliveries
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       {viewing && <Deliveries hook={viewing} onClose={() => setViewing(null)} />}
       {creatingKey && (
@@ -312,7 +389,9 @@ export function IntegrationsPanel() {
 }
 
 function Deliveries({ hook, onClose }: { hook: WebhookRow; onClose: () => void }) {
-  const { data } = useApiQuery<Delivery[]>(`/admin/integrations/webhooks/${hook.id}/deliveries`);
+  const { data, error, isLoading, reload } = useApiQuery<Delivery[]>(
+    `/admin/integrations/webhooks/${hook.id}/deliveries`,
+  );
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-2xl">
@@ -320,29 +399,17 @@ function Deliveries({ hook, onClose }: { hook: WebhookRow; onClose: () => void }
           <DialogTitle>Deliveries to {hook.name}</DialogTitle>
           <DialogDescription>The latest 100. Failures are retried with growing gaps, eight times.</DialogDescription>
         </DialogHeader>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Event</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Tries</TableHead>
-              <TableHead>When</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(data ?? []).map((d) => (
-              <TableRow key={d.id}>
-                <TableCell className="font-mono text-xs">{d.event}</TableCell>
-                <TableCell>
-                  <Badge variant={d.status === "sent" ? "success" : d.status === "failed" ? "warning" : "outline"}>{d.status}</Badge>
-                  {d.last_error && <p className="max-w-60 truncate text-xs text-muted-foreground">{d.last_error}</p>}
-                </TableCell>
-                <TableCell className="tabular-nums">{d.attempts}</TableCell>
-                <TableCell className="text-xs">{d.created_at ? formatDate(d.created_at) : ""}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable
+          columns={DELIVERY_COLUMNS}
+          data={data ?? []}
+          noun="deliveries"
+          exportName="webhook-deliveries"
+          searchPlaceholder="Search deliveries"
+          isLoading={isLoading && !data}
+          error={error?.detail}
+          onRetry={reload}
+          empty={{ icon: Webhook, title: "No deliveries yet" }}
+        />
       </DialogContent>
     </Dialog>
   );

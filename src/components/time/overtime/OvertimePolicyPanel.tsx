@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2, Plus, Scale } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { apiMessage } from "@/components/payroll/labels";
 import { Badge } from "@/components/ui/badge";
@@ -29,14 +30,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { patch, post } from "@/lib/api";
 import type { SalaryComponent } from "@/lib/types/payroll";
@@ -52,6 +45,27 @@ const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Satur
 function optionalInt(value: string): number | null {
   const trimmed = value.trim();
   return trimmed ? Number.parseInt(trimmed, 10) : null;
+}
+
+/** "Needs approval · rest days count": who approves a policy's days, and whether rest days count. */
+function policyTerms(policy: OvertimePolicy): string {
+  return (
+    (policy.requires_approval ? "Needs approval" : "Approved by policy") +
+    (policy.count_rest_days ? " · rest days count" : " · rest days do not count")
+  );
+}
+
+/** The minimum, the rounding, the caps and the weekly limit a policy counts overtime by. */
+function countingText(policy: OvertimePolicy): string {
+  return (
+    `min ${minutesLabel(policy.minimum_minutes)}` +
+    (policy.rounding_minutes ? ` · blocks of ${policy.rounding_minutes} min` : "") +
+    (policy.daily_cap_minutes ? ` · ≤ ${minutesLabel(policy.daily_cap_minutes)}/day` : "") +
+    (policy.quarterly_cap_minutes ? ` · ≤ ${minutesLabel(policy.quarterly_cap_minutes)}/quarter` : "") +
+    (policy.weekly_threshold_minutes
+      ? ` · past ${minutesLabel(policy.weekly_threshold_minutes)}/week (from ${WEEKDAYS[policy.week_starts_on]})`
+      : "")
+  );
 }
 
 /** How overtime is counted and priced, per location. Every number is the tenant's. */
@@ -73,89 +87,94 @@ export function OvertimePolicyPanel() {
     }
   };
 
+  const columns: ColumnDef<OvertimePolicy>[] = [
+    {
+      accessorKey: "name",
+      header: "Policy",
+      meta: {
+        text: (policy) => `${policy.name}${policy.is_active ? "" : " (Retired)"} · ${policyTerms(policy)}`,
+      },
+      cell: ({ row }) => (
+        <>
+          <span className="font-medium text-foreground">{row.original.name}</span>
+          {!row.original.is_active && (
+            <Badge variant="muted" className="ml-2">
+              Retired
+            </Badge>
+          )}
+          <span className="block text-xs text-muted-foreground">{policyTerms(row.original)}</span>
+        </>
+      ),
+    },
+    {
+      id: "location",
+      header: "Applies to",
+      accessorFn: (policy) => policy.location_name ?? "All locations",
+    },
+    {
+      id: "rate",
+      header: "Rate",
+      accessorFn: (policy) =>
+        `${policy.rate_multiplier}× (${policy.wage_component_codes.join(" + ")}) ÷ ${policy.days_divisor} days ÷ ${policy.hours_per_day} h`,
+      meta: { cellClassName: "text-sm" },
+    },
+    {
+      id: "counting",
+      header: "Counting",
+      accessorFn: countingText,
+      meta: { cellClassName: "text-sm text-muted-foreground" },
+    },
+    {
+      accessorKey: "effective_from",
+      header: "From",
+      meta: {
+        cellClassName: "whitespace-nowrap",
+        text: (policy) =>
+          `${formatDate(policy.effective_from)}${policy.effective_to ? ` to ${formatDate(policy.effective_to)}` : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {formatDate(row.original.effective_from)}
+          {row.original.effective_to && (
+            <span className="block text-xs text-muted-foreground">to {formatDate(row.original.effective_to)}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", headClassName: "w-24", text: false },
+      cell: ({ row }) =>
+        row.original.is_active ? (
+          <Button variant="ghost" size="sm" disabled={busy !== null} onClick={() => void retire(row.original)}>
+            {busy === row.original.id && <Loader2 className="animate-spin" />}
+            Retire
+          </Button>
+        ) : null,
+    },
+  ];
+
   return (
-    <DataPanel
+    <DataTable
       title="Overtime policy"
       description="The multiplier, the components that make the ordinary rate, the divisors and the caps. A location's own policy wins over the company default."
       actions={<NewPolicyDialog onCreated={query.reload} />}
-      isLoading={query.isLoading}
+      columns={columns}
+      data={rows}
+      noun="policies"
+      exportName="overtime-policies"
+      searchPlaceholder="Search policies"
+      isLoading={query.isLoading && !query.data}
       error={query.error?.detail}
       onRetry={query.reload}
-      isEmpty={rows.length === 0}
       empty={{
         icon: Scale,
         title: "No overtime policy yet",
         description: "Without one, overtime is recorded in attendance but never counted or paid.",
       }}
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Policy</TableHead>
-            <TableHead>Applies to</TableHead>
-            <TableHead>Rate</TableHead>
-            <TableHead>Counting</TableHead>
-            <TableHead>From</TableHead>
-            <TableHead className="w-24" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((policy) => (
-            <TableRow key={policy.id}>
-              <TableCell>
-                <span className="font-medium text-foreground">{policy.name}</span>
-                {!policy.is_active && (
-                  <Badge variant="muted" className="ml-2">
-                    Retired
-                  </Badge>
-                )}
-                <span className="block text-xs text-muted-foreground">
-                  {policy.requires_approval ? "Needs approval" : "Approved by policy"}
-                  {policy.count_rest_days ? " · rest days count" : " · rest days do not count"}
-                </span>
-              </TableCell>
-              <TableCell>{policy.location_name ?? "All locations"}</TableCell>
-              <TableCell className="text-sm">
-                {policy.rate_multiplier}× ({policy.wage_component_codes.join(" + ")}) ÷{" "}
-                {policy.days_divisor} days ÷ {policy.hours_per_day} h
-              </TableCell>
-              <TableCell className="text-sm text-muted-foreground">
-                min {minutesLabel(policy.minimum_minutes)}
-                {policy.rounding_minutes ? ` · blocks of ${policy.rounding_minutes} min` : ""}
-                {policy.daily_cap_minutes ? ` · ≤ ${minutesLabel(policy.daily_cap_minutes)}/day` : ""}
-                {policy.quarterly_cap_minutes
-                  ? ` · ≤ ${minutesLabel(policy.quarterly_cap_minutes)}/quarter`
-                  : ""}
-                {policy.weekly_threshold_minutes
-                  ? ` · past ${minutesLabel(policy.weekly_threshold_minutes)}/week (from ${WEEKDAYS[policy.week_starts_on]})`
-                  : ""}
-              </TableCell>
-              <TableCell className="whitespace-nowrap">
-                {formatDate(policy.effective_from)}
-                {policy.effective_to && (
-                  <span className="block text-xs text-muted-foreground">
-                    to {formatDate(policy.effective_to)}
-                  </span>
-                )}
-              </TableCell>
-              <TableCell className="text-right">
-                {policy.is_active && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={busy !== null}
-                    onClick={() => void retire(policy)}
-                  >
-                    {busy === policy.id && <Loader2 className="animate-spin" />}
-                    Retire
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </DataPanel>
+    />
   );
 }
 

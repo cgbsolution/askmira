@@ -1,10 +1,12 @@
 "use client";
 
-import { Copy, FileText, Plus, PowerOff } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Copy, FileText, ListX, Plus, PowerOff } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { PoliciesVersionDialog } from "@/components/expenses/PoliciesVersionDialog";
 import { QueryBoundary, errorDetail } from "@/components/expenses/ReviewCommon";
@@ -17,19 +19,60 @@ import {
 } from "@/components/expenses/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardAction, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
-import type { OrgLocation, Policy } from "@/lib/types/expenses";
+import type { OrgLocation, Policy, PolicyRule } from "@/lib/types/expenses";
 import { formatDay } from "@/lib/utils";
+
+const RULE_COLUMNS: ColumnDef<PolicyRule>[] = [
+  {
+    id: "category",
+    header: "Category",
+    accessorFn: (rule) => humanizeKey(rule.category_key),
+    meta: { cellClassName: "font-medium text-foreground" },
+  },
+  {
+    id: "tier",
+    header: "Tier",
+    accessorFn: (rule) => CITY_TIER_LABEL[rule.city_tier],
+  },
+  {
+    id: "limit_type",
+    header: "Limit",
+    accessorFn: (rule) => LIMIT_TYPE_LABEL[rule.limit_type],
+  },
+  {
+    accessorKey: "limit_amount",
+    header: "Amount",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => formatMoney(row.original.limit_amount),
+  },
+  {
+    id: "breach",
+    header: "Breach",
+    accessorFn: (rule) => VIOLATION_ACTION_LABEL[rule.violation_action],
+  },
+  {
+    id: "receipt",
+    header: "Receipt",
+    accessorFn: (rule) => (rule.requires_receipt ? `Above ${formatMoney(rule.receipt_threshold)}` : "Not required"),
+    meta: { cellClassName: "tabular-nums" },
+  },
+  {
+    id: "other",
+    header: "Other",
+    accessorFn: (rule) =>
+      [rule.requires_pre_approval && "Pre-approval", rule.is_per_diem && "Per-diem"].filter(Boolean).join(", "),
+    cell: ({ row }) => (
+      <div className="flex flex-wrap gap-1">
+        {row.original.requires_pre_approval && <Badge variant="outline">Pre-approval</Badge>}
+        {row.original.is_per_diem && <Badge variant="outline">Per-diem</Badge>}
+      </div>
+    ),
+  },
+];
 
 /**
  * Expense policies, newest first as the server orders them. A policy is never
@@ -87,15 +130,18 @@ export function PoliciesList({ canAdmin }: { canAdmin: boolean }) {
           ) : (
             <div className="grid gap-4">
               {policies.map((policy) => (
-                <Card key={policy.id} tier="tier1">
-                  <CardHeader>
-                    <CardTitle className="flex flex-wrap items-center gap-2">
+                <DataTable
+                  key={policy.id}
+                  title={
+                    <span className="flex flex-wrap items-center gap-2">
                       {policy.name}
                       <Badge variant={policy.is_active ? "success" : "muted"}>
                         {policy.is_active ? "Active" : "Inactive"}
                       </Badge>
-                    </CardTitle>
-                    <CardDescription>
+                    </span>
+                  }
+                  description={
+                    <>
                       In force from {formatDay(policy.effective_from, true)} ·{" "}
                       {policy.applicable_grades.length > 0
                         ? `grades ${policy.applicable_grades.join(", ")}`
@@ -107,66 +153,29 @@ export function PoliciesList({ canAdmin }: { canAdmin: boolean }) {
                       {policy.description && (
                         <span className="mt-1 block text-foreground">{policy.description}</span>
                       )}
-                    </CardDescription>
-                    {canAdmin && (
-                      <CardAction className="flex flex-wrap gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setDialog({ base: policy })}>
+                    </>
+                  }
+                  actions={
+                    canAdmin && (
+                      <>
+                        <Button variant="outline" size="sm" className="h-9" onClick={() => setDialog({ base: policy })}>
                           <Copy /> New version
                         </Button>
                         {policy.is_active && (
-                          <Button variant="outline" size="sm" onClick={() => setDeactivating(policy)}>
+                          <Button variant="outline" size="sm" className="h-9" onClick={() => setDeactivating(policy)}>
                             <PowerOff /> Deactivate
                           </Button>
                         )}
-                      </CardAction>
-                    )}
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    {policy.rules.length === 0 ? (
-                      <p className="px-5 pb-2 text-sm text-muted-foreground">This version has no rules.</p>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="pl-5">Category</TableHead>
-                            <TableHead>Tier</TableHead>
-                            <TableHead>Limit</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                            <TableHead>Breach</TableHead>
-                            <TableHead>Receipt</TableHead>
-                            <TableHead className="pr-5">Other</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {policy.rules.map((rule) => (
-                            <TableRow key={rule.id}>
-                              <TableCell className="pl-5 font-medium text-foreground">
-                                {humanizeKey(rule.category_key)}
-                              </TableCell>
-                              <TableCell>{CITY_TIER_LABEL[rule.city_tier]}</TableCell>
-                              <TableCell>{LIMIT_TYPE_LABEL[rule.limit_type]}</TableCell>
-                              <TableCell className="text-right tabular-nums">
-                                {formatMoney(rule.limit_amount)}
-                              </TableCell>
-                              <TableCell>{VIOLATION_ACTION_LABEL[rule.violation_action]}</TableCell>
-                              <TableCell className="tabular-nums">
-                                {rule.requires_receipt
-                                  ? `Above ${formatMoney(rule.receipt_threshold)}`
-                                  : "Not required"}
-                              </TableCell>
-                              <TableCell className="pr-5">
-                                <div className="flex flex-wrap gap-1">
-                                  {rule.requires_pre_approval && <Badge variant="outline">Pre-approval</Badge>}
-                                  {rule.is_per_diem && <Badge variant="outline">Per-diem</Badge>}
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
+                      </>
+                    )
+                  }
+                  columns={RULE_COLUMNS}
+                  data={policy.rules}
+                  noun="rules"
+                  exportName={`expense-policy-rules-${policy.name}-${policy.effective_from}`}
+                  searchPlaceholder="Search rules"
+                  empty={{ icon: ListX, title: "This version has no rules" }}
+                />
               ))}
             </div>
           )

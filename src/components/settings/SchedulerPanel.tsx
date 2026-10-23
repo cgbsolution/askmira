@@ -1,14 +1,14 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { AlarmClock, CircleAlert, CirclePlay, Info, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -49,6 +49,95 @@ export function SchedulerPanel() {
   const runner = data?.runner;
   const failing = jobs.filter((job) => job.failures_last_7_days > 0);
 
+  const runColumn: ColumnDef<SchedulerJob> = {
+    id: "actions",
+    header: "Run now",
+    enableHiding: false,
+    meta: { className: "text-right", text: false },
+    cell: ({ row: { original: job } }) => (
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={!job.can_run_now || !job.applies || running !== null}
+        onClick={() => runNow(job)}
+      >
+        {running === job.key ? (
+          <Loader2 className="animate-spin" />
+        ) : (
+          <CirclePlay />
+        )}
+        Run
+      </Button>
+    ),
+  };
+
+  const columns: ColumnDef<SchedulerJob>[] = [
+    {
+      accessorKey: "name",
+      header: "Job",
+      meta: { cellClassName: "min-w-72 whitespace-normal" },
+      cell: ({ row: { original: job } }) => (
+        <>
+          <div className="font-medium text-foreground">{job.name}</div>
+          <div className="text-xs text-muted-foreground">{job.description}</div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <code className="mt-1 inline-block font-mono text-[11px] text-muted-foreground">
+                {job.source}
+              </code>
+            </TooltipTrigger>
+            <TooltipContent>
+              The function this job actually calls, so the claim is checkable.
+            </TooltipContent>
+          </Tooltip>
+          {!job.applies && (
+            <Badge variant="outline" className="mt-1">
+              {job.module} is switched off
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "cadence",
+      header: "Runs",
+      meta: { cellClassName: "text-sm text-muted-foreground" },
+    },
+    {
+      id: "last_run",
+      header: "Last run",
+      accessorFn: (job) => job.last_run?.started_at ?? "",
+      meta: {
+        cellClassName: "w-64 whitespace-normal",
+        text: (job) =>
+          job.last_run ? `${job.last_run.status} ${formatDateTime(job.last_run.started_at)}` : "Never",
+      },
+      cell: ({ row: { original: job } }) => (
+        <>
+          <RunCell run={job.last_run} />
+          {job.failures_last_7_days > 0 && (
+            <Badge variant="outline" className="mt-1">
+              {job.failures_last_7_days} failure
+              {job.failures_last_7_days === 1 ? "" : "s"} this week
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "last_success",
+      header: "Last success",
+      accessorFn: (job) => job.last_success?.started_at ?? "",
+      meta: {
+        cellClassName: "text-xs text-muted-foreground",
+        text: (job) => (job.last_success ? formatDateTime(job.last_success.started_at) : "Never"),
+      },
+      cell: ({ row: { original: job } }) =>
+        job.last_success ? formatDateTime(job.last_success.started_at) : "Never",
+    },
+    ...(canRunNow ? [runColumn] : []),
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       {runner && !runner.enabled && (
@@ -76,7 +165,7 @@ export function SchedulerPanel() {
         </Alert>
       )}
 
-      <DataPanel
+      <DataTable
         title="Background jobs"
         description={data?.note}
         actions={
@@ -90,79 +179,18 @@ export function SchedulerPanel() {
             </div>
           ) : undefined
         }
-        isLoading={isLoading}
+        columns={columns}
+        data={jobs}
+        getRowId={(job) => job.key}
+        noun="jobs"
+        exportName="background-jobs"
+        searchPlaceholder="Search jobs"
+        rowClassName={(job) => (job.applies ? undefined : "opacity-60")}
+        isLoading={isLoading && !data}
         error={error?.detail ?? null}
         onRetry={reload}
-        isEmpty={jobs.length === 0}
         empty={{ icon: AlarmClock, title: "No jobs registered" }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Job</TableHead>
-              <TableHead>Runs</TableHead>
-              <TableHead>Last run</TableHead>
-              <TableHead>Last success</TableHead>
-              {canRunNow && <TableHead className="text-right">Run now</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {jobs.map((job) => (
-              <TableRow key={job.key} className={job.applies ? undefined : "opacity-60"}>
-                <TableCell className="min-w-72 whitespace-normal">
-                  <div className="font-medium text-foreground">{job.name}</div>
-                  <div className="text-xs text-muted-foreground">{job.description}</div>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <code className="mt-1 inline-block font-mono text-[11px] text-muted-foreground">
-                        {job.source}
-                      </code>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      The function this job actually calls, so the claim is checkable.
-                    </TooltipContent>
-                  </Tooltip>
-                  {!job.applies && (
-                    <Badge variant="outline" className="mt-1">
-                      {job.module} is switched off
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{job.cadence}</TableCell>
-                <TableCell className="w-64 whitespace-normal">
-                  <RunCell run={job.last_run} />
-                  {job.failures_last_7_days > 0 && (
-                    <Badge variant="outline" className="mt-1">
-                      {job.failures_last_7_days} failure
-                      {job.failures_last_7_days === 1 ? "" : "s"} this week
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {job.last_success ? formatDateTime(job.last_success.started_at) : "Never"}
-                </TableCell>
-                {canRunNow && (
-                  <TableCell className="text-right">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!job.can_run_now || !job.applies || running !== null}
-                      onClick={() => runNow(job)}
-                    >
-                      {running === job.key ? (
-                        <Loader2 className="animate-spin" />
-                      ) : (
-                        <CirclePlay />
-                      )}
-                      Run
-                    </Button>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       {data && data.not_yet_registered.length > 0 && (
         <Alert>

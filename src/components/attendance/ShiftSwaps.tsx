@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowLeftRight, Check, Loader2, X } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +19,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -42,6 +42,13 @@ function shiftText(shift: SwapShift): string {
     ? `${shift.name} (${shortTime(shift.start_time)}–${shortTime(shift.end_time)})`
     : shift.name;
 }
+
+const DAY_COLUMN: ColumnDef<ShiftSwap> = {
+  accessorKey: "swap_date",
+  header: "Day",
+  meta: { cellClassName: "whitespace-nowrap", text: (swap) => formatDay(swap.swap_date, true) },
+  cell: ({ row }) => formatDay(row.original.swap_date, true),
+};
 
 /**
  * Trading a shift with a colleague for one day. The colleague agrees, then
@@ -67,78 +74,94 @@ export function MyShiftSwaps() {
     }
   };
 
+  const isMine = (swap: ShiftSwap) => swap.requester_employee_id === user?.employee_id;
+  const who = (swap: ShiftSwap) =>
+    isMine(swap) ? `You and ${swap.partner_name}` : `${swap.requester_name} and you`;
+  const trade = (swap: ShiftSwap) =>
+    isMine(swap)
+      ? `You work ${shiftText(swap.partner_shift)}; they work ${shiftText(swap.requester_shift)}`
+      : `You work ${shiftText(swap.requester_shift)}; they work ${shiftText(swap.partner_shift)}`;
+
+  const columns: ColumnDef<ShiftSwap>[] = [
+    DAY_COLUMN,
+    {
+      id: "swap",
+      header: "Swap",
+      accessorFn: who,
+      meta: {
+        text: (swap) =>
+          [who(swap), trade(swap), `“${swap.reason}”`, swap.note ? `Note: ${swap.note}` : null]
+            .filter(Boolean)
+            .join(" · "),
+      },
+      cell: ({ row: { original: swap } }) => (
+        <>
+          <p className="text-sm">{who(swap)}</p>
+          <p className="text-xs text-muted-foreground">{trade(swap)}</p>
+          <p className="text-xs text-muted-foreground">“{swap.reason}”</p>
+          {swap.note && <p className="text-xs text-muted-foreground">Note: {swap.note}</p>}
+        </>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorFn: (swap) => STATUS[swap.status].label,
+      cell: ({ row }) => (
+        <Badge variant={STATUS[row.original.status].variant}>{STATUS[row.original.status].label}</Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row: { original: swap } }) => {
+        const mine = isMine(swap);
+        return (
+          <div className="flex justify-end gap-2">
+            {!mine && swap.status === "awaiting_partner" && (
+              <>
+                <Button size="sm" disabled={busy === swap.id} onClick={() => void act(swap, "respond", { accept: true }, "You agreed to the swap.")}>
+                  <Check /> Agree
+                </Button>
+                <Button size="sm" variant="outline" disabled={busy === swap.id} onClick={() => void act(swap, "respond", { accept: false }, "You declined the swap.")}>
+                  <X /> Decline
+                </Button>
+              </>
+            )}
+            {mine && (swap.status === "awaiting_partner" || swap.status === "awaiting_approval") && (
+              <Button size="sm" variant="ghost" disabled={busy === swap.id} onClick={() => void act(swap, "cancel", undefined, "Swap withdrawn.")}>
+                Withdraw
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         tier="tier1"
         title="Shift swaps"
         description="Trade your shift with a colleague for a day. They agree, then your manager approves."
         actions={
-          <Button size="sm" variant="outline" onClick={() => setAsking(true)}>
+          <Button size="sm" variant="outline" className="h-9" onClick={() => setAsking(true)}>
             <ArrowLeftRight /> Ask for a swap
           </Button>
         }
-        isLoading={isLoading}
+        columns={columns}
+        data={rows}
+        noun="swaps"
+        exportName="shift-swaps"
+        searchPlaceholder="Search swaps"
+        isLoading={isLoading && !data}
         error={error?.detail ?? null}
         onRetry={reload}
-        isEmpty={rows.length === 0}
         empty={{ icon: ArrowLeftRight, title: "No swaps", description: "Swaps you ask for or are asked into appear here." }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Day</TableHead>
-              <TableHead>Swap</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((swap) => {
-              const mine = swap.requester_employee_id === user?.employee_id;
-              return (
-                <TableRow key={swap.id}>
-                  <TableCell className="whitespace-nowrap">{formatDay(swap.swap_date, true)}</TableCell>
-                  <TableCell>
-                    <p className="text-sm">
-                      {mine ? `You and ${swap.partner_name}` : `${swap.requester_name} and you`}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {mine
-                        ? `You work ${shiftText(swap.partner_shift)}; they work ${shiftText(swap.requester_shift)}`
-                        : `You work ${shiftText(swap.requester_shift)}; they work ${shiftText(swap.partner_shift)}`}
-                    </p>
-                    <p className="text-xs text-muted-foreground">“{swap.reason}”</p>
-                    {swap.note && <p className="text-xs text-muted-foreground">Note: {swap.note}</p>}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={STATUS[swap.status].variant}>{STATUS[swap.status].label}</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {!mine && swap.status === "awaiting_partner" && (
-                        <>
-                          <Button size="sm" disabled={busy === swap.id} onClick={() => void act(swap, "respond", { accept: true }, "You agreed to the swap.")}>
-                            <Check /> Agree
-                          </Button>
-                          <Button size="sm" variant="outline" disabled={busy === swap.id} onClick={() => void act(swap, "respond", { accept: false }, "You declined the swap.")}>
-                            <X /> Decline
-                          </Button>
-                        </>
-                      )}
-                      {mine && (swap.status === "awaiting_partner" || swap.status === "awaiting_approval") && (
-                        <Button size="sm" variant="ghost" disabled={busy === swap.id} onClick={() => void act(swap, "cancel", undefined, "Swap withdrawn.")}>
-                          Withdraw
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       {asking && (
         <AskSwapDialog
           excludeId={user?.employee_id ?? null}
@@ -236,62 +259,70 @@ export function SwapQueue() {
     }
   };
 
+  const pair = (swap: ShiftSwap) => `${swap.requester_name} ⇄ ${swap.partner_name}`;
+  const trade = (swap: ShiftSwap) =>
+    `${swap.requester_name} to ${shiftText(swap.partner_shift)}; ${swap.partner_name} to ${shiftText(swap.requester_shift)}`;
+
+  const columns: ColumnDef<ShiftSwap>[] = [
+    DAY_COLUMN,
+    {
+      id: "who",
+      header: "Who",
+      accessorFn: pair,
+      meta: { text: (swap) => `${pair(swap)} · ${trade(swap)} · “${swap.reason}”` },
+      cell: ({ row: { original: swap } }) => (
+        <>
+          <p className="text-sm">{pair(swap)}</p>
+          <p className="text-xs text-muted-foreground">{trade(swap)}</p>
+          <p className="text-xs text-muted-foreground">“{swap.reason}”</p>
+        </>
+      ),
+    },
+    {
+      id: "note",
+      header: "Note",
+      meta: { cellClassName: "min-w-48", text: false },
+      cell: ({ row: { original: swap } }) => (
+        <Input
+          aria-label="Note"
+          placeholder="Optional"
+          value={notes[swap.id] ?? ""}
+          onChange={(e) => setNotes((current) => ({ ...current, [swap.id]: e.target.value }))}
+        />
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row: { original: swap } }) => (
+        <div className="flex justify-end gap-2">
+          <Button size="sm" disabled={busy === swap.id} onClick={() => void decide(swap, true)}>
+            Approve
+          </Button>
+          <Button size="sm" variant="outline" disabled={busy === swap.id} onClick={() => void decide(swap, false)}>
+            Reject
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <DataPanel
+    <DataTable
       tier="tier1"
       title="Shift swaps to decide"
       description="Both people have agreed. Approving changes their shifts for that day only."
-      isLoading={isLoading}
+      columns={columns}
+      data={rows}
+      noun="swaps"
+      exportName="shift-swaps-to-decide"
+      searchPlaceholder="Search swaps"
+      isLoading={isLoading && !data}
       error={error?.detail ?? null}
       onRetry={reload}
-      isEmpty={rows.length === 0}
       empty={{ icon: ArrowLeftRight, title: "Nothing waiting", description: "Agreed swaps from your team appear here." }}
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Day</TableHead>
-            <TableHead>Who</TableHead>
-            <TableHead>Note</TableHead>
-            <TableHead className="text-right" />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((swap) => (
-            <TableRow key={swap.id}>
-              <TableCell className="whitespace-nowrap">{formatDay(swap.swap_date, true)}</TableCell>
-              <TableCell>
-                <p className="text-sm">
-                  {swap.requester_name} ⇄ {swap.partner_name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {swap.requester_name} to {shiftText(swap.partner_shift)}; {swap.partner_name} to{" "}
-                  {shiftText(swap.requester_shift)}
-                </p>
-                <p className="text-xs text-muted-foreground">“{swap.reason}”</p>
-              </TableCell>
-              <TableCell className="min-w-48">
-                <Input
-                  aria-label="Note"
-                  placeholder="Optional"
-                  value={notes[swap.id] ?? ""}
-                  onChange={(e) => setNotes((current) => ({ ...current, [swap.id]: e.target.value }))}
-                />
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-2">
-                  <Button size="sm" disabled={busy === swap.id} onClick={() => void decide(swap, true)}>
-                    Approve
-                  </Button>
-                  <Button size="sm" variant="outline" disabled={busy === swap.id} onClick={() => void decide(swap, false)}>
-                    Reject
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </DataPanel>
+    />
   );
 }

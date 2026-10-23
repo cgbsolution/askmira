@@ -1,12 +1,13 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { FileSignature, TimerOff } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { Suspense, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { OFFER_STATUS, StatusBadge } from "@/components/hiring/labels";
@@ -21,20 +22,53 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import type { OfferStatus, OfferSummary } from "@/lib/types/hiring";
 import { formatDay } from "@/lib/utils";
 
 const day = (value: string | null) => (value ? formatDay(value, true) : "—");
+
+const COLUMNS: ColumnDef<OfferSummary>[] = [
+  { accessorKey: "code", header: "Code", meta: { cellClassName: "font-mono text-xs" } },
+  { accessorKey: "candidate_name", header: "Candidate", meta: { cellClassName: "font-medium text-foreground" } },
+  { accessorKey: "requisition_code", header: "Requisition", meta: { cellClassName: "font-mono text-xs" } },
+  {
+    accessorKey: "designation",
+    header: "Designation",
+    meta: { text: (offer) => (offer.grade ? `${offer.designation} · Grade ${offer.grade}` : offer.designation) },
+    cell: ({ row }) => (
+      <>
+        {row.original.designation}
+        {row.original.grade && <p className="text-xs text-muted-foreground">Grade {row.original.grade}</p>}
+      </>
+    ),
+  },
+  {
+    accessorKey: "ctc_annual",
+    header: "Annual CTC",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.ctc_annual} />,
+  },
+  {
+    accessorKey: "joining_date",
+    header: "Joining",
+    meta: { cellClassName: "tabular-nums", text: (offer) => day(offer.joining_date) },
+    cell: ({ row }) => day(row.original.joining_date),
+  },
+  {
+    accessorKey: "valid_until",
+    header: "Valid until",
+    meta: { cellClassName: "tabular-nums", text: (offer) => day(offer.valid_until) },
+    cell: ({ row }) => day(row.original.valid_until),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { text: (offer) => OFFER_STATUS[offer.status][0] },
+    cell: ({ row }) => <StatusBadge map={OFFER_STATUS} value={row.original.status} />,
+  },
+];
 
 /** Offers (hiring, Tier 1): draft, approve, release, record the outcome, convert. */
 export default function OffersPage() {
@@ -96,11 +130,27 @@ function OffersView() {
         </>
       }
     >
-      <DataPanel
+      <DataTable
         title="Offers"
-        toolbar={
+        columns={COLUMNS}
+        data={rows}
+        noun="offers"
+        isLoading={isLoading && !data}
+        error={error?.detail}
+        onRetry={reload}
+        filtered={status !== "all"}
+        empty={{
+          icon: FileSignature,
+          title: "No offers yet",
+          description:
+            "Draft an offer for a candidate who has reached the interview stage. It goes out only after approval and release.",
+        }}
+        emptyMessage={status === "all" ? undefined : "No offers with this status."}
+        searchPlaceholder="Code, candidate or requisition"
+        onRowClick={(offer) => setOpenId(offer.id)}
+        filters={
           <Select value={status} onValueChange={(next) => setStatus(next as OfferStatus | "all")}>
-            <SelectTrigger className="w-52" aria-label="Filter by status">
+            <SelectTrigger className="h-9 w-52" aria-label="Filter by status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -113,66 +163,7 @@ function OffersView() {
             </SelectContent>
           </Select>
         }
-        isLoading={isLoading && !data}
-        error={error?.detail}
-        onRetry={reload}
-        isEmpty={rows.length === 0}
-        empty={{
-          icon: FileSignature,
-          title: status === "all" ? "No offers yet" : "No offers with this status",
-          description:
-            "Draft an offer for a candidate who has reached the interview stage. It goes out only after approval and release.",
-        }}
-      >
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Candidate</TableHead>
-                <TableHead>Requisition</TableHead>
-                <TableHead>Designation</TableHead>
-                <TableHead className="text-right">Annual CTC</TableHead>
-                <TableHead>Joining</TableHead>
-                <TableHead>Valid until</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((offer) => (
-                <TableRow
-                  key={offer.id}
-                  className="cursor-pointer"
-                  tabIndex={0}
-                  onClick={() => setOpenId(offer.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      setOpenId(offer.id);
-                    }
-                  }}
-                >
-                  <TableCell className="font-mono text-xs">{offer.code}</TableCell>
-                  <TableCell className="font-medium text-foreground">{offer.candidate_name}</TableCell>
-                  <TableCell className="font-mono text-xs">{offer.requisition_code}</TableCell>
-                  <TableCell>
-                    {offer.designation}
-                    {offer.grade && <p className="text-xs text-muted-foreground">Grade {offer.grade}</p>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={offer.ctc_annual} />
-                  </TableCell>
-                  <TableCell className="tabular-nums">{day(offer.joining_date)}</TableCell>
-                  <TableCell className="tabular-nums">{day(offer.valid_until)}</TableCell>
-                  <TableCell>
-                    <StatusBadge map={OFFER_STATUS} value={offer.status} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </DataPanel>
+      />
 
       <ConfirmDialog
         open={lapseOpen}

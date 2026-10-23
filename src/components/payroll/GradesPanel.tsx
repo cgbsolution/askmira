@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Layers, Loader2, Pencil, Plus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { RequireRole } from "@/components/common/RequireRole";
@@ -22,7 +23,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { patch, post } from "@/lib/api";
 
@@ -66,15 +66,117 @@ const POSITION: Record<Positioned["position"], { label: string; variant: "warnin
   no_salary: { label: "No salary", variant: "muted" },
 };
 
+const POSITIONING_COLUMNS: ColumnDef<Positioned>[] = [
+  {
+    accessorKey: "name",
+    header: "Person",
+    meta: {
+      text: (person) => `${person.name} ${person.employee_code}${person.designation ? ` · ${person.designation}` : ""}`,
+    },
+    cell: ({ row }) => (
+      <>
+        <p className="font-medium">{row.original.name}</p>
+        <p className="text-xs text-muted-foreground">
+          {row.original.employee_code}
+          {row.original.designation ? ` · ${row.original.designation}` : ""}
+        </p>
+      </>
+    ),
+  },
+  {
+    accessorKey: "grade",
+    header: "Grade",
+    cell: ({ row }) => row.original.grade ?? "—",
+  },
+  {
+    accessorKey: "ctc_annual",
+    header: "Annual CTC",
+    meta: { className: "text-right" },
+    cell: ({ row }) => (row.original.ctc_annual ? <Money value={row.original.ctc_annual} /> : "—"),
+  },
+  {
+    accessorKey: "compa_ratio",
+    header: "Compa-ratio",
+    meta: { className: "text-right tabular-nums" },
+    cell: ({ row }) => row.original.compa_ratio ?? "—",
+  },
+  {
+    accessorKey: "position",
+    header: "Position",
+    meta: { text: (person) => POSITION[person.position].label },
+    cell: ({ row }) => (
+      <Badge variant={POSITION[row.original.position].variant}>{POSITION[row.original.position].label}</Badge>
+    ),
+  },
+];
+
 /** The grade master and each band's CTC range. Admins edit; HR reads. */
 export function GradesPanel() {
   const { data, error, isLoading, reload } = useApiQuery<PayGrade[]>("/pay-grades?include_inactive=true");
   const [editing, setEditing] = useState<PayGrade | "new" | null>(null);
   const rows = data ?? [];
 
+  const columns: ColumnDef<PayGrade>[] = [
+    {
+      id: "grade",
+      header: "Grade",
+      accessorFn: (grade) => `${grade.code} · ${grade.name}`,
+      meta: {
+        text: (grade) => `${grade.code} · ${grade.name} · Level ${grade.level}${grade.active ? "" : " · not in use"}`,
+      },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium">
+            {row.original.code} · {row.original.name}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Level {row.original.level}
+            {!row.original.active && " · not in use"}
+          </p>
+        </>
+      ),
+    },
+    {
+      accessorKey: "band_min",
+      header: "Minimum",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.band_min} />,
+    },
+    {
+      accessorKey: "band_mid",
+      header: "Midpoint",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.band_mid} />,
+    },
+    {
+      accessorKey: "band_max",
+      header: "Maximum",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.band_max} />,
+    },
+    {
+      accessorKey: "headcount",
+      header: "People",
+      meta: { className: "text-right tabular-nums" },
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "w-12 text-right", text: false },
+      cell: ({ row }) => (
+        <RequireRole roles={["admin"]}>
+          <Button size="icon" variant="ghost" aria-label={`Edit ${row.original.code}`} onClick={() => setEditing(row.original)}>
+            <Pencil />
+          </Button>
+        </RequireRole>
+      ),
+    },
+  ];
+
   return (
     <div className="grid gap-6">
-      <DataPanel
+      <DataTable
         title="Grades and pay bands"
         description="Once grades exist, an employee record can only carry one of them."
         actions={
@@ -84,57 +186,17 @@ export function GradesPanel() {
             </Button>
           </RequireRole>
         }
+        columns={columns}
+        data={rows}
+        noun="grades"
+        exportName="pay-grades"
+        searchPlaceholder="Search grades"
+        rowClassName={(grade) => (grade.active ? undefined : "opacity-60")}
         isLoading={isLoading && !data}
         error={error?.detail}
         onRetry={reload}
-        isEmpty={rows.length === 0}
         empty={{ icon: Layers, title: "No grades yet", description: "Add each grade with the annual CTC band it pays." }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Grade</TableHead>
-              <TableHead className="text-right">Minimum</TableHead>
-              <TableHead className="text-right">Midpoint</TableHead>
-              <TableHead className="text-right">Maximum</TableHead>
-              <TableHead className="text-right">People</TableHead>
-              <TableHead className="w-12" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((grade) => (
-              <TableRow key={grade.id} className={grade.active ? undefined : "opacity-60"}>
-                <TableCell>
-                  <p className="font-medium">
-                    {grade.code} · {grade.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Level {grade.level}
-                    {!grade.active && " · not in use"}
-                  </p>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={grade.band_min} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={grade.band_mid} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={grade.band_max} />
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{grade.headcount}</TableCell>
-                <TableCell>
-                  <RequireRole roles={["admin"]}>
-                    <Button size="icon" variant="ghost" aria-label={`Edit ${grade.code}`} onClick={() => setEditing(grade)}>
-                      <Pencil />
-                    </Button>
-                  </RequireRole>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       {rows.length > 0 && <PositioningTable />}
       {editing && (
         <GradeDialog
@@ -152,52 +214,25 @@ export function GradesPanel() {
 
 function PositioningTable() {
   const { data, error, isLoading, reload } = useApiQuery<Positioning>("/pay-grades/positioning");
-  const people = data?.people ?? [];
   return (
-    <DataPanel
+    <DataTable
       title="Where pay sits in the band"
       description={
         data
           ? `CTC in force today against each person's grade. ${data.summary.below} below, ${data.summary.within} within, ${data.summary.above} above; ${data.summary.no_grade} without a grade, ${data.summary.no_salary} without a salary.`
           : undefined
       }
+      columns={POSITIONING_COLUMNS}
+      data={data?.people ?? []}
+      getRowId={(person) => person.employee_id}
+      noun="people"
+      exportName="pay-band-positioning"
+      searchPlaceholder="Search by name, code or grade"
       isLoading={isLoading && !data}
       error={error?.detail}
       onRetry={reload}
-      isEmpty={people.length === 0}
       empty={{ icon: Layers, title: "Nobody to place yet" }}
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Person</TableHead>
-            <TableHead>Grade</TableHead>
-            <TableHead className="text-right">Annual CTC</TableHead>
-            <TableHead className="text-right">Compa-ratio</TableHead>
-            <TableHead>Position</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {people.map((person) => (
-            <TableRow key={person.employee_id}>
-              <TableCell>
-                <p className="font-medium">{person.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {person.employee_code}
-                  {person.designation ? ` · ${person.designation}` : ""}
-                </p>
-              </TableCell>
-              <TableCell>{person.grade ?? "—"}</TableCell>
-              <TableCell className="text-right">{person.ctc_annual ? <Money value={person.ctc_annual} /> : "—"}</TableCell>
-              <TableCell className="text-right tabular-nums">{person.compa_ratio ?? "—"}</TableCell>
-              <TableCell>
-                <Badge variant={POSITION[person.position].variant}>{POSITION[person.position].label}</Badge>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </DataPanel>
+    />
   );
 }
 

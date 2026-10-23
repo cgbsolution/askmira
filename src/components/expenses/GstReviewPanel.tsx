@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { ListChecks, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { InlineProblem, QueryBoundary, StatTile, errorDetail, todayISO } from "@/components/expenses/ReviewCommon";
 import { formatMoney, humanizeKey } from "@/components/expenses/shared";
 import { Button } from "@/components/ui/button";
@@ -26,14 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
@@ -64,6 +57,49 @@ export function GstReviewPanel() {
   };
 
   const valid = Boolean(decision) && rationale.trim().length > 0 && Boolean(decidedOn);
+
+  const columns: ColumnDef<Line>[] = [
+    {
+      accessorKey: "invoice_number",
+      header: "Invoice",
+      meta: { text: (line) => `${line.invoice_number} · ${formatDay(line.invoice_date, true)}` },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium text-foreground">{row.original.invoice_number}</p>
+          <p className="text-xs text-muted-foreground">{formatDay(row.original.invoice_date, true)}</p>
+        </>
+      ),
+    },
+    { accessorKey: "vendor_gstin", header: "Vendor GSTIN", meta: { cellClassName: "tabular-nums" } },
+    {
+      id: "category",
+      header: "Category",
+      accessorFn: (line) => humanizeKey(line.category_key),
+    },
+    {
+      accessorKey: "amount_at_stake",
+      header: "At stake",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => formatMoney(row.original.amount_at_stake),
+    },
+    {
+      accessorKey: "reason",
+      header: "Why it needs review",
+      meta: { cellClassName: "max-w-80 whitespace-normal text-muted-foreground" },
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" onClick={() => open(row.original)}>
+          Review
+        </Button>
+      ),
+    },
+  ];
 
   const save = async () => {
     if (!reviewing || !decision || !valid) return;
@@ -97,45 +133,20 @@ export function GstReviewPanel() {
                 <StatTile label="Tax at stake" tone="warning" value={formatMoney(data.total_at_stake)} />
               </div>
               {data.note && <p className="px-5 text-sm text-muted-foreground">{data.note}</p>}
-              {data.lines.length === 0 ? (
-                <EmptyState
-                  icon={ListChecks}
-                  title="Nothing to review"
-                  description="A credit lands here when its category has exceptions or its tax cannot be classified."
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="pl-5">Invoice</TableHead>
-                      <TableHead>Vendor GSTIN</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead className="text-right">At stake</TableHead>
-                      <TableHead>Why it needs review</TableHead>
-                      <TableHead className="pr-5" />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.lines.map((line) => (
-                      <TableRow key={line.credit_id}>
-                        <TableCell className="pl-5">
-                          <p className="font-medium text-foreground">{line.invoice_number}</p>
-                          <p className="text-xs text-muted-foreground">{formatDay(line.invoice_date, true)}</p>
-                        </TableCell>
-                        <TableCell className="tabular-nums">{line.vendor_gstin}</TableCell>
-                        <TableCell>{humanizeKey(line.category_key)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatMoney(line.amount_at_stake)}</TableCell>
-                        <TableCell className="max-w-80 whitespace-normal text-muted-foreground">{line.reason}</TableCell>
-                        <TableCell className="pr-5 text-right">
-                          <Button size="sm" onClick={() => open(line)}>
-                            Review
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <DataTable
+                bordered={false}
+                columns={columns}
+                data={data.lines}
+                getRowId={(line) => line.credit_id}
+                noun="lines"
+                exportName="gst-review-queue"
+                searchPlaceholder="Search invoice, GSTIN or category"
+                empty={{
+                  icon: ListChecks,
+                  title: "Nothing to review",
+                  description: "A credit lands here when its category has exceptions or its tax cannot be classified.",
+                }}
+              />
             </div>
           )}
         </QueryBoundary>

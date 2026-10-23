@@ -1,12 +1,13 @@
 "use client";
 
-import { Loader2, Plus, UserSearch, Wallet } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Loader2, Lock, Plus, UserSearch, Wallet } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { apiErrorMessage, InlineProblem } from "@/components/payroll-ops/shared";
-import { QueryPanel } from "@/components/payroll-ops/disbursements/common";
 import { EmployeePicker } from "@/components/payroll-ops/disbursements/EmployeePicker";
 import {
   employeeDisplayName,
@@ -32,14 +33,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
@@ -49,6 +42,51 @@ import type {
   EmployeeBankAccount,
   VerificationMethod,
 } from "@/lib/types/payroll-ops";
+
+const ACCOUNT_COLUMNS: ColumnDef<EmployeeBankAccount>[] = [
+  {
+    accessorKey: "account_holder_name",
+    header: "Account holder",
+    meta: { cellClassName: "font-medium text-foreground" },
+  },
+  {
+    accessorKey: "ifsc",
+    header: "IFSC",
+    meta: { cellClassName: "tabular-nums" },
+  },
+  {
+    accessorKey: "bank_name",
+    header: "Bank",
+    meta: { className: "hidden md:table-cell", cellClassName: "text-muted-foreground" },
+    cell: ({ row }) => row.original.bank_name ?? "—",
+  },
+  {
+    accessorKey: "verification_method",
+    header: "Verification",
+    meta: {
+      text: (row) =>
+        row.verified_at
+          ? `${VERIFICATION_LABEL[row.verification_method]} · ${formatTimestamp(row.verified_at)}`
+          : VERIFICATION_LABEL[row.verification_method],
+    },
+    cell: ({ row }) => (
+      <>
+        <span>{VERIFICATION_LABEL[row.original.verification_method]}</span>
+        {row.original.verified_at && (
+          <span className="block text-xs text-muted-foreground">
+            {formatTimestamp(row.original.verified_at)}
+          </span>
+        )}
+      </>
+    ),
+  },
+  {
+    id: "primary",
+    header: "",
+    meta: { label: "Primary", text: (row) => (row.is_primary ? "Primary" : null) },
+    cell: ({ row }) => (row.original.is_primary ? <Badge variant="secondary">Primary</Badge> : null),
+  },
+];
 
 /**
  * One employee's salary accounts. Deliberately per employee: a list of every
@@ -67,84 +105,62 @@ export function EmployeeAccountsTab({ initialSearch }: { initialSearch: string }
   }, [initialSearch]);
 
   const canAdd = hasRole("admin", "sub_admin");
+  // A 403 reads as "no access", not as a failed load.
+  const forbidden = query.error?.status === 403;
+  // Nothing has been asked for yet: no employee is chosen.
+  const idle = !query.isLoading && !query.error && query.data === null;
 
   return (
     <>
-      <QueryPanel
-        query={query}
-        loadingRows={2}
+      <DataTable
         title="Employee bank accounts"
         description="Where each person's salary is credited. Account numbers are write-only and never shown back; correct a wrong one by adding the right account."
-        toolbar={
-          <div className="flex w-full flex-wrap items-end gap-3">
-            <FormField htmlFor="accounts-employee" label="Employee" className="w-full max-w-md">
-              <EmployeePicker
-                id="accounts-employee"
-                value={employee}
-                onChange={setEmployee}
-                initialSearch={initialSearch}
-              />
-            </FormField>
-            {employee && canAdd && (
-              <Button size="sm" onClick={() => setOpen(true)}>
-                <Plus /> Add account
-              </Button>
-            )}
-          </div>
+        columns={ACCOUNT_COLUMNS}
+        data={forbidden ? [] : (query.data ?? [])}
+        noun="bank accounts"
+        exportName={employee ? `bank-accounts-${employee.employee_code}` : "bank-accounts"}
+        // The employee picker below is this screen's search; the list is one person's accounts.
+        searchPlaceholder={false}
+        isLoading={query.isLoading && query.data === null}
+        loadingRows={2}
+        error={forbidden ? null : (query.error?.detail ?? null)}
+        onRetry={query.reload}
+        empty={
+          forbidden
+            ? { icon: Lock, title: "You don't have access to this", description: query.error?.detail }
+            : idle
+              ? {
+                  icon: UserSearch,
+                  title: "Choose an employee",
+                  description: "Search by name or employee code to see and add their salary accounts.",
+                }
+              : {
+                  icon: Wallet,
+                  title: employee
+                    ? `No bank account for ${employeeDisplayName(employee)}`
+                    : "No bank account",
+                  description:
+                    "Without one, this person blocks the salary file. Add their account to clear it.",
+                }
         }
-        idle={{
-          icon: UserSearch,
-          title: "Choose an employee",
-          description: "Search by name or employee code to see and add their salary accounts.",
-        }}
-        isEmpty={(rows) => rows.length === 0}
-        empty={{
-          icon: Wallet,
-          title: employee
-            ? `No bank account for ${employeeDisplayName(employee)}`
-            : "No bank account",
-          description:
-            "Without one, this person blocks the salary file. Add their account to clear it.",
-        }}
-      >
-        {(rows) => (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Account holder</TableHead>
-                      <TableHead>IFSC</TableHead>
-                      <TableHead className="hidden md:table-cell">Bank</TableHead>
-                      <TableHead>Verification</TableHead>
-                      <TableHead />
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-medium text-foreground">
-                          {row.account_holder_name}
-                        </TableCell>
-                        <TableCell className="tabular-nums">{row.ifsc}</TableCell>
-                        <TableCell className="hidden text-muted-foreground md:table-cell">
-                          {row.bank_name ?? "—"}
-                        </TableCell>
-                        <TableCell>
-                          <span>{VERIFICATION_LABEL[row.verification_method]}</span>
-                          {row.verified_at && (
-                            <span className="block text-xs text-muted-foreground">
-                              {formatTimestamp(row.verified_at)}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {row.is_primary && <Badge variant="secondary">Primary</Badge>}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-        )}
-      </QueryPanel>
+        tabs={
+          <FormField htmlFor="accounts-employee" label="Employee" className="w-full max-w-md">
+            <EmployeePicker
+              id="accounts-employee"
+              value={employee}
+              onChange={setEmployee}
+              initialSearch={initialSearch}
+            />
+          </FormField>
+        }
+        actions={
+          employee && canAdd ? (
+            <Button size="sm" className="h-9" onClick={() => setOpen(true)}>
+              <Plus /> Add account
+            </Button>
+          ) : undefined
+        }
+      />
       {employee && (
         <AddAccountDialog
           open={open}

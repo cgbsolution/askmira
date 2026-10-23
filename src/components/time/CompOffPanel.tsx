@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { CalendarClock, Loader2, Plus } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
 import { Badge } from "@/components/ui/badge";
@@ -24,14 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
@@ -44,6 +37,18 @@ const STATUS: Record<CompOffStatus, { label: string; variant: "warning" | "succe
   rejected: { label: "Declined", variant: "destructive" },
   cancelled: { label: "Withdrawn", variant: "muted" },
 };
+
+/** The Decision column as text, for the search and the CSV. */
+function decisionText(claim: CompOffClaim): string {
+  if (claim.status === "pending") return `Waiting on ${claim.approver_name}`;
+  if (claim.status === "approved") {
+    return `By ${claim.decided_by_name ?? "—"}${claim.expires_on ? ` · lapses ${formatDay(claim.expires_on, true)}` : ""}`;
+  }
+  if (claim.status === "rejected") {
+    return `By ${claim.decided_by_name ?? "—"}${claim.decision_note ? ` “${claim.decision_note}”` : ""}`;
+  }
+  return "";
+}
 
 /**
  * Comp-off: claim a day off for working a holiday or a weekly off.
@@ -95,9 +100,83 @@ export function CompOffPanel({
     }
   };
 
+  const columns: ColumnDef<CompOffClaim>[] = [
+    ...(scope === "all"
+      ? [{ accessorKey: "employee_name", header: "Employee", meta: { cellClassName: "font-medium text-foreground" } }]
+      : []),
+    {
+      accessorKey: "worked_date",
+      header: "Day worked",
+      meta: { cellClassName: "whitespace-nowrap", text: (claim) => formatDay(claim.worked_date, true) },
+      cell: ({ row }) => formatDay(row.original.worked_date, true),
+    },
+    {
+      id: "days",
+      header: "Days",
+      accessorFn: (claim) => Number(claim.days),
+      meta: { className: "text-right", cellClassName: "tabular-nums", text: (claim) => pluralDays(claim.days) },
+      cell: ({ row }) => pluralDays(row.original.days),
+    },
+    {
+      accessorKey: "reason",
+      header: "Reason",
+      meta: { className: "hidden md:table-cell", cellClassName: "max-w-xs truncate text-muted-foreground" },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (claim) => STATUS[claim.status].label },
+      cell: ({ row }) => (
+        <Badge variant={STATUS[row.original.status].variant}>{STATUS[row.original.status].label}</Badge>
+      ),
+    },
+    {
+      id: "decision",
+      header: "Decision",
+      accessorFn: decisionText,
+      meta: { className: "hidden lg:table-cell", cellClassName: "text-sm text-muted-foreground" },
+      cell: ({ row }) => {
+        const claim = row.original;
+        return (
+          <>
+            {claim.status === "pending" && `Waiting on ${claim.approver_name}`}
+            {claim.status === "approved" &&
+              `By ${claim.decided_by_name ?? "—"}${claim.expires_on ? ` · lapses ${formatDay(claim.expires_on, true)}` : ""}`}
+            {claim.status === "rejected" && (
+              <>
+                By {claim.decided_by_name ?? "—"}
+                {claim.decision_note && (
+                  <span className="block truncate text-xs italic">“{claim.decision_note}”</span>
+                )}
+              </>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "w-24 text-right", text: false },
+      cell: ({ row }) =>
+        row.original.can_cancel && (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={busyId === row.original.id}
+            onClick={() => void withdraw(row.original)}
+          >
+            {busyId === row.original.id && <Loader2 className="animate-spin" />}
+            Withdraw
+          </Button>
+        ),
+    },
+  ];
+
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Comp-off"
         description={
           settings.data
@@ -108,30 +187,35 @@ export function CompOffPanel({
                 : "Not set up yet. HR marks a leave type as comp-off before claims can be made."
             : undefined
         }
+        columns={columns}
+        data={rows}
+        noun="claims"
+        exportName="comp-off-claims"
+        searchPlaceholder="Search claims"
+        filters={
+          canSeeOthers &&
+          hasEmployee && (
+            <Select value={scope} onValueChange={(value) => setScope(value as "mine" | "all")}>
+              <SelectTrigger className="h-9 w-44" aria-label="Whose claims">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mine">My claims</SelectItem>
+                <SelectItem value="all">Everyone I can see</SelectItem>
+              </SelectContent>
+            </Select>
+          )
+        }
         actions={
-          <div className="flex items-center gap-2">
-            {canSeeOthers && hasEmployee && (
-              <Select value={scope} onValueChange={(value) => setScope(value as "mine" | "all")}>
-                <SelectTrigger size="sm" className="w-44" aria-label="Whose claims">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="mine">My claims</SelectItem>
-                  <SelectItem value="all">Everyone I can see</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-            {hasEmployee && (
-              <Button size="sm" disabled={!configured} onClick={() => setClaiming(true)}>
-                <Plus /> Claim comp-off
-              </Button>
-            )}
-          </div>
+          hasEmployee && (
+            <Button size="sm" className="h-9" disabled={!configured} onClick={() => setClaiming(true)}>
+              <Plus /> Claim comp-off
+            </Button>
+          )
         }
         isLoading={claims.isLoading}
         error={claims.error?.detail}
         onRetry={claims.reload}
-        isEmpty={rows.length === 0}
         empty={{
           icon: CalendarClock,
           title: "No comp-off claims",
@@ -140,68 +224,7 @@ export function CompOffPanel({
               ? "Claims you make for working a holiday or a weekly off show up here."
               : "Nobody you can see has claimed comp-off.",
         }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {scope === "all" && <TableHead className="pl-5">Employee</TableHead>}
-              <TableHead className={scope === "all" ? undefined : "pl-5"}>Day worked</TableHead>
-              <TableHead className="text-right">Days</TableHead>
-              <TableHead className="hidden md:table-cell">Reason</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="hidden lg:table-cell">Decision</TableHead>
-              <TableHead className="w-24" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((claim) => (
-              <TableRow key={claim.id}>
-                {scope === "all" && (
-                  <TableCell className="pl-5 font-medium text-foreground">
-                    {claim.employee_name}
-                  </TableCell>
-                )}
-                <TableCell className={scope === "all" ? "whitespace-nowrap" : "pl-5 whitespace-nowrap"}>
-                  {formatDay(claim.worked_date, true)}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{pluralDays(claim.days)}</TableCell>
-                <TableCell className="hidden max-w-xs truncate text-muted-foreground md:table-cell">
-                  {claim.reason}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={STATUS[claim.status].variant}>{STATUS[claim.status].label}</Badge>
-                </TableCell>
-                <TableCell className="hidden text-sm text-muted-foreground lg:table-cell">
-                  {claim.status === "pending" && `Waiting on ${claim.approver_name}`}
-                  {claim.status === "approved" &&
-                    `By ${claim.decided_by_name ?? "—"}${claim.expires_on ? ` · lapses ${formatDay(claim.expires_on, true)}` : ""}`}
-                  {claim.status === "rejected" && (
-                    <>
-                      By {claim.decided_by_name ?? "—"}
-                      {claim.decision_note && (
-                        <span className="block truncate text-xs italic">“{claim.decision_note}”</span>
-                      )}
-                    </>
-                  )}
-                </TableCell>
-                <TableCell className="text-right">
-                  {claim.can_cancel && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={busyId === claim.id}
-                      onClick={() => void withdraw(claim)}
-                    >
-                      {busyId === claim.id && <Loader2 className="animate-spin" />}
-                      Withdraw
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       <ClaimDialog
         open={claiming}

@@ -1,17 +1,11 @@
+import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, Info, Scale } from "lucide-react";
 import React from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import type { BreakupLine, BudgetDeviation, InternalParity } from "@/lib/types/hiring";
 
 /** The budget deviation — always the first thing an approver reads. */
@@ -87,42 +81,41 @@ export function OfferInternalParity({ parity }: { parity: InternalParity }) {
   );
 }
 
+const BREAKUP_COLUMNS: ColumnDef<BreakupLine>[] = [
+  {
+    accessorKey: "name",
+    header: "Component",
+    cell: ({ row }) => (
+      <>
+        {row.original.name}
+        <span className="ml-2 font-mono text-xs text-muted-foreground">{row.original.code}</span>
+      </>
+    ),
+  },
+  {
+    accessorKey: "monthly",
+    header: "Monthly",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.monthly} />,
+  },
+  {
+    accessorKey: "annual",
+    header: "Annual",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.annual} />,
+  },
+  {
+    accessorKey: "part_of_ctc",
+    header: "In CTC",
+    cell: ({ row }) =>
+      row.original.part_of_ctc ? <Badge variant="secondary">Yes</Badge> : <Badge variant="muted">No</Badge>,
+  },
+];
+
 /** The salary breakup the offer resolves to under its structure. */
 export function OfferBreakupTable({ lines }: { lines: BreakupLine[] }) {
   if (lines.length === 0) {
     return <p className="text-sm text-muted-foreground">No breakup could be computed for this offer.</p>;
   }
-  return (
-    <div className="overflow-x-auto rounded-lg border border-border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Component</TableHead>
-            <TableHead className="text-right">Monthly</TableHead>
-            <TableHead className="text-right">Annual</TableHead>
-            <TableHead>In CTC</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {lines.map((line) => (
-            <TableRow key={line.code}>
-              <TableCell>
-                {line.name}
-                <span className="ml-2 font-mono text-xs text-muted-foreground">{line.code}</span>
-              </TableCell>
-              <TableCell className="text-right">
-                <Money value={line.monthly} />
-              </TableCell>
-              <TableCell className="text-right">
-                <Money value={line.annual} />
-              </TableCell>
-              <TableCell>
-                {line.part_of_ctc ? <Badge variant="secondary">Yes</Badge> : <Badge variant="muted">No</Badge>}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
+  return <DataTable variant="plain" columns={BREAKUP_COLUMNS} data={lines} getRowId={(line) => line.code} />;
 }

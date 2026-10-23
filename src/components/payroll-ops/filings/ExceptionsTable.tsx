@@ -43,6 +43,7 @@ export function ExceptionsTable({
   }
 
   return (
+    // table-ok: each subject's cell spans all its findings (rowSpan) so one person's problems read and get fixed together; DataTable has no row grouping
     <Table>
       <TableHeader>
         <TableRow>

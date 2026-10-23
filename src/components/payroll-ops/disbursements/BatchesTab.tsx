@@ -1,14 +1,20 @@
 "use client";
 
-import { Banknote, Plus } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Banknote, Lock, Plus } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { RequireRole } from "@/components/common/RequireRole";
 import { InlineProblem } from "@/components/payroll-ops/shared";
-import { QueryPanel, useReloadOn } from "@/components/payroll-ops/disbursements/common";
+import { useReloadOn } from "@/components/payroll-ops/disbursements/common";
 import { runLabel } from "@/components/payroll-ops/disbursements/PrepareBatchDialog";
-import { BatchStatusBadge, formatTimestamp } from "@/components/payroll-ops/disbursements/labels";
+import {
+  BATCH_STATUS_LABEL,
+  BatchStatusBadge,
+  formatTimestamp,
+} from "@/components/payroll-ops/disbursements/labels";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -17,17 +23,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { DisbursementBatch, PayrollRunSummary } from "@/lib/types/payroll-ops";
 import { formatDay } from "@/lib/utils";
+
+const SUPPLEMENTARY = "Supplementary: reissued failed credits";
 
 /** Every disbursement batch, optionally for one payroll run. */
 export function BatchesTab({
@@ -50,6 +50,8 @@ export function BatchesTab({
       : `/disbursement/batches?payroll_run_id=${encodeURIComponent(runId)}`,
   );
   useReloadOn(version, query.reload);
+  // A 403 reads as "no access", not as a failed load.
+  const forbidden = query.error?.status === 403;
 
   const runName = useMemo(() => {
     const byId = new Map(runs.map((run) => [run.id, run]));
@@ -59,6 +61,96 @@ export function BatchesTab({
     };
   }, [runs]);
 
+  const columns: ColumnDef<DisbursementBatch>[] = [
+    {
+      id: "payroll_run",
+      header: "Payroll run",
+      accessorFn: (row) => runName(row.payroll_run_id),
+      meta: {
+        cellClassName: "text-foreground",
+        text: (row) =>
+          row.supplements_batch_id
+            ? `${runName(row.payroll_run_id)} · ${SUPPLEMENTARY}`
+            : runName(row.payroll_run_id),
+      },
+      cell: ({ row }) => (
+        <>
+          {runName(row.original.payroll_run_id)}
+          {row.original.supplements_batch_id && (
+            <span className="block text-xs text-muted-foreground">{SUPPLEMENTARY}</span>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (row) => BATCH_STATUS_LABEL[row.status] },
+      cell: ({ row }) => (
+        <>
+          <BatchStatusBadge status={row.original.status} />
+          {row.original.status === "failed" && row.original.validation_exceptions.length > 0 && (
+            <span className="block text-xs text-muted-foreground tabular-nums">
+              {row.original.validation_exceptions.length} to fix
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "employee_count",
+      header: "Employees",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "total_amount",
+      header: "Total",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.total_amount} />,
+    },
+    {
+      accessorKey: "value_date",
+      header: "Value date",
+      meta: {
+        className: "hidden md:table-cell",
+        text: (row) => (row.value_date ? formatDay(row.value_date, true) : null),
+      },
+      cell: ({ row }) =>
+        row.original.value_date ? formatDay(row.original.value_date, true) : "—",
+    },
+    {
+      id: "prepared",
+      header: "Prepared",
+      accessorFn: (row) => row.prepared_at,
+      meta: {
+        className: "hidden lg:table-cell",
+        cellClassName: "text-muted-foreground",
+        text: (row) =>
+          [row.prepared_by_name, row.prepared_at ? formatTimestamp(row.prepared_at) : null]
+            .filter(Boolean)
+            .join(" · "),
+      },
+      cell: ({ row }) => (
+        <>
+          {row.original.prepared_by_name ?? "—"}
+          <span className="block text-xs">{formatTimestamp(row.original.prepared_at)}</span>
+        </>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", headClassName: "w-20", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="ghost" onClick={() => onOpen(row.original.id)}>
+          Open
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div className="grid gap-3">
       {runsError && (
@@ -67,97 +159,50 @@ export function BatchesTab({
           Existing batches are still listed below.
         </InlineProblem>
       )}
-      <QueryPanel
-        query={query}
-        isEmpty={(rows) => rows.length === 0}
-        empty={{
-          icon: Banknote,
-          title: runId === "any" ? "No salary files yet" : "No salary files for this run",
-          description:
-            "Prepare a file once a payroll run is approved. It is validated first; anything that would bounce at the bank blocks it.",
-        }}
-        toolbar={
-          <>
-            <Select value={runId} onValueChange={setRunId}>
-              <SelectTrigger size="sm" className="w-80 max-w-full" aria-label="Payroll run">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="any">All payroll runs</SelectItem>
-                {runs.map((run) => (
-                  <SelectItem key={run.id} value={run.id}>
-                    {runLabel(run)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <RequireRole roles={["admin", "sub_admin"]}>
-              <Button
-                size="sm"
-                className="ml-auto"
-                onClick={onPrepare}
-                disabled={Boolean(runsError)}
-              >
-                <Plus /> Prepare salary file
-              </Button>
-            </RequireRole>
-          </>
+      <DataTable
+        columns={columns}
+        data={forbidden ? [] : (query.data ?? [])}
+        noun="salary files"
+        exportName="salary-files"
+        searchPlaceholder="Search salary files"
+        isLoading={query.isLoading && query.data === null}
+        error={forbidden ? null : (query.error?.detail ?? null)}
+        onRetry={query.reload}
+        filtered={!forbidden && runId !== "any"}
+        empty={
+          forbidden
+            ? { icon: Lock, title: "You don't have access to this", description: query.error?.detail }
+            : {
+                icon: Banknote,
+                title: "No salary files yet",
+                description:
+                  "Prepare a file once a payroll run is approved. It is validated first; anything that would bounce at the bank blocks it.",
+              }
         }
-      >
-        {(rows) => (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Payroll run</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Employees</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="hidden md:table-cell">Value date</TableHead>
-                <TableHead className="hidden lg:table-cell">Prepared</TableHead>
-                <TableHead className="w-20" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="text-foreground">
-                    {runName(row.payroll_run_id)}
-                    {row.supplements_batch_id && (
-                      <span className="block text-xs text-muted-foreground">
-                        Supplementary: reissued failed credits
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <BatchStatusBadge status={row.status} />
-                    {row.status === "failed" && row.validation_exceptions.length > 0 && (
-                      <span className="block text-xs text-muted-foreground tabular-nums">
-                        {row.validation_exceptions.length} to fix
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">{row.employee_count}</TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.total_amount} />
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    {row.value_date ? formatDay(row.value_date, true) : "—"}
-                  </TableCell>
-                  <TableCell className="hidden text-muted-foreground lg:table-cell">
-                    {row.prepared_by_name ?? "—"}
-                    <span className="block text-xs">{formatTimestamp(row.prepared_at)}</span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" onClick={() => onOpen(row.id)}>
-                      Open
-                    </Button>
-                  </TableCell>
-                </TableRow>
+        emptyMessage="No salary files for this run. Prepare a file once a payroll run is approved. It is validated first; anything that would bounce at the bank blocks it."
+        filters={
+          <Select value={runId} onValueChange={setRunId}>
+            <SelectTrigger className="h-9 w-80 max-w-full" aria-label="Payroll run">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="any">All payroll runs</SelectItem>
+              {runs.map((run) => (
+                <SelectItem key={run.id} value={run.id}>
+                  {runLabel(run)}
+                </SelectItem>
               ))}
-            </TableBody>
-          </Table>
-        )}
-      </QueryPanel>
+            </SelectContent>
+          </Select>
+        }
+        actions={
+          <RequireRole roles={["admin", "sub_admin"]}>
+            <Button size="sm" className="h-9" onClick={onPrepare} disabled={Boolean(runsError)}>
+              <Plus /> Prepare salary file
+            </Button>
+          </RequireRole>
+        }
+      />
     </div>
   );
 }

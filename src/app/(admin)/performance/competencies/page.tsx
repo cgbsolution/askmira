@@ -1,9 +1,10 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Gauge, Layers, ListChecks, Loader2, Plus, Trash2 } from "lucide-react";
 import React, { useState } from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { humanize, useAction } from "@/components/performance/shared";
@@ -28,14 +29,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -44,12 +37,150 @@ import type { Competency, CompetencyCategory, CompetencyTemplate, RatingScale, S
 
 const DECIMAL = /^-?\d+(\.\d{1,2})?$/;
 
+const TEMPLATE_COLUMNS: ColumnDef<CompetencyTemplate>[] = [
+  {
+    accessorKey: "name",
+    header: "Template",
+    meta: { text: (t) => [t.name, t.description].filter(Boolean).join(" — ") },
+    cell: ({ row }) => (
+      <>
+        <p className="font-medium">{row.original.name}</p>
+        {row.original.description && <p className="text-xs text-muted-foreground">{row.original.description}</p>}
+      </>
+    ),
+  },
+  {
+    id: "competencies",
+    header: "Competencies",
+    meta: {
+      cellClassName: "text-xs",
+      text: (t) =>
+        t.items.map((i) => `${i.competency_name} ${i.weight}${!i.is_mandatory ? " (optional)" : ""}`).join("; "),
+    },
+    cell: ({ row }) =>
+      row.original.items.map((i) => (
+        <p key={i.competency_id}>
+          {i.competency_name} <span className="tabular-nums text-muted-foreground">{i.weight}</span>
+          {!i.is_mandatory && <span className="text-muted-foreground"> (optional)</span>}
+        </p>
+      )),
+  },
+  { id: "grades", header: "Grades", accessorFn: (t) => t.applicable_grades.join(", ") || "Any" },
+];
+
+const SCALE_COLUMNS: ColumnDef<RatingScale>[] = [
+  {
+    accessorKey: "name",
+    header: "Scale",
+    meta: { cellClassName: "font-medium", text: (s) => `${s.name} (${humanize(s.scale_type)})` },
+    cell: ({ row }) => (
+      <>
+        {row.original.name} <span className="text-xs text-muted-foreground">({humanize(row.original.scale_type)})</span>
+      </>
+    ),
+  },
+  {
+    id: "range",
+    header: "Range",
+    accessorFn: (s) => s.min_value,
+    sortingFn: "alphanumeric",
+    meta: {
+      cellClassName: "tabular-nums",
+      text: (s) => `${s.min_value}–${s.max_value}${s.allow_decimals ? " · decimals" : ""}`,
+    },
+    cell: ({ row }) => (
+      <>
+        {row.original.min_value}–{row.original.max_value}
+        {row.original.allow_decimals ? " · decimals" : ""}
+      </>
+    ),
+  },
+  {
+    id: "levels",
+    header: "Levels",
+    meta: {
+      cellClassName: "text-xs",
+      text: (s) => s.levels.map((l) => `${l.value} ${l.label} — ${l.description}`).join("; "),
+    },
+    cell: ({ row }) =>
+      row.original.levels.map((l) => (
+        <p key={l.value}>
+          <span className="font-medium tabular-nums">{l.value}</span> {l.label} — {l.description}
+        </p>
+      )),
+  },
+];
+
 export default function CompetenciesPage() {
   const scales = useApiQuery<RatingScale[]>("/competency/scales");
   const competencies = useApiQuery<Competency[]>("/competency/competencies");
   const templates = useApiQuery<CompetencyTemplate[]>("/competency/templates");
   const [dialog, setDialog] = useState<"scale" | "competency" | "template" | null>(null);
   const { busy, run } = useAction();
+
+  const competencyColumns: ColumnDef<Competency>[] = [
+    {
+      accessorKey: "name",
+      header: "Competency",
+      meta: { text: (c) => `${c.name} ${c.code}` },
+      cell: ({ row }) => (
+        <>
+          <p className="font-medium">{row.original.name}</p>
+          <p className="text-xs text-muted-foreground">{row.original.code}</p>
+        </>
+      ),
+    },
+    {
+      accessorKey: "category",
+      header: "Category",
+      meta: { text: (c) => humanize(c.category) },
+      cell: ({ row }) => humanize(row.original.category),
+    },
+    {
+      id: "indicators",
+      header: "Level indicators",
+      meta: {
+        cellClassName: "max-w-md text-xs",
+        text: (c) => c.indicators.map((i) => `${i.scale_value} — ${i.behaviour}`).join("; "),
+      },
+      cell: ({ row }) =>
+        row.original.indicators.map((i) => (
+          <p key={i.scale_value}>
+            <span className="font-medium tabular-nums">{i.scale_value}</span> — {i.behaviour}
+          </p>
+        )),
+    },
+    {
+      id: "linked_values",
+      header: "Linked values",
+      meta: { text: (c) => c.linked_value_codes.join(", ") || "—" },
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {row.original.linked_value_codes.length
+            ? row.original.linked_value_codes.map((v) => <Badge key={v} variant="secondary">{v}</Badge>)
+            : "—"}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "active",
+      header: "Active",
+      cell: ({ row }) => {
+        const c = row.original;
+        return (
+          <Switch
+            checked={c.active}
+            disabled={busy !== null}
+            aria-label={`${c.name} active`}
+            onCheckedChange={async (checked) => {
+              await run(c.id, () => patch(`/competency/competencies/${c.id}`, { active: checked }));
+              competencies.reload();
+            }}
+          />
+        );
+      },
+    },
+  ];
 
   return (
     <PageShell title="Competencies & scales" description="What people are rated against, and what each level looks like.">
@@ -61,7 +192,7 @@ export default function CompetenciesPage() {
         </TabsList>
 
         <TabsContent value="competencies" className="mt-4">
-          <DataPanel
+          <DataTable
             title="Competencies"
             description="Each has a behaviour description for every level — without them, ratings are not comparable."
             actions={
@@ -69,62 +200,20 @@ export default function CompetenciesPage() {
                 <Plus /> New competency
               </Button>
             }
-            isLoading={competencies.isLoading}
+            columns={competencyColumns}
+            data={competencies.data ?? []}
+            noun="competencies"
+            exportName="competencies"
+            searchPlaceholder="Search competencies"
+            isLoading={competencies.isLoading && !competencies.data}
             error={competencies.error?.detail}
             onRetry={competencies.reload}
-            isEmpty={(competencies.data ?? []).length === 0}
             empty={{ icon: ListChecks, title: "No competencies yet", description: "Create a rating scale first, then competencies against it." }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Competency</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Level indicators</TableHead>
-                  <TableHead>Linked values</TableHead>
-                  <TableHead>Active</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {competencies.data?.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell>
-                      <p className="font-medium">{c.name}</p>
-                      <p className="text-xs text-muted-foreground">{c.code}</p>
-                    </TableCell>
-                    <TableCell>{humanize(c.category)}</TableCell>
-                    <TableCell className="max-w-md text-xs">
-                      {c.indicators.map((i) => (
-                        <p key={i.scale_value}>
-                          <span className="font-medium tabular-nums">{i.scale_value}</span> — {i.behaviour}
-                        </p>
-                      ))}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {c.linked_value_codes.length ? c.linked_value_codes.map((v) => <Badge key={v} variant="secondary">{v}</Badge>) : "—"}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={c.active}
-                        disabled={busy !== null}
-                        aria-label={`${c.name} active`}
-                        onCheckedChange={async (checked) => {
-                          await run(c.id, () => patch(`/competency/competencies/${c.id}`, { active: checked }));
-                          competencies.reload();
-                        }}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </TabsContent>
 
         <TabsContent value="templates" className="mt-4">
-          <DataPanel
+          <DataTable
             title="Competency templates"
             description="A set of weighted competencies for a kind of role. Weights add up to 100."
             actions={
@@ -132,45 +221,20 @@ export default function CompetenciesPage() {
                 <Plus /> New template
               </Button>
             }
-            isLoading={templates.isLoading}
+            columns={TEMPLATE_COLUMNS}
+            data={templates.data ?? []}
+            noun="templates"
+            exportName="competency-templates"
+            searchPlaceholder="Search templates"
+            isLoading={templates.isLoading && !templates.data}
             error={templates.error?.detail}
             onRetry={templates.reload}
-            isEmpty={(templates.data ?? []).length === 0}
             empty={{ icon: Layers, title: "No templates yet" }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Template</TableHead>
-                  <TableHead>Competencies</TableHead>
-                  <TableHead>Grades</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {templates.data?.map((t) => (
-                  <TableRow key={t.id}>
-                    <TableCell>
-                      <p className="font-medium">{t.name}</p>
-                      {t.description && <p className="text-xs text-muted-foreground">{t.description}</p>}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {t.items.map((i) => (
-                        <p key={i.competency_id}>
-                          {i.competency_name} <span className="tabular-nums text-muted-foreground">{i.weight}</span>
-                          {!i.is_mandatory && <span className="text-muted-foreground"> (optional)</span>}
-                        </p>
-                      ))}
-                    </TableCell>
-                    <TableCell>{t.applicable_grades.join(", ") || "Any"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </TabsContent>
 
         <TabsContent value="scales" className="mt-4">
-          <DataPanel
+          <DataTable
             title="Rating scales"
             description="Every level carries a description; it is what makes one manager's 4 the same as another's."
             actions={
@@ -178,42 +242,16 @@ export default function CompetenciesPage() {
                 <Plus /> New scale
               </Button>
             }
-            isLoading={scales.isLoading}
+            columns={SCALE_COLUMNS}
+            data={scales.data ?? []}
+            noun="scales"
+            exportName="rating-scales"
+            searchPlaceholder="Search scales"
+            isLoading={scales.isLoading && !scales.data}
             error={scales.error?.detail}
             onRetry={scales.reload}
-            isEmpty={(scales.data ?? []).length === 0}
             empty={{ icon: Gauge, title: "No rating scales yet" }}
-          >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Scale</TableHead>
-                  <TableHead>Range</TableHead>
-                  <TableHead>Levels</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {scales.data?.map((s) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">
-                      {s.name} <span className="text-xs text-muted-foreground">({humanize(s.scale_type)})</span>
-                    </TableCell>
-                    <TableCell className="tabular-nums">
-                      {s.min_value}–{s.max_value}
-                      {s.allow_decimals ? " · decimals" : ""}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {s.levels.map((l) => (
-                        <p key={l.value}>
-                          <span className="font-medium tabular-nums">{l.value}</span> {l.label} — {l.description}
-                        </p>
-                      ))}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DataPanel>
+          />
         </TabsContent>
       </Tabs>
 

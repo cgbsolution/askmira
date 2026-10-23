@@ -1,14 +1,12 @@
 "use client";
 
-import { FileText, X } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { FileText, Lock, X } from "lucide-react";
 import React, { useState } from "react";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
-import {
-  QueryPanel,
-  useEntityName,
-  useReloadOn,
-} from "@/components/payroll-ops/disbursements/common";
+import { useEntityName, useReloadOn } from "@/components/payroll-ops/disbursements/common";
 import {
   displayPeriod,
   FilingStatusBadge,
@@ -25,14 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type {
   FilingRecord,
@@ -65,26 +55,125 @@ export function FilingsList({
   const entityName = useEntityName(entities);
 
   const filtered = returnType !== "any" || status !== "any" || period !== "";
+  // A 403 reads as "no access", not as a failed load.
+  const forbidden = query.error?.status === 403;
+
+  const columns: ColumnDef<FilingRecord>[] = [
+    {
+      id: "return",
+      header: "Return",
+      accessorFn: (row) => RETURN_LABEL[row.return_type],
+      meta: {
+        cellClassName: "font-medium text-foreground",
+        text: (row) =>
+          row.jurisdiction
+            ? `${RETURN_LABEL[row.return_type]} · ${row.jurisdiction}`
+            : RETURN_LABEL[row.return_type],
+      },
+      cell: ({ row }) => (
+        <>
+          {RETURN_LABEL[row.original.return_type]}
+          {row.original.jurisdiction && (
+            <span className="block text-xs font-normal text-muted-foreground">
+              {row.original.jurisdiction}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "period",
+      header: "Period",
+      meta: { text: (row) => displayPeriod(row.period) },
+      cell: ({ row }) => displayPeriod(row.original.period),
+    },
+    {
+      id: "entity",
+      header: "Entity",
+      accessorFn: (row) => entityName(row.legal_entity_id),
+      meta: { className: "hidden md:table-cell", cellClassName: "text-muted-foreground" },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      meta: { text: (row) => STATUS_LABEL[row.status] },
+      cell: ({ row }) => (
+        <>
+          <FilingStatusBadge status={row.original.status} />
+          {row.original.status === "blocked" && (
+            <span className="block text-xs text-muted-foreground tabular-nums">
+              {row.original.validation_exceptions.length}{" "}
+              {row.original.validation_exceptions.length === 1 ? "finding" : "findings"}
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "record_count",
+      header: "Records",
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+    },
+    {
+      accessorKey: "total_amount",
+      header: "Amount",
+      sortingFn: "alphanumeric",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.total_amount} />,
+    },
+    {
+      id: "generated",
+      header: "Generated",
+      accessorFn: (row) => row.generated_at ?? row.created_at,
+      meta: {
+        className: "hidden lg:table-cell",
+        cellClassName: "text-muted-foreground",
+        text: (row) => formatTimestamp(row.generated_at ?? row.created_at),
+      },
+      cell: ({ row }) => formatTimestamp(row.original.generated_at ?? row.original.created_at),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", headClassName: "w-20", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="ghost" onClick={() => onOpen(row.original.id)}>
+          Open
+        </Button>
+      ),
+    },
+  ];
 
   return (
-    <QueryPanel
-      query={query}
-      loadingRows={5}
-      isEmpty={(rows) => rows.length === 0}
-      empty={{
-        icon: FileText,
-        title: filtered ? "No returns match these filters" : "No returns generated yet",
-        description: filtered
-          ? "Clear the filters to see every return."
-          : "Generate a return above. Blocked attempts are kept here with their findings, so nothing is lost between fixing and retrying.",
-      }}
-      toolbar={
+    <DataTable
+      columns={columns}
+      data={forbidden ? [] : (query.data ?? [])}
+      noun="returns"
+      exportName="returns"
+      searchPlaceholder="Search returns"
+      isLoading={query.isLoading && query.data === null}
+      error={forbidden ? null : (query.error?.detail ?? null)}
+      onRetry={query.reload}
+      filtered={!forbidden && filtered}
+      empty={
+        forbidden
+          ? { icon: Lock, title: "You don't have access to this", description: query.error?.detail }
+          : {
+              icon: FileText,
+              title: "No returns generated yet",
+              description:
+                "Generate a return above. Blocked attempts are kept here with their findings, so nothing is lost between fixing and retrying.",
+            }
+      }
+      emptyMessage="No returns match these filters. Clear the filters to see every return."
+      filters={
         <>
           <Select
             value={returnType}
             onValueChange={(value) => setReturnType(value as ReturnType | "any")}
           >
-            <SelectTrigger size="sm" className="w-52" aria-label="Return">
+            <SelectTrigger className="h-9 w-52" aria-label="Return">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -97,7 +186,7 @@ export function FilingsList({
             </SelectContent>
           </Select>
           <Select value={status} onValueChange={(value) => setStatus(value as FilingStatus | "any")}>
-            <SelectTrigger size="sm" className="w-52" aria-label="Status">
+            <SelectTrigger className="h-9 w-52" aria-label="Status">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -114,7 +203,7 @@ export function FilingsList({
             aria-label="Period"
             value={period}
             onChange={(event) => setPeriod(event.target.value)}
-            className="h-8 w-44"
+            className="h-9 w-44"
           />
           {filtered && (
             <Button
@@ -129,69 +218,8 @@ export function FilingsList({
               <X /> Clear filters
             </Button>
           )}
-          <span className="ml-auto text-sm text-muted-foreground tabular-nums">
-            {query.data
-              ? `${query.data.length} ${query.data.length === 1 ? "record" : "records"}`
-              : ""}
-          </span>
         </>
       }
-    >
-      {(rows) => (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Return</TableHead>
-              <TableHead>Period</TableHead>
-              <TableHead className="hidden md:table-cell">Entity</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Records</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="hidden lg:table-cell">Generated</TableHead>
-              <TableHead className="w-20" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="font-medium text-foreground">
-                  {RETURN_LABEL[row.return_type]}
-                  {row.jurisdiction && (
-                    <span className="block text-xs font-normal text-muted-foreground">
-                      {row.jurisdiction}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell>{displayPeriod(row.period)}</TableCell>
-                <TableCell className="hidden text-muted-foreground md:table-cell">
-                  {entityName(row.legal_entity_id)}
-                </TableCell>
-                <TableCell>
-                  <FilingStatusBadge status={row.status} />
-                  {row.status === "blocked" && (
-                    <span className="block text-xs text-muted-foreground tabular-nums">
-                      {row.validation_exceptions.length}{" "}
-                      {row.validation_exceptions.length === 1 ? "finding" : "findings"}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{row.record_count}</TableCell>
-                <TableCell className="text-right">
-                  <Money value={row.total_amount} />
-                </TableCell>
-                <TableCell className="hidden text-muted-foreground lg:table-cell">
-                  {formatTimestamp(row.generated_at ?? row.created_at)}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button size="sm" variant="ghost" onClick={() => onOpen(row.id)}>
-                    Open
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </QueryPanel>
+    />
   );
 }

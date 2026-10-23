@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { ListOrdered, Pencil, Plus } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { InterviewRequisitionSelect } from "@/components/hiring/InterviewRequisitionSelect";
 import { humanize, INTERVIEW_MODE } from "@/components/hiring/labels";
@@ -21,14 +22,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { patch, post } from "@/lib/api";
@@ -47,13 +40,65 @@ export function InterviewRoundsPanel() {
     .filter((stage) => stage.requisition_id === requisitionId)
     .sort((a, b) => a.sequence - b.sequence);
 
+  const columns: ColumnDef<InterviewStage>[] = [
+    { accessorKey: "sequence", header: "#", meta: { className: "text-right tabular-nums" } },
+    { accessorKey: "name", header: "Round", meta: { cellClassName: "font-medium text-foreground" } },
+    {
+      accessorKey: "stage_type",
+      header: "Type",
+      meta: { text: (stage) => humanize(stage.stage_type) },
+      cell: ({ row }) => humanize(row.original.stage_type),
+    },
+    { accessorKey: "duration_minutes", header: "Minutes", meta: { className: "text-right tabular-nums" } },
+    {
+      accessorKey: "mode",
+      header: "Mode",
+      meta: { text: (stage) => INTERVIEW_MODE[stage.mode] ?? stage.mode },
+      cell: ({ row }) => INTERVIEW_MODE[row.original.mode] ?? row.original.mode,
+    },
+    {
+      id: "competencies",
+      header: "Competencies",
+      accessorFn: (stage) =>
+        stage.required_competencies.length ? stage.required_competencies.map(humanize).join(", ") : "None",
+      meta: { cellClassName: "max-w-56 text-xs text-muted-foreground" },
+    },
+    {
+      id: "rules",
+      header: "Rules",
+      meta: {
+        text: (stage) =>
+          [stage.is_eliminating && "Eliminating", stage.feedback_required && "Feedback required"]
+            .filter(Boolean)
+            .join(", "),
+      },
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1">
+          {row.original.is_eliminating && <Badge variant="warning">Eliminating</Badge>}
+          {row.original.feedback_required && <Badge variant="secondary">Feedback required</Badge>}
+        </div>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <Button size="sm" variant="ghost" onClick={() => setEditing(row.original)}>
+          <Pencil /> Edit
+        </Button>
+      ),
+    },
+  ];
+
   return (
     <div className="grid gap-4">
       <div className="max-w-md">
         <InterviewRequisitionSelect id="rounds-requisition" value={requisitionId} onChange={setRequisitionId} />
       </div>
       {requisitionId && (
-        <DataPanel
+        <DataTable
           title="Interview rounds"
           description="The rounds every candidate on this requisition goes through, in order."
           actions={
@@ -61,60 +106,20 @@ export function InterviewRoundsPanel() {
               <Plus /> Add round
             </Button>
           }
+          columns={columns}
+          data={rows}
+          noun="rounds"
+          exportName="interview-rounds"
+          searchPlaceholder="Search rounds"
           isLoading={stages.isLoading && rows.length === 0}
           error={stages.error?.detail}
           onRetry={stages.reload}
-          isEmpty={rows.length === 0}
           empty={{
             icon: ListOrdered,
             title: "No rounds configured",
             description: "Add the rounds before scheduling interviews for this requisition.",
           }}
-        >
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-right">#</TableHead>
-                  <TableHead>Round</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead className="text-right">Minutes</TableHead>
-                  <TableHead>Mode</TableHead>
-                  <TableHead>Competencies</TableHead>
-                  <TableHead>Rules</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((stage) => (
-                  <TableRow key={stage.id}>
-                    <TableCell className="text-right tabular-nums">{stage.sequence}</TableCell>
-                    <TableCell className="font-medium text-foreground">{stage.name}</TableCell>
-                    <TableCell>{humanize(stage.stage_type)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{stage.duration_minutes}</TableCell>
-                    <TableCell>{INTERVIEW_MODE[stage.mode] ?? stage.mode}</TableCell>
-                    <TableCell className="max-w-56 text-xs text-muted-foreground">
-                      {stage.required_competencies.length
-                        ? stage.required_competencies.map(humanize).join(", ")
-                        : "None"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {stage.is_eliminating && <Badge variant="warning">Eliminating</Badge>}
-                        {stage.feedback_required && <Badge variant="secondary">Feedback required</Badge>}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(stage)}>
-                        <Pencil /> Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </DataPanel>
+        />
       )}
       {editing && requisitionId && (
         <InterviewStageDialog

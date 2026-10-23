@@ -1,23 +1,57 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Copy } from "lucide-react";
 import React from "react";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { QueryBoundary, StatTile } from "@/components/expenses/ReviewCommon";
 import { formatMoney } from "@/components/expenses/shared";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import type { GstDuplicates } from "@/lib/types/expenses";
+import type { GstDuplicateGroup, GstDuplicates } from "@/lib/types/expenses";
+
+const COLUMNS: ColumnDef<GstDuplicateGroup>[] = [
+  { accessorKey: "vendor_gstin", header: "Vendor GSTIN", meta: { cellClassName: "tabular-nums" } },
+  { accessorKey: "normalised_invoice_number", header: "Invoice number" },
+  {
+    accessorKey: "claim_count",
+    header: "Captures",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+  },
+  {
+    id: "employees",
+    header: "Employees",
+    accessorFn: (group) => group.employee_ids.length,
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+  },
+  {
+    accessorKey: "total_tax",
+    header: "Total tax",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+    cell: ({ row }) => formatMoney(row.original.total_tax),
+  },
+  {
+    accessorKey: "detail",
+    header: "Detail",
+    meta: {
+      cellClassName: "max-w-96 whitespace-normal",
+      text: (group) => (group.across_employees ? `Different employees · ${group.detail}` : group.detail),
+    },
+    cell: ({ row }) => (
+      <>
+        {row.original.across_employees && (
+          <Badge variant="destructive" className="mb-1">
+            Different employees
+          </Badge>
+        )}
+        <p className="text-muted-foreground">{row.original.detail}</p>
+      </>
+    ),
+  },
+];
 
 /** The same vendor invoice captured more than once, possibly by different people. */
 export function GstDuplicatesPanel() {
@@ -44,45 +78,20 @@ export function GstDuplicatesPanel() {
                 />
               </div>
               {data.note && <p className="px-5 text-sm text-muted-foreground">{data.note}</p>}
-              {data.duplicates.length === 0 ? (
-                <EmptyState
-                  icon={Copy}
-                  title="No duplicates found"
-                  description="No vendor invoice has been captured more than once."
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="pl-5">Vendor GSTIN</TableHead>
-                      <TableHead>Invoice number</TableHead>
-                      <TableHead className="text-right">Captures</TableHead>
-                      <TableHead className="text-right">Employees</TableHead>
-                      <TableHead className="text-right">Total tax</TableHead>
-                      <TableHead className="pr-5">Detail</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.duplicates.map((group) => (
-                      <TableRow key={`${group.vendor_gstin}-${group.normalised_invoice_number}`}>
-                        <TableCell className="pl-5 tabular-nums">{group.vendor_gstin}</TableCell>
-                        <TableCell>{group.normalised_invoice_number}</TableCell>
-                        <TableCell className="text-right tabular-nums">{group.claim_count}</TableCell>
-                        <TableCell className="text-right tabular-nums">{group.employee_ids.length}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatMoney(group.total_tax)}</TableCell>
-                        <TableCell className="max-w-96 whitespace-normal pr-5">
-                          {group.across_employees && (
-                            <Badge variant="destructive" className="mb-1">
-                              Different employees
-                            </Badge>
-                          )}
-                          <p className="text-muted-foreground">{group.detail}</p>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+              <DataTable
+                bordered={false}
+                columns={COLUMNS}
+                data={data.duplicates}
+                getRowId={(group) => `${group.vendor_gstin}-${group.normalised_invoice_number}`}
+                noun="duplicates"
+                exportName="gst-duplicates"
+                searchPlaceholder="Search GSTIN or invoice"
+                empty={{
+                  icon: Copy,
+                  title: "No duplicates found",
+                  description: "No vendor invoice has been captured more than once.",
+                }}
+              />
             </div>
           )}
         </QueryBoundary>

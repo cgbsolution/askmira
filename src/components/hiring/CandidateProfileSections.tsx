@@ -1,10 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Download, FileText, Loader2 } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Money } from "@/components/common/Money";
 import {
@@ -24,19 +26,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { ApiError, downloadFile } from "@/lib/api";
 import type { CandidateProfile, ReferralStatus } from "@/lib/types/hiring";
 import { formatDate } from "@/lib/utils";
 
 type Profile = CandidateProfile;
+
+/** A status as its badge reads, for the search and the CSV. */
+function statusLabel<K extends string>(map: Record<K, [string, unknown]>, value: K): string {
+  return map[value]?.[0] ?? humanize(value);
+}
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -171,102 +170,152 @@ export function CandidateOverview({ profile }: { profile: Profile }) {
   );
 }
 
+type ApplicationRow = Profile["applications"][number];
+
+const APPLICATION_COLUMNS: ColumnDef<ApplicationRow>[] = [
+  {
+    accessorKey: "requisition_title",
+    header: "Requisition",
+    meta: { text: (row) => `${row.requisition_title ?? "—"} ${row.requisition_code ?? ""}`.trim() },
+    cell: ({ row }) => (
+      <>
+        <span className="font-medium text-foreground">{row.original.requisition_title ?? "—"}</span>
+        <p className="font-mono text-xs text-muted-foreground">{row.original.requisition_code ?? ""}</p>
+      </>
+    ),
+  },
+  {
+    accessorKey: "source",
+    header: "Source",
+    meta: { text: (row) => sourceLabel(row.source) },
+    cell: ({ row }) => sourceLabel(row.original.source),
+  },
+  {
+    accessorKey: "applied_at",
+    header: "Applied",
+    meta: { text: (row) => formatDateTime(row.applied_at) },
+    cell: ({ row }) => formatDateTime(row.original.applied_at),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: {
+      text: (row) =>
+        `${statusLabel(APPLICATION_STATUS, row.status)}${row.purged ? " · Personal data erased" : ""}`,
+    },
+    cell: ({ row }) => (
+      <div className="flex flex-wrap gap-1">
+        <StatusBadge map={APPLICATION_STATUS} value={row.original.status} />
+        {row.original.purged && <Badge variant="muted">Personal data erased</Badge>}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "matched_on",
+    header: "Matched to this person",
+    meta: {
+      cellClassName: "text-sm",
+      text: (row) =>
+        row.matched_on
+          ? [`On ${humanize(row.matched_on)}`, row.match_reason].filter(Boolean).join(" · ")
+          : "New person",
+    },
+    cell: ({ row }) =>
+      row.original.matched_on ? (
+        <>
+          <span className="text-foreground">On {humanize(row.original.matched_on)}</span>
+          {row.original.match_reason && (
+            <p className="text-xs text-muted-foreground">{row.original.match_reason}</p>
+          )}
+        </>
+      ) : (
+        <span className="text-muted-foreground">New person</span>
+      ),
+  },
+];
+
 export function CandidateApplications({ profile }: { profile: Profile }) {
-  if (profile.applications.length === 0) {
-    return <EmptyState icon={FileText} title="No applications on record" />;
-  }
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Requisition</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead>Applied</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Matched to this person</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {profile.applications.map((application) => (
-            <TableRow key={application.id}>
-              <TableCell>
-                <span className="font-medium text-foreground">{application.requisition_title ?? "—"}</span>
-                <p className="font-mono text-xs text-muted-foreground">{application.requisition_code ?? ""}</p>
-              </TableCell>
-              <TableCell>{sourceLabel(application.source)}</TableCell>
-              <TableCell>{formatDateTime(application.applied_at)}</TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  <StatusBadge map={APPLICATION_STATUS} value={application.status} />
-                  {application.purged && <Badge variant="muted">Personal data erased</Badge>}
-                </div>
-              </TableCell>
-              <TableCell className="text-sm">
-                {application.matched_on ? (
-                  <>
-                    <span className="text-foreground">On {humanize(application.matched_on)}</span>
-                    {application.match_reason && (
-                      <p className="text-xs text-muted-foreground">{application.match_reason}</p>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">New person</span>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={APPLICATION_COLUMNS}
+      data={profile.applications}
+      noun="applications"
+      exportName="candidate-applications"
+      bordered={false}
+      searchPlaceholder="Search applications"
+      empty={{ icon: FileText, title: "No applications on record" }}
+    />
   );
 }
 
+type InterviewRow = Profile["interviews"][number];
+
+const INTERVIEW_COLUMNS: ColumnDef<InterviewRow>[] = [
+  {
+    accessorKey: "stage_name",
+    header: "Stage",
+    meta: { cellClassName: "font-medium" },
+    cell: ({ row }) => row.original.stage_name ?? "—",
+  },
+  {
+    accessorKey: "scheduled_start",
+    header: "When",
+    meta: { text: (row) => formatDateTime(row.scheduled_start) },
+    cell: ({ row }) => formatDateTime(row.original.scheduled_start),
+  },
+  {
+    accessorKey: "mode",
+    header: "Mode",
+    meta: { text: (row) => INTERVIEW_MODE[row.mode] ?? humanize(row.mode) },
+    cell: ({ row }) => INTERVIEW_MODE[row.original.mode] ?? humanize(row.original.mode),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { text: (row) => statusLabel(INTERVIEW_STATUS, row.status) },
+    cell: ({ row }) => <StatusBadge map={INTERVIEW_STATUS} value={row.original.status} />,
+  },
+  {
+    accessorKey: "feedback_submitted",
+    header: "Feedback",
+    meta: {
+      className: "text-right tabular-nums",
+      text: (row) => `${row.feedback_submitted} of ${row.panel_size}`,
+    },
+    cell: ({ row }) => (
+      <>
+        {row.original.feedback_submitted} of {row.original.panel_size}
+      </>
+    ),
+  },
+  {
+    id: "actions",
+    header: "",
+    enableHiding: false,
+    meta: { className: "text-right", text: false },
+    cell: ({ row }) => (
+      <Button size="sm" variant="ghost" asChild>
+        <Link href={`/hiring/interviews?interview=${row.original.id}`}>Open</Link>
+      </Button>
+    ),
+  },
+];
+
 export function CandidateInterviews({ profile }: { profile: Profile }) {
-  if (profile.interviews.length === 0) {
-    return (
-      <EmptyState
-        icon={FileText}
-        title="No interviews scheduled"
-        description="Interviews are scheduled from the Interviews page."
-      />
-    );
-  }
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Stage</TableHead>
-            <TableHead>When</TableHead>
-            <TableHead>Mode</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Feedback</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {profile.interviews.map((interview) => (
-            <TableRow key={interview.id}>
-              <TableCell className="font-medium">{interview.stage_name ?? "—"}</TableCell>
-              <TableCell>{formatDateTime(interview.scheduled_start)}</TableCell>
-              <TableCell>{INTERVIEW_MODE[interview.mode] ?? humanize(interview.mode)}</TableCell>
-              <TableCell>
-                <StatusBadge map={INTERVIEW_STATUS} value={interview.status} />
-              </TableCell>
-              <TableCell className="text-right tabular-nums">
-                {interview.feedback_submitted} of {interview.panel_size}
-              </TableCell>
-              <TableCell className="text-right">
-                <Button size="sm" variant="ghost" asChild>
-                  <Link href={`/hiring/interviews?interview=${interview.id}`}>Open</Link>
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={INTERVIEW_COLUMNS}
+      data={profile.interviews}
+      noun="interviews"
+      exportName="candidate-interviews"
+      bordered={false}
+      searchPlaceholder="Search interviews"
+      empty={{
+        icon: FileText,
+        title: "No interviews scheduled",
+        description: "Interviews are scheduled from the Interviews page.",
+      }}
+    />
   );
 }
 
@@ -276,36 +325,44 @@ const CONSENT_VARIANT = {
   withdrawn: ["Withdrawn", "destructive"],
 } as const;
 
+type ConsentRow = Profile["consent"]["purposes"][number];
+
+const CONSENT_COLUMNS: ColumnDef<ConsentRow>[] = [
+  {
+    accessorKey: "purpose",
+    header: "Purpose",
+    cell: ({ row }) => humanize(row.original.purpose),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const [label, variant] = CONSENT_VARIANT[row.original.status] ?? [humanize(row.original.status), "outline"];
+      return <Badge variant={variant}>{label}</Badge>;
+    },
+  },
+  {
+    accessorKey: "recorded_at",
+    header: "Recorded",
+    cell: ({ row }) => formatDateTime(row.original.recorded_at),
+  },
+  {
+    accessorKey: "notice_version",
+    header: "Notice version",
+    cell: ({ row }) => row.original.notice_version ?? "—",
+  },
+];
+
 export function CandidateConsent({ profile }: { profile: Profile }) {
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Purpose</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Recorded</TableHead>
-              <TableHead>Notice version</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {profile.consent.purposes.map((purpose) => {
-              const [label, variant] = CONSENT_VARIANT[purpose.status] ?? [humanize(purpose.status), "outline"];
-              return (
-                <TableRow key={purpose.purpose}>
-                  <TableCell>{humanize(purpose.purpose)}</TableCell>
-                  <TableCell>
-                    <Badge variant={variant}>{label}</Badge>
-                  </TableCell>
-                  <TableCell>{formatDateTime(purpose.recorded_at)}</TableCell>
-                  <TableCell>{purpose.notice_version ?? "—"}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        variant="plain"
+        bordered={false}
+        columns={CONSENT_COLUMNS}
+        data={profile.consent.purposes}
+        getRowId={(purpose) => purpose.purpose}
+      />
       {profile.consent.note && (
         <p className="px-5 pb-4 text-xs text-muted-foreground">{profile.consent.note}</p>
       )}
@@ -424,43 +481,52 @@ export function CandidateDocuments({ profile }: { profile: Profile }) {
   );
 }
 
+type OfferRow = Profile["offers"][number];
+
+const OFFER_COLUMNS: ColumnDef<OfferRow>[] = [
+  {
+    accessorKey: "code",
+    header: "Offer",
+    cell: ({ row }) => (
+      <Link href={`/hiring/offers?offer=${row.original.id}`} className="font-mono text-sm hover:underline">
+        {row.original.code}
+      </Link>
+    ),
+  },
+  { accessorKey: "designation", header: "Designation" },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { text: (row) => statusLabel(OFFER_STATUS, row.status) },
+    cell: ({ row }) => <StatusBadge map={OFFER_STATUS} value={row.original.status} />,
+  },
+  {
+    accessorKey: "ctc_annual",
+    header: "Annual CTC",
+    // A decimal string: compared as a number, not letter by letter.
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.ctc_annual} />,
+  },
+  {
+    accessorKey: "joining_date",
+    header: "Joining",
+    meta: { text: (row) => formatDate(row.joining_date) },
+    cell: ({ row }) => formatDate(row.original.joining_date),
+  },
+];
+
 export function CandidateOffers({ profile }: { profile: Profile }) {
-  if (profile.offers.length === 0) {
-    return <EmptyState icon={FileText} title="No offers for this candidate" />;
-  }
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Offer</TableHead>
-            <TableHead>Designation</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Annual CTC</TableHead>
-            <TableHead>Joining</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {profile.offers.map((offer) => (
-            <TableRow key={offer.id}>
-              <TableCell>
-                <Link href={`/hiring/offers?offer=${offer.id}`} className="font-mono text-sm hover:underline">
-                  {offer.code}
-                </Link>
-              </TableCell>
-              <TableCell>{offer.designation}</TableCell>
-              <TableCell>
-                <StatusBadge map={OFFER_STATUS} value={offer.status} />
-              </TableCell>
-              <TableCell className="text-right">
-                <Money value={offer.ctc_annual} />
-              </TableCell>
-              <TableCell>{formatDate(offer.joining_date)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      columns={OFFER_COLUMNS}
+      data={profile.offers}
+      noun="offers"
+      exportName="candidate-offers"
+      bordered={false}
+      searchPlaceholder="Search offers"
+      empty={{ icon: FileText, title: "No offers for this candidate" }}
+    />
   );
 }
 

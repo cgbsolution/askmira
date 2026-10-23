@@ -1,15 +1,16 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { FileUp, Loader2 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiError, post } from "@/lib/api";
 
 interface UploadResult {
@@ -17,6 +18,11 @@ interface UploadResult {
   stored: { file: string; employee_code: string }[];
   skipped: { file: string; reason: string }[];
 }
+
+const SKIPPED_COLUMNS: ColumnDef<UploadResult["skipped"][number]>[] = [
+  { accessorKey: "file", header: "File", meta: { cellClassName: "font-mono text-xs" } },
+  { accessorKey: "reason", header: "Why" },
+];
 
 function lastFinancialYear(): string {
   const now = new Date();
@@ -83,22 +89,15 @@ export function Form16PartATab() {
           <Alert variant="warning">
             <AlertTitle>{result.skipped.length} file(s) not matched</AlertTitle>
             <AlertDescription>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>File</TableHead>
-                    <TableHead>Why</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {result.skipped.map((row) => (
-                    <TableRow key={row.file}>
-                      <TableCell className="font-mono text-xs">{row.file}</TableCell>
-                      <TableCell>{row.reason}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <DataTable
+                columns={SKIPPED_COLUMNS}
+                data={result.skipped}
+                getRowId={(row) => row.file}
+                noun="files"
+                exportName={`form-16-part-a-not-matched-${result.financial_year}`}
+                searchPlaceholder="Search files"
+                className="w-full"
+              />
             </AlertDescription>
           </Alert>
         )}

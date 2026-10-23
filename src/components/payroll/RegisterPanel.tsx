@@ -1,27 +1,19 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Download, Users } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { apiMessage, isZero } from "@/components/payroll/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { downloadFile } from "@/lib/api";
-import type { RunRegister } from "@/lib/types/payroll";
+import type { RegisterRow, RunRegister } from "@/lib/types/payroll";
 import { formatDays } from "@/lib/utils";
 
 const MONEY_COLUMNS: { key: keyof RunRegister["rows"][number] & string; label: string }[] = [
@@ -56,10 +48,67 @@ export function RegisterPanel({ runId, version }: { runId: string; version: numb
     }
   };
 
+  const columns: ColumnDef<RegisterRow>[] = [
+    {
+      accessorKey: "employee_name",
+      header: "Employee",
+      meta: { text: (row) => `${row.employee_name} ${row.employee_code}` },
+      cell: ({ row }) => (
+        <>
+          <Link
+            href={`/payroll/runs/${runId}/payslips/${row.original.payslip_id}`}
+            className="font-medium text-foreground hover:underline"
+          >
+            {row.original.employee_name}
+          </Link>
+          <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+            {row.original.employee_code}
+            {row.original.has_variance && <Badge variant="warning">Variance</Badge>}
+            {row.original.review_flags.length > 0 && <Badge variant="destructive">Review</Badge>}
+            {row.original.skipped_recoveries > 0 && <Badge variant="muted">Recovery held</Badge>}
+            {!isZero(row.original.not_employed_days) && (
+              <Badge variant="muted">Not employed: {formatDays(row.original.not_employed_days)} days</Badge>
+            )}
+          </div>
+        </>
+      ),
+      footer: () => <span className="font-semibold">Total</span>,
+    },
+    {
+      accessorKey: "paid_days",
+      header: "Paid days",
+      meta: {
+        className: "text-right",
+        cellClassName: "tabular-nums",
+        text: (row) => `${formatDays(row.paid_days)}/${formatDays(row.working_days)}`,
+      },
+      cell: ({ row }) => `${formatDays(row.original.paid_days)}/${formatDays(row.original.working_days)}`,
+      footer: () => null,
+    },
+    ...MONEY_COLUMNS.map(
+      (column): ColumnDef<RegisterRow> => ({
+        id: column.key,
+        header: column.label,
+        accessorFn: (row) => String(row[column.key]),
+        meta: { className: "text-right" },
+        cell: ({ row }) => <Money value={String(row.original[column.key])} currency={false} />,
+        footer: () =>
+          data ? <Money value={data.totals[column.key]} currency={false} className="font-semibold" /> : null,
+      }),
+    ),
+  ];
+
   return (
-    <DataPanel
+    <DataTable
       title="Register"
       description="Every payslip on this run. The download is recorded in the audit log."
+      columns={columns}
+      data={rows}
+      getRowId={(row) => row.payslip_id}
+      noun="payslips"
+      // The register leaves only through the audited download below.
+      exportName={false}
+      searchPlaceholder="Search by name or code"
       actions={
         rows.length > 0 ? (
           <Button variant="outline" size="sm" disabled={downloading} onClick={() => void download()}>
@@ -70,73 +119,11 @@ export function RegisterPanel({ runId, version }: { runId: string; version: numb
       isLoading={isLoading && !data}
       error={error?.detail}
       onRetry={reload}
-      isEmpty={rows.length === 0}
       empty={{
         icon: Users,
         title: "No payslips yet",
         description: "Payslips appear here once the run is computed.",
       }}
-    >
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead className="text-right">Paid days</TableHead>
-              {MONEY_COLUMNS.map((column) => (
-                <TableHead key={column.key} className="text-right">
-                  {column.label}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.payslip_id}>
-                <TableCell>
-                  <Link
-                    href={`/payroll/runs/${runId}/payslips/${row.payslip_id}`}
-                    className="font-medium text-foreground hover:underline"
-                  >
-                    {row.employee_name}
-                  </Link>
-                  <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                    {row.employee_code}
-                    {row.has_variance && <Badge variant="warning">Variance</Badge>}
-                    {row.review_flags.length > 0 && <Badge variant="destructive">Review</Badge>}
-                    {row.skipped_recoveries > 0 && <Badge variant="muted">Recovery held</Badge>}
-                    {!isZero(row.not_employed_days) && (
-                      <Badge variant="muted">Not employed: {formatDays(row.not_employed_days)} days</Badge>
-                    )}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatDays(row.paid_days)}/{formatDays(row.working_days)}
-                </TableCell>
-                {MONEY_COLUMNS.map((column) => (
-                  <TableCell key={column.key} className="text-right">
-                    <Money value={String(row[column.key])} currency={false} />
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-          {data && (
-            <TableFooter>
-              <TableRow>
-                <TableCell colSpan={2} className="font-semibold">
-                  Total
-                </TableCell>
-                {MONEY_COLUMNS.map((column) => (
-                  <TableCell key={column.key} className="text-right font-semibold">
-                    <Money value={data.totals[column.key]} currency={false} />
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableFooter>
-          )}
-        </Table>
-      </div>
-    </DataPanel>
+    />
   );
 }

@@ -1,15 +1,14 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { KeyRound, Link2, Loader2, Mail, Plus, ShieldAlert, Trash2, UserCog, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { PageShell } from "@/components/common/PageShell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
@@ -36,7 +35,6 @@ import { ROLE_LABEL, errorDetail, formatDateTime } from "./settingsShared";
 export function UsersScreen() {
   const { data, error, isLoading, reload } = useApiQuery<ManagedUser[]>("/admin/users");
 
-  const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [changingRole, setChangingRole] = useState<ManagedUser | null>(null);
   const [changingActive, setChangingActive] = useState<ManagedUser | null>(null);
@@ -66,18 +64,6 @@ export function UsersScreen() {
       setResendingId(null);
     }
   };
-
-  const rows = useMemo(() => {
-    const all = data ?? [];
-    const term = search.trim().toLowerCase();
-    if (!term) return all;
-    return all.filter(
-      (row) =>
-        row.full_name.toLowerCase().includes(term) ||
-        row.email.toLowerCase().includes(term) ||
-        (row.employee_code ?? "").toLowerCase().includes(term),
-    );
-  }, [data, search]);
 
   const activeAdmins = (data ?? []).filter(
     (row) => row.role === "admin" && row.is_active,
@@ -109,6 +95,162 @@ export function UsersScreen() {
     return null;
   };
 
+  const columns: ColumnDef<ManagedUser>[] = [
+    {
+      accessorKey: "full_name",
+      header: "Person",
+      meta: { text: (row) => `${row.full_name} ${row.email}` },
+      cell: ({ row: { original: row } }) => (
+        <>
+          <div className="font-medium text-foreground">
+            {row.full_name}
+            {row.is_you && (
+              <Badge variant="secondary" className="ml-2">
+                You
+              </Badge>
+            )}
+            {row.is_break_glass && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="ml-2">
+                    <KeyRound /> Break-glass
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Signs in with a password even when SSO is enforced, so an identity
+                  provider outage does not lock the workspace out.
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground">{row.email}</div>
+        </>
+      ),
+    },
+    {
+      accessorKey: "role",
+      header: "Role",
+      meta: { text: (row) => ROLE_LABEL[row.role as UserRole] ?? row.role },
+      cell: ({ row: { original: row } }) => (
+        <Badge variant={row.role === "admin" ? "default" : "outline"}>
+          {ROLE_LABEL[row.role as UserRole] ?? row.role}
+        </Badge>
+      ),
+    },
+    {
+      id: "employee",
+      header: "Employee",
+      accessorFn: (row) => row.employee_name ?? "",
+      meta: {
+        cellClassName: "text-sm text-muted-foreground",
+        text: (row) =>
+          row.employee_name
+            ? `${row.employee_name}${row.employee_code ? ` (${row.employee_code})` : ""}`
+            : "Not linked",
+      },
+      cell: ({ row: { original: row } }) =>
+        row.employee_name ? (
+          <>
+            {row.employee_name}
+            {row.employee_code && (
+              <span className="ml-1 font-mono text-xs">({row.employee_code})</span>
+            )}
+          </>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-mustard-900 dark:text-mustard-100">
+            <ShieldAlert className="size-3.5" /> Not linked
+          </span>
+        ),
+    },
+    {
+      id: "last_login_at",
+      header: "Last signed in",
+      accessorFn: (row) => row.last_login_at ?? "",
+      meta: {
+        cellClassName: "text-sm text-muted-foreground",
+        text: (row) =>
+          [
+            row.last_login_at ? formatDateTime(row.last_login_at) : "Never",
+            row.invite_pending && row.is_active ? "Password not set" : null,
+          ]
+            .filter(Boolean)
+            .join(" · "),
+      },
+      cell: ({ row: { original: row } }) => (
+        <>
+          {row.last_login_at ? formatDateTime(row.last_login_at) : "Never"}
+          {row.invite_pending && row.is_active && (
+            <Badge variant="warning" className="ml-2">
+              Password not set
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row: { original: row } }) => {
+        const roleBlocked = roleBlockedBecause(row);
+        const activeBlocked = activeBlockedBecause(row);
+        return (
+          <div className="flex justify-end gap-2">
+            {row.invite_pending && row.is_active && !row.is_you && (
+              <ActionButton
+                blocked={null}
+                onClick={() => void resendWelcome(row)}
+                label="Resend the welcome email"
+                disabled={resendingId === row.id}
+              >
+                {resendingId === row.id ? <Loader2 className="animate-spin" /> : <Mail />}{" "}
+                Resend welcome
+              </ActionButton>
+            )}
+            <ActionButton
+              blocked={null}
+              onClick={() => setLinking(row)}
+              label="Link to an employee record"
+            >
+              <Link2 /> {row.employee_id ? "Relink" : "Link"}
+            </ActionButton>
+            <ActionButton
+              blocked={row.is_you ? "Change your own password from your profile." : null}
+              onClick={() => setResetting(row)}
+              label="Reset password"
+            >
+              <KeyRound /> Password
+            </ActionButton>
+            <ActionButton
+              blocked={roleBlocked}
+              onClick={() => setChangingRole(row)}
+              label="Change role"
+            >
+              <UserCog /> Role
+            </ActionButton>
+            <ActionButton
+              blocked={activeBlocked}
+              onClick={() => setChangingActive(row)}
+              label={row.is_active ? "Disable login" : "Enable login"}
+              destructive={row.is_active}
+            >
+              {row.is_active ? "Disable" : "Enable"}
+            </ActionButton>
+            <ActionButton
+              blocked={deleteBlockedBecause(row)}
+              onClick={() => setDeleting(row)}
+              label="Delete login"
+              destructive
+            >
+              <Trash2 /> Delete
+            </ActionButton>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <PageShell
       title="Users & roles"
@@ -119,157 +261,25 @@ export function UsersScreen() {
         </Button>
       }
     >
-      <DataPanel
+      <DataTable
         title="Logins"
         description={
           data
             ? `${data.length} login${data.length === 1 ? "" : "s"}, ${activeAdmins} active admin${activeAdmins === 1 ? "" : "s"}.`
             : undefined
         }
-        toolbar={
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search by name, email or employee code"
-            aria-label="Search logins"
-            className="max-w-sm"
-          />
-        }
-        isLoading={isLoading}
+        columns={columns}
+        data={data ?? []}
+        noun="logins"
+        exportName="logins"
+        searchPlaceholder="Search by name, email or employee code"
+        rowClassName={(row) => (row.is_active ? undefined : "opacity-60")}
+        isLoading={isLoading && !data}
         error={error?.detail ?? null}
         onRetry={reload}
-        isEmpty={rows.length === 0}
-        empty={{
-          icon: Users,
-          title: search ? "Nobody matches that search" : "No logins yet",
-          description: search ? "Try a different name or email." : undefined,
-        }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Person</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Employee</TableHead>
-              <TableHead>Last signed in</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => {
-              const roleBlocked = roleBlockedBecause(row);
-              const activeBlocked = activeBlockedBecause(row);
-              return (
-                <TableRow key={row.id} className={row.is_active ? undefined : "opacity-60"}>
-                  <TableCell>
-                    <div className="font-medium text-foreground">
-                      {row.full_name}
-                      {row.is_you && (
-                        <Badge variant="secondary" className="ml-2">
-                          You
-                        </Badge>
-                      )}
-                      {row.is_break_glass && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Badge variant="outline" className="ml-2">
-                              <KeyRound /> Break-glass
-                            </Badge>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            Signs in with a password even when SSO is enforced, so an identity
-                            provider outage does not lock the workspace out.
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{row.email}</div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={row.role === "admin" ? "default" : "outline"}>
-                      {ROLE_LABEL[row.role as UserRole] ?? row.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {row.employee_name ? (
-                      <>
-                        {row.employee_name}
-                        {row.employee_code && (
-                          <span className="ml-1 font-mono text-xs">({row.employee_code})</span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 text-mustard-900 dark:text-mustard-100">
-                        <ShieldAlert className="size-3.5" /> Not linked
-                      </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {row.last_login_at ? formatDateTime(row.last_login_at) : "Never"}
-                    {row.invite_pending && row.is_active && (
-                      <Badge variant="warning" className="ml-2">
-                        Password not set
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {row.invite_pending && row.is_active && !row.is_you && (
-                        <ActionButton
-                          blocked={null}
-                          onClick={() => void resendWelcome(row)}
-                          label="Resend the welcome email"
-                          disabled={resendingId === row.id}
-                        >
-                          {resendingId === row.id ? <Loader2 className="animate-spin" /> : <Mail />}{" "}
-                          Resend welcome
-                        </ActionButton>
-                      )}
-                      <ActionButton
-                        blocked={null}
-                        onClick={() => setLinking(row)}
-                        label="Link to an employee record"
-                      >
-                        <Link2 /> {row.employee_id ? "Relink" : "Link"}
-                      </ActionButton>
-                      <ActionButton
-                        blocked={row.is_you ? "Change your own password from your profile." : null}
-                        onClick={() => setResetting(row)}
-                        label="Reset password"
-                      >
-                        <KeyRound /> Password
-                      </ActionButton>
-                      <ActionButton
-                        blocked={roleBlocked}
-                        onClick={() => setChangingRole(row)}
-                        label="Change role"
-                      >
-                        <UserCog /> Role
-                      </ActionButton>
-                      <ActionButton
-                        blocked={activeBlocked}
-                        onClick={() => setChangingActive(row)}
-                        label={row.is_active ? "Disable login" : "Enable login"}
-                        destructive={row.is_active}
-                      >
-                        {row.is_active ? "Disable" : "Enable"}
-                      </ActionButton>
-                      <ActionButton
-                        blocked={deleteBlockedBecause(row)}
-                        onClick={() => setDeleting(row)}
-                        label="Delete login"
-                        destructive
-                      >
-                        <Trash2 /> Delete
-                      </ActionButton>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </DataPanel>
+        empty={{ icon: Users, title: "No logins yet" }}
+        emptyMessage="Nobody matches that search. Try a different name or email."
+      />
 
       <NewUserDialog
         open={creating}

@@ -1,11 +1,12 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Copy, Loader2, Plus, Radio } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +20,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { ScimToken, ScimTokenCreated } from "@/lib/types/sso";
@@ -78,79 +78,92 @@ export function ScimTokensPanel({ canManage }: { canManage: boolean }) {
     }
   };
 
-  const rows = data ?? [];
+  const actionsColumn: ColumnDef<ScimToken> = {
+    id: "actions",
+    header: "Actions",
+    enableHiding: false,
+    meta: { className: "text-right", text: false },
+    cell: ({ row: { original: row } }) =>
+      row.active && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive"
+          onClick={() => setRevoking(row)}
+        >
+          Revoke
+        </Button>
+      ),
+  };
+
+  const columns: ColumnDef<ScimToken>[] = [
+    { accessorKey: "name", header: "Name", meta: { cellClassName: "font-medium text-foreground" } },
+    {
+      accessorKey: "hint",
+      header: "Token",
+      meta: { text: (row) => `…${row.hint} ${row.active ? "Active" : "Revoked"}` },
+      cell: ({ row: { original: row } }) => (
+        <>
+          <code className="font-mono text-xs text-muted-foreground">…{row.hint}</code>
+          <Badge variant={row.active ? "secondary" : "outline"} className="ml-2">
+            {row.active ? "Active" : "Revoked"}
+          </Badge>
+        </>
+      ),
+    },
+    {
+      accessorKey: "created_at",
+      header: "Created",
+      meta: { cellClassName: "text-xs text-muted-foreground", text: (row) => formatDateTime(row.created_at) },
+      cell: ({ row: { original: row } }) => formatDateTime(row.created_at),
+    },
+    {
+      id: "last_used_at",
+      header: "Last used",
+      accessorFn: (row) => row.last_used_at ?? "",
+      meta: {
+        cellClassName: "text-xs text-muted-foreground",
+        text: (row) =>
+          row.last_used_at ? formatDateTime(row.last_used_at) : "Never — your IdP has not called yet",
+      },
+      cell: ({ row: { original: row } }) =>
+        row.last_used_at ? (
+          formatDateTime(row.last_used_at)
+        ) : (
+          <span>Never — your IdP has not called yet</span>
+        ),
+    },
+    ...(canManage ? [actionsColumn] : []),
+  ];
 
   return (
     <>
-      <DataPanel
+      {/* No Export: a token list stays on screen, not in a file. */}
+      <DataTable
         title="Directory sync tokens"
         description="Your identity provider uses one of these to create, update and deactivate logins over SCIM."
         actions={
           canManage ? (
-            <Button size="sm" onClick={() => setNaming(true)}>
+            <Button size="sm" className="h-9" onClick={() => setNaming(true)}>
               <Plus /> New token
             </Button>
           ) : undefined
         }
-        isLoading={isLoading}
+        columns={columns}
+        data={data ?? []}
+        noun="tokens"
+        exportName={false}
+        searchPlaceholder="Search tokens"
+        rowClassName={(row) => (row.active ? undefined : "opacity-60")}
+        isLoading={isLoading && !data}
         error={error?.detail ?? null}
         onRetry={reload}
-        isEmpty={rows.length === 0}
         empty={{
           icon: Radio,
           title: "No directory tokens",
           description: "Logins are managed here rather than synced from a directory.",
         }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Token</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead>Last used</TableHead>
-              {canManage && <TableHead className="text-right">Actions</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id} className={row.active ? undefined : "opacity-60"}>
-                <TableCell className="font-medium text-foreground">{row.name}</TableCell>
-                <TableCell>
-                  <code className="font-mono text-xs text-muted-foreground">…{row.hint}</code>
-                  <Badge variant={row.active ? "secondary" : "outline"} className="ml-2">
-                    {row.active ? "Active" : "Revoked"}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {formatDateTime(row.created_at)}
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground">
-                  {row.last_used_at ? (
-                    formatDateTime(row.last_used_at)
-                  ) : (
-                    <span>Never — your IdP has not called yet</span>
-                  )}
-                </TableCell>
-                {canManage && (
-                  <TableCell className="text-right">
-                    {row.active && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive"
-                        onClick={() => setRevoking(row)}
-                      >
-                        Revoke
-                      </Button>
-                    )}
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
 
       <Dialog open={naming} onOpenChange={(next) => !isBusy && setNaming(next)}>
         <DialogContent className="sm:max-w-md">

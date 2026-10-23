@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { Layers, Loader2, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +28,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -38,6 +38,44 @@ import { formatDate, formatDateTime, toISODate } from "@/lib/utils";
 import { EmployeePicker, type PickedEmployee } from "../EmployeePicker";
 import { EVENT_TYPE, apiMessage } from "../labels";
 import { EventFields, type FieldValues, toNewValues } from "./EventFields";
+
+const BATCH_COLUMNS: ColumnDef<LifecycleBatch>[] = [
+  {
+    accessorKey: "name",
+    header: "Batch",
+    cell: ({ row }) => (
+      <>
+        <div className="font-medium text-foreground">{row.original.name}</div>
+        <div className="text-xs text-muted-foreground">Raised {formatDateTime(row.original.created_at)}</div>
+      </>
+    ),
+  },
+  {
+    id: "event",
+    header: "Event",
+    accessorFn: (row) => EVENT_TYPE[row.event_type],
+    meta: { cellClassName: "text-sm" },
+  },
+  {
+    accessorKey: "effective_from",
+    header: "Effective",
+    meta: { cellClassName: "text-sm", text: (row) => formatDate(row.effective_from) },
+    cell: ({ row }) => formatDate(row.original.effective_from),
+  },
+  {
+    accessorKey: "events",
+    header: "People",
+    meta: { className: "text-right", cellClassName: "tabular-nums" },
+  },
+  {
+    id: "approval",
+    header: "Approval",
+    accessorFn: (row) => (row.approve_individually ? "Person by person" : "As one"),
+    cell: ({ row }) => (
+      <Badge variant="outline">{row.original.approve_individually ? "Person by person" : "As one"}</Badge>
+    ),
+  },
+];
 
 /**
  * Bulk events: one decision applied to many people, raised as a batch.
@@ -56,11 +94,17 @@ export function BatchesTab() {
 
   return (
     <>
-      <DataPanel
+      <DataTable
         title="Batches"
+        columns={BATCH_COLUMNS}
+        data={data ?? []}
+        getRowId={(row) => row.batch_id}
+        noun="batches"
+        exportName="lifecycle-batches"
+        searchPlaceholder="Search batches"
         actions={
           canRaise ? (
-            <Button size="sm" onClick={() => setOpen(true)}>
+            <Button size="sm" className="h-9" onClick={() => setOpen(true)}>
               <Plus /> New batch
             </Button>
           ) : undefined
@@ -68,37 +112,8 @@ export function BatchesTab() {
         isLoading={isLoading}
         error={error?.detail ?? null}
         onRetry={reload}
-        isEmpty={(data ?? []).length === 0}
         empty={{ icon: Layers, title: "No batches", description: "Annual confirmations or an org-wide redesignation are raised here." }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Batch</TableHead>
-              <TableHead>Event</TableHead>
-              <TableHead>Effective</TableHead>
-              <TableHead className="text-right">People</TableHead>
-              <TableHead>Approval</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(data ?? []).map((row) => (
-              <TableRow key={row.batch_id}>
-                <TableCell>
-                  <div className="font-medium text-foreground">{row.name}</div>
-                  <div className="text-xs text-muted-foreground">Raised {formatDateTime(row.created_at)}</div>
-                </TableCell>
-                <TableCell className="text-sm">{EVENT_TYPE[row.event_type]}</TableCell>
-                <TableCell className="text-sm">{formatDate(row.effective_from)}</TableCell>
-                <TableCell className="text-right tabular-nums">{row.events}</TableCell>
-                <TableCell>
-                  <Badge variant="outline">{row.approve_individually ? "Person by person" : "As one"}</Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+      />
       <BulkDialog open={open} onOpenChange={setOpen} onRaised={reload} />
     </>
   );

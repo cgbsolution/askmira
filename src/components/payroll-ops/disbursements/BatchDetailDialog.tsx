@@ -1,5 +1,6 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   CheckCircle2,
   FileUp,
@@ -18,7 +19,7 @@ import { DetailField } from "@/components/payroll-ops/disbursements/common";
 import { Money } from "@/components/common/Money";
 import { FormField } from "@/components/common/FormField";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import {
   apiErrorMessage,
   DownloadButton,
@@ -28,6 +29,7 @@ import {
 import {
   BatchStatusBadge,
   formatTimestamp,
+  LINE_STATUS_LABEL,
   LineStatusBadge,
 } from "@/components/payroll-ops/disbursements/labels";
 import { Button } from "@/components/ui/button";
@@ -40,27 +42,99 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type {
   BatchPrepareInput,
   DisbursementBatch,
+  DisbursementException,
   DisbursementLine,
+  HeldSalary,
   ReconcileOutcome,
 } from "@/lib/types/payroll-ops";
 import { formatDay, toISODate } from "@/lib/utils";
 
 const ADMIN = ["admin"] as const;
 const HR = ["admin", "sub_admin"] as const;
+
+type FailedCredit = ReconcileOutcome["failed"][number];
+
+const LINE_COLUMNS: ColumnDef<DisbursementLine>[] = [
+  {
+    id: "employee",
+    header: "Employee",
+    accessorFn: (line) => line.employee_name ?? "—",
+    meta: { text: (line) => [line.employee_name, line.employee_code].filter(Boolean).join(" ") },
+    cell: ({ row }) => (
+      <>
+        <span className="font-medium text-foreground">{row.original.employee_name ?? "—"}</span>
+        <span className="block text-xs text-muted-foreground">{row.original.employee_code ?? ""}</span>
+      </>
+    ),
+  },
+  { accessorKey: "beneficiary_name", header: "Beneficiary" },
+  { accessorKey: "ifsc", header: "IFSC", meta: { cellClassName: "tabular-nums" } },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.amount} />,
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: {
+      text: (line) =>
+        line.failure_reason
+          ? `${LINE_STATUS_LABEL[line.status]} (${line.failure_reason})`
+          : LINE_STATUS_LABEL[line.status],
+    },
+    cell: ({ row }) => (
+      <>
+        <LineStatusBadge status={row.original.status} />
+        {row.original.failure_reason && (
+          <span className="block max-w-56 truncate text-xs text-destructive">
+            {row.original.failure_reason}
+          </span>
+        )}
+      </>
+    ),
+  },
+  {
+    accessorKey: "bank_reference",
+    header: "Bank reference",
+    meta: { className: "hidden lg:table-cell", cellClassName: "text-muted-foreground" },
+    cell: ({ row }) => row.original.bank_reference ?? "—",
+  },
+];
+
+const HELD_COLUMNS: ColumnDef<HeldSalary>[] = [
+  {
+    accessorKey: "employee_name",
+    header: "Employee",
+    meta: { text: (item) => `${item.employee_name} ${item.employee_code}` },
+    cell: ({ row }) => (
+      <>
+        <span className="text-foreground">{row.original.employee_name}</span>
+        <span className="block text-xs text-muted-foreground">{row.original.employee_code}</span>
+      </>
+    ),
+  },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.amount} />,
+  },
+  { accessorKey: "reason", header: "Why it is held", meta: { cellClassName: "whitespace-normal" } },
+  {
+    id: "status",
+    header: "Status",
+    accessorFn: (item) => (item.paid_in_batch_id ? "Paid from a supplementary batch" : "Held"),
+    meta: { cellClassName: "text-muted-foreground" },
+  },
+];
 
 /** One disbursement batch: its file, maker-checker, release, and reconciliation. */
 export function BatchDetailDialog({
@@ -197,6 +271,53 @@ function BatchBody({
       setIsReleasing(false);
     }
   };
+
+  const exceptionColumns: ColumnDef<DisbursementException>[] = [
+    {
+      accessorKey: "subject",
+      header: "Subject",
+      meta: { cellClassName: "font-medium text-foreground" },
+    },
+    { accessorKey: "field", header: "Field", meta: { cellClassName: "text-muted-foreground" } },
+    {
+      accessorKey: "message",
+      header: "Problem",
+      meta: { cellClassName: "whitespace-normal", text: (item) => `${item.message} ${item.code}` },
+      cell: ({ row }) => (
+        <>
+          {row.original.message}
+          <span className="block text-xs text-muted-foreground">{row.original.code}</span>
+        </>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "w-44 text-right", text: false },
+      cell: ({ row }) => {
+        const item = row.original;
+        const isAccountProblem = /account|ifsc|bank|beneficiary/i.test(
+          `${item.field} ${item.code}`,
+        );
+        return (
+          isAccountProblem &&
+          isHr && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                onClose();
+                onFixAccount(item.subject);
+              }}
+            >
+              <Wrench /> Fix bank account
+            </Button>
+          )
+        );
+      },
+    },
+  ];
 
   return (
     <div className="grid gap-5">
@@ -369,47 +490,15 @@ function BatchBody({
             )}
           </div>
           <div className="overflow-hidden rounded-md border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Field</TableHead>
-                  <TableHead>Problem</TableHead>
-                  <TableHead className="w-44" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {batch.validation_exceptions.map((item, index) => {
-                  const isAccountProblem = /account|ifsc|bank|beneficiary/i.test(
-                    `${item.field} ${item.code}`,
-                  );
-                  return (
-                    <TableRow key={`${item.subject}-${item.code}-${index}`}>
-                      <TableCell className="font-medium text-foreground">{item.subject}</TableCell>
-                      <TableCell className="text-muted-foreground">{item.field}</TableCell>
-                      <TableCell className="whitespace-normal">
-                        {item.message}
-                        <span className="block text-xs text-muted-foreground">{item.code}</span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {isAccountProblem && isHr && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              onClose();
-                              onFixAccount(item.subject);
-                            }}
-                          >
-                            <Wrench /> Fix bank account
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <DataTable
+              bordered={false}
+              columns={exceptionColumns}
+              data={batch.validation_exceptions}
+              getRowId={(item, index) => `${item.subject}-${item.code}-${index}`}
+              noun="problems"
+              exportName="salary-file-problems"
+              searchPlaceholder="Search problems"
+            />
           </div>
         </div>
       )}
@@ -446,58 +535,21 @@ function BatchBody({
             <p className="mb-2 text-sm font-medium text-foreground">Credits in this file</p>
             <div className="overflow-hidden rounded-md border border-border">
               <QueryBoundary query={lines} skeletonRows={4}>
-                {(rows) =>
-                  rows.length === 0 ? (
-                    <EmptyState
-                      icon={CheckCircle2}
-                      title="No credit lines"
-                      description="This batch has no lines to pay."
-                    />
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Employee</TableHead>
-                          <TableHead>Beneficiary</TableHead>
-                          <TableHead>IFSC</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="hidden lg:table-cell">Bank reference</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {rows.map((line) => (
-                          <TableRow key={line.id}>
-                            <TableCell>
-                              <span className="font-medium text-foreground">
-                                {line.employee_name ?? "—"}
-                              </span>
-                              <span className="block text-xs text-muted-foreground">
-                                {line.employee_code ?? ""}
-                              </span>
-                            </TableCell>
-                            <TableCell>{line.beneficiary_name}</TableCell>
-                            <TableCell className="tabular-nums">{line.ifsc}</TableCell>
-                            <TableCell className="text-right">
-                              <Money value={line.amount} />
-                            </TableCell>
-                            <TableCell>
-                              <LineStatusBadge status={line.status} />
-                              {line.failure_reason && (
-                                <span className="block max-w-56 truncate text-xs text-destructive">
-                                  {line.failure_reason}
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="hidden text-muted-foreground lg:table-cell">
-                              {line.bank_reference ?? "—"}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  )
-                }
+                {(rows) => (
+                  <DataTable
+                    bordered={false}
+                    columns={LINE_COLUMNS}
+                    data={rows}
+                    noun="credits"
+                    exportName="salary-file-credits"
+                    searchPlaceholder="Search employee or beneficiary"
+                    empty={{
+                      icon: CheckCircle2,
+                      title: "No credit lines",
+                      description: "This batch has no lines to pay.",
+                    }}
+                  />
+                )}
               </QueryBoundary>
             </div>
           </div>
@@ -574,33 +626,15 @@ function HeldSalaries({
         </p>
       </div>
       <div className="overflow-hidden rounded-md border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Employee</TableHead>
-              <TableHead className="text-right">Amount</TableHead>
-              <TableHead>Why it is held</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {batch.held.map((item) => (
-              <TableRow key={item.payslip_id}>
-                <TableCell>
-                  <span className="text-foreground">{item.employee_name}</span>
-                  <span className="block text-xs text-muted-foreground">{item.employee_code}</span>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={item.amount} />
-                </TableCell>
-                <TableCell className="whitespace-normal">{item.reason}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {item.paid_in_batch_id ? "Paid from a supplementary batch" : "Held"}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable
+          bordered={false}
+          columns={HELD_COLUMNS}
+          data={batch.held}
+          getRowId={(item) => item.payslip_id}
+          noun="held salaries"
+          exportName="held-salaries"
+          searchPlaceholder="Search employees"
+        />
       </div>
       {canPay && waiting.length > 0 && sent && (
         <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void pay(event)} noValidate>
@@ -718,6 +752,17 @@ function ReconcilePanel({
 
   const showSupplement = failedCount > 0 || (outcome?.failed.length ?? 0) > 0;
 
+  const failedColumns: ColumnDef<FailedCredit>[] = [
+    { id: "employee", header: "Employee", accessorFn: (item) => nameOf(item.employee_id) },
+    {
+      accessorKey: "amount",
+      header: "Amount",
+      meta: { className: "text-right" },
+      cell: ({ row }) => <Money value={row.original.amount} />,
+    },
+    { accessorKey: "reason", header: "Bank's reason", meta: { cellClassName: "whitespace-normal" } },
+  ];
+
   return (
     <div className="grid gap-4">
       <div>
@@ -773,26 +818,15 @@ function ReconcilePanel({
           </p>
           {outcome.failed.length > 0 && (
             <div className="overflow-hidden rounded-md border border-border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Bank&apos;s reason</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {outcome.failed.map((item) => (
-                    <TableRow key={item.line_id}>
-                      <TableCell>{nameOf(item.employee_id)}</TableCell>
-                      <TableCell className="text-right">
-                        <Money value={item.amount} />
-                      </TableCell>
-                      <TableCell className="whitespace-normal">{item.reason}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <DataTable
+                bordered={false}
+                columns={failedColumns}
+                data={outcome.failed}
+                getRowId={(item) => item.line_id}
+                noun="failed credits"
+                exportName="failed-credits"
+                searchPlaceholder="Search employees"
+              />
             </div>
           )}
           {(outcome.already_reissued ?? []).length > 0 && (

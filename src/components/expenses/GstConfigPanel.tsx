@@ -1,16 +1,17 @@
 "use client";
 
-import { Building2, Loader2, Pencil, Plus, ShieldAlert, Ban } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Building2, Loader2, Lock, Pencil, Plus, ShieldAlert, Ban } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { InlineProblem, QueryBoundary, errorDetail, todayISO } from "@/components/expenses/ReviewCommon";
 import { humanizeKey } from "@/components/expenses/shared";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -29,14 +30,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { put } from "@/lib/api";
@@ -73,6 +66,31 @@ function EntityRegistrations({ canAdmin }: { canAdmin: boolean }) {
   const entityName = (id: string) => entities.data?.find((entity) => entity.id === id)?.name ?? "Unknown entity";
   const valid = Boolean(entityId) && /^[0-9A-Z]{15}$/.test(gstin);
 
+  const columns: ColumnDef<GstEntityRegistration>[] = [
+    {
+      id: "legal_entity",
+      header: "Legal entity",
+      accessorFn: (row) => entityName(row.legal_entity_id),
+      meta: { cellClassName: "font-medium text-foreground" },
+    },
+    { accessorKey: "gstin", header: "GSTIN", meta: { cellClassName: "tabular-nums" } },
+    {
+      id: "state",
+      header: "State",
+      accessorFn: (row) => `${row.state_code}${row.state_name ? ` · ${row.state_name}` : ""}`,
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorFn: (row) => (row.is_active ? "Active" : "Inactive"),
+      cell: ({ row }) => (
+        <Badge variant={row.original.is_active ? "success" : "muted"}>
+          {row.original.is_active ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+  ];
+
   const save = async () => {
     if (!valid) return;
     setIsSaving(true);
@@ -100,41 +118,21 @@ function EntityRegistrations({ canAdmin }: { canAdmin: boolean }) {
       </CardHeader>
       <CardContent className="grid gap-4 p-0">
         <QueryBoundary query={query}>
-          {(rows) =>
-            rows.length === 0 ? (
-              <EmptyState
-                icon={Building2}
-                title="No registrations recorded"
-                description="Without the company's GSTIN, whether tax should be IGST or CGST + SGST cannot be checked."
-              />
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-5">Legal entity</TableHead>
-                    <TableHead>GSTIN</TableHead>
-                    <TableHead>State</TableHead>
-                    <TableHead className="pr-5">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="pl-5 font-medium text-foreground">{entityName(row.legal_entity_id)}</TableCell>
-                      <TableCell className="tabular-nums">{row.gstin}</TableCell>
-                      <TableCell>
-                        {row.state_code}
-                        {row.state_name && ` · ${row.state_name}`}
-                      </TableCell>
-                      <TableCell className="pr-5">
-                        <Badge variant={row.is_active ? "success" : "muted"}>{row.is_active ? "Active" : "Inactive"}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )
-          }
+          {(rows) => (
+            <DataTable
+              bordered={false}
+              columns={columns}
+              data={rows}
+              noun="registrations"
+              exportName="gst-entity-registrations"
+              searchPlaceholder="Search registrations"
+              empty={{
+                icon: Building2,
+                title: "No registrations recorded",
+                description: "Without the company's GSTIN, whether tax should be IGST or CGST + SGST cannot be checked.",
+              }}
+            />
+          )}
         </QueryBoundary>
 
         {canAdmin && (
@@ -203,116 +201,220 @@ const BLANK: BlockedCategoryInput = {
   reviewed_on: null,
 };
 
+type DefaultRule = BlockedCategoryDefaults["rules"][number];
+
 function BlockedCategories({ canAdmin }: { canAdmin: boolean }) {
   const query = useApiQuery<GstBlockedCategory[]>("/gst/blocked-categories");
   const defaults = useApiQuery<BlockedCategoryDefaults>("/gst/blocked-categories/defaults");
   const [editing, setEditing] = useState<{ initial: BlockedCategoryInput; isNew: boolean } | null>(null);
 
   const configuredKeys = new Set((query.data ?? []).map((row) => row.category_key));
+  // A 403 reads as "no access", not as a failed load.
+  const forbidden = query.error?.status === 403;
+
+  const editColumn: ColumnDef<GstBlockedCategory> = {
+    id: "actions",
+    header: "",
+    enableHiding: false,
+    meta: { className: "text-right", text: false },
+    cell: ({ row }) => (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() =>
+          setEditing({
+            isNew: false,
+            initial: {
+              category_key: row.original.category_key,
+              reason: row.original.reason,
+              reference: row.original.reference,
+              has_exceptions: row.original.has_exceptions,
+              exception_note: row.original.exception_note,
+              reviewed: row.original.reviewed,
+              reviewed_by: row.original.reviewed_by,
+              reviewed_on: row.original.reviewed_on,
+            },
+          })
+        }
+      >
+        <Pencil /> Edit
+      </Button>
+    ),
+  };
+
+  const columns: ColumnDef<GstBlockedCategory>[] = [
+    {
+      id: "category",
+      header: "Category",
+      accessorFn: (row) => humanizeKey(row.category_key),
+      meta: { cellClassName: "font-medium text-foreground" },
+    },
+    {
+      accessorKey: "reason",
+      header: "Reason",
+      meta: { cellClassName: "max-w-80 whitespace-normal", text: (row) => `${row.reason} · ${row.reference}` },
+      cell: ({ row }) => (
+        <>
+          <p>{row.original.reason}</p>
+          <p className="text-xs text-muted-foreground">{row.original.reference}</p>
+        </>
+      ),
+    },
+    {
+      id: "exceptions",
+      header: "Exceptions",
+      accessorFn: (row) => (row.has_exceptions ? "Has exceptions — goes to review" : "None"),
+      meta: {
+        cellClassName: "max-w-64 whitespace-normal",
+        text: (row) =>
+          row.has_exceptions
+            ? ["Has exceptions — goes to review", row.exception_note].filter(Boolean).join(" · ")
+            : "None",
+      },
+      cell: ({ row }) =>
+        row.original.has_exceptions ? (
+          <>
+            <Badge variant="warning">Has exceptions — goes to review</Badge>
+            {row.original.exception_note && (
+              <p className="mt-1 text-xs text-muted-foreground">{row.original.exception_note}</p>
+            )}
+          </>
+        ) : (
+          <span className="text-muted-foreground">None</span>
+        ),
+    },
+    {
+      id: "review",
+      header: "Review",
+      accessorFn: (row) => (row.reviewed ? "Reviewed" : "Unreviewed"),
+      meta: {
+        cellClassName: "whitespace-normal",
+        text: (row) =>
+          row.reviewed
+            ? ["Reviewed", row.reviewed_by, row.reviewed_on && formatDay(row.reviewed_on, true)]
+                .filter(Boolean)
+                .join(" · ")
+            : "Unreviewed",
+      },
+      cell: ({ row }) =>
+        row.original.reviewed ? (
+          <>
+            <Badge variant="success">Reviewed</Badge>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {row.original.reviewed_by ?? "—"}
+              {row.original.reviewed_on && ` · ${formatDay(row.original.reviewed_on, true)}`}
+            </p>
+          </>
+        ) : (
+          <Badge variant="warning">Unreviewed</Badge>
+        ),
+    },
+    ...(canAdmin ? [editColumn] : []),
+  ];
+
+  const startColumn: ColumnDef<DefaultRule> = {
+    id: "actions",
+    header: "",
+    enableHiding: false,
+    meta: { className: "text-right", text: false },
+    cell: ({ row }) => (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() =>
+          setEditing({
+            isNew: !configuredKeys.has(row.original.category_key),
+            initial: {
+              category_key: row.original.category_key,
+              reason: row.original.reason,
+              reference: row.original.reference,
+              has_exceptions: row.original.has_exceptions,
+              exception_note: row.original.exception_note,
+              reviewed: false,
+              reviewed_by: null,
+              reviewed_on: null,
+            },
+          })
+        }
+      >
+        Start from this
+      </Button>
+    ),
+  };
+
+  const defaultColumns: ColumnDef<DefaultRule>[] = [
+    {
+      id: "category",
+      header: "Category",
+      accessorFn: (rule) => humanizeKey(rule.category_key),
+      meta: {
+        cellClassName: "font-medium text-foreground",
+        text: (rule) =>
+          `${humanizeKey(rule.category_key)}${configuredKeys.has(rule.category_key) ? " · Configured" : ""}`,
+      },
+      cell: ({ row }) => (
+        <>
+          {humanizeKey(row.original.category_key)}
+          {configuredKeys.has(row.original.category_key) && (
+            <Badge variant="outline" className="ml-2">
+              Configured
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      accessorKey: "reason",
+      header: "Reason",
+      meta: { cellClassName: "max-w-80 whitespace-normal", text: (rule) => `${rule.reason} · ${rule.reference}` },
+      cell: ({ row }) => (
+        <>
+          <p>{row.original.reason}</p>
+          <p className="text-xs text-muted-foreground">{row.original.reference}</p>
+        </>
+      ),
+    },
+    {
+      id: "exceptions",
+      header: "Exceptions",
+      accessorFn: (rule) => (rule.has_exceptions ? (rule.exception_note ?? "Has exceptions") : "None"),
+      meta: { cellClassName: "max-w-72 whitespace-normal text-muted-foreground" },
+    },
+    ...(canAdmin ? [startColumn] : []),
+  ];
 
   return (
     <div className="grid gap-4">
-      <Card tier="tier1">
-        <CardHeader>
-          <CardTitle>Blocked categories</CardTitle>
-          <CardDescription>
-            Categories whose input tax credit is blocked under Section 17(5), as configured for this workspace.
-          </CardDescription>
-          {canAdmin && (
-            <CardAction>
-              <Button size="sm" onClick={() => setEditing({ initial: BLANK, isNew: true })}>
-                <Plus /> Add category
-              </Button>
-            </CardAction>
-          )}
-        </CardHeader>
-        <CardContent className="p-0">
-          <QueryBoundary query={query}>
-            {(rows) =>
-              rows.length === 0 ? (
-                <EmptyState
-                  icon={Ban}
-                  title="No categories configured"
-                  description="The shipped defaults below apply until a category is configured here."
-                />
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="pl-5">Category</TableHead>
-                      <TableHead>Reason</TableHead>
-                      <TableHead>Exceptions</TableHead>
-                      <TableHead>Review</TableHead>
-                      {canAdmin && <TableHead className="pr-5" />}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rows.map((row) => (
-                      <TableRow key={row.id} className="align-top">
-                        <TableCell className="pl-5 font-medium text-foreground">{humanizeKey(row.category_key)}</TableCell>
-                        <TableCell className="max-w-80 whitespace-normal">
-                          <p>{row.reason}</p>
-                          <p className="text-xs text-muted-foreground">{row.reference}</p>
-                        </TableCell>
-                        <TableCell className="max-w-64 whitespace-normal">
-                          {row.has_exceptions ? (
-                            <>
-                              <Badge variant="warning">Has exceptions — goes to review</Badge>
-                              {row.exception_note && (
-                                <p className="mt-1 text-xs text-muted-foreground">{row.exception_note}</p>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-muted-foreground">None</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-normal">
-                          {row.reviewed ? (
-                            <>
-                              <Badge variant="success">Reviewed</Badge>
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {row.reviewed_by ?? "—"}
-                                {row.reviewed_on && ` · ${formatDay(row.reviewed_on, true)}`}
-                              </p>
-                            </>
-                          ) : (
-                            <Badge variant="warning">Unreviewed</Badge>
-                          )}
-                        </TableCell>
-                        {canAdmin && (
-                          <TableCell className="pr-5 text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setEditing({
-                                  isNew: false,
-                                  initial: {
-                                    category_key: row.category_key,
-                                    reason: row.reason,
-                                    reference: row.reference,
-                                    has_exceptions: row.has_exceptions,
-                                    exception_note: row.exception_note,
-                                    reviewed: row.reviewed,
-                                    reviewed_by: row.reviewed_by,
-                                    reviewed_on: row.reviewed_on,
-                                  },
-                                })
-                              }
-                            >
-                              <Pencil /> Edit
-                            </Button>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )
-            }
-          </QueryBoundary>
-        </CardContent>
-      </Card>
+      <DataTable
+        title="Blocked categories"
+        description="Categories whose input tax credit is blocked under Section 17(5), as configured for this workspace."
+        actions={
+          canAdmin ? (
+            <Button size="sm" onClick={() => setEditing({ initial: BLANK, isNew: true })}>
+              <Plus /> Add category
+            </Button>
+          ) : undefined
+        }
+        columns={columns}
+        data={forbidden ? [] : (query.data ?? [])}
+        noun="categories"
+        exportName="gst-blocked-categories"
+        searchPlaceholder="Search categories"
+        rowClassName={() => "align-top"}
+        isLoading={query.isLoading && query.data === null}
+        error={forbidden ? null : (query.error?.detail ?? null)}
+        onRetry={query.reload}
+        loadingRows={3}
+        empty={
+          forbidden
+            ? { icon: Lock, title: "You don't have access to this", description: query.error?.detail }
+            : {
+                icon: Ban,
+                title: "No categories configured",
+                description: "The shipped defaults below apply until a category is configured here.",
+              }
+        }
+      />
 
       <Card tier="tier1">
         <CardHeader>
@@ -332,62 +434,16 @@ function BlockedCategories({ canAdmin }: { canAdmin: boolean }) {
                     </AlertDescription>
                   </Alert>
                 </div>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="pl-5">Category</TableHead>
-                      <TableHead>Reason</TableHead>
-                      <TableHead>Exceptions</TableHead>
-                      {canAdmin && <TableHead className="pr-5" />}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.rules.map((rule) => (
-                      <TableRow key={rule.category_key} className="align-top">
-                        <TableCell className="pl-5 font-medium text-foreground">
-                          {humanizeKey(rule.category_key)}
-                          {configuredKeys.has(rule.category_key) && (
-                            <Badge variant="outline" className="ml-2">
-                              Configured
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="max-w-80 whitespace-normal">
-                          <p>{rule.reason}</p>
-                          <p className="text-xs text-muted-foreground">{rule.reference}</p>
-                        </TableCell>
-                        <TableCell className="max-w-72 whitespace-normal text-muted-foreground">
-                          {rule.has_exceptions ? (rule.exception_note ?? "Has exceptions") : "None"}
-                        </TableCell>
-                        {canAdmin && (
-                          <TableCell className="pr-5 text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                setEditing({
-                                  isNew: !configuredKeys.has(rule.category_key),
-                                  initial: {
-                                    category_key: rule.category_key,
-                                    reason: rule.reason,
-                                    reference: rule.reference,
-                                    has_exceptions: rule.has_exceptions,
-                                    exception_note: rule.exception_note,
-                                    reviewed: false,
-                                    reviewed_by: null,
-                                    reviewed_on: null,
-                                  },
-                                })
-                              }
-                            >
-                              Start from this
-                            </Button>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <DataTable
+                  bordered={false}
+                  columns={defaultColumns}
+                  data={data.rules}
+                  getRowId={(rule) => rule.category_key}
+                  noun="rules"
+                  exportName="gst-blocked-category-defaults"
+                  searchPlaceholder="Search rules"
+                  rowClassName={() => "align-top"}
+                />
               </>
             )}
           </QueryBoundary>

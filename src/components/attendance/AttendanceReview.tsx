@@ -1,22 +1,17 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, Check, ClipboardCheck, Inbox, Loader2, Lock, X } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { PersonCell } from "@/components/common/PersonCell";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -35,22 +30,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { chainSummary } from "@/components/common/ApprovalChain";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { MANAGERS, roleAllows } from "@/lib/access";
-import { patch } from "@/lib/api";
+import { type ApiError, patch } from "@/lib/api";
 import type {
+  AttendanceException,
   AttendanceExceptionKind,
   AttendanceExceptionReport,
   Regularisation,
@@ -67,8 +55,8 @@ import {
   ExceptionKindBadge,
   formatClock,
   LoadError,
+  STATUS_LABELS,
   StatusBadge,
-  TableSkeleton,
 } from "./shared";
 import { SwapQueue } from "./ShiftSwaps";
 import { TeamToday } from "./TeamToday";
@@ -333,6 +321,70 @@ function RegularisationQueue({ onCount }: { onCount: (count: number) => void }) 
 
 const ALL_KINDS = "all";
 
+/**
+ * LoadError's words as DataTable's `error` and `onRetry`: a 403 reads as a
+ * lack of access, with nothing to retry.
+ */
+function loadErrorProps(error: ApiError | null, onRetry: () => void) {
+  if (error?.status === 403) {
+    return {
+      error: `You don't have access to this. ${error.detail} If you think you should, ask your admin to check your role.`,
+      onRetry: undefined,
+    };
+  }
+  return { error: error?.detail ?? null, onRetry };
+}
+
+const EXCEPTION_COLUMNS: ColumnDef<AttendanceException>[] = [
+  {
+    accessorKey: "employee_name",
+    header: "Employee",
+    meta: { text: (row) => `${row.employee_name} ${row.employee_code}` },
+    // A person's name heads their run of rows, as the rows are shown.
+    cell: ({ row, table }) => {
+      const shown = table.getRowModel().rows;
+      const previous = shown[shown.findIndex((other) => other.id === row.id) - 1];
+      return previous?.original.employee_id === row.original.employee_id ? null : (
+        <PersonCell size="sm" name={row.original.employee_name} subtitle={row.original.employee_code} />
+      );
+    },
+  },
+  {
+    accessorKey: "attendance_date",
+    header: "Date",
+    meta: { cellClassName: "whitespace-nowrap", text: (row) => formatDay(row.attendance_date, true) },
+    cell: ({ row }) => formatDay(row.original.attendance_date, true),
+  },
+  {
+    accessorKey: "kind",
+    header: "Kind",
+    meta: { text: (row) => EXCEPTION_LABELS[row.kind] },
+    cell: ({ row }) => <ExceptionKindBadge kind={row.original.kind} />,
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    meta: { text: (row) => (row.status ? STATUS_LABELS[row.status] : "Not computed") },
+    cell: ({ row }) => <StatusBadge status={row.original.status} />,
+  },
+  {
+    accessorKey: "detail",
+    header: "Detail",
+    meta: { cellClassName: "max-w-80 whitespace-normal text-muted-foreground" },
+  },
+  {
+    id: "regularisation",
+    header: "Regularisation",
+    accessorFn: (row) => (row.has_pending_regularisation ? "Pending" : "None raised"),
+    cell: ({ row }) =>
+      row.original.has_pending_regularisation ? (
+        <Badge variant="warning">Pending</Badge>
+      ) : (
+        <span className="text-xs text-muted-foreground">None raised</span>
+      ),
+  },
+];
+
 function ExceptionsReport() {
   const initial = currentMonthBounds();
   const [from, setFrom] = useState(initial.from);
@@ -356,128 +408,89 @@ function ExceptionsReport() {
         ),
     [data, kind],
   );
+  // The report has exceptions, all of other kinds than the one chosen.
+  const otherKindsOnly = rangeOk && rows.length === 0 && (data?.exceptions.length ?? 0) > 0;
 
   return (
-    <Card tier="tier1" className="pb-0">
-      <CardHeader>
-        <CardTitle>Exceptions</CardTitle>
-        <CardDescription>
-          {data && rangeOk
-            ? `${formatDateRange(data.period_start, data.period_end)} · ${data.employees_in_scope} ${data.employees_in_scope === 1 ? "employee" : "employees"} in scope · ${data.exceptions.length} ${data.exceptions.length === 1 ? "exception" : "exceptions"}`
-            : "Days that need a look: absences, late arrivals, early exits, punches outside a geofence."}
-        </CardDescription>
-        <CardAction>
-          <ClipboardCheck className="size-5 text-muted-foreground" />
-        </CardAction>
-      </CardHeader>
-
-      <CardContent className="flex flex-wrap items-end gap-3">
-        <div className="grid gap-1.5">
-          <Label htmlFor="exc-from">From</Label>
-          <Input
-            id="exc-from"
-            type="date"
-            value={from}
-            onChange={(event) => setFrom(event.target.value)}
-            aria-invalid={!rangeOk}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="exc-to">To</Label>
-          <Input
-            id="exc-to"
-            type="date"
-            min={from}
-            value={to}
-            onChange={(event) => setTo(event.target.value)}
-            aria-invalid={!rangeOk}
-          />
-        </div>
-        <div className="grid gap-1.5">
-          <Label htmlFor="exc-kind">Kind</Label>
-          <Select value={kind} onValueChange={(value) => setKind(value as typeof kind)}>
-            <SelectTrigger id="exc-kind" className="w-52">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL_KINDS}>All kinds</SelectItem>
-              {(Object.keys(EXCEPTION_LABELS) as AttendanceExceptionKind[]).map((option) => (
-                <SelectItem key={option} value={option}>
-                  {EXCEPTION_LABELS[option]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {!rangeOk && (
-          <p className="pb-2 text-xs text-destructive">Choose a start date on or before the end date.</p>
-        )}
-      </CardContent>
-
-      <div className="mt-5">
-        {!rangeOk ? null : isLoading ? (
-          <div className="pb-5">
-            <TableSkeleton rows={5} />
-          </div>
-        ) : error ? (
-          <LoadError error={error} onRetry={reload} />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            icon={ClipboardCheck}
-            title="No exceptions in this range"
-            description={
-              data && data.exceptions.length > 0
-                ? "None of this kind. Choose All kinds to see the rest."
-                : `Nothing needs a look between ${formatDateRange(from, to)}${data ? ` across ${data.employees_in_scope} ${data.employees_in_scope === 1 ? "employee" : "employees"} in scope` : ""}.`
+    <DataTable
+      title="Exceptions"
+      description={
+        data && rangeOk
+          ? `${formatDateRange(data.period_start, data.period_end)} · ${data.employees_in_scope} ${data.employees_in_scope === 1 ? "employee" : "employees"} in scope · ${data.exceptions.length} ${data.exceptions.length === 1 ? "exception" : "exceptions"}`
+          : "Days that need a look: absences, late arrivals, early exits, punches outside a geofence."
+      }
+      tier="tier1"
+      columns={EXCEPTION_COLUMNS}
+      // A new range never shows the previous range's rows while it loads.
+      data={rangeOk && !isLoading ? rows : []}
+      getRowId={(row) => `${row.employee_id}-${row.attendance_date}-${row.kind}`}
+      noun="exceptions"
+      exportName={`attendance-exceptions-${from}-${to}`}
+      searchPlaceholder="Search employee or detail"
+      isLoading={rangeOk && isLoading}
+      loadingRows={5}
+      {...loadErrorProps(rangeOk ? error : null, reload)}
+      filtered={!rangeOk || otherKindsOnly}
+      empty={
+        rangeOk
+          ? {
+              icon: ClipboardCheck,
+              title: "No exceptions in this range",
+              description: `Nothing needs a look between ${formatDateRange(from, to)}${data ? ` across ${data.employees_in_scope} ${data.employees_in_scope === 1 ? "employee" : "employees"} in scope` : ""}.`,
             }
-          />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="pl-5">Employee</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Kind</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Detail</TableHead>
-                <TableHead className="pr-5">Regularisation</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row, index) => {
-                const previous = rows[index - 1];
-                const sameEmployee = previous?.employee_id === row.employee_id;
-                return (
-                  <TableRow key={`${row.employee_id}-${row.attendance_date}-${row.kind}`}>
-                    <TableCell className="pl-5">
-                      {!sameEmployee && (
-                        <PersonCell size="sm" name={row.employee_name} subtitle={row.employee_code} />
-                      )}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap">{formatDay(row.attendance_date, true)}</TableCell>
-                    <TableCell>
-                      <ExceptionKindBadge kind={row.kind} />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge status={row.status} />
-                    </TableCell>
-                    <TableCell className="max-w-80 whitespace-normal text-muted-foreground">
-                      {row.detail}
-                    </TableCell>
-                    <TableCell className="pr-5">
-                      {row.has_pending_regularisation ? (
-                        <Badge variant="warning">Pending</Badge>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">None raised</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
-      </div>
-    </Card>
+          : undefined
+      }
+      emptyMessage={
+        otherKindsOnly
+          ? "No exceptions in this range. None of this kind. Choose All kinds to see the rest."
+          : undefined
+      }
+      filters={
+        <>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="exc-from">From</Label>
+            <Input
+              id="exc-from"
+              type="date"
+              className="h-9 w-auto"
+              value={from}
+              onChange={(event) => setFrom(event.target.value)}
+              aria-invalid={!rangeOk}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="exc-to">To</Label>
+            <Input
+              id="exc-to"
+              type="date"
+              className="h-9 w-auto"
+              min={from}
+              value={to}
+              onChange={(event) => setTo(event.target.value)}
+              aria-invalid={!rangeOk}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="exc-kind">Kind</Label>
+            <Select value={kind} onValueChange={(value) => setKind(value as typeof kind)}>
+              <SelectTrigger id="exc-kind" className="h-9 w-52">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL_KINDS}>All kinds</SelectItem>
+                {(Object.keys(EXCEPTION_LABELS) as AttendanceExceptionKind[]).map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {EXCEPTION_LABELS[option]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {!rangeOk && (
+            <p className="text-xs text-destructive">Choose a start date on or before the end date.</p>
+          )}
+        </>
+      }
+    />
   );
 }

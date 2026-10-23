@@ -1,16 +1,16 @@
 "use client";
 
-import { Search, Wallet } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { Wallet } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
-import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { SalaryHistoryList } from "@/components/pay/SalaryHistoryList";
 import { AssignSalaryDialog } from "@/components/payroll/AssignSalaryDialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -18,14 +18,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { Page } from "@/lib/types";
 import type { SalaryOverview, SalaryRecord, SalaryStructure } from "@/lib/types/payroll";
@@ -38,6 +30,7 @@ export default function SalariesPage() {
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const [editing, setEditing] = useState<SalaryOverview | null>(null);
   const [historyFor, setHistoryFor] = useState<SalaryOverview | null>(null);
 
@@ -50,107 +43,104 @@ export default function SalariesPage() {
   }, [search]);
 
   const overview = useApiQuery<Page<SalaryOverview>>(
-    `/salaries?page=${page}&page_size=${PAGE_SIZE}${debounced ? `&search=${encodeURIComponent(debounced)}` : ""}`,
+    `/salaries?page=${page}&page_size=${pageSize}${debounced ? `&search=${encodeURIComponent(debounced)}` : ""}`,
   );
   const structures = useApiQuery<SalaryStructure[]>("/salary-structures");
   const history = useApiQuery<SalaryRecord[]>(
     historyFor ? `/employees/${historyFor.employee_id}/salary/history` : null,
   );
   const structureName = (id: string) => structures.data?.find((s) => s.id === id)?.name;
+  const structureOf = (row: SalaryOverview) =>
+    row.current_salary
+      ? (row.current_salary.structure_name ?? structureName(row.current_salary.structure_id) ?? "—")
+      : null;
 
-  const rows = overview.data?.items ?? [];
-  const pages = overview.data ? Math.max(1, Math.ceil(overview.data.total / PAGE_SIZE)) : 1;
+  const columns: ColumnDef<SalaryOverview>[] = [
+    {
+      accessorKey: "employee_name",
+      header: "Employee",
+      meta: { text: (row) => `${row.employee_name} ${row.employee_code}` },
+      cell: ({ row }) => (
+        <PersonCell
+          name={row.original.employee_name}
+          subtitle={`${row.original.employee_code}${row.original.designation ? ` · ${row.original.designation}` : ""}`}
+        />
+      ),
+    },
+    {
+      id: "structure",
+      header: "Structure",
+      accessorFn: (row) => structureOf(row) ?? "No salary assigned",
+      meta: { cellClassName: "text-sm" },
+      cell: ({ row }) =>
+        structureOf(row.original) ?? <span className="text-muted-foreground">No salary assigned</span>,
+    },
+    {
+      id: "ctc_annual",
+      header: "Annual CTC",
+      accessorFn: (row) => row.current_salary?.ctc_annual ?? null,
+      meta: { className: "text-right" },
+      cell: ({ row }) =>
+        row.original.current_salary ? <Money value={row.original.current_salary.ctc_annual} /> : "—",
+    },
+    {
+      id: "since",
+      header: "Since",
+      accessorFn: (row) => row.current_salary?.effective_from ?? null,
+      meta: { cellClassName: "text-sm" },
+      cell: ({ row }) =>
+        row.original.current_salary ? formatDay(row.original.current_salary.effective_from, true) : "—",
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      enableHiding: false,
+      meta: { className: "text-right", text: false },
+      cell: ({ row }) => (
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setHistoryFor(row.original)}>
+            History
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setEditing(row.original)}>
+            {row.original.current_salary ? "Revise" : "Assign"}
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <PageShell title="Salaries" description="Assign and revise salaries. Every revision is effective-dated and audited.">
-      <DataPanel
+      <DataTable
         title="Employees"
-        toolbar={
-          <div className="relative w-full max-w-xs">
-            <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-            <Input
-              className="pl-8"
-              placeholder="Search by name or code"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              aria-label="Search employees"
-            />
-          </div>
-        }
+        columns={columns}
+        data={overview.data?.items ?? []}
+        getRowId={(row) => row.employee_id}
+        noun="employees"
+        exportName="salaries"
         isLoading={overview.isLoading && !overview.data}
         error={overview.error?.detail}
         onRetry={overview.reload}
-        isEmpty={rows.length === 0}
         empty={{
           icon: Wallet,
-          title: debounced ? "Nobody matches that search" : "No employees yet",
-          description: debounced ? undefined : "Employees appear here once they are added to the directory.",
+          title: "No employees yet",
+          description: "Employees appear here once they are added to the directory.",
         }}
-        footer={
-          overview.data && overview.data.total > PAGE_SIZE ? (
-            <div className="flex items-center justify-between text-sm text-muted-foreground">
-              <span>
-                Page {page} of {pages}
-              </span>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-                  Previous
-                </Button>
-                <Button variant="outline" size="sm" disabled={page >= pages} onClick={() => setPage(page + 1)}>
-                  Next
-                </Button>
-              </div>
-            </div>
-          ) : undefined
-        }
-      >
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Structure</TableHead>
-                <TableHead className="text-right">Annual CTC</TableHead>
-                <TableHead>Since</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.employee_id}>
-                  <TableCell>
-                    <PersonCell
-                      name={row.employee_name}
-                      subtitle={`${row.employee_code}${row.designation ? ` · ${row.designation}` : ""}`}
-                    />
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {row.current_salary
-                      ? (row.current_salary.structure_name ?? structureName(row.current_salary.structure_id) ?? "—")
-                      : <span className="text-muted-foreground">No salary assigned</span>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {row.current_salary ? <Money value={row.current_salary.ctc_annual} /> : "—"}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {row.current_salary ? formatDay(row.current_salary.effective_from, true) : "—"}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => setHistoryFor(row)}>
-                        History
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditing(row)}>
-                        {row.current_salary ? "Revise" : "Assign"}
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </DataPanel>
+        emptyMessage="Nobody matches that search."
+        searchPlaceholder="Search by name or code"
+        search={search}
+        onSearchChange={setSearch}
+        server={{
+          page,
+          pageSize,
+          total: overview.data?.total ?? 0,
+          onPageChange: setPage,
+          onPageSizeChange: (size) => {
+            setPageSize(size);
+            setPage(1);
+          },
+        }}
+      />
 
       <AssignSalaryDialog
         employee={editing}

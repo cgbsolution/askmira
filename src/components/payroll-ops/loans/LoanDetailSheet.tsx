@@ -1,10 +1,11 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, CheckCircle2, Loader2, Receipt } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { EmptyState } from "@/components/common/EmptyState";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import {
@@ -41,24 +42,123 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
-import type { LoanAccount, LoanDetail, LoanSchedule, PrepaymentInput } from "@/lib/types/payroll-ops";
+import type {
+  LoanAccount,
+  LoanDetail,
+  LoanInstalment,
+  LoanRepayment,
+  LoanSchedule,
+  PrepaymentInput,
+} from "@/lib/types/payroll-ops";
 import { formatDate, formatMoney, toISODate } from "@/lib/utils";
 
 import { ADMIN_ROLES, describeRate, Fact, HR_ROLES, LoanStatusBadge } from "./common";
 
 type Action = "approve" | "reject" | "disburse" | "prepay";
+
+const SCHEDULE_COLUMNS: ColumnDef<LoanInstalment>[] = [
+  {
+    accessorKey: "number",
+    header: "#",
+    meta: { headClassName: "w-12", cellClassName: "tabular-nums" },
+  },
+  {
+    accessorKey: "emi",
+    header: "EMI",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.emi} />,
+  },
+  {
+    accessorKey: "principal",
+    header: "Principal",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.principal} />,
+  },
+  {
+    accessorKey: "interest",
+    header: "Interest",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.interest} />,
+  },
+  {
+    accessorKey: "closing_balance",
+    header: "Balance after",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.closing_balance} />,
+  },
+  {
+    accessorKey: "is_moratorium",
+    header: "",
+    enableSorting: false,
+    meta: { label: "Moratorium" },
+    cell: ({ row }) => row.original.is_moratorium && <Badge variant="muted">Moratorium</Badge>,
+  },
+];
+
+const REPAYMENT_COLUMNS: ColumnDef<LoanRepayment>[] = [
+  {
+    accessorKey: "period",
+    header: "Period",
+    meta: { cellClassName: "whitespace-nowrap", text: (row) => formatPeriod(row.period) },
+    cell: ({ row }) => formatPeriod(row.original.period),
+  },
+  {
+    id: "entry",
+    header: "Entry",
+    accessorFn: (row) =>
+      row.is_prepayment ? "Prepayment" : row.is_skipped ? "Skipped" : "Recovered",
+    cell: ({ row }) =>
+      row.original.is_prepayment ? (
+        <Badge variant="accent">Prepayment</Badge>
+      ) : row.original.is_skipped ? (
+        <Badge variant="warning">Skipped</Badge>
+      ) : (
+        <Badge variant="success">Recovered</Badge>
+      ),
+  },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.amount} />,
+  },
+  {
+    accessorKey: "principal_component",
+    header: "Principal",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.principal_component} />,
+  },
+  {
+    accessorKey: "interest_component",
+    header: "Interest",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.interest_component} />,
+  },
+  {
+    accessorKey: "closing_balance",
+    header: "Balance after",
+    sortingFn: "alphanumeric",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.closing_balance} />,
+  },
+  {
+    accessorKey: "reason",
+    header: "Reason",
+    meta: { cellClassName: "max-w-64 text-sm text-muted-foreground" },
+    cell: ({ row }) => row.original.reason || "—",
+  },
+];
 
 /**
  * One loan: its terms, the repayment schedule and what payroll has recovered.
@@ -275,40 +375,14 @@ function ScheduleSection({ schedule }: { schedule: LoanSchedule | null }) {
           ))}
         </ul>
       )}
-      <div className="max-h-80 overflow-auto rounded-lg border border-border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-12">#</TableHead>
-              <TableHead className="text-right">EMI</TableHead>
-              <TableHead className="text-right">Principal</TableHead>
-              <TableHead className="text-right">Interest</TableHead>
-              <TableHead className="text-right">Balance after</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {schedule.instalments.map((row) => (
-              <TableRow key={row.number}>
-                <TableCell className="tabular-nums">{row.number}</TableCell>
-                <TableCell className="text-right">
-                  <Money value={row.emi} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={row.principal} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={row.interest} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Money value={row.closing_balance} />
-                </TableCell>
-                <TableCell>{row.is_moratorium && <Badge variant="muted">Moratorium</Badge>}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        columns={SCHEDULE_COLUMNS}
+        data={schedule.instalments}
+        getRowId={(row) => String(row.number)}
+        noun="instalments"
+        exportName="loan-repayment-schedule"
+        searchPlaceholder="Search instalments"
+      />
     </section>
   );
 }
@@ -317,61 +391,19 @@ function RepaymentsSection({ detail }: { detail: LoanDetail }) {
   return (
     <section className="space-y-3">
       <h3 className="text-sm font-semibold text-foreground">Recoveries</h3>
-      {detail.repayments.length === 0 ? (
-        <EmptyState
-          icon={Receipt}
-          className="py-8"
-          title="Nothing recovered yet"
-          description="EMIs are recovered inside payroll runs. Each recovery, skip or prepayment is recorded here."
-        />
-      ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Period</TableHead>
-                <TableHead>Entry</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="text-right">Principal</TableHead>
-                <TableHead className="text-right">Interest</TableHead>
-                <TableHead className="text-right">Balance after</TableHead>
-                <TableHead>Reason</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {detail.repayments.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="whitespace-nowrap">{formatPeriod(row.period)}</TableCell>
-                  <TableCell>
-                    {row.is_prepayment ? (
-                      <Badge variant="accent">Prepayment</Badge>
-                    ) : row.is_skipped ? (
-                      <Badge variant="warning">Skipped</Badge>
-                    ) : (
-                      <Badge variant="success">Recovered</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.amount} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.principal_component} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.interest_component} />
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Money value={row.closing_balance} />
-                  </TableCell>
-                  <TableCell className="max-w-64 text-sm text-muted-foreground">
-                    {row.reason || "—"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+      <DataTable
+        columns={REPAYMENT_COLUMNS}
+        data={detail.repayments}
+        noun="recoveries"
+        exportName="loan-recoveries"
+        searchPlaceholder="Search recoveries"
+        empty={{
+          icon: Receipt,
+          title: "Nothing recovered yet",
+          description:
+            "EMIs are recovered inside payroll runs. Each recovery, skip or prepayment is recorded here.",
+        }}
+      />
     </section>
   );
 }
