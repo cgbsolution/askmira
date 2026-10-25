@@ -4,6 +4,7 @@ import { Download, Loader2, Lock, Paperclip, Pencil, X } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DatePicker } from "@/components/common/DatePicker";
 import { apiMessage } from "@/components/payroll/labels";
 import { StatusAvatar, employeeLabel } from "@/components/payroll/salary-master/EmployeeSearch";
@@ -35,6 +36,11 @@ import {
   type SalaryStructure,
   type StandardStatus,
 } from "@/lib/types/payroll";
+
+/** What a revision may carry as its file: what the server's vault takes. */
+const FILE_TYPES = ["application/pdf", "image/png", "image/jpeg"];
+const FILE_EXTENSIONS = /\.(pdf|png|jpe?g)$/i;
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 export type EditorMode =
   /** A new revision, starting from the latest one's amounts. */
@@ -91,7 +97,11 @@ export function SalaryEditor({
   const [reason, setReason] = useState("");
   const [ctc, setCtc] = useState("");
   const [ctcBasis, setCtcBasis] = useState<PayBasis>("monthly");
+  const [gross, setGross] = useState("");
+  const [grossBasis, setGrossBasis] = useState<PayBasis>("monthly");
   const [rows, setRows] = useState<Record<string, WageRow>>({});
+  const [initialKey, setInitialKey] = useState("");
+  const [confirmClose, setConfirmClose] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [removeAttachment, setRemoveAttachment] = useState(false);
   const [preview, setPreview] = useState<SalaryBreakdown | null>(null);
@@ -105,9 +115,22 @@ export function SalaryEditor({
     if (!mode) return;
     setEffectiveFrom(mode.kind === "new" ? "" : mode.revision.effective_from);
     setReason(mode.kind === "new" ? "" : (mode.revision.revision_reason ?? ""));
-    setCtc(source ? (source.ctc_amount ?? source.ctc_annual) : "");
-    setCtcBasis(source ? (source.ctc_basis ?? "annual") : "monthly");
-    setRows(rowsFrom(source));
+    const startCtc = source ? (source.ctc_amount ?? source.ctc_annual) : "";
+    const startCtcBasis: PayBasis = source ? (source.ctc_basis ?? "annual") : "monthly";
+    const startGross = source?.gross_amount ?? "";
+    const startGrossBasis: PayBasis = source?.gross_basis ?? "monthly";
+    const startRows = rowsFrom(source);
+    const startFrom = mode.kind === "new" ? "" : mode.revision.effective_from;
+    const startReason = mode.kind === "new" ? "" : (mode.revision.revision_reason ?? "");
+    setCtc(startCtc);
+    setCtcBasis(startCtcBasis);
+    setGross(startGross);
+    setGrossBasis(startGrossBasis);
+    setRows(startRows);
+    setInitialKey(
+      formKey(startFrom, startReason, startCtc, startCtcBasis, startGross, startGrossBasis, startRows, null, false),
+    );
+    setConfirmClose(false);
     setFile(null);
     setRemoveAttachment(false);
     setPreview(null);
@@ -123,7 +146,7 @@ export function SalaryEditor({
     (source && active.some((s) => s.id === source.structure_id) ? source.structure_id : active[0]?.id) ?? "";
 
   const typed = Object.entries(rows).filter(([, row]) => row.amount.trim() !== "");
-  const invalid = typed.some(([, row]) => !isTypedAmount(row.amount));
+  const invalid = typed.some(([, row]) => !isTypedAmount(row.amount)) || (gross.trim() !== "" && !isTypedAmount(gross));
   const ctcValid = isTypedAmount(ctc) && !/^0+(\.0+)?$/.test(ctc.trim());
   const amounts: SalaryAmountsInput | null =
     readOnly || !ctcValid || invalid
@@ -132,6 +155,7 @@ export function SalaryEditor({
           entry: "manual",
           ctc_amount: ctc.trim(),
           ctc_basis: ctcBasis,
+          ...(gross.trim() ? { gross_amount: gross.trim(), gross_basis: grossBasis } : {}),
           components: typed.map(([code, row]) => ({
             component_code: code,
             amount: row.amount.trim(),
@@ -201,14 +225,48 @@ export function SalaryEditor({
   const earnings = totals?.find((t) => t.component_type === "earning");
   const attachmentName = revision?.attachment_name ?? null;
   const noStructure = !readOnly && standard !== null && !standard.has_structure;
+  // A rule the amounts break, said while typing; saving is refused until fixed.
+  const warning = (amounts && preview?.warnings?.[0]) || null;
+  const dirty =
+    !readOnly &&
+    mode !== null &&
+    formKey(effectiveFrom, reason, ctc, ctcBasis, gross, grossBasis, rows, file, removeAttachment) !== initialKey;
+
+  const requestClose = () => {
+    if (saving) return;
+    if (dirty) setConfirmClose(true);
+    else onClose();
+  };
+
+  const pickFile = (picked: File | null) => {
+    if (fileInput.current) fileInput.current.value = "";
+    if (!picked) return;
+    if (!FILE_TYPES.includes(picked.type) && !FILE_EXTENSIONS.test(picked.name)) {
+      setError(`${picked.name} is not a PDF, PNG or JPEG. Attach one of those.`);
+      return;
+    }
+    if (picked.size > MAX_FILE_BYTES) {
+      setError(`${picked.name} is larger than 10 MB.`);
+      return;
+    }
+    if (picked.size === 0) {
+      setError(`${picked.name} is empty.`);
+      return;
+    }
+    setError(null);
+    setFile(picked);
+    setRemoveAttachment(false);
+  };
 
   const save = async (forward: boolean) => {
     if (!mode || mode.kind === "view") return;
     if (!structureId) return setError("Set up the salary template first.");
-    if (!effectiveFrom) return setError("Give the date this salary applies from.");
-    if (!ctcValid) return setError("Enter CTC TOTAL.");
+    if (!effectiveFrom) return setError("Pick the date this salary applies from (Effective from).");
+    if (!ctc.trim()) return setError("Enter CTC TOTAL.");
+    if (!ctcValid) return setError("CTC TOTAL must be more than 0, with up to two decimals.");
     if (invalid) return setError("Fix the amounts marked in red: digits only, up to two decimals.");
     if (previewError) return setError(previewError);
+    if (warning) return setError(warning);
     setSaving(forward ? "forward" : "save");
     setError(null);
     const body: SalaryRevisionInput = {
@@ -218,6 +276,8 @@ export function SalaryEditor({
       revision_reason: reason.trim() || null,
       ctc_amount: ctc.trim(),
       ctc_basis: ctcBasis,
+      gross_amount: gross.trim() || null,
+      gross_basis: grossBasis,
       components: Object.entries(rows)
         .filter(([, row]) => row.amount.trim() !== "")
         .map(([code, row]) => ({
@@ -277,7 +337,7 @@ export function SalaryEditor({
   const locked = readOnly && revision?.locked;
 
   return (
-    <Sheet open={mode !== null} onOpenChange={(open) => !open && !busy && onClose()}>
+    <Sheet open={mode !== null} onOpenChange={(open) => !open && requestClose()}>
       <SheetContent className="w-full gap-0 overflow-y-auto p-0 sm:max-w-6xl">
         <SheetHeader className="border-b border-border px-6 py-4">
           <SheetTitle className="text-lg">Salary Master</SheetTitle>
@@ -337,10 +397,7 @@ export function SalaryEditor({
                   accept="application/pdf,image/png,image/jpeg"
                   className="sr-only"
                   tabIndex={-1}
-                  onChange={(event) => {
-                    setFile(event.target.files?.[0] ?? null);
-                    setRemoveAttachment(false);
-                  }}
+                  onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
                 />
                 <div className="flex h-9 items-center gap-1 rounded-lg border border-border bg-card pr-1 pl-3 text-sm">
                   <span className="max-w-48 truncate text-muted-foreground">
@@ -396,9 +453,9 @@ export function SalaryEditor({
               </AlertDescription>
             </Alert>
           )}
-          {previewError && !readOnly && (
+          {(previewError || warning) && !readOnly && (
             <Alert variant="destructive">
-              <AlertDescription>{previewError}</AlertDescription>
+              <AlertDescription>{previewError ?? warning}</AlertDescription>
             </Alert>
           )}
 
@@ -419,8 +476,25 @@ export function SalaryEditor({
                 onBasis: setCtcBasis,
                 onRemarks: setReason,
               }}
-              grossMonthly={readOnly ? revision?.gross_monthly : earnings?.monthly}
-              grossAnnual={earnings?.annual}
+              gross={{
+                amount: readOnly ? (revision?.gross_amount ? revision.gross_monthly : "") : gross,
+                basis: readOnly
+                  ? revision?.gross_amount
+                    ? (revision.gross_basis ?? "monthly")
+                    : "monthly"
+                  : grossBasis,
+                earnings: readOnly
+                  ? (revision?.earnings_monthly ?? earnings?.monthly)
+                  : (preview?.earnings_monthly ?? null),
+                annual: readOnly ? revision?.gross_annual : (preview?.gross_annual ?? null),
+                differs: readOnly
+                  ? Boolean(revision?.gross_amount) && revision?.gross_monthly !== revision?.earnings_monthly
+                  : Boolean(gross.trim()) &&
+                    Boolean(preview?.gross_monthly) &&
+                    preview?.gross_monthly !== preview?.earnings_monthly,
+                onAmount: setGross,
+                onBasis: setGrossBasis,
+              }}
               onChange={(code, row) => setRows((current) => ({ ...current, [code]: row }))}
             />
           )}
@@ -458,6 +532,48 @@ export function SalaryEditor({
           </div>
         </div>
       </SheetContent>
+      <ConfirmDialog
+        open={confirmClose}
+        onOpenChange={setConfirmClose}
+        title="Discard your changes?"
+        description="The amounts you typed in this salary have not been saved."
+        confirmLabel="Discard changes"
+        cancelLabel="Keep editing"
+        destructive
+        onConfirm={() => {
+          setConfirmClose(false);
+          onClose();
+        }}
+      />
     </Sheet>
   );
+}
+
+/** Everything the person can change, as one comparable string. */
+function formKey(
+  from: string,
+  reason: string,
+  ctc: string,
+  ctcBasis: PayBasis,
+  gross: string,
+  grossBasis: PayBasis,
+  rows: Record<string, WageRow>,
+  file: File | null,
+  removeAttachment: boolean,
+): string {
+  const filled = Object.entries(rows)
+    .filter(([, row]) => row.amount.trim() || row.remarks.trim())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([code, row]) => [code, row.amount.trim(), row.basis, row.remarks.trim()]);
+  return JSON.stringify([
+    from,
+    reason.trim(),
+    ctc.trim(),
+    ctcBasis,
+    gross.trim(),
+    gross.trim() ? grossBasis : "",
+    filled,
+    file?.name ?? "",
+    removeAttachment,
+  ]);
 }

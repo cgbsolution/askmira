@@ -53,7 +53,7 @@ export function ImportEmployeesPanel() {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [includeLeavers, setIncludeLeavers] = useState(true);
-  const [busy, setBusy] = useState<"check" | "import" | "template" | null>(null);
+  const [busy, setBusy] = useState<"check" | "import" | "template" | "left-out" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const startOver = () => {
@@ -117,6 +117,30 @@ export function ImportEmployeesPanel() {
       setBusy(null);
     }
   };
+
+  /** The rows not added, with the file's own columns and why — to correct and import again. */
+  const leftOut = async () => {
+    if (!file) return;
+    setBusy("left-out");
+    try {
+      await downloadFile("/employees/import/rejected", "employees-not-added.xlsx", {
+        method: "POST",
+        body: form(file),
+        timeout: 120_000,
+      });
+    } catch (caught) {
+      toast.error(apiMessage(caught, "The rows not added could not be downloaded."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const leftOutButton = (
+    <Button variant="outline" disabled={busy !== null} onClick={() => void leftOut()}>
+      {busy === "left-out" ? <Loader2 className="animate-spin" /> : <Download />}
+      Download rows not added
+    </Button>
+  );
 
   const toImport = preview ? preview.ready_current + (includeLeavers ? preview.ready_leavers : 0) : 0;
 
@@ -255,9 +279,12 @@ export function ImportEmployeesPanel() {
                   </div>
                 )}
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-                  <Button variant="outline" disabled={busy === "import"} onClick={startOver}>
-                    Choose another file
-                  </Button>
+                  <div className="flex flex-col-reverse gap-2 sm:flex-row">
+                    <Button variant="outline" disabled={busy === "import"} onClick={startOver}>
+                      Choose another file
+                    </Button>
+                    {preview.skipped + preview.errors > 0 && leftOutButton}
+                  </div>
                   <Button
                     variant="accent"
                     disabled={busy === "import" || toImport === 0}
@@ -286,8 +313,8 @@ export function ImportEmployeesPanel() {
                   )}
                   {result.failed > 0 && (
                     <span>
-                      {result.failed} could not be added; fix those rows and import the same file
-                      again — everyone already brought in is skipped.
+                      {result.failed} could not be added. Download them, fix those rows and import
+                      that sheet — everyone already brought in is skipped.
                     </span>
                   )}
                   {result.departments_created.length > 0 && (
@@ -303,6 +330,7 @@ export function ImportEmployeesPanel() {
               </Alert>
               <ImportRows rows={result.rows} />
               <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
+                {result.skipped + result.failed > 0 && leftOutButton}
                 <Button variant="outline" onClick={startOver}>
                   Import another file
                 </Button>

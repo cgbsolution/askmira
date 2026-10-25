@@ -493,6 +493,13 @@ export interface SalaryBreakdown {
   components: ResolvedComponent[];
   totals?: SalaryTypeTotal[];
   group_totals?: SalaryGroupTotal[];
+  /** MONTHLY GROSS: as typed when it was, else the earnings' sum. */
+  gross_monthly?: string | null;
+  gross_annual?: string | null;
+  /** The earnings' own sum a month. */
+  earnings_monthly?: string | null;
+  /** What would stop these amounts from saving. */
+  warnings?: string[];
 }
 
 export interface SalaryComponentAmount {
@@ -565,6 +572,11 @@ export interface SalaryRevision {
   ctc_amount?: string | null;
   /** Every amount on it was typed by hand. */
   manual_entry?: boolean;
+  /** MONTHLY GROSS as typed, in its pay basis; null when left to the earnings. */
+  gross_amount?: string | null;
+  gross_basis?: PayBasis | null;
+  gross_annual?: string | null;
+  earnings_monthly?: string | null;
   gross_monthly: string;
   basic_monthly: string | null;
   currency: string;
@@ -595,6 +607,8 @@ export interface SalaryAmountsInput {
   entry?: "structure" | "manual";
   ctc_amount?: string;
   ctc_basis?: PayBasis;
+  gross_amount?: string | null;
+  gross_basis?: PayBasis;
   ctc_annual?: string;
   ctc_monthly?: string;
   components: SalaryComponentAmountInput[];

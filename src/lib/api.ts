@@ -217,8 +217,12 @@ export async function fetchFile(
  * The object URL is revoked straight after the click, so a sensitive document
  * (a payslip, an offer letter) does not linger addressable in the page.
  */
-export async function downloadFile(path: string, fallbackName: string): Promise<void> {
-  const { blob, filename } = await fetchFile(path);
+export async function downloadFile(
+  path: string,
+  fallbackName: string,
+  options: ApiOptions = {},
+): Promise<void> {
+  const { blob, filename } = await fetchFile(path, options);
   const url = URL.createObjectURL(blob);
   try {
     const anchor = document.createElement("a");

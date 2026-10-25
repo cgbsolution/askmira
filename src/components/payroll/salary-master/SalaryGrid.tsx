@@ -3,6 +3,7 @@
 import { FileText } from "lucide-react";
 import React from "react";
 
+import { AmountInput } from "@/components/common/AmountInput";
 import { Money } from "@/components/common/Money";
 import {
   BASES,
@@ -18,6 +19,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import type { PayBasis, SalaryGroupTotal } from "@/lib/types/payroll";
 
 const EMPTY: WageRow = { amount: "", basis: "monthly", remarks: "" };
+
+export interface GrossRow {
+  /** As typed; empty means the earnings' sum stands. */
+  amount: string;
+  basis: PayBasis;
+  /** The earnings' sum a month, shown in the box while nothing is typed. */
+  earnings: string | null | undefined;
+  annual: string | null | undefined;
+  /** A typed gross that differs from the earnings: said beside it. */
+  differs: boolean;
+  onAmount: (value: string) => void;
+  onBasis: (basis: PayBasis) => void;
+}
 
 export interface CtcRow {
   amount: string;
@@ -41,8 +55,7 @@ export function SalaryGrid({
   rows,
   groupTotals,
   ctc,
-  grossMonthly,
-  grossAnnual,
+  gross,
   readOnly = false,
   onChange,
 }: {
@@ -50,8 +63,7 @@ export function SalaryGrid({
   rows: Record<string, WageRow>;
   groupTotals: SalaryGroupTotal[];
   ctc: CtcRow;
-  grossMonthly: string | null | undefined;
-  grossAnnual: string | null | undefined;
+  gross: GrossRow;
   readOnly?: boolean;
   onChange?: (code: string, row: WageRow) => void;
 }) {
@@ -76,17 +88,17 @@ export function SalaryGrid({
       </Select>
     );
 
-  const amountBox = (value: string, onValue: (value: string) => void, label: string) =>
+  const amountBox = (value: string, onValue: (value: string) => void, label: string, placeholder?: string) =>
     readOnly ? (
       <Money value={value || null} />
     ) : (
-      <Input
-        inputMode="decimal"
+      <AmountInput
         aria-label={`${label} amount`}
         aria-invalid={(value.trim() !== "" && !isTypedAmount(value)) || undefined}
         value={value}
-        className="ml-auto h-9 w-36 text-right tabular-nums"
-        onChange={(event) => onValue(event.target.value)}
+        placeholder={placeholder}
+        className="ml-auto h-9 w-36"
+        onValueChange={onValue}
       />
     );
 
@@ -166,26 +178,27 @@ export function SalaryGrid({
           {ctcInputs.map(lineRow)}
           <TableRow>
             <TableCell>{name("MONTHLY GROSS")}</TableCell>
-            <TableCell>
-              <span className="text-sm">Monthly</span>
-            </TableCell>
+            <TableCell>{basisSelect(gross.basis, gross.onBasis, "Monthly gross")}</TableCell>
             <TableCell className="text-right">
               {readOnly ? (
-                <Money value={grossMonthly ?? null} />
+                <Money value={gross.amount || gross.earnings || null} />
               ) : (
-                <span
-                  aria-label="Monthly gross, the sum of the earnings"
-                  className="ml-auto flex h-9 w-36 items-center justify-end rounded-lg border border-input bg-muted/60 px-3 text-sm tabular-nums"
-                >
-                  <Money value={grossMonthly ?? null} />
-                </span>
+                amountBox(gross.amount, gross.onAmount, "MONTHLY GROSS", gross.earnings ?? undefined)
               )}
             </TableCell>
             <TableCell className="text-right">
-              <Money value={grossAnnual ?? null} />
+              <Money value={gross.annual ?? null} />
             </TableCell>
             <TableCell />
-            <TableCell className="text-xs text-muted-foreground">{readOnly ? "" : "Sum of the earnings"}</TableCell>
+            <TableCell className="text-xs text-muted-foreground">
+              {gross.differs ? (
+                <>
+                  Earnings add up to <Money value={gross.earnings ?? null} /> a month
+                </>
+              ) : !readOnly && !gross.amount ? (
+                "Empty: the earnings' sum"
+              ) : null}
+            </TableCell>
           </TableRow>
 
           {sectionRow("Salary Structure")}
