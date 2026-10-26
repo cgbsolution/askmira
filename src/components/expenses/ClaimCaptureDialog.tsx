@@ -223,6 +223,9 @@ export function ClaimCaptureDialog({
   };
 
   const needsReason = result?.verdict.kind === "needs_justification";
+  // The server reports may_submit=false for an over-limit claim with no reason
+  // yet, but accepts it on submit once a reason is given.
+  const submittable = Boolean(result && (result.may_submit || needsReason));
 
   const submitClaim = async () => {
     if (!result) return;
@@ -286,7 +289,7 @@ export function ClaimCaptureDialog({
           <div className="grid gap-4">
             <ClaimVerdictPanel result={result} currency={meta.reporting_currency} />
 
-            {!result.may_submit ? (
+            {!submittable ? (
               <div className="flex items-start gap-2 rounded-md bg-muted px-3 py-2.5 text-sm text-foreground">
                 <Info className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
                 <span>
@@ -622,7 +625,7 @@ export function ClaimCaptureDialog({
               <Button variant="outline" disabled={busy} onClick={() => close(true)}>
                 Keep as draft
               </Button>
-              {result.may_submit && (
+              {submittable && (
                 <Button
                   disabled={busy || (needsReason && !submitJustification.trim())}
                   onClick={() => void submitClaim()}
