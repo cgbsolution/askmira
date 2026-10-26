@@ -510,7 +510,7 @@ function PreviewPanel({
         </ul>
       )}
       {preview.warnings.length > 0 && (
-        <ul className="space-y-1 rounded-md bg-mustard-50 px-3 py-2.5 text-sm text-mustard-900 dark:bg-mustard-900/20 dark:text-mustard-100">
+        <ul className="space-y-1 rounded-md bg-marigold-50 px-3 py-2.5 text-sm text-marigold-900 dark:bg-marigold-900/20 dark:text-marigold-100">
           {preview.warnings.map((warning) => (
             <li key={warning} className="flex items-start gap-2">
               <Info className="mt-0.5 size-4 shrink-0" />

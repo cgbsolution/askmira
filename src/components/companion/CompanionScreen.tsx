@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AskMiraMark } from "@/components/brand/AskMiraLogo";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -353,11 +354,9 @@ function Welcome({ status, onPick }: { status: CompanionStatus; onPick: (text: s
   return (
     <div className="grid gap-4 py-6">
       <div className="flex items-start gap-3">
-        <Avatar className="size-9">
-          <AvatarFallback className="bg-primary text-primary-foreground">
-            <Sparkles className="size-4" />
-          </AvatarFallback>
-        </Avatar>
+        <span className="flex size-9 shrink-0 items-center justify-center">
+          <AskMiraMark className="h-9" />
+        </span>
         <div className="grid gap-1">
           <p className="text-sm font-medium">{status.name}</p>
           <p className="text-sm leading-6 text-muted-foreground">
@@ -410,11 +409,9 @@ function Bubble({ message, name, mine }: { message: CompanionMessage; name: stri
   }
   return (
     <div className="flex items-start gap-3">
-      <Avatar className="size-8">
-        <AvatarFallback className="bg-primary text-primary-foreground">
-          <Sparkles className="size-4" />
-        </AvatarFallback>
-      </Avatar>
+      <span className="flex size-8 shrink-0 items-center justify-center">
+        <AskMiraMark className="h-8" />
+      </span>
       <div className="grid min-w-0 max-w-[85%] gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-xs font-medium text-muted-foreground">{name}</p>

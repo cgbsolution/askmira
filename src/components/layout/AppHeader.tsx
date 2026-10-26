@@ -19,6 +19,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 
+import { AskMiraMark } from "@/components/brand/AskMiraLogo";
 import { HelpButton } from "@/components/help/HelpPanel";
 import { useConnectorRail } from "@/components/layout/ConnectorSidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -90,6 +91,11 @@ export function AppHeader() {
         <AlignLeft className="size-5" />
       </Button>
 
+      {/* Below md the rail is a drawer, so the brand would otherwise vanish. */}
+      <Link href="/" aria-label="AskMira home" className="shrink-0 rounded-lg md:hidden">
+        <AskMiraMark className="h-10" />
+      </Link>
+
       <form
         role="search"
         className="relative hidden w-full max-w-[430px] sm:block"
@@ -115,7 +121,7 @@ export function AppHeader() {
         </kbd>
       </form>
 
-      <div className="ml-auto flex items-center gap-2 sm:gap-3">
+      <div className="ml-auto flex items-center gap-1 sm:gap-3">
         {/* On a phone the quick-access rail is a drawer, with no strip to click. */}
         <Button
           variant="outline"

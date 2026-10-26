@@ -555,7 +555,7 @@ export function PunchCard({
                     <span
                       className={cn(
                         "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full",
-                        row.direction === "in" ? "bg-mint-100 text-mint-800" : "bg-muted text-muted-foreground",
+                        row.direction === "in" ? "bg-success/10 text-success" : "bg-muted text-muted-foreground",
                       )}
                     >
                       {row.direction === "in" ? <LogIn className="size-4" /> : <LogOut className="size-4" />}

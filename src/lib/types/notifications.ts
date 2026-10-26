@@ -111,7 +111,7 @@ export interface EmailDesign {
 export type EmailDesignInput = Omit<EmailDesign, "company_name" | "has_logo">;
 
 /** The brand colour emails use until a workspace picks one (the server's default). */
-export const DEFAULT_EMAIL_ACCENT = "#14595C";
+export const DEFAULT_EMAIL_ACCENT = "#EB061D";
 
 export interface EmailPreview {
   subject: string;

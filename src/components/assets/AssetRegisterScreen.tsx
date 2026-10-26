@@ -401,7 +401,7 @@ function SummaryTiles({ summary, error }: { summary: AssetSummary | null; error:
               <p
                 className={cn(
                   "mt-1 text-2xl font-semibold tabular-nums text-foreground",
-                  tile.attention && "text-mustard-900 dark:text-mustard-100",
+                  tile.attention && "text-marigold-900 dark:text-marigold-100",
                 )}
               >
                 {tile.value}

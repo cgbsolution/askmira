@@ -32,7 +32,11 @@ export const metadata: Metadata = {
   description:
     "Culture-analytics-first HRMS for the Indian mid-market — statutory compliance, people analytics and a culture layer in one platform.",
   icons: {
-    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    icon: [
+      { url: "/brand/askmira-favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "16x16 32x32 48x48 64x64" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
   appleWebApp: { capable: true, title: "AskMira", statusBarStyle: "default" },

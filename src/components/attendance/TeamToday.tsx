@@ -159,7 +159,7 @@ export function TeamToday() {
             <span
               className={cn(
                 "flex items-center gap-1 text-xs",
-                member.last_punch_outside ? "text-mustard-900 dark:text-mustard-100" : "text-muted-foreground",
+                member.last_punch_outside ? "text-marigold-900 dark:text-marigold-100" : "text-muted-foreground",
               )}
             >
               {member.last_punch_location ? <MapPin className="size-3" /> : <MapPinOff className="size-3" />}

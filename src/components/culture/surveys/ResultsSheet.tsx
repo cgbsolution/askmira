@@ -51,8 +51,8 @@ function heat(value: number, overall: number | undefined, bounds: [number, numbe
   const span = bounds[1] - bounds[0];
   if (span <= 0) return "";
   const share = (value - overall) / span;
-  if (share >= 0.1) return "bg-mint-200 dark:bg-mint-900/50";
-  if (share >= 0.04) return "bg-mint-100 dark:bg-mint-900/25";
+  if (share >= 0.1) return "bg-blush-200 dark:bg-blush-900/50";
+  if (share >= 0.04) return "bg-blush-100 dark:bg-blush-900/25";
   if (share <= -0.1) return "bg-destructive/20";
   if (share <= -0.04) return "bg-destructive/10";
   return "";

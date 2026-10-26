@@ -26,7 +26,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { del, downloadFile } from "@/lib/api";
+import { del, downloadFile, get } from "@/lib/api";
 import type { EmployeeSummary, EmploymentStatus, Page } from "@/lib/types";
 import type {
   SalaryComponent,
@@ -265,9 +265,40 @@ function EmployeeList({ onOpen }: { onOpen: (employee: EmployeeSummary) => void 
     return () => clearTimeout(timer);
   }, [search]);
 
-  const overview = useApiQuery<Page<SalaryOverview>>(
-    `/salaries?page=${page}&page_size=${pageSize}${debounced ? `&search=${encodeURIComponent(debounced)}` : ""}`,
-  );
+  const searchQuery = debounced ? `&search=${encodeURIComponent(debounced)}` : "";
+  const overview = useApiQuery<Page<SalaryOverview>>(`/salaries?page=${page}&page_size=${pageSize}${searchQuery}`);
+
+  /** Everyone the list holds (with the search applied), page by page. */
+  const fetchAll = async (): Promise<SalaryOverview[]> => {
+    const everyone: SalaryOverview[] = [];
+    for (let next = 1; ; next += 1) {
+      const chunk = await get<Page<SalaryOverview>>(`/salaries?page=${next}&page_size=200${searchQuery}`);
+      everyone.push(...chunk.items);
+      if (chunk.items.length === 0 || everyone.length >= chunk.total) return everyone;
+    }
+  };
+
+  /**
+   * The present salary of the ticked people, every detail, as an Excel sheet in
+   * the bulk-upload layout. Nothing ticked: everyone the list shows.
+   */
+  const exportSalaries = async (selected: SalaryOverview[] | null) => {
+    try {
+      const chosen = selected ?? (debounced ? await fetchAll() : null);
+      if (chosen && chosen.length === 0) {
+        toast.error("Nobody matches that search.");
+        return;
+      }
+      await downloadFile("/salaries/export", "EmployeeSalaryMaster.xlsx", {
+        method: "POST",
+        body: { employee_ids: chosen ? chosen.map((row) => row.employee_id) : null },
+      });
+      const count = chosen ? chosen.length : (overview.data?.total ?? 0);
+      toast.success(`Exported the salary of ${count} employee${count === 1 ? "" : "s"}`);
+    } catch (error) {
+      toast.error(apiMessage(error, "Could not export the salaries."));
+    }
+  };
 
   const open = (row: SalaryOverview) =>
     onOpen({
@@ -352,7 +383,8 @@ function EmployeeList({ onOpen }: { onOpen: (employee: EmployeeSummary) => void 
       data={overview.data?.items ?? []}
       getRowId={(row) => row.employee_id}
       noun="employees"
-      exportName="salaries"
+      exportName="salary-master"
+      onExport={exportSalaries}
       isLoading={overview.isLoading && !overview.data}
       error={overview.error?.detail}
       onRetry={overview.reload}
@@ -370,6 +402,7 @@ function EmployeeList({ onOpen }: { onOpen: (employee: EmployeeSummary) => void 
         page,
         pageSize,
         total: overview.data?.total ?? 0,
+        fetchAll,
         onPageChange: setPage,
         onPageSizeChange: (size) => {
           setPageSize(size);

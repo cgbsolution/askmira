@@ -148,7 +148,7 @@ export function SalaryTrail({ employeeId, nameOf }: { employeeId: string; nameOf
                   entry.action === "delete"
                     ? "bg-destructive/10 text-destructive"
                     : entry.action === "create"
-                      ? "bg-mint-100 text-mint-800"
+                      ? "bg-success/10 text-success"
                       : "bg-muted text-muted-foreground",
                 )}
               >

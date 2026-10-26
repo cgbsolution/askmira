@@ -287,7 +287,7 @@ export function TravelRequestDialog({
           </div>
 
           {block && !block.permitted && isPositiveAmount(advance) && (
-            <p className="flex items-start gap-2 rounded-md bg-mustard-50 px-3 py-2.5 text-sm text-mustard-900 dark:bg-mustard-900/20 dark:text-mustard-100">
+            <p className="flex items-start gap-2 rounded-md bg-marigold-50 px-3 py-2.5 text-sm text-marigold-900 dark:bg-marigold-900/20 dark:text-marigold-100">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               {block.message}
             </p>

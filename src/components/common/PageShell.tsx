@@ -56,19 +56,19 @@ export function PageShell({
         className={cn(
           "relative overflow-hidden rounded-2xl border p-5 sm:p-6",
           tier === "tier2"
-            ? "border-mint-200 bg-gradient-to-br from-mint-50 via-card to-mustard-50 dark:border-mint-900 dark:from-mint-900/30 dark:via-card dark:to-mustard-950/30"
-            : "border-border bg-gradient-to-br from-mint-25 via-card to-card dark:from-mint-950/40",
+            ? "border-blush-200 bg-gradient-to-br from-blush-50 via-card to-marigold-50 dark:border-blush-900 dark:from-blush-900/30 dark:via-card dark:to-marigold-950/30"
+            : "border-border bg-gradient-to-br from-blush-25 via-card to-card dark:from-blush-950/40",
         )}
       >
         {tier === "tier2" && (
           <>
             <span
               aria-hidden
-              className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-mint-200/50 blur-3xl dark:bg-mint-800/20"
+              className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-blush-200/50 blur-3xl dark:bg-blush-800/20"
             />
             <span
               aria-hidden
-              className="pointer-events-none absolute -bottom-20 -left-10 size-48 rounded-full bg-mustard-200/40 blur-3xl dark:bg-mustard-800/10"
+              className="pointer-events-none absolute -bottom-20 -left-10 size-48 rounded-full bg-marigold-200/40 blur-3xl dark:bg-marigold-800/10"
             />
           </>
         )}
@@ -82,7 +82,7 @@ export function PageShell({
             )}
             <div className="min-w-0">
               {label && (
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-card/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-primary shadow-sm ring-1 ring-mint-200 dark:ring-mint-800">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-card/80 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-primary shadow-sm ring-1 ring-blush-200 dark:ring-blush-800">
                   <span aria-hidden className="size-1.5 rounded-full bg-accent" />
                   {t(label)}
                 </span>

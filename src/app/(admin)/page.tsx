@@ -96,14 +96,14 @@ export default function HomePage() {
     // width the cards actually get.
     <div className="@container/main flex flex-col gap-6">
       {/* ── Greeting (Tier 2) ──────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-2xl border border-mint-200 bg-gradient-to-br from-mint-50 via-card to-mustard-50 p-5 sm:p-6 dark:border-mint-900 dark:from-mint-900/30 dark:via-card dark:to-mustard-950/30">
+      <section className="relative overflow-hidden rounded-2xl border border-blush-200 bg-gradient-to-br from-blush-50 via-card to-marigold-50 p-5 sm:p-6 dark:border-blush-900 dark:from-blush-900/30 dark:via-card dark:to-marigold-950/30">
         <span
           aria-hidden
-          className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-mint-200/50 blur-3xl dark:bg-mint-800/20"
+          className="pointer-events-none absolute -right-16 -top-16 size-48 rounded-full bg-blush-200/50 blur-3xl dark:bg-blush-800/20"
         />
         <span
           aria-hidden
-          className="pointer-events-none absolute -bottom-20 -left-10 size-48 rounded-full bg-mustard-200/40 blur-3xl dark:bg-mustard-800/10"
+          className="pointer-events-none absolute -bottom-20 -left-10 size-48 rounded-full bg-marigold-200/40 blur-3xl dark:bg-marigold-800/10"
         />
 
         <div className="relative flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-center @3xl/main:justify-between">
@@ -115,7 +115,7 @@ export default function HomePage() {
             </Avatar>
             <div className="min-w-0">
               <p className="text-[11px] font-medium text-muted-foreground">{today}</p>
-              <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-brand-800 sm:text-3xl dark:text-mint-100">
+              <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight text-brand-800 sm:text-3xl dark:text-blush-100">
                 {greeting}, {firstName}
               </h1>
               <p className="mt-0.5 text-sm text-muted-foreground">

@@ -41,7 +41,7 @@ export function PulseStat({
               "flex size-9 items-center justify-center rounded-lg",
               emphasis
                 ? "bg-accent text-accent-foreground"
-                : "bg-mint-100 text-brand-600 dark:bg-mint-900/40 dark:text-mint-200",
+                : "bg-blush-100 text-brand-600 dark:bg-blush-900/40 dark:text-blush-200",
             )}
           >
             <Icon className="size-4" />

@@ -48,9 +48,9 @@ export function TaskRow({
           className={cn(
             "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
             resolved
-              ? "bg-mint-100 text-mint-800 dark:bg-mint-900/40 dark:text-mint-200"
+              ? "bg-success/10 text-success"
               : task.is_overdue
-                ? "bg-mustard-100 text-mustard-900 dark:bg-mustard-900/30 dark:text-mustard-100"
+                ? "bg-marigold-100 text-marigold-900 dark:bg-marigold-900/30 dark:text-marigold-100"
                 : "bg-muted text-muted-foreground",
           )}
         >

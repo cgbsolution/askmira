@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 /**
  * Button.
  *
- * `default` is Deep Teal. `accent` is the Marigold CTA from FRD 5.13 — use it
+ * `default` is AskMira Red. `accent` is the Marigold CTA from FRD 5.13 — use it
  * for the one primary action on a screen, not for every button, or the active
  * state stops reading as special.
  */
@@ -18,8 +18,8 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary text-primary-foreground shadow-xs hover:bg-brand-600",
         accent:
-          "bg-accent text-accent-foreground shadow-sm hover:bg-mustard-600 hover:text-ink-950",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-mint-200",
+          "bg-accent text-accent-foreground shadow-sm hover:bg-marigold-600 hover:text-ink-950",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-blush-200",
         outline:
           "border border-border bg-card shadow-xs hover:bg-muted hover:text-foreground",
         ghost: "hover:bg-muted hover:text-foreground",

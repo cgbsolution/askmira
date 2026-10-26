@@ -31,7 +31,7 @@ export function EmptyState({
         className={cn(
           "flex size-12 items-center justify-center",
           tier === "tier2"
-            ? "rounded-2xl bg-mint-100 text-brand-600 dark:bg-mint-900/40 dark:text-mint-200"
+            ? "rounded-2xl bg-blush-100 text-brand-600 dark:bg-blush-900/40 dark:text-blush-200"
             : "rounded-lg bg-muted text-muted-foreground",
         )}
       >

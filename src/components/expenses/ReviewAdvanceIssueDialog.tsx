@@ -107,7 +107,7 @@ export function ReviewAdvanceIssueDialog({
         {check.state === "blocked" && <InlineProblem>{check.detail}</InlineProblem>}
         {check.state === "error" && <InlineProblem>{check.detail}</InlineProblem>}
         {check.state === "permitted" && (
-          <div className="flex items-start gap-2 rounded-md border border-mint-200 bg-mint-50 px-3 py-2.5 text-sm text-mint-800 dark:border-mint-900/40 dark:bg-mint-900/20 dark:text-mint-100">
+          <div className="flex items-start gap-2 rounded-md border border-success/30 bg-success/10 px-3 py-2.5 text-sm text-success">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
             <div>
               <p>No older advance blocks this one.</p>

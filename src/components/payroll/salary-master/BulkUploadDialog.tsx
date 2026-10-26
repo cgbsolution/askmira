@@ -168,7 +168,7 @@ export function BulkUploadDialog({
           </div>
           {row.original.message && <p className="text-xs text-muted-foreground">{row.original.message}</p>}
           {row.original.notes?.map((note) => (
-            <p key={note} className="text-xs text-mustard-900 dark:text-mustard-100">
+            <p key={note} className="text-xs text-marigold-900 dark:text-marigold-100">
               {note}
             </p>
           ))}

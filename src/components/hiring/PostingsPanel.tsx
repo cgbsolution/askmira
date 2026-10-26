@@ -188,7 +188,7 @@ export function PostingsPanel({
         <>
           {row.original.last_error && <p className="text-destructive">{row.original.last_error}</p>}
           {row.original.warnings.length > 0 && (
-            <ul className="list-disc space-y-0.5 pl-4 text-mustard-900 dark:text-mustard-100">
+            <ul className="list-disc space-y-0.5 pl-4 text-marigold-900 dark:text-marigold-100">
               {row.original.warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}

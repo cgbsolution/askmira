@@ -20,8 +20,8 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 import type { LucideIcon } from "lucide-react";
-import { ArrowDown, ArrowUp, ChevronsUpDown, Download, Search, Settings2, X } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, ChevronsUpDown, Download, Loader2, Search, Settings2, X } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
@@ -81,6 +81,11 @@ export type ServerPaging = {
   total: number;
   onPageChange: (page: number) => void;
   onPageSizeChange?: (size: number) => void;
+  /**
+   * Every row the list holds, across all pages. With it, "Select all N" can
+   * tick the whole list, not only the page on screen.
+   */
+  fetchAll?: () => Promise<unknown[]>;
 };
 
 export type DataTableEmpty = {
@@ -143,6 +148,11 @@ export type DataTableProps<TData, TValue> = {
   bulkActions?: (selected: TData[], clearSelection: () => void) => React.ReactNode;
   /** The CSV's file name, without ".csv". `false` hides Export. Defaults to the noun. */
   exportName?: string | false;
+  /**
+   * The screen's own export, in place of the CSV of the visible columns: it gets
+   * the ticked rows (across every page), or null when nothing is ticked.
+   */
+  onExport?: (selected: TData[] | null) => Promise<void> | void;
   /** The Columns menu. On for lists. */
   columnPicker?: boolean;
   /** `false` shows every row with no paging footer. */
@@ -172,11 +182,20 @@ function columnLabel<TData>(column: Column<TData, unknown>): string | null {
 
 /** The text a column holds for one row: for the search and the CSV. */
 function columnText<TData>(row: Row<TData>, column: Column<TData, unknown>): string | number | null | undefined {
+  return originalText(row.original, row.index, column);
+}
+
+/** The same, from the row's data alone: a ticked row on another page has no `Row`. */
+function originalText<TData>(
+  original: TData,
+  index: number,
+  column: Column<TData, unknown>,
+): string | number | null | undefined {
   const text = column.columnDef.meta?.text;
   if (text === false) return undefined;
-  if (text) return text(row.original);
+  if (text) return text(original);
   if (!column.accessorFn) return undefined;
-  const value = row.getValue(column.id);
+  const value = column.accessorFn(original, index);
   if (value === null || value === undefined) return value;
   if (typeof value === "string" || typeof value === "number") return value;
   if (typeof value === "boolean") return value ? "Yes" : "No";
@@ -267,6 +286,7 @@ export function DataTable<TData, TValue>({
   selectable: selectableProp = true,
   bulkActions,
   exportName,
+  onExport,
   columnPicker = true,
   paginate: paginateProp = true,
   pageSize: initialPageSize = 10,
@@ -377,8 +397,30 @@ export function DataTable<TData, TValue>({
     }
   }, [server, pagination.pageIndex, pageCount]);
 
-  const clearSelection = () => setRowSelection({});
-  const selectedRows = table.getSelectedRowModel().rows;
+  // A server-paged list shows one page at a time, so the rows ticked on other
+  // pages are kept here: ticking survives Next, Previous and a new search.
+  const picked = useRef(new Map<string, TData>());
+  const [selectingAll, setSelectingAll] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  if (server) {
+    for (const row of table.getCoreRowModel().rows) {
+      if (rowSelection[row.id]) picked.current.set(row.id, row.original);
+    }
+    for (const id of [...picked.current.keys()]) {
+      if (!rowSelection[id]) picked.current.delete(id);
+    }
+  }
+  const clearSelection = () => {
+    picked.current.clear();
+    setRowSelection({});
+  };
+  const pageSelected = table.getSelectedRowModel().rows;
+  const selectedOriginals: TData[] = server
+    ? Object.keys(rowSelection)
+        .filter((id) => rowSelection[id] && picked.current.has(id))
+        .map((id) => picked.current.get(id) as TData)
+    : pageSelected.map((row) => row.original);
+  const selectedCount = selectedOriginals.length;
   const total = server ? server.total : filteredRows.length;
   const page = server ? server.page : Math.min(pagination.pageIndex, pageCount - 1) + 1;
   const pageSize = server ? server.pageSize : pagination.pageSize;
@@ -391,34 +433,61 @@ export function DataTable<TData, TValue>({
   const hasFooter = table.getAllLeafColumns().some((column) => column.columnDef.footer !== undefined);
   const fileName = plain || exportName === false ? null : (exportName ?? noun);
 
-  const exportRows = () => {
-    const rows = selectedRows.length > 0 ? selectedRows : filteredRows;
+  const exportRows = async () => {
+    if (onExport) {
+      setExporting(true);
+      try {
+        await onExport(selectedCount > 0 ? selectedOriginals : null);
+      } finally {
+        setExporting(false);
+      }
+      return;
+    }
     const exported = table
       .getVisibleLeafColumns()
       .filter((column) => column.id !== SELECT_COLUMN && column.columnDef.meta?.text !== false)
       .filter((column) => column.accessorFn || column.columnDef.meta?.text) as Column<TData, unknown>[];
+    const originals =
+      selectedCount > 0
+        ? selectedOriginals
+        : server?.fetchAll
+          ? ((await server.fetchAll()) as TData[])
+          : filteredRows.map((row) => row.original);
     downloadCsv(
       fileName ?? "export",
       exported.map((column) => columnLabel(column) ?? column.id),
-      rows.map((row) => exported.map((column) => columnText(row, column))),
+      originals.map((original, index) => exported.map((column) => originalText(original, index, column))),
     );
   };
 
-  const changePage = (next: number) => {
-    if (server) {
-      clearSelection();
-      server.onPageChange(next);
-    } else {
-      table.setPageIndex(next - 1);
+  const selectEverything = async () => {
+    if (!server?.fetchAll) {
+      table.toggleAllRowsSelected(true);
+      return;
+    }
+    setSelectingAll(true);
+    try {
+      const everything = (await server.fetchAll()) as TData[];
+      const next: RowSelectionState = {};
+      everything.forEach((original, index) => {
+        const id = getRowId(original, index);
+        picked.current.set(id, original);
+        next[id] = true;
+      });
+      setRowSelection(next);
+    } finally {
+      setSelectingAll(false);
     }
   };
+
+  // Ticks are kept across pages: moving on never drops what was chosen.
+  const changePage = (next: number) => {
+    if (server) server.onPageChange(next);
+    else table.setPageIndex(next - 1);
+  };
   const changePageSize = (size: number) => {
-    if (server) {
-      clearSelection();
-      server.onPageSizeChange?.(size);
-    } else {
-      setPagination({ pageIndex: 0, pageSize: size });
-    }
+    if (server) server.onPageSizeChange?.(size);
+    else setPagination({ pageIndex: 0, pageSize: size });
   };
 
   const showSearch = !plain && searchPlaceholder !== false && (!server || Boolean(onSearchChange));
@@ -442,9 +511,15 @@ export function DataTable<TData, TValue>({
     fileName || (!plain && columnPicker && hideable.length > 0) ? (
       <>
         {fileName && (
-          <Button variant="outline" size="sm" className="h-9" onClick={exportRows} disabled={total === 0}>
-            <Download />
-            {selectedRows.length > 0 ? `Export ${selectedRows.length} selected` : "Export"}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={() => void exportRows()}
+            disabled={total === 0 || exporting}
+          >
+            {exporting ? <Loader2 className="animate-spin" /> : <Download />}
+            {selectedCount > 0 ? `Export ${selectedCount} selected` : "Export"}
           </Button>
         )}
         {!plain && columnPicker && hideable.length > 0 && (
@@ -480,20 +555,29 @@ export function DataTable<TData, TValue>({
     : "[&_td:first-child]:pl-4 [&_th:first-child]:pl-4 [&_td:last-child]:pr-4 [&_th:last-child]:pr-4";
 
   const selectionBar =
-    selectedRows.length > 0 ? (
-      <div className={cn("flex flex-wrap items-center gap-3 border-b border-border bg-mint-50 py-2 text-sm", edge)}>
-        <span className="font-medium text-foreground">{selectedRows.length} selected</span>
-        {!server && !table.getIsAllRowsSelected() && table.getIsAllPageRowsSelected() && total > visibleRows.length && (
-          <Button variant="link" size="sm" className="h-auto px-0" onClick={() => table.toggleAllRowsSelected(true)}>
-            Select all {total} {noun}
-          </Button>
-        )}
+    selectedCount > 0 ? (
+      <div className={cn("flex flex-wrap items-center gap-3 border-b border-border bg-blush-50 py-2 text-sm", edge)}>
+        <span className="font-medium text-foreground">
+          {selectedCount} selected
+          {server && selectedCount > pageSelected.length ? ` (${selectedCount - pageSelected.length} on other pages)` : ""}
+        </span>
+        {(server ? Boolean(server.fetchAll) && selectedCount < total : !table.getIsAllRowsSelected()) &&
+          table.getIsAllPageRowsSelected() &&
+          total > visibleRows.length && (
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto px-0"
+              disabled={selectingAll}
+              onClick={() => void selectEverything()}
+            >
+              {selectingAll && <Loader2 className="animate-spin" />}
+              Select all {total} {noun}
+            </Button>
+          )}
         {bulkActions && (
           <div className="flex flex-wrap items-center gap-2">
-            {bulkActions(
-              selectedRows.map((row) => row.original),
-              clearSelection,
-            )}
+            {bulkActions(selectedOriginals, clearSelection)}
           </div>
         )}
         <Button variant="ghost" size="sm" className="ml-auto" onClick={clearSelection}>
@@ -653,7 +737,7 @@ export function DataTable<TData, TValue>({
       page={page}
       pageSize={pageSize}
       total={total}
-      selected={selectedRows.length}
+      selected={selectedCount}
       noun={noun}
       onPageChange={changePage}
       onPageSizeChange={!server || server.onPageSizeChange ? changePageSize : undefined}

@@ -166,7 +166,7 @@ export function ApprovalsInbox({
     return (
       <Card tier="tier1">
         <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-          <span className="flex size-12 items-center justify-center rounded-lg bg-mint-100 text-brand-600 dark:bg-mint-900/40 dark:text-mint-200">
+          <span className="flex size-12 items-center justify-center rounded-lg bg-blush-100 text-brand-600 dark:bg-blush-900/40 dark:text-blush-200">
             <Inbox className="size-6" />
           </span>
           <div>

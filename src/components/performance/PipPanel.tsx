@@ -161,7 +161,7 @@ export function PipPanel({ pipId, onChanged }: { pipId: string; onChanged?: () =
                 {data.statements
                   .filter((s) => s.check_in_id === c.id)
                   .map((s) => (
-                    <p key={s.id} className="rounded-md bg-mint-50 px-2 py-1 text-foreground dark:bg-mint-900/30">
+                    <p key={s.id} className="rounded-md bg-blush-50 px-2 py-1 text-foreground dark:bg-blush-900/30">
                       In their own words ({formatDate(s.recorded_at)}): {s.statement}
                     </p>
                   ))}
@@ -176,7 +176,7 @@ export function PipPanel({ pipId, onChanged }: { pipId: string; onChanged?: () =
             {data.statements
               .filter((s) => !s.check_in_id)
               .map((s) => (
-                <p key={s.id} className="rounded-md bg-mint-50 px-3 py-2 text-sm text-foreground dark:bg-mint-900/30">
+                <p key={s.id} className="rounded-md bg-blush-50 px-3 py-2 text-sm text-foreground dark:bg-blush-900/30">
                   {formatDate(s.recorded_at)}: {s.statement}
                 </p>
               ))}

@@ -106,9 +106,9 @@ export function StatTile({
     <div
       className={cn(
         "rounded-lg border bg-card px-4 py-3",
-        tone === "warning" && "border-mustard-200 dark:border-mustard-900/40",
+        tone === "warning" && "border-marigold-200 dark:border-marigold-900/40",
         tone === "destructive" && "border-destructive/30",
-        tone === "success" && "border-mint-200 dark:border-mint-900/40",
+        tone === "success" && "border-success/30",
         className,
       )}
     >

@@ -143,7 +143,7 @@ export function EmailDesignPanel() {
               htmlFor="email-accent"
               label="Brand colour"
               hint="Buttons, links and the line across the top of the card."
-              error={colourOk ? null : "A colour like #14595C."}
+              error={colourOk ? null : "A colour like #EB061D."}
             >
               <div className="flex items-center gap-2">
                 <Input

@@ -397,7 +397,7 @@ export function OfferSheet({
                   )}
                   {step.note && <p className="mt-1 text-sm">{step.note}</p>}
                   {step.voided_by_changes && step.voided_by_changes.length > 0 && (
-                    <p className="mt-1 text-xs text-mustard-900 dark:text-mustard-100">
+                    <p className="mt-1 text-xs text-marigold-900 dark:text-marigold-100">
                       Voided by changes to: {step.voided_by_changes.join(", ")}
                     </p>
                   )}

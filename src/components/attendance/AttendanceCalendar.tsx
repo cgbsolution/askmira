@@ -81,18 +81,18 @@ interface CellInfo {
 // repainting the day in the primary colour.
 const TINTS: Record<CellKind, string> = {
   present:
-    "bg-mint-50 text-mint-900 data-[selected-single=true]:bg-mint-50 data-[selected-single=true]:text-mint-900 dark:bg-mint-900/30 dark:text-mint-100",
+    "bg-success/10 text-success data-[selected-single=true]:bg-success/10 data-[selected-single=true]:text-success",
   half_day:
-    "bg-mustard-50 text-mustard-900 data-[selected-single=true]:bg-mustard-50 data-[selected-single=true]:text-mustard-900 dark:bg-mustard-900/30 dark:text-mustard-100",
+    "bg-marigold-50 text-marigold-900 data-[selected-single=true]:bg-marigold-50 data-[selected-single=true]:text-marigold-900 dark:bg-marigold-900/30 dark:text-marigold-100",
   needs_regularisation:
-    "bg-mustard-100 text-mustard-900 data-[selected-single=true]:bg-mustard-100 data-[selected-single=true]:text-mustard-900 dark:bg-mustard-900/40 dark:text-mustard-100",
+    "bg-marigold-100 text-marigold-900 data-[selected-single=true]:bg-marigold-100 data-[selected-single=true]:text-marigold-900 dark:bg-marigold-900/40 dark:text-marigold-100",
   absent:
     "bg-destructive/10 text-destructive data-[selected-single=true]:bg-destructive/10 data-[selected-single=true]:text-destructive",
   lop: "bg-destructive/10 text-destructive data-[selected-single=true]:bg-destructive/10 data-[selected-single=true]:text-destructive",
   on_leave:
-    "bg-brand-50 text-brand-800 data-[selected-single=true]:bg-brand-50 data-[selected-single=true]:text-brand-800 dark:bg-brand-900/30 dark:text-brand-100",
+    "bg-info/10 text-info data-[selected-single=true]:bg-info/10 data-[selected-single=true]:text-info",
   leave_pending:
-    "bg-brand-25 text-brand-700 data-[selected-single=true]:bg-brand-25 data-[selected-single=true]:text-brand-700 dark:bg-brand-900/20 dark:text-brand-100",
+    "bg-info/5 text-info data-[selected-single=true]:bg-info/5 data-[selected-single=true]:text-info",
   holiday:
     "bg-muted text-muted-foreground data-[selected-single=true]:bg-muted data-[selected-single=true]:text-muted-foreground",
   week_off:
@@ -708,7 +708,7 @@ function HourStrip({ day, shift }: { day: AttendanceDay; shift: ShiftBrief | nul
               key={hour}
               className={cn(
                 "h-2",
-                isWorked ? "bg-mint-500" : isScheduled ? "bg-mint-100 dark:bg-mint-900/50" : "bg-muted",
+                isWorked ? "bg-success" : isScheduled ? "bg-success/20" : "bg-muted",
               )}
             />
           );

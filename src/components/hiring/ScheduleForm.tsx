@@ -379,7 +379,7 @@ export function ScheduleForm({ onScheduled }: { onScheduled: () => void }) {
                             Your time: {formatDateTime(slot.start_utc)}
                           </p>
                           {slot.unverified_panelist_ids.length > 0 && (
-                            <p className="text-xs text-mustard-900 dark:text-mustard-100">
+                            <p className="text-xs text-marigold-900 dark:text-marigold-100">
                               Calendar not read for: {slot.unverified_panelist_ids.map(personName).join(", ")}
                             </p>
                           )}

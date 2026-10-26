@@ -30,7 +30,7 @@ export function ModulePlaceholder({
         <span
           className={
             tier === "tier2"
-              ? "flex size-12 shrink-0 items-center justify-center rounded-2xl bg-mint-100 text-brand-600"
+              ? "flex size-12 shrink-0 items-center justify-center rounded-2xl bg-blush-100 text-brand-600"
               : "flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"
           }
         >

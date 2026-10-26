@@ -49,7 +49,7 @@ export function PunchLocation({ punch, className }: { punch: Punch; className?: 
     <span
       className={cn(
         "inline-flex flex-wrap items-center gap-1 text-xs",
-        punch.outside_geofence ? "text-mustard-900 dark:text-mustard-100" : "text-muted-foreground",
+        punch.outside_geofence ? "text-marigold-900 dark:text-marigold-100" : "text-muted-foreground",
         className,
       )}
     >

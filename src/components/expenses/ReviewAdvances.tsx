@@ -232,7 +232,7 @@ function SettleDialog({
             </div>
             <p className="text-sm text-muted-foreground">{result.message}</p>
             {result.payroll_recovery?.required && (
-              <div className="rounded-md border border-mustard-200 bg-mustard-50 px-3 py-2.5 text-sm text-mustard-900 dark:border-mustard-900/40 dark:bg-mustard-900/20 dark:text-mustard-100">
+              <div className="rounded-md border border-marigold-200 bg-marigold-50 px-3 py-2.5 text-sm text-marigold-900 dark:border-marigold-900/40 dark:bg-marigold-900/20 dark:text-marigold-100">
                 <p className="font-medium">
                   Payroll recovery of <span className="tabular-nums">{formatMoney(result.payroll_recovery.amount)}</span>{" "}
                   goes into the next payroll run.

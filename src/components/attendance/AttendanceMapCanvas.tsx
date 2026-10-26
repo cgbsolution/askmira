@@ -31,10 +31,10 @@ const INDIA: LatLngExpression = [22.5, 79];
 // Colours come from the theme tokens through classes: a class on an SVG path
 // outranks the stroke/fill attributes Leaflet writes.
 const POINT_CLASS: Record<MapPointKind, string> = {
-  in: "stroke-card fill-mint-600",
-  out: "stroke-card fill-mustard-500",
+  in: "stroke-card fill-success",
+  out: "stroke-card fill-marigold-500",
   person: "stroke-card fill-primary",
-  "person-away": "stroke-card fill-mustard-500",
+  "person-away": "stroke-card fill-marigold-500",
 };
 
 /** Frame everything on the map; a lone point gets a street-level zoom. */

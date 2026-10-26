@@ -229,7 +229,7 @@ function RegularisationQueue({ onCount }: { onCount: (count: number) => void }) 
                   )}
                   <p className="text-sm text-muted-foreground">“{row.reason}”</p>
                   {row.period_locked && (
-                    <p className="flex items-start gap-1.5 text-xs text-mustard-900 dark:text-mustard-100">
+                    <p className="flex items-start gap-1.5 text-xs text-marigold-900 dark:text-marigold-100">
                       <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
                       This date is in a period locked for payroll. Approval will be refused until
                       HR unlocks it; rejecting is still possible.

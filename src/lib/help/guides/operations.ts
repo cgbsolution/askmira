@@ -88,6 +88,14 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         ],
       },
       {
+        title: "Export present salaries",
+        steps: [
+          "In the List of employees, tick the people you want. Ticks stay when you go to the next page or search again; Select all ticks everyone in the list.",
+          "Press Export: the Employee Salary Master sheet with each person's present salary, every wage type in its own column. Nothing ticked exports everyone the list shows.",
+          "To revise many salaries at once, change WEF and the amounts in that sheet and upload it with Bulk upload.",
+        ],
+      },
+      {
         title: "See who changed a salary",
         steps: ["Open the person and choose Change history: every change, who made it, when, and what moved."],
       },

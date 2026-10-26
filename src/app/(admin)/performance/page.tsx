@@ -111,7 +111,7 @@ export default function MyReviewsPage() {
           noun="reviews"
           exportName="my-reviews"
           searchPlaceholder="Search reviews"
-          rowClassName={(row) => (row.appraisal_id === shown ? "bg-mint-50" : undefined)}
+          rowClassName={(row) => (row.appraisal_id === shown ? "bg-blush-50" : undefined)}
         />
       )}
     </PageShell>

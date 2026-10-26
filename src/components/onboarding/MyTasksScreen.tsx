@@ -120,7 +120,7 @@ export function MyTasksScreen() {
                 <TableCell
                   className={cn(
                     "whitespace-nowrap tabular-nums",
-                    row.is_overdue && "font-medium text-mustard-900 dark:text-mustard-100",
+                    row.is_overdue && "font-medium text-marigold-900 dark:text-marigold-100",
                   )}
                 >
                   {dayOrDash(row.due_date)}

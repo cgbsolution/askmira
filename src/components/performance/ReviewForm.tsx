@@ -200,7 +200,7 @@ export function ReviewForm({ detail, onDone }: { detail: ReviewDetail; onDone: (
                   </FormField>
                 )}
                 {indicator ? (
-                  <p className="rounded-md bg-mint-50 px-3 py-2 text-xs text-foreground dark:bg-mint-900/30">
+                  <p className="rounded-md bg-blush-50 px-3 py-2 text-xs text-foreground dark:bg-blush-900/30">
                     What a {indicator.scale_value} looks like here: {indicator.behaviour}
                   </p>
                 ) : (

@@ -16,7 +16,7 @@ export function PublicMessage({
   return (
     <Card tier="tier2" className="mx-auto max-w-lg">
       <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
-        <span className="flex size-12 items-center justify-center rounded-2xl bg-mint-100 text-brand-600">
+        <span className="flex size-12 items-center justify-center rounded-2xl bg-blush-100 text-brand-600">
           <Icon className="size-6" />
         </span>
         <p className="font-medium text-foreground">{title}</p>

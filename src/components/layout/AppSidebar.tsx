@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { AskMiraLogo, AskMiraMark } from "@/components/brand/AskMiraLogo";
 import { RailSection } from "@/components/layout/RailSection";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -44,7 +45,8 @@ import { humanizeRole, initials } from "@/lib/utils";
 const GROUP_ORDER: NavSection["group"][] = ["main", "admin"];
 
 /**
- * The nav rail from FRD 5.13: solid Deep Teal, Marigold on the active item.
+ * The nav rail from FRD 5.13: warm Ink with the AskMira logo, Marigold on the
+ * active item.
  *
  * One list of HR modules, the admin ones under their own heading at the foot.
  * Built from `lib/access.ts`, the same map the route guard reads. A section
@@ -114,12 +116,8 @@ export function AppSidebar() {
             aria-label="AskMira home"
             className="flex items-center gap-2.5 rounded-lg outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
           >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary text-base font-bold text-sidebar-primary-foreground">
-              A
-            </span>
-            <span className="font-display text-xl font-semibold tracking-tight group-data-[collapsible=icon]:hidden">
-              AskMira
-            </span>
+            <AskMiraLogo priority className="h-10 group-data-[collapsible=icon]:hidden" />
+            <AskMiraMark label="AskMira" className="hidden h-10 group-data-[collapsible=icon]:block" />
           </Link>
         </div>
 

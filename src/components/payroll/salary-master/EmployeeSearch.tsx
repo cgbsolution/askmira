@@ -21,7 +21,7 @@ type StatusFilter = EmploymentStatus | typeof ALL;
 const STATUS_DOT: Record<EmploymentStatus, string> = {
   active: "bg-success",
   on_notice: "bg-warning",
-  on_leave: "bg-primary",
+  on_leave: "bg-info",
   exited: "bg-destructive",
   pre_joining: "bg-muted-foreground",
 };

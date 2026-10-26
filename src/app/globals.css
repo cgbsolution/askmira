@@ -6,8 +6,8 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    AskMira design tokens — FRD 5.13.
 
-   Deep Teal grounding, Marigold accent, on Cream Paper. The peacock/turmeric
-   direction, distinct from HiBob's coral/wine and from default-AI indigo.
+   AskMira Red grounding, Marigold accent, on Cream — the colours of the AskMira
+   logo (frontend/public/brand). Warm Ink carries the nav rail and the text.
 
    Components reference these tokens and never a raw hex value, so a reskin is
    a change to this file alone.
@@ -33,6 +33,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-info: var(--info);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -69,75 +70,76 @@
   --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
   --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
 
-  /* ── Brand ramp — Deep Teal #14595C ─────────────────────────────────── */
-  --color-brand-25: #f2f8f8;
-  --color-brand-50: #e6f2f1;
-  --color-brand-100: #c7e2e0;
-  --color-brand-200: #9dcbc9;
-  --color-brand-300: #6fb0ae;
-  --color-brand-400: #46908f;
-  --color-brand-500: #14595c;
-  --color-brand-600: #114b4e;
-  --color-brand-700: #0e3d3f;
-  --color-brand-800: #0b3032;
-  --color-brand-900: #082527;
-  --color-brand-950: #041617;
+  /* ── Brand ramp — AskMira Red #EB061D (the "Ask" speech bubble) ─────── */
+  --color-brand-25: #fff5f5;
+  --color-brand-50: #ffe9eb;
+  --color-brand-100: #ffd3d7;
+  --color-brand-200: #ffabb3;
+  --color-brand-300: #ff7584;
+  --color-brand-400: #f93d52;
+  --color-brand-500: #eb061d;
+  --color-brand-600: #c70418;
+  --color-brand-700: #a10415;
+  --color-brand-800: #7d0712;
+  --color-brand-900: #5c0a11;
+  --color-brand-950: #34040a;
 
-  /* ── Accent ramp — Warm Mustard #EFC259 ─────────────────────────────── */
-  --color-mustard-25: #fffdf5;
-  --color-mustard-50: #fef9e8;
-  --color-mustard-100: #fdf2c8;
-  --color-mustard-200: #fbe7a1;
-  --color-mustard-300: #f6d97b;
-  --color-mustard-400: #f2cd68;
-  --color-mustard-500: #efc259;
-  --color-mustard-600: #d9a63c;
-  --color-mustard-700: #b5852c;
-  --color-mustard-800: #8f6724;
-  --color-mustard-900: #6d4e1f;
-  --color-mustard-950: #3d2a0f;
+  /* ── Accent ramp — Marigold #F8A01A (the "Mira" wordmark) ───────────── */
+  --color-marigold-25: #fffbf3;
+  --color-marigold-50: #fff5e3;
+  --color-marigold-100: #feebc4;
+  --color-marigold-200: #fdd88f;
+  --color-marigold-300: #fcc45c;
+  --color-marigold-400: #fab236;
+  --color-marigold-500: #f8a01a;
+  --color-marigold-600: #df840b;
+  --color-marigold-700: #b8650a;
+  --color-marigold-800: #8f4e0f;
+  --color-marigold-900: #6e3d11;
+  --color-marigold-950: #3e1f06;
 
-  /* ── Secondary ramp — Sage Mint #BFE0D4 ─────────────────────────────── */
-  --color-mint-25: #f6fbf9;
-  --color-mint-50: #edf7f2;
-  --color-mint-100: #dcefe6;
-  --color-mint-200: #cde7dd;
-  --color-mint-300: #bfe0d4;
-  --color-mint-400: #9dcbbb;
-  --color-mint-500: #7bb5a1;
-  --color-mint-600: #5c9683;
-  --color-mint-700: #467568;
-  --color-mint-800: #345850;
-  --color-mint-900: #26403b;
-  --color-mint-950: #142421;
+  /* ── Soft ramp — Blush, a warm peach between the red and the cream.
+     Panel fills, tab tracks, Tier 2 card borders. ─────────────────────── */
+  --color-blush-25: #fffaf7;
+  --color-blush-50: #fff4ee;
+  --color-blush-100: #fde8dd;
+  --color-blush-200: #f9d8c7;
+  --color-blush-300: #f2c2a9;
+  --color-blush-400: #e8a283;
+  --color-blush-500: #d9805f;
+  --color-blush-600: #bb6244;
+  --color-blush-700: #964b34;
+  --color-blush-800: #723828;
+  --color-blush-900: #4f281d;
+  --color-blush-950: #2c1510;
 
-  /* ── Background ramp — Cream Paper #F8F4EA ──────────────────────────── */
-  --color-cream-25: #fdfcf8;
-  --color-cream-50: #f8f4ea;
-  --color-cream-100: #f2ece0;
-  --color-cream-200: #e8e0cf;
-  --color-cream-300: #dbd0ba;
-  --color-cream-400: #c4b699;
-  --color-cream-500: #a89877;
-  --color-cream-600: #8a7a5d;
-  --color-cream-700: #6d604a;
-  --color-cream-800: #524839;
-  --color-cream-900: #3a3228;
-  --color-cream-950: #1f1b15;
+  /* ── Background ramp — Cream #FEF8F4 (the logo's tile) ──────────────── */
+  --color-cream-25: #fffdfb;
+  --color-cream-50: #fef8f4;
+  --color-cream-100: #f9efe8;
+  --color-cream-200: #f0e2d8;
+  --color-cream-300: #e3cfc1;
+  --color-cream-400: #cdb2a0;
+  --color-cream-500: #ad8f7c;
+  --color-cream-600: #8c705e;
+  --color-cream-700: #6d5648;
+  --color-cream-800: #503f35;
+  --color-cream-900: #382c25;
+  --color-cream-950: #1e1714;
 
-  /* ── Text ramp — Ink #1E2430 ────────────────────────────────────────── */
-  --color-ink-25: #f6f7f9;
-  --color-ink-50: #eceef2;
-  --color-ink-100: #d9dde4;
-  --color-ink-200: #b7bfcb;
-  --color-ink-300: #909bad;
-  --color-ink-400: #6b788d;
-  --color-ink-500: #4f5c70;
-  --color-ink-600: #3c4759;
-  --color-ink-700: #2e3745;
-  --color-ink-800: #262e3c;
-  --color-ink-900: #1e2430;
-  --color-ink-950: #12161d;
+  /* ── Text ramp — Ink #100404, a warm near-black ─────────────────────── */
+  --color-ink-25: #faf8f7;
+  --color-ink-50: #f3f0ef;
+  --color-ink-100: #e6e0de;
+  --color-ink-200: #ccc3c0;
+  --color-ink-300: #a89c98;
+  --color-ink-400: #7a6e68;
+  --color-ink-500: #645853;
+  --color-ink-600: #4b403c;
+  --color-ink-700: #372d2a;
+  --color-ink-800: #271e1c;
+  --color-ink-900: #1a1110;
+  --color-ink-950: #100404;
 
   --breakpoint-xs: 480px;
   --breakpoint-3xl: 1800px;
@@ -147,104 +149,108 @@
 :root {
   --radius: 0.625rem;
 
-  --background: #f8f4ea; /* Cream Paper */
-  --foreground: #1e2430; /* Ink */
+  --background: #fef8f4; /* Cream */
+  --foreground: #1a1110; /* Ink */
 
   --card: #ffffff;
-  --card-foreground: #1e2430;
+  --card-foreground: #1a1110;
   --popover: #ffffff;
-  --popover-foreground: #1e2430;
+  --popover-foreground: #1a1110;
 
-  --primary: #14595c; /* Deep Teal */
+  --primary: #eb061d; /* AskMira Red */
   --primary-foreground: #ffffff;
 
-  --secondary: #dcefe6; /* Sage Mint, panel weight */
-  --secondary-foreground: #0e3d3f;
+  --secondary: #fde8dd; /* Blush, panel weight */
+  --secondary-foreground: #7d0712;
 
-  --muted: #f2ece0;
-  --muted-foreground: #6b788d;
+  --muted: #f9efe8;
+  --muted-foreground: #7a6e68;
 
-  --accent: #efc259; /* Warm Mustard — CTAs, active pills */
-  --accent-foreground: #1e2430;
+  --accent: #f8a01a; /* Marigold — CTAs, active pills */
+  --accent-foreground: #100404;
 
-  --destructive: #b3261e;
+  /* Darker and browner than the brand red, so a destructive button does not
+     read as an ordinary primary one. */
+  --destructive: #b42318;
   --destructive-foreground: #ffffff;
   --success: #2e7d5b;
-  --warning: #b5852c;
+  --warning: #b8650a;
+  --info: #2d6a8a; /* On leave and other neutral states — never the brand red */
 
-  --border: #e8e0cf;
-  --input: #e8e0cf;
-  --ring: #46908f;
+  --border: #f0e2d8;
+  --input: #f0e2d8;
+  --ring: #f93d52;
 
-  /* The nav rail is solid teal in both themes — it is the product's
-     signature surface, not a neutral chrome that inverts.
+  /* The nav rail is warm Ink in both themes — the logo's own dark-background
+     treatment, where the red bubble and marigold wordmark read best.
      shadcn's naming: `primary` is the Marigold active pill, `accent` the hover
-     tint — the rail lifted by 10% white. */
-  --sidebar: #14595c;
+     tint — the rail lifted by 8% white. */
+  --sidebar: #1a1110;
   --sidebar-foreground: #ffffff;
-  --sidebar-muted: #9dcbc9;
-  --sidebar-primary: #efc259;
-  --sidebar-primary-foreground: #12161d;
-  --sidebar-accent: #2c6a6c;
+  --sidebar-muted: #a89c98;
+  --sidebar-primary: #f8a01a;
+  --sidebar-primary-foreground: #100404;
+  --sidebar-accent: #2e2524;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1c6467;
-  --sidebar-ring: #9dcbc9;
+  --sidebar-border: #2a201f;
+  --sidebar-ring: #fab236;
 
-  --chart-1: #14595c;
-  --chart-2: #efc259;
-  --chart-3: #7bb5a1;
-  --chart-4: #b5852c;
-  --chart-5: #46908f;
+  --chart-1: #eb061d;
+  --chart-2: #f8a01a;
+  --chart-3: #645853;
+  --chart-4: #2d6a8a;
+  --chart-5: #8f4e0f;
 }
 
 /* ── Dark theme ──────────────────────────────────────────────────────────── */
 .dark {
-  --background: #12161d;
-  --foreground: #eceef2;
+  --background: #120b0a;
+  --foreground: #f3f0ef;
 
-  --card: #1e2430;
-  --card-foreground: #eceef2;
-  --popover: #1e2430;
-  --popover-foreground: #eceef2;
+  --card: #1e1514;
+  --card-foreground: #f3f0ef;
+  --popover: #1e1514;
+  --popover-foreground: #f3f0ef;
 
-  /* Lifted off the base teal: #14595C on a near-black ground is too dark to
-     read as the brand colour. */
-  --primary: #6fb0ae;
-  --primary-foreground: #041617;
+  /* Lifted off the base red so it reads as text on a near-black card; the
+     label on it goes dark to keep AA contrast. */
+  --primary: #ff4d61;
+  --primary-foreground: #1a0405;
 
-  --secondary: #26403b;
-  --secondary-foreground: #dcefe6;
+  --secondary: #3a2420;
+  --secondary-foreground: #fde8dd;
 
-  --muted: #262e3c;
-  --muted-foreground: #909bad;
+  --muted: #271e1c;
+  --muted-foreground: #a89c98;
 
-  --accent: #f2cd68;
-  --accent-foreground: #12161d;
+  --accent: #fab236;
+  --accent-foreground: #100404;
 
-  --destructive: #e5645a;
-  --destructive-foreground: #12161d;
+  --destructive: #f0645a;
+  --destructive-foreground: #100404;
   --success: #5cb98d;
-  --warning: #f2cd68;
+  --warning: #fcc45c;
+  --info: #6fa8c8;
 
-  --border: #2e3745;
-  --input: #2e3745;
-  --ring: #46908f;
+  --border: #372d2a;
+  --input: #372d2a;
+  --ring: #f93d52;
 
-  --sidebar: #0b3032;
-  --sidebar-foreground: #eceef2;
-  --sidebar-muted: #6fb0ae;
-  --sidebar-primary: #efc259;
-  --sidebar-primary-foreground: #12161d;
-  --sidebar-accent: #234546;
-  --sidebar-accent-foreground: #eceef2;
-  --sidebar-border: #164446;
-  --sidebar-ring: #6fb0ae;
+  --sidebar: #0d0706;
+  --sidebar-foreground: #f3f0ef;
+  --sidebar-muted: #8f837e;
+  --sidebar-primary: #f8a01a;
+  --sidebar-primary-foreground: #100404;
+  --sidebar-accent: #241a19;
+  --sidebar-accent-foreground: #f3f0ef;
+  --sidebar-border: #201615;
+  --sidebar-ring: #fab236;
 
-  --chart-1: #6fb0ae;
-  --chart-2: #efc259;
-  --chart-3: #9dcbbb;
-  --chart-4: #f2cd68;
-  --chart-5: #46908f;
+  --chart-1: #ff4d61;
+  --chart-2: #fab236;
+  --chart-3: #ccc3c0;
+  --chart-4: #6fa8c8;
+  --chart-5: #e8a283;
 }
 
 @layer base {
@@ -288,7 +294,7 @@
    Tier 1: a mistake here costs money or triggers a statutory filing. Flat,
    rectangular, hairline-bordered. Typography and data density carry it.
 
-   Tier 2: people connecting with people. Soft radius, mint fills, warmth.
+   Tier 2: people connecting with people. Soft radius, blush fills, warmth.
 
    The home dashboard mixes both by design: culture widgets Tier 2, payroll
    widgets Tier 1, on the same screen.
@@ -299,20 +305,20 @@
   border-width: 1px;
   border-color: var(--border);
   background-color: var(--card);
-  box-shadow: 0 1px 2px 0 rgb(30 36 48 / 0.04);
+  box-shadow: 0 1px 2px 0 rgb(16 4 4 / 0.04);
 }
 
 @utility card-tier2 {
   border-radius: var(--radius-2xl);
   border-width: 1px;
-  border-color: color-mix(in srgb, var(--color-mint-300) 60%, transparent);
+  border-color: color-mix(in srgb, var(--color-blush-300) 60%, transparent);
   background-color: var(--card);
-  box-shadow: 0 2px 12px -4px rgb(20 89 92 / 0.10);
+  box-shadow: 0 2px 12px -4px rgb(235 6 29 / 0.07);
 }
 
 /* The auth brand panel's backdrop: a hairline grid that fades out towards the
    edges, with the odd cell filled in. White at low alpha so it reads on the
-   rail teal in both themes. */
+   ink rail in both themes. */
 @utility auth-grid {
   background-image:
     linear-gradient(to right, color-mix(in srgb, white 9%, transparent) 1px, transparent 1px),
@@ -321,8 +327,8 @@
   mask-image: radial-gradient(ellipse 70% 55% at center, black 20%, transparent 75%);
 }
 
-@utility panel-mint {
-  background-color: var(--color-mint-50);
+@utility panel-blush {
+  background-color: var(--color-blush-50);
   border-radius: var(--radius-2xl);
 }
 

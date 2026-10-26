@@ -113,9 +113,9 @@ function Message({
           className={cn(
             "mt-1 rounded-lg border px-3 py-2.5 text-sm text-foreground",
             tone === "requester" && "border-border bg-muted/40",
-            tone === "agent" && "border-mint-200 bg-mint-50 dark:border-mint-900 dark:bg-mint-900/20",
+            tone === "agent" && "border-blush-200 bg-blush-50 dark:border-blush-900 dark:bg-blush-900/20",
             tone === "internal" &&
-              "border-mustard-200 bg-mustard-50 dark:border-mustard-900/40 dark:bg-mustard-950/20",
+              "border-marigold-200 bg-marigold-50 dark:border-marigold-900/40 dark:bg-marigold-950/20",
           )}
         >
           {children}
@@ -181,7 +181,7 @@ export function ReplyBox({
     <form
       className={cn(
         "grid gap-3 rounded-lg border p-3",
-        internal ? "border-mustard-200 dark:border-mustard-900/40" : "border-border",
+        internal ? "border-marigold-200 dark:border-marigold-900/40" : "border-border",
       )}
       onSubmit={(event) => {
         event.preventDefault();

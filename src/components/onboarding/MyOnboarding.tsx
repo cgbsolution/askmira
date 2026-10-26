@@ -156,7 +156,7 @@ function PlanView({
                 <dd className="mt-0.5 font-medium tabular-nums text-foreground">
                   {myOpen.length} of {mine.length}
                   {myOverdue.length > 0 && (
-                    <span className="ml-1.5 text-xs font-normal text-mustard-900 dark:text-mustard-100">
+                    <span className="ml-1.5 text-xs font-normal text-marigold-900 dark:text-marigold-100">
                       ({myOverdue.length} overdue)
                     </span>
                   )}

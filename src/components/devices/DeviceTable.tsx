@@ -94,7 +94,7 @@ export function DeviceTable({
               return (
                 <TableRow
                   key={device.id}
-                  className={cn(silent && "bg-mustard-50 hover:bg-mustard-100/60 dark:bg-mustard-900/20")}
+                  className={cn(silent && "bg-marigold-50 hover:bg-marigold-100/60 dark:bg-marigold-900/20")}
                 >
                   <TableCell className="font-medium">{device.name}</TableCell>
                   <TableCell className="tabular-nums">{device.device_id}</TableCell>

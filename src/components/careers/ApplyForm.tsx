@@ -368,7 +368,7 @@ function ApplyConfirmation({ result }: { result: ApplyResult }) {
     <Card tier="tier2">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <CheckCircle2 className="size-5 text-mint-700" /> Application received
+          <CheckCircle2 className="size-5 text-success" /> Application received
         </CardTitle>
         <CardDescription>{result.message}</CardDescription>
       </CardHeader>

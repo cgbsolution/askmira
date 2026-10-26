@@ -230,7 +230,7 @@ function Message({
           className={cn(
             "mt-1 rounded-lg border px-3 py-2.5 text-sm text-foreground",
             side === "requester" && "border-border bg-muted/40",
-            side === "support" && "border-mint-200 bg-mint-50 dark:border-mint-900 dark:bg-mint-900/20",
+            side === "support" && "border-blush-200 bg-blush-50 dark:border-blush-900 dark:bg-blush-900/20",
           )}
         >
           {children}

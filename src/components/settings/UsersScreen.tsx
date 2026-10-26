@@ -157,7 +157,7 @@ export function UsersScreen() {
             )}
           </>
         ) : (
-          <span className="inline-flex items-center gap-1 text-mustard-900 dark:text-mustard-100">
+          <span className="inline-flex items-center gap-1 text-marigold-900 dark:text-marigold-100">
             <ShieldAlert className="size-3.5" /> Not linked
           </span>
         ),

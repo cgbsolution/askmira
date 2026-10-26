@@ -249,8 +249,8 @@ export function WhoIsOutCalendar({ version, isHr }: { version: number; isHr: boo
                       className={cn(
                         "mt-1 truncate rounded px-1.5 py-0.5 text-[10px] font-medium",
                         holiday.is_optional
-                          ? "border border-dashed border-mustard-300 text-mustard-900 dark:text-mustard-100"
-                          : "bg-mustard-100 text-mustard-900 dark:bg-mustard-900/30 dark:text-mustard-100",
+                          ? "border border-dashed border-marigold-300 text-marigold-900 dark:text-marigold-100"
+                          : "bg-marigold-100 text-marigold-900 dark:bg-marigold-900/30 dark:text-marigold-100",
                       )}
                       title={`${holiday.name} · ${holidayScopeLabel(holiday)}${holiday.is_optional ? " · optional" : ""}`}
                     >

@@ -46,7 +46,7 @@ function Confirmation({
     <Card tier="tier2" className="mx-auto max-w-lg">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <CalendarCheck2 className="size-5 text-mint-700" /> Your interview is booked
+          <CalendarCheck2 className="size-5 text-success" /> Your interview is booked
         </CardTitle>
         <CardDescription>
           {stageName} with {organisation}

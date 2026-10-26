@@ -109,7 +109,7 @@ export function OnboardingProgressCard({ className }: { className?: string }) {
                 className={cn(
                   "shrink-0 text-xs tabular-nums",
                   task.is_overdue
-                    ? "font-medium text-mustard-900 dark:text-mustard-100"
+                    ? "font-medium text-marigold-900 dark:text-marigold-100"
                     : "text-muted-foreground",
                 )}
               >

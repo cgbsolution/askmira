@@ -1,5 +1,7 @@
 import React from "react";
 
+import { AskMiraMark } from "@/components/brand/AskMiraLogo";
+
 /**
  * Public shell for candidates: careers page, candidate portal, self-scheduling.
  *
@@ -8,11 +10,9 @@ import React from "react";
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="border-b border-border bg-brand-500 text-white">
+      <header className="border-b border-border bg-sidebar text-sidebar-foreground">
         <div className="mx-auto flex max-w-5xl items-center gap-2.5 px-4 py-3">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-foreground">
-            A
-          </span>
+          <AskMiraMark className="h-8" />
           <span className="font-display text-lg font-semibold">Careers</span>
         </div>
       </header>

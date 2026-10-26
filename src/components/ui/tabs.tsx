@@ -11,14 +11,14 @@ function Tabs({ className, ...props }: React.ComponentProps<typeof TabsPrimitive
   );
 }
 
-/* Inactive tabs sit on a Sage Mint bar; the active one is a solid Deep Teal
+/* Inactive tabs sit on a Blush bar; the active one is a solid AskMira Red
    pill — the segmented-control pattern from FRD 5.13. */
 function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.List>) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
       className={cn(
-        "inline-flex h-10 w-fit items-center justify-center rounded-full bg-mint-100 p-1 dark:bg-mint-900/40",
+        "inline-flex h-10 w-fit items-center justify-center rounded-full bg-blush-100 p-1 dark:bg-blush-900/40",
         className,
       )}
       {...props}
@@ -31,11 +31,11 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        "inline-flex h-8 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 text-sm font-medium text-mint-800 transition-colors outline-none",
+        "inline-flex h-8 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 text-sm font-medium text-blush-800 transition-colors outline-none",
         "hover:text-brand-700 focus-visible:ring-[3px] focus-visible:ring-ring/40",
         "data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm",
         "disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
-        "dark:text-mint-200",
+        "dark:text-blush-200",
         className,
       )}
       {...props}

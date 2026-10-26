@@ -235,7 +235,7 @@ export function ProgressRing({
           r={radius}
           fill="none"
           strokeWidth={stroke}
-          className="stroke-mint-100 dark:stroke-mint-900/50"
+          className="stroke-blush-100 dark:stroke-blush-900/50"
         />
         <circle
           cx={size / 2}
@@ -246,7 +246,7 @@ export function ProgressRing({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={circumference * (1 - clamped / 100)}
-          className="stroke-primary transition-all duration-500 dark:stroke-mint-300"
+          className="stroke-primary transition-all duration-500 dark:stroke-blush-300"
         />
       </svg>
       <span className="absolute flex flex-col items-center">

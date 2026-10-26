@@ -12,9 +12,9 @@ const alertVariants = cva(
         destructive:
           "bg-card text-destructive [&>svg]:text-current *:data-[slot=alert-description]:text-destructive/90",
         warning:
-          "border-mustard-200 bg-mustard-50 text-mustard-900 *:data-[slot=alert-description]:text-mustard-900/90 dark:border-mustard-900/40 dark:bg-mustard-900/20 dark:text-mustard-100 dark:*:data-[slot=alert-description]:text-mustard-100/90",
+          "border-marigold-200 bg-marigold-50 text-marigold-900 *:data-[slot=alert-description]:text-marigold-900/90 dark:border-marigold-900/40 dark:bg-marigold-900/20 dark:text-marigold-100 dark:*:data-[slot=alert-description]:text-marigold-100/90",
         success:
-          "border-mint-200 bg-mint-50 text-mint-800 *:data-[slot=alert-description]:text-mint-800/90 dark:border-mint-900/40 dark:bg-mint-900/20 dark:text-mint-100 dark:*:data-[slot=alert-description]:text-mint-100/90",
+          "border-success/30 bg-success/10 text-success *:data-[slot=alert-description]:text-success/90",
       },
     },
     defaultVariants: { variant: "default" },
