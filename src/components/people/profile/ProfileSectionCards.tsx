@@ -496,12 +496,16 @@ export function BankCard({
       isSelf={isSelf}
       onEdit={onEdit}
       icon={Banknote}
-      description="The account salary is credited to. The number is never shown in full."
+      description={
+        account?.account_number
+          ? "The account salary is credited to. Shown in full to admin and HR only."
+          : "The account salary is credited to. Only the last four digits are shown."
+      }
     >
       {account ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <DetailItem label="Account number">
-            <span className="font-mono">{account.account_number_masked}</span>
+            <span className="font-mono">{account.account_number || account.account_number_masked}</span>
           </DetailItem>
           <DetailItem label="IFSC">
             <span className="font-mono">{account.ifsc}</span>

@@ -514,7 +514,10 @@ export const NAV: NavSection[] = [
     name: "Platform",
     icon: Building2,
     group: "admin",
-    pages: [{ name: "Workspaces", path: "/platform", roles: PLATFORM }],
+    pages: [
+      { name: "Workspaces", path: "/platform", roles: PLATFORM },
+      { name: "Demo requests", path: "/platform/demo-requests", roles: PLATFORM },
+    ],
   },
 ];
 

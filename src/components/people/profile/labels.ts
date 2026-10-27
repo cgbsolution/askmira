@@ -99,6 +99,7 @@ export const FIELD_LABEL: Record<string, string> = {
   pf_number: "PF number",
   esi_number: "ESI number",
   account_number_masked: "Account number",
+  account_number: "Account number",
   ifsc: "IFSC",
   account_holder_name: "Account holder",
   bank_name: "Bank",

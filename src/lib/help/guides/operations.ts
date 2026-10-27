@@ -541,6 +541,29 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       },
     ],
   },
+  "/platform/demo-requests": {
+    summary: "Requests sent from the AskMira website's demo and contact forms. Only the platform team sees them.",
+    tasks: [
+      {
+        title: "Follow up a new request",
+        steps: [
+          "Filter by New to see who is waiting, then click a row to open it.",
+          "Email or call them from the links at the top, then set the status to Contacted.",
+        ],
+      },
+      {
+        title: "Keep notes",
+        steps: [
+          "Write what you learned in Notes and save. Only the platform team sees notes.",
+          "Every status change and note change is recorded in the audit log.",
+        ],
+      },
+      {
+        title: "Turn a request into a workspace",
+        steps: ["When they sign up, create their organisation under Workspaces and set the request to Closed."],
+      },
+    ],
+  },
 
   "/operator": {
     summary: "Clients who granted you access to run their payroll, and what each is waiting on this month.",

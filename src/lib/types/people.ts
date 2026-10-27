@@ -651,6 +651,8 @@ export interface BankAccountSummary {
   ifsc: string;
   account_holder_name: string;
   account_number_masked: string | null;
+  /** The full number; sent to admin/HR only, null for everyone else. */
+  account_number?: string | null;
   verification_method: string;
   verified_at: string | null;
   created_at: string;
