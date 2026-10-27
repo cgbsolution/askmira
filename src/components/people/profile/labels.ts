@@ -96,6 +96,7 @@ export const FIELD_LABEL: Record<string, string> = {
   pan: "PAN",
   uan: "UAN",
   aadhaar_last4: "Aadhaar",
+  aadhaar: "Aadhaar",
   pf_number: "PF number",
   esi_number: "ESI number",
   account_number_masked: "Account number",

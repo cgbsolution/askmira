@@ -64,7 +64,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AttendanceCalendar } from "@/components/attendance/AttendanceCalendar";
 import { AttendanceRequestDialog } from "@/components/attendance/AttendanceRequestDialog";
-import type { AttendanceDay, RegularisationKind } from "@/lib/types/attendance";
+import type { AttendanceDay, AttendanceStatus, RegularisationKind } from "@/lib/types/attendance";
 import { BalancesPanel } from "@/components/time/BalancesPanel";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -128,6 +128,7 @@ export function ProfileView({
     day: AttendanceDay | null;
     isLocked: boolean;
     today: string;
+    status?: AttendanceStatus;
   } | null>(null);
 
   const isHr = hasRole("admin", "sub_admin");
@@ -492,9 +493,11 @@ export function ProfileView({
               version={attendanceVersion}
               onRequest={
                 isHr
-                  ? (kind, date, day, isLocked, today) => setMarking({ kind, date, day, isLocked, today })
+                  ? (kind, date, day, isLocked, today, status) =>
+                      setMarking({ kind, date, day, isLocked, today, status })
                   : undefined
               }
+              canMark={isHr}
             />
             {isHr && (
               <AttendanceRequestDialog
@@ -508,6 +511,7 @@ export function ProfileView({
                 onCreated={() => setAttendanceVersion((current) => current + 1)}
                 employee={{ id: employee.id, name }}
                 direct
+                initialStatus={marking?.status ?? "present"}
               />
             )}
           </TabsContent>

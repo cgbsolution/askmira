@@ -16,6 +16,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { type ApiError, post } from "@/lib/api";
 import type {
   AttendanceDay,
+  AttendanceStatus,
   Regularisation,
   RegularisationKind,
 } from "@/lib/types/attendance";
@@ -40,6 +41,7 @@ interface RequestTarget {
   day: AttendanceDay | null;
   isLocked: boolean;
   today: string;
+  status?: AttendanceStatus;
 }
 
 /**
@@ -107,9 +109,10 @@ export function MyAttendance() {
       <AttendanceCalendar
         version={version}
         regularisations={regularisations.data ?? []}
-        onRequest={(kind, date, day, isLocked, serverToday) =>
-          setTarget({ kind, date, day, isLocked, today: serverToday })
+        onRequest={(kind, date, day, isLocked, serverToday, status) =>
+          setTarget({ kind, date, day, isLocked, today: serverToday, status })
         }
+        canMark={hasRole("admin", "sub_admin")}
       />
       <MyShiftSwaps />
       <KioskPinCard />
@@ -130,6 +133,7 @@ export function MyAttendance() {
         isLocked={target?.isLocked ?? false}
         onCreated={changed}
         direct={hasRole("admin", "sub_admin")}
+        initialStatus={target?.status ?? "present"}
       />
     </div>
   );

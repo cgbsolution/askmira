@@ -131,6 +131,7 @@ export const STATUTORY_FIELDS: FieldSpec[] = [
   },
   {
     key: "uan",
+    digits: true,
     label: "UAN",
     optional: true,
     maxLength: 12,
@@ -139,6 +140,7 @@ export const STATUTORY_FIELDS: FieldSpec[] = [
   },
   {
     key: "aadhaar",
+    digits: true,
     label: "Aadhaar number",
     optional: true,
     maxLength: 14,
@@ -148,6 +150,7 @@ export const STATUTORY_FIELDS: FieldSpec[] = [
   { key: "pf_number", label: "PF member id", optional: true, maxLength: 32 },
   {
     key: "esi_number",
+    digits: true,
     label: "ESI number",
     optional: true,
     maxLength: 10,
@@ -159,6 +162,7 @@ export const STATUTORY_FIELDS: FieldSpec[] = [
 export const BANK_FIELDS: FieldSpec[] = [
   {
     key: "account_number",
+    digits: true,
     label: "Account number",
     maxLength: 18,
     pattern: /^[0-9]{9,18}$/,

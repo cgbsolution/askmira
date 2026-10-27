@@ -462,8 +462,10 @@ export function StatutoryCard({
       icon={IdCard}
       description={
         s.masked
-          ? "Shown masked. HR sees them in full; Aadhaar is only ever its last four digits."
-          : "Aadhaar is only ever kept as its last four digits."
+          ? "Shown masked. Admin and HR see them in full."
+          : s.aadhaar && !s.aadhaar_full
+            ? "Shown in full to admin and HR only. Only the last four Aadhaar digits were saved for this person; enter the full number with Edit to keep it."
+            : "Shown in full to admin and HR only."
       }
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

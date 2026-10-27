@@ -110,7 +110,11 @@ function initialDraft(
     // only what changes; the value on file shows as a masked hint.
     draft.record =
       mode === "hr" && !profile.statutory.masked
-        ? toFieldValues(STATUTORY_FIELDS, { ...profile.statutory, aadhaar: null } as never)
+        ? toFieldValues(STATUTORY_FIELDS, {
+            ...profile.statutory,
+            // The full number when it is on file; a last-four-only record starts blank.
+            aadhaar: profile.statutory.aadhaar_full ? (profile.statutory.aadhaar ?? "").replace(/\D/g, "") : null,
+          } as never)
         : blankValues(STATUTORY_FIELDS);
   } else if (section === "bank_account") {
     draft.record = {
@@ -227,7 +231,8 @@ export function SectionEditDialog({
         const current = spec.key === "aadhaar" ? null : (onFile[spec.key as keyof typeof onFile] as string | null);
         if (mode === "hr" && !onFile.masked) {
           if (spec.key === "aadhaar") {
-            if (typed) data.aadhaar = typed;
+            const fullOnFile = onFile.aadhaar_full ? (onFile.aadhaar ?? "").replace(/\D/g, "") : null;
+            if (onFile.aadhaar_full ? (typed || null) !== fullOnFile : typed) data.aadhaar = typed || null;
           } else if ((typed || null) !== (current || null)) {
             data[spec.key] = typed || null;
           }
@@ -288,7 +293,7 @@ export function SectionEditDialog({
       ? {
           pan: profile.statutory.pan ? `On file: ${profile.statutory.pan}` : "Not on file.",
           uan: profile.statutory.uan ? `On file: ${profile.statutory.uan}` : "Not on file.",
-          aadhaar: `${profile.statutory.aadhaar ? `On file: ${profile.statutory.aadhaar}. ` : ""}Only the last four digits are ever kept.`,
+          aadhaar: `${profile.statutory.aadhaar ? `On file: ${profile.statutory.aadhaar}. ` : ""}${profile.statutory.masked ? "Only admin and HR see it in full." : "Kept encrypted; only admin and HR see it in full."}`,
           pf_number: profile.statutory.pf_number ? `On file: ${profile.statutory.pf_number}` : "Not on file.",
           esi_number: profile.statutory.esi_number ? `On file: ${profile.statutory.esi_number}` : "Not on file.",
         }

@@ -33,6 +33,8 @@ export interface FieldSpec {
   /** A client-side shape check, so an obvious typo is caught before the round trip. */
   pattern?: RegExp;
   patternMessage?: string;
+  /** Digits only: anything else is dropped as it is typed or pasted (spaces in "1234 5678 9012" too). */
+  digits?: boolean;
 }
 
 export type FieldValues = Record<string, string | boolean>;
@@ -202,11 +204,14 @@ export function SpecFields({
               <Input
                 id={id}
                 type={spec.kind === "number" ? "number" : "text"}
+                inputMode={spec.digits ? "numeric" : undefined}
                 value={text}
                 maxLength={spec.maxLength}
                 disabled={disabled}
                 aria-invalid={invalid}
-                onChange={(event) => set(spec.key, event.target.value)}
+                onChange={(event) =>
+                  set(spec.key, spec.digits ? event.target.value.replace(/\D/g, "") : event.target.value)
+                }
               />
             );
         }

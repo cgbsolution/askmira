@@ -2,7 +2,9 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import {
+  BadgeCheck,
   Briefcase,
+  CalendarCheck,
   CalendarDays,
   ClipboardList,
   Clock,
@@ -11,6 +13,7 @@ import {
   List,
   Lock,
   PencilLine,
+  UserX,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import type { DayButton } from "react-day-picker";
@@ -129,6 +132,45 @@ const LEGEND: { kind: CellKind; label: string }[] = [
   { kind: "week_off", label: "Week off" },
 ];
 
+/**
+ * Open the correction dialog for a day. `status` presets "The day should be"
+ * when HR picked Full day, Half day or Absent from the day panel.
+ */
+export type OnRequest = (
+  kind: RegularisationKind,
+  date: string,
+  day: AttendanceDay | null,
+  isLocked: boolean,
+  today: string,
+  status?: AttendanceStatus,
+) => void;
+
+const APPROVED_LABELS: Record<RegularisationKind, string> = {
+  missed_punch: "Missed punch approved",
+  status_change: "Correction approved",
+  on_duty: "On duty approved",
+  work_from_home: "Work from home approved",
+};
+
+/** How a regularised day came about: HR marked it, or a request was approved. */
+export function correctionLabel(day: AttendanceDay): { label: string; manual: boolean } | null {
+  if (!day.is_regularised) return null;
+  const correction = day.correction;
+  if (!correction) return { label: "Regularised", manual: false };
+  if (correction.marked_manually) return { label: "Marked manually", manual: true };
+  return { label: APPROVED_LABELS[correction.kind], manual: false };
+}
+
+function CorrectionBadge({ day }: { day: AttendanceDay }) {
+  const found = correctionLabel(day);
+  if (!found) return null;
+  return (
+    <Badge variant={found.manual ? "secondary" : "outline"}>
+      {found.manual ? <PencilLine /> : <BadgeCheck />} {found.label}
+    </Badge>
+  );
+}
+
 function isoWeekday(iso: string): number {
   const day = parseISODate(iso).getDay();
   return day === 0 ? 7 : day;
@@ -148,19 +190,16 @@ export function AttendanceCalendar({
   version = 0,
   regularisations = [],
   onRequest,
+  canMark = false,
 }: {
   employeeId?: string;
   title?: string;
   version?: number;
   regularisations?: Regularisation[];
   /** Absent for a read-only view. */
-  onRequest?: (
-    kind: RegularisationKind,
-    date: string,
-    day: AttendanceDay | null,
-    isLocked: boolean,
-    today: string,
-  ) => void;
+  onRequest?: OnRequest;
+  /** Admin/HR: show "Mark this day as Full day / Half day / Absent", applied at once. */
+  canMark?: boolean;
 }) {
   const [month, setMonth] = useState(() => {
     const now = new Date();
@@ -248,6 +287,7 @@ export function AttendanceCalendar({
   const DayCell = (props: React.ComponentProps<typeof DayButton>) => {
     const iso = toISODate(props.day.date);
     const info = describe(iso);
+    const correction = info.row ? correctionLabel(info.row) : null;
     return (
       <CalendarDayButton
         {...props}
@@ -257,11 +297,19 @@ export function AttendanceCalendar({
           TINTS[info.kind],
         )}
       >
-        <span className="flex items-center justify-between text-xs font-semibold">
+        <span className="flex items-center justify-between gap-1 text-xs font-semibold">
           {props.day.date.getDate()}
-          {info.pending && (
-            <span aria-label="Request pending" className="size-1.5 rounded-full bg-accent" />
-          )}
+          <span className="flex items-center gap-1">
+            {correction?.manual && (
+              <PencilLine aria-label="Marked manually" className="size-3 text-foreground/70" />
+            )}
+            {correction && !correction.manual && (
+              <BadgeCheck aria-label="Request approved" className="size-3 text-foreground/70" />
+            )}
+            {info.pending && (
+              <span aria-label="Request pending" className="size-1.5 rounded-full bg-accent" />
+            )}
+          </span>
         </span>
         <span className="hidden min-w-0 truncate text-[11px] leading-tight font-medium sm:block">
           {info.label}
@@ -393,6 +441,12 @@ export function AttendanceCalendar({
                     <li className="flex items-center gap-1.5">
                       <span className="size-1.5 rounded-full bg-accent" /> Request pending
                     </li>
+                    <li className="flex items-center gap-1.5">
+                      <PencilLine className="size-3" /> Marked manually
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <BadgeCheck className="size-3" /> Request approved
+                    </li>
                   </ul>
                 </div>
 
@@ -406,6 +460,7 @@ export function AttendanceCalendar({
                   today={today}
                   isLocked={data.is_locked}
                   onRequest={onRequest}
+                  canMark={canMark}
                 />
               </CardContent>
             </TabsContent>
@@ -459,6 +514,7 @@ function DayDetail({
   today,
   isLocked,
   onRequest,
+  canMark,
 }: {
   iso: string;
   info: CellInfo;
@@ -466,13 +522,8 @@ function DayDetail({
   employeeId?: string;
   today: string;
   isLocked: boolean;
-  onRequest?: (
-    kind: RegularisationKind,
-    date: string,
-    day: AttendanceDay | null,
-    isLocked: boolean,
-    today: string,
-  ) => void;
+  onRequest?: OnRequest;
+  canMark: boolean;
 }) {
   const query = employeeId ? `&employee_id=${encodeURIComponent(employeeId)}` : "";
   const hasHappened = iso <= today;
@@ -507,7 +558,7 @@ function DayDetail({
           ) : info.kind === "today" ? (
             <Badge variant="outline">In progress</Badge>
           ) : null}
-          {row?.is_regularised && <Badge variant="outline">Regularised</Badge>}
+          {row && <CorrectionBadge day={row} />}
           {info.pending && (
             <Badge variant="warning">{KIND_LABELS[info.pending.kind]} pending</Badge>
           )}
@@ -543,8 +594,19 @@ function DayDetail({
               value={`${shift.name} ${shortTime(shift.start_time)}–${shortTime(shift.end_time)}`}
             />
           )}
-          {row.computation_note && (
-            <p className="pt-1 text-xs text-muted-foreground">{row.computation_note}</p>
+          {row.correction ? (
+            <p className="pt-1 text-xs text-muted-foreground">
+              {row.correction.marked_manually ? "Marked by " : "Approved by "}
+              {row.correction.by_name ?? "HR"}
+              {row.correction.decided_at
+                ? ` on ${formatDay(row.correction.decided_at.slice(0, 10), true)}`
+                : ""}
+              {`: ${row.correction.reason}`}
+            </p>
+          ) : (
+            row.computation_note && (
+              <p className="pt-1 text-xs text-muted-foreground">{row.computation_note}</p>
+            )
           )}
         </div>
       )}
@@ -604,6 +666,38 @@ function DayDetail({
         </>
       )}
 
+      {onRequest && canMark && canCorrect && (
+        <>
+          <Separator />
+          <div>
+            <p className="mb-2 text-sm font-medium">Mark this day as</p>
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  ["present", "Full day", CalendarCheck],
+                  ["half_day", "Half day", Clock],
+                  ["absent", "Absent", UserX],
+                ] as const
+              ).map(([status, label, Icon]) => (
+                <Button
+                  key={status}
+                  variant={row?.status === status ? "secondary" : "outline"}
+                  size="sm"
+                  className="px-2"
+                  disabled={Boolean(info.pending)}
+                  onClick={() => onRequest("status_change", iso, row, isLocked, today, status)}
+                >
+                  <Icon /> {label}
+                </Button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Applied at once, and the day shows as marked manually.
+            </p>
+          </div>
+        </>
+      )}
+
       {onRequest && info.kind !== "before_joining" && (
         <>
           <Separator />
@@ -617,7 +711,7 @@ function DayDetail({
                   disabled={Boolean(info.pending)}
                   onClick={() => onRequest("missed_punch", iso, row, isLocked, today)}
                 >
-                  <Fingerprint /> Missed punch
+                  <Fingerprint /> {canMark ? "Add missed punch" : "Missed punch"}
                 </Button>
                 <Button
                   variant="outline"
@@ -626,7 +720,7 @@ function DayDetail({
                   disabled={Boolean(info.pending)}
                   onClick={() => onRequest("status_change", iso, row, isLocked, today)}
                 >
-                  <PencilLine /> Correct attendance
+                  <PencilLine /> {canMark ? "Correct with times" : "Correct attendance"}
                 </Button>
               </>
             )}
@@ -650,8 +744,9 @@ function DayDetail({
             </Button>
             {info.pending && (
               <p className="text-xs text-muted-foreground">
-                A request for this day is waiting for a decision. Withdraw it below to ask for
-                something different.
+                {canMark
+                  ? "A request for this day is waiting for a decision. Approve or reject it in Approvals first."
+                  : "A request for this day is waiting for a decision. Withdraw it below to ask for something different."}
               </p>
             )}
           </div>
@@ -737,13 +832,7 @@ function DayList({
   shifts: Map<string, ShiftBrief>;
   today: string;
   isLocked: boolean;
-  onRequest?: (
-    kind: RegularisationKind,
-    date: string,
-    day: AttendanceDay | null,
-    isLocked: boolean,
-    today: string,
-  ) => void;
+  onRequest?: OnRequest;
 }) {
   const sorted = [...days].sort((a, b) => b.attendance_date.localeCompare(a.attendance_date));
   const columns: ColumnDef<AttendanceDay>[] = [
@@ -768,12 +857,15 @@ function DayList({
       accessorKey: "status",
       header: "Status",
       meta: {
-        text: (day) => `${STATUS_LABELS[day.status]}${day.is_regularised ? ", regularised" : ""}`,
+        text: (day) => {
+          const found = correctionLabel(day);
+          return `${STATUS_LABELS[day.status]}${found ? `, ${found.label.toLowerCase()}` : ""}`;
+        },
       },
       cell: ({ row }) => (
         <div className="flex flex-col items-start gap-1">
           <StatusBadge status={row.original.status} />
-          {row.original.is_regularised && <Badge variant="outline">Regularised</Badge>}
+          <CorrectionBadge day={row.original} />
         </div>
       ),
     },

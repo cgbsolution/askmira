@@ -98,6 +98,8 @@ export interface AttendanceDay {
   overtime_minutes: number;
   is_regularised: boolean;
   computation_note: string | null;
+  /** How the day was set when not by plain punches; only on `/attendance/period`. */
+  correction?: DayCorrection | null;
 }
 
 export interface EmployeeAttendanceSummary {
@@ -217,6 +219,16 @@ export interface RegularisationRangeInput {
   employee_id?: string | null;
 }
 
+/** The approved correction behind a regularised day. */
+export interface DayCorrection {
+  kind: RegularisationKind;
+  /** HR set the day themselves, rather than approving a request. */
+  marked_manually: boolean;
+  by_name: string | null;
+  reason: string;
+  decided_at: string | null;
+}
+
 export interface Regularisation {
   id: string;
   employee_id: string;
@@ -230,6 +242,8 @@ export interface Regularisation {
   decided_at: string | null;
   decision_note: string | null;
   created_at: string | null;
+  /** HR marked it themselves, rather than approving somebody's request. */
+  applied_directly?: boolean;
   /** The approvers in order; empty on requests from before approval rules. */
   approval_chain: ApprovalStep[];
 }

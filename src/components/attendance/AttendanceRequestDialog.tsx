@@ -84,6 +84,7 @@ export function AttendanceRequestDialog({
   onCreated,
   employee,
   direct = false,
+  initialStatus = "present",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -98,6 +99,8 @@ export function AttendanceRequestDialog({
   employee?: { id: string; name: string };
   /** The caller is HR: their correction is applied, not sent for approval. */
   direct?: boolean;
+  /** "The day should be", preset when HR picked Full day / Half day / Absent. */
+  initialStatus?: AttendanceStatus;
 }) {
   const [kind, setKind] = useState<RegularisationKind>(initialKind);
   const [date, setDate] = useState(initialDate);
@@ -115,13 +118,18 @@ export function AttendanceRequestDialog({
     setKind(initialKind);
     setDate(initialDate);
     setEndDate(initialDate);
-    setStatus("present");
+    setStatus(initialStatus);
     setFirstIn("");
     setLastOut("");
-    setReason("");
+    // HR marking a day: a ready reason, so it is one click; they can change it.
+    setReason(
+      direct && initialKind === "status_change"
+        ? `Marked ${STATUS_LABELS[initialStatus].toLowerCase()} manually by HR`
+        : "",
+    );
     setSubmitted(false);
     setServerError(null);
-  }, [open, initialKind, initialDate]);
+  }, [open, initialKind, initialDate, initialStatus, direct]);
 
   const isAdvance = kind === "on_duty" || kind === "work_from_home";
   const maxDate = isAdvance ? addDays(today, MAX_ADVANCE_DAYS) : today;
@@ -166,7 +174,9 @@ export function AttendanceRequestDialog({
         const created = await post<Regularisation>("/attendance/regularisation", body);
         toast.success(
           created.status === "approved"
-            ? `${KIND_LABELS[kind]} applied to ${formatDay(date, true)}`
+            ? kind === "status_change"
+              ? `${formatDay(date, true)} marked as ${STATUS_LABELS[status].toLowerCase()}`
+              : `${KIND_LABELS[kind]} applied to ${formatDay(date, true)}`
             : `${KIND_LABELS[kind]} raised for ${formatDay(date, true)}`,
         );
       }
@@ -184,7 +194,7 @@ export function AttendanceRequestDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {KIND_LABELS[kind]}
+            {direct && kind === "status_change" ? "Mark attendance" : KIND_LABELS[kind]}
             {employee ? ` · ${employee.name}` : ""}
           </DialogTitle>
           <DialogDescription>
@@ -354,7 +364,11 @@ export function AttendanceRequestDialog({
           </Button>
           <Button disabled={isSubmitting} onClick={() => void submit()}>
             {isSubmitting && <Loader2 className="animate-spin" />}
-            {direct ? "Apply" : "Send request"}
+            {direct
+              ? kind === "status_change"
+                ? `Mark as ${STATUS_LABELS[status].toLowerCase()}`
+                : "Apply"
+              : "Send request"}
           </Button>
         </DialogFooter>
       </DialogContent>

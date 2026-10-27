@@ -18,6 +18,7 @@ import Link from "next/link";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -172,9 +173,12 @@ const dayFormat = new Intl.DateTimeFormat("en-IN", {
  *
  * Location follows the company's rule (Shifts & rosters → Work locations):
  * off, optional (on unless the person turns it off; the choice is remembered)
- * or required (the punch waits for a location). The next direction comes from
- * the last punch, not from today's list, so a night shift that punched in
- * yesterday evening sees "Punch out" after midnight. `compact` is Home's version.
+ * or required (the punch waits for a location). Both buttons are always there,
+ * so people can step out and back in as often as they need. The expected one
+ * (from the last punch, not today's list, so a night shift that punched in
+ * yesterday evening expects "Punch out" after midnight) is the filled button;
+ * pressing the other asks first, because two INs in a row leave the day for HR
+ * to sort out. `compact` is Home's version.
  */
 export function PunchCard({
   onPunched,
@@ -192,7 +196,9 @@ export function PunchCard({
   );
   const settingsQuery = useApiQuery<AttendanceSettingsRead>("/attendance/settings");
   const [sharePreference, setSharePreference] = useState(true);
-  const [isPunching, setIsPunching] = useState(false);
+  const [isPunching, setIsPunching] = useState<"in" | "out" | null>(null);
+  // The out-of-order press waiting for "yes, record it".
+  const [confirming, setConfirming] = useState<"in" | "out" | null>(null);
   const [locationProblem, setLocationProblem] = useState<string | null>(null);
   // The photo lives here until the punch is sent, then it is dropped.
   const [photo, setPhoto] = useState<string | null>(null);
@@ -258,18 +264,23 @@ export function PunchCard({
     }
   };
 
-  const punch = async () => {
+  const press = (direction: "in" | "out") => {
+    if (direction === nextDirection) void punch(direction);
+    else setConfirming(direction);
+  };
+
+  const punch = async (direction: "in" | "out") => {
     if (photoMode === "required" && !photo) {
       toast.error("Your company takes a photo with every punch.", {
         description: "Take one with the camera button, then punch.",
       });
       return;
     }
-    setIsPunching(true);
+    setIsPunching(direction);
     setLocationProblem(null);
     // Coordinates live only in this call: sent once, never kept in state or storage.
     // From the portal, with or without a location, it is a web punch.
-    const body: PunchInput = { direction: nextDirection, source: "web" };
+    const body: PunchInput = { direction, source: "web" };
     if (photo && photoMode !== "off") body.photo = photo;
     if (shareLocation) {
       const fresh = live.position && Date.now() - live.position.at < 60_000 ? live.position : null;
@@ -284,7 +295,7 @@ export function PunchCard({
         toast.error("Your company needs your location to record a punch.", {
           description: position.reason,
         });
-        setIsPunching(false);
+        setIsPunching(null);
         return;
       } else {
         setLocationProblem(position.reason);
@@ -311,7 +322,7 @@ export function PunchCard({
     } catch (caught) {
       toast.error(errorDetail(caught, "Could not record the punch."));
     } finally {
-      setIsPunching(false);
+      setIsPunching(null);
     }
   };
 
@@ -346,7 +357,7 @@ export function PunchCard({
           id={compact ? "share-location-home" : "share-location"}
           checked={sharePreference}
           onCheckedChange={toggleShare}
-          disabled={isPunching}
+          disabled={isPunching !== null}
         />
         <Label
           htmlFor={compact ? "share-location-home" : "share-location"}
@@ -423,16 +434,31 @@ export function PunchCard({
 
         {/* Punch */}
         <div className="flex flex-col items-stretch gap-2 @md/punch:col-start-2 @md/punch:row-start-1 @md/punch:max-w-64 @md/punch:items-end @4xl/punch:col-start-3">
-          <Button
-            onClick={() => void punch()}
-            disabled={isPunching || isLoading || error !== null}
-            variant={nextDirection === "in" ? "default" : "outline"}
-            size="lg"
-            className="min-w-40"
-          >
-            {isPunching ? <Loader2 className="animate-spin" /> : nextDirection === "in" ? <LogIn /> : <LogOut />}
-            {isPunching && shareLocation ? "Locating…" : nextDirection === "in" ? "Punch in" : "Punch out"}
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            {(["in", "out"] as const).map((direction) => (
+              <Button
+                key={direction}
+                onClick={() => press(direction)}
+                disabled={isPunching !== null || isLoading || error !== null}
+                variant={direction === nextDirection ? "default" : "outline"}
+                size="lg"
+                className="min-w-32"
+              >
+                {isPunching === direction ? (
+                  <Loader2 className="animate-spin" />
+                ) : direction === "in" ? (
+                  <LogIn />
+                ) : (
+                  <LogOut />
+                )}
+                {isPunching === direction && shareLocation
+                  ? "Locating…"
+                  : direction === "in"
+                    ? "Punch in"
+                    : "Punch out"}
+              </Button>
+            ))}
+          </div>
           {locationLine}
           {photoMode !== "off" && (
             <div className="flex items-center gap-2 @md/punch:justify-end">
@@ -461,7 +487,7 @@ export function PunchCard({
                 accept="image/*"
                 capture="user"
                 className="sr-only"
-                disabled={isPunching}
+                disabled={isPunching !== null}
                 onChange={(event) => void takePhoto(event.target.files?.[0])}
               />
             </div>
@@ -597,6 +623,23 @@ export function PunchCard({
           </Button>
         </CardFooter>
       )}
+
+      <ConfirmDialog
+        open={confirming !== null}
+        onOpenChange={(open) => !open && setConfirming(null)}
+        title={confirming === "in" ? "Punch in again?" : "Punch out without a punch in?"}
+        description={
+          confirming === "in"
+            ? `You are already punched in${last ? ` since ${formatClock(last.punched_at)}` : ""}. Did you mean to punch out? Two punch-ins in a row leave the day for HR to check.`
+            : "You have not punched in yet. A punch-out on its own leaves the day for HR to check."
+        }
+        confirmLabel={confirming === "in" ? "Punch in" : "Punch out"}
+        onConfirm={() => {
+          const direction = confirming;
+          setConfirming(null);
+          if (direction) void punch(direction);
+        }}
+      />
     </Card>
   );
 }

@@ -642,6 +642,8 @@ export interface StatutoryRead {
   pf_number: string | null;
   esi_number: string | null;
   aadhaar: string | null;
+  /** True when `aadhaar` is the full number (admin/HR, and the full number is on file). */
+  aadhaar_full?: boolean;
   masked: boolean;
 }
 
