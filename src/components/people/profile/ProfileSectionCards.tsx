@@ -464,7 +464,7 @@ export function StatutoryCard({
         s.masked
           ? "Shown masked. Admin and HR see them in full."
           : s.aadhaar && !s.aadhaar_full
-            ? "Shown in full to admin and HR only. Only the last four Aadhaar digits were saved for this person; enter the full number with Edit to keep it."
+            ? "Shown in full to admin and HR only. Only the last four Aadhaar digits were ever saved for this person, so the full number is not on file yet: type it with Edit, or upload your employee Excel again in Onboarding → Add employees to fill it in for everyone."
             : "Shown in full to admin and HR only."
       }
     >

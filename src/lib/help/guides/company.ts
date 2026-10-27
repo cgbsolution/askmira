@@ -105,7 +105,21 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
     tasks: [
       {
         title: "Explore the reporting lines",
-        steps: ["Open Reporting lines; filter by team or location, and use Expand or Collapse. Print or Export CSV take it away."],
+        steps: [
+          "Open Reporting lines. Each person is a card; the count under a card opens or closes their team.",
+          "Drag the background to move around. Use + and − (or Ctrl + scroll) to zoom, Fit to screen to see everything, and Expand all to open every team.",
+          "Search or filter by team or location to highlight people; the chart moves to the first match.",
+          "Switch to the list view (top right) for an indented list. Print and Export CSV take it away.",
+        ],
+      },
+      {
+        title: "Change who someone reports to",
+        roles: [...HR],
+        steps: [
+          "In the chart view, drag a person's card onto their new manager and confirm Move. Their own team moves with them.",
+          "It takes effect today and is kept in their job history and the audit log. Use Undo on the message to put it back.",
+          "You cannot move someone under one of their own reports, and your own line is changed by somebody else.",
+        ],
       },
       {
         title: "See positions and vacancies",

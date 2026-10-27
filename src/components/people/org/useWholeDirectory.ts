@@ -63,6 +63,13 @@ export function useWholeDirectory() {
   }, [version]);
 
   const reload = useCallback(() => setVersion((current) => current + 1), []);
+  /** Put one saved person back in place (after a move) without reloading everyone. */
+  const replace = useCallback((saved: Pick<EmployeeSummary, "id" | "manager_id">) => {
+    setPeople((current) =>
+      current?.map((person) => (person.id === saved.id ? { ...person, manager_id: saved.manager_id } : person)) ??
+      current,
+    );
+  }, []);
 
-  return { people, error, isLoading, truncated, reload, limit: MAX_PEOPLE };
+  return { people, error, isLoading, truncated, reload, replace, limit: MAX_PEOPLE };
 }

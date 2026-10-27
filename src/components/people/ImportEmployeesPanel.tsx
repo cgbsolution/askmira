@@ -99,7 +99,11 @@ export function ImportEmployeesPanel() {
       );
       setResult(done);
       setStep(2);
-      toast.success(`${done.created} employees imported`);
+      toast.success(
+        done.created > 0 || !done.aadhaar_filled
+          ? `${done.created} employees imported`
+          : `Full Aadhaar number filled in for ${done.aadhaar_filled} people`,
+      );
     } catch (caught) {
       setError(apiMessage(caught, "The import did not go through. Nothing was saved."));
     } finally {
@@ -143,6 +147,7 @@ export function ImportEmployeesPanel() {
   );
 
   const toImport = preview ? preview.ready_current + (includeLeavers ? preview.ready_leavers : 0) : 0;
+  const aadhaarFills = preview?.aadhaar_fills ?? 0;
 
   return (
       <Card tier="tier1">
@@ -248,6 +253,34 @@ export function ImportEmployeesPanel() {
                 </Alert>
               )}
 
+              {(aadhaarFills > 0 || (preview.aadhaar_mismatches ?? []).length > 0) && (
+                <Alert>
+                  <AlertTitle>
+                    {aadhaarFills > 0
+                      ? `Full Aadhaar number for ${aadhaarFills} people already in AskMira`
+                      : "Aadhaar numbers that do not match"}
+                  </AlertTitle>
+                  <AlertDescription className="grid gap-1.5">
+                    {aadhaarFills > 0 && (
+                      <span>
+                        Only their last four digits were saved before. The import fills in the full
+                        number from this file, where its last four digits match. Nothing else about
+                        them changes.
+                      </span>
+                    )}
+                    {(preview.aadhaar_mismatches ?? []).length > 0 && (
+                      <span>
+                        Left alone, because the file&apos;s number ends differently from the one on
+                        record — check these by hand:{" "}
+                        <span className="font-medium text-foreground">
+                          {(preview.aadhaar_mismatches ?? []).join(", ")}
+                        </span>
+                      </span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <ColumnsFound preview={preview} />
 
               <ImportRows rows={preview.rows} />
@@ -287,11 +320,15 @@ export function ImportEmployeesPanel() {
                   </div>
                   <Button
                     variant="accent"
-                    disabled={busy === "import" || toImport === 0}
+                    disabled={busy === "import" || (toImport === 0 && aadhaarFills === 0)}
                     onClick={() => void runImport()}
                   >
                     {busy === "import" ? <Loader2 className="animate-spin" /> : <Users />}
-                    {toImport === 0 ? "Nothing to import" : `Import ${toImport} employees`}
+                    {toImport > 0
+                      ? `Import ${toImport} employees`
+                      : aadhaarFills > 0
+                        ? `Fill in ${aadhaarFills} Aadhaar numbers`
+                        : "Nothing to import"}
                   </Button>
                 </div>
               </div>
@@ -302,14 +339,31 @@ export function ImportEmployeesPanel() {
             <div className="grid gap-5">
               <Alert>
                 <AlertTitle>
-                  {result.created} employees imported from {result.filename}
+                  {result.created === 0 && (result.aadhaar_filled ?? 0) > 0
+                    ? `Aadhaar numbers filled in from ${result.filename}`
+                    : `${result.created} employees imported from ${result.filename}`}
                 </AlertTitle>
                 <AlertDescription className="grid gap-1">
+                  {(result.aadhaar_filled ?? 0) > 0 && (
+                    <span>
+                      Full Aadhaar number filled in for {result.aadhaar_filled} people already in
+                      AskMira.
+                    </span>
+                  )}
+                  {(result.aadhaar_mismatches ?? []).length > 0 && (
+                    <span>
+                      Aadhaar left alone (ends differently from the record):{" "}
+                      {(result.aadhaar_mismatches ?? []).join(", ")}.
+                    </span>
+                  )}
                   {result.created_leavers > 0 && (
                     <span>{result.created_leavers} of them have left and are recorded as exited.</span>
                   )}
                   {result.skipped > 0 && (
-                    <span>{result.skipped} were already in AskMira and were left as they are.</span>
+                    <span>
+                      {result.skipped} were already in AskMira and were left as they are
+                      {(result.aadhaar_filled ?? 0) > 0 ? ", apart from the Aadhaar number" : ""}.
+                    </span>
                   )}
                   {result.failed > 0 && (
                     <span>

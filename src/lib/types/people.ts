@@ -756,6 +756,10 @@ export interface ImportPreview {
   columns_ignored: string[];
   can_create_org: boolean;
   rows: ImportRow[];
+  /** People already here who get their full Aadhaar number from this file. */
+  aadhaar_fills?: number;
+  /** Already here, but the file's Aadhaar ends differently: left alone. "CODE — Name". */
+  aadhaar_mismatches?: string[];
 }
 
 export interface ImportResult {
@@ -767,4 +771,6 @@ export interface ImportResult {
   departments_created: string[];
   locations_created: string[];
   rows: ImportRow[];
+  aadhaar_filled?: number;
+  aadhaar_mismatches?: string[];
 }

@@ -33,6 +33,8 @@ interface Contractor {
   name: string;
   kind: string;
   pan_masked: string | null;
+  /** In full: the contractor screens are admin/sub-admin only. */
+  pan?: string | null;
   has_pan: boolean;
   gstin: string | null;
   email: string | null;
@@ -287,8 +289,12 @@ const CONTRACTOR_COLUMNS: ColumnDef<Contractor>[] = [
   {
     accessorKey: "pan_masked",
     header: "PAN",
-    meta: { cellClassName: "font-mono text-sm", text: (c) => c.pan_masked ?? "No PAN — higher TDS" },
-    cell: ({ row }) => row.original.pan_masked ?? <Badge variant="warning">No PAN — higher TDS</Badge>,
+    meta: {
+      cellClassName: "font-mono text-sm",
+      text: (c) => c.pan ?? c.pan_masked ?? "No PAN — higher TDS",
+    },
+    cell: ({ row }) =>
+      row.original.pan ?? row.original.pan_masked ?? <Badge variant="warning">No PAN — higher TDS</Badge>,
   },
   {
     accessorKey: "default_section",

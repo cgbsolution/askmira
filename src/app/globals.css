@@ -339,3 +339,122 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Org chart canvas — cards joined by lines (components/people/org/OrgCanvas).
+
+   Each <li> is a card with its reports in a <ul> under it. The <ul>'s ::before
+   drops the line from the manager; each child <li>'s ::before / ::after draw
+   its half of the bar above the row and the drop into the card. A column of
+   reports with nobody under them (.org-stack) is a single spine instead.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@layer components {
+  .org-tree {
+    --org-line: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
+    --org-gap: 1.25rem;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 3rem;
+  }
+
+  .org-tree ul {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    padding-top: var(--org-gap);
+  }
+
+  .org-tree li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .org-tree ul::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: var(--org-gap);
+    border-left: 1px solid var(--org-line);
+  }
+
+  .org-tree ul > li {
+    padding: var(--org-gap) 0.625rem 0;
+  }
+
+  .org-tree ul > li::before,
+  .org-tree ul > li::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: var(--org-gap);
+    border-top: 1px solid var(--org-line);
+  }
+
+  .org-tree ul > li::before {
+    right: 50%;
+  }
+
+  .org-tree ul > li::after {
+    left: 50%;
+    border-left: 1px solid var(--org-line);
+  }
+
+  .org-tree ul > li:first-child::before,
+  .org-tree ul > li:last-child::after {
+    border: 0 none;
+  }
+
+  .org-tree ul > li:last-child::before {
+    border-right: 1px solid var(--org-line);
+    border-top-right-radius: 0.5rem;
+  }
+
+  .org-tree ul > li:first-child::after {
+    border-top-left-radius: 0.5rem;
+  }
+
+  .org-tree ul > li:only-child::before {
+    display: none;
+  }
+
+  .org-tree ul > li:only-child::after {
+    border-left: 1px solid var(--org-line);
+    border-top: 0 none;
+    border-radius: 0;
+  }
+
+  .org-tree ul.org-stack {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .org-tree ul.org-stack > li {
+    padding: 0.75rem 0 0;
+  }
+
+  .org-tree ul.org-stack > li::before {
+    display: none;
+  }
+
+  .org-tree ul.org-stack > li::after {
+    border-left: 1px solid var(--org-line);
+    width: 0;
+    height: 0.75rem;
+    border-top: 0 none;
+    border-radius: 0;
+  }
+
+  /* The canvas's dotted backdrop, as in a planning board. */
+  .org-canvas {
+    background-image: radial-gradient(
+      color-mix(in oklab, var(--muted-foreground) 22%, transparent) 1px,
+      transparent 1px
+    );
+    background-size: 20px 20px;
+  }
+}
