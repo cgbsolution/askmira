@@ -27,6 +27,13 @@ const GROUP_LABEL: Record<string, string> = {
   org: "Departments and locations",
   reports: "Reports",
   products: "Linked products",
+  person_records: "One employee's record, headcount, joiners and exits",
+  approvals: "What is waiting on my approval",
+  payroll_figures: "Payroll figures and salary bill",
+  hr_helpdesk: "HR helpdesk tickets",
+  hiring_data: "Hiring (linked interview tool)",
+  expense_data: "Expenses (linked expense tool)",
+  helpdesk_data: "IT tickets and assets (linked helpdesk)",
 };
 
 /**

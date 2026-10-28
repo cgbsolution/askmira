@@ -113,6 +113,12 @@ export function CompanionCardView({
                 <ExternalLink /> Open in {card.source}
               </Link>
             </Button>
+          ) : card.open ? (
+            <Button asChild variant="link" className="h-auto justify-start p-0">
+              <Link href={card.open}>
+                <ChevronRight /> Open the page
+              </Link>
+            </Button>
           ) : null}
         </div>
       );
