@@ -5,12 +5,12 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { downloadFile, post } from "@/lib/api";
 import type { ExpenseMeta, Receipt } from "@/lib/types/expenses";
 
 import { errorDetail, formatBytes } from "./shared";
+import { FileInput } from "@/components/ui/file-input";
 
 function acceptsType(file: File, types: string[]): boolean {
   const name = file.name.toLowerCase();
@@ -96,10 +96,9 @@ export function ReceiptPicker({
           </Button>
         </div>
       ) : (
-        <Input
+        <FileInput
           key={inputKey}
           id={id}
-          type="file"
           disabled={disabled}
           accept={meta.receipt_types.join(",") || undefined}
           onChange={(event) => {

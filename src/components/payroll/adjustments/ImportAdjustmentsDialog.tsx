@@ -16,9 +16,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { post } from "@/lib/api";
 import type { AdjustmentImportResult } from "@/lib/types/payroll-inputs";
+import { FileInput } from "@/components/ui/file-input";
 
 /** One-time adjustments from a CSV, all or nothing. */
 export function ImportAdjustmentsDialog({ onImported }: { onImported: () => void }) {
@@ -69,9 +69,8 @@ export function ImportAdjustmentsDialog({ onImported }: { onImported: () => void
             </DialogDescription>
           </DialogHeader>
           <FormField htmlFor="adj-import-file" label="CSV file" required>
-            <Input
+            <FileInput
               id="adj-import-file"
-              type="file"
               accept=".csv,text/csv"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />

@@ -201,9 +201,9 @@ export function EmailActionScreen({ token, chosen }: { token: string; chosen: "a
               )}
               <p className="text-xs text-muted-foreground">
                 Prefer the full view?{" "}
-                <a className="font-medium underline" href={openUrl}>
-                  Open it in AskMira
-                </a>
+                <Button asChild variant="link" className="h-auto p-0 text-xs">
+                  <a href={openUrl}>Open it in AskMira</a>
+                </Button>
                 .
               </p>
             </CardContent>

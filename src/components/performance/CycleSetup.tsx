@@ -46,6 +46,7 @@ import type {
 import { formatDay } from "@/lib/utils";
 
 import { errorText, humanize, useAction } from "./shared";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const DECIMAL = /^\d+(\.\d{1,2})?$/;
 const ROLES: StageRole[] = ["self", "manager", "reviewer", "hr", "normalisation"];
@@ -218,13 +219,13 @@ function WindowDialog({ stage, onClose, onDone }: { stage: StageConfig; onClose:
         </DialogHeader>
         <div className="grid grid-cols-2 gap-3">
           <FormField htmlFor="w-open" label="Opens" optional>
-            <Input id="w-open" type="date" value={open} onChange={(e) => setOpen(e.target.value)} />
+            <DatePicker id="w-open" value={open} onChange={setOpen} />
           </FormField>
           <FormField htmlFor="w-due" label="Due" optional>
-            <Input id="w-due" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+            <DatePicker id="w-due" value={due} onChange={setDue} />
           </FormField>
           <FormField htmlFor="w-close" label="Closes" optional>
-            <Input id="w-close" type="date" min={open || undefined} value={close} onChange={(e) => setClose(e.target.value)} />
+            <DatePicker id="w-close" min={open || undefined} value={close} onChange={setClose} />
           </FormField>
           <FormField htmlFor="w-grace" label="Grace days">
             <Input id="w-grace" type="number" min={0} max={90} value={grace} onChange={(e) => setGrace(e.target.value)} />

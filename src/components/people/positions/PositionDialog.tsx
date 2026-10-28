@@ -29,6 +29,7 @@ import { toISODate } from "@/lib/utils";
 
 import { NONE, apiMessage, fromSelect } from "../labels";
 import { useOrgReference } from "../useOrgReference";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const CODE = /^[A-Za-z0-9_\-/]+$/;
 const AMOUNT = /^\d+(\.\d{1,2})?$/;
@@ -327,11 +328,10 @@ export function PositionDialog({
 
           {!editing && (
             <FormField htmlFor="position-effective" label="Exists from">
-              <Input
+              <DatePicker
                 id="position-effective"
-                type="date"
                 value={values.effective_from}
-                onChange={(event) => set("effective_from", event.target.value)}
+                onChange={(picked) => set("effective_from", picked)}
               />
             </FormField>
           )}

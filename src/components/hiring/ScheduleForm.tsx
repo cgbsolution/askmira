@@ -44,6 +44,7 @@ import type {
   SelfScheduleLinkResult,
 } from "@/lib/types/hiring";
 import { toISODate } from "@/lib/utils";
+import { DateTimePicker } from "@/components/common/DateTimePicker";
 
 /**
  * HR's scheduling form: choose the candidate, round and panel, find times the
@@ -435,13 +436,12 @@ export function ScheduleForm({ onScheduled }: { onScheduled: () => void }) {
         </CardHeader>
         <CardContent className="flex flex-wrap items-end gap-3">
           <FormField htmlFor="schedule-manual-start" label="Or type a start time" optional className="w-64">
-            <Input
+            <DateTimePicker
               id="schedule-manual-start"
-              type="datetime-local"
               value={manualStart}
-              onChange={(event) => {
-                setManualStart(event.target.value);
-                if (event.target.value) setChosenSlot(null);
+              onChange={(picked) => {
+                setManualStart(picked);
+                if (picked) setChosenSlot(null);
               }}
             />
           </FormField>

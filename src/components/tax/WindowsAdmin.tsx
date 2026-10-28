@@ -25,6 +25,7 @@ import { post, put } from "@/lib/api";
 import type { DeclarationWindow, ReminderRun, WindowType, WindowUpsertInput } from "@/lib/types/tax";
 
 import { pendingState } from "./common";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const REMINDER_PATTERN = /^\d+(\s*,\s*\d+)*$/;
 
@@ -250,22 +251,20 @@ function WindowForm({
 
       <div className="grid grid-cols-2 gap-3">
         <FormField htmlFor={`${id}-opens`} label="Opens" error={attempted ? opensError : null}>
-          <Input
+          <DatePicker
             id={`${id}-opens`}
-            type="date"
             value={opensAt}
             aria-invalid={attempted && Boolean(opensError)}
-            onChange={(event) => setOpensAt(event.target.value)}
+            onChange={setOpensAt}
           />
         </FormField>
         <FormField htmlFor={`${id}-closes`} label="Closes" error={attempted ? closesError : null}>
-          <Input
+          <DatePicker
             id={`${id}-closes`}
-            type="date"
             min={opensAt || undefined}
             value={closesAt}
             aria-invalid={attempted && Boolean(closesError)}
-            onChange={(event) => setClosesAt(event.target.value)}
+            onChange={setClosesAt}
           />
         </FormField>
       </div>

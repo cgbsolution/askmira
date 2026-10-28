@@ -31,6 +31,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { LocationOption, WorkLocation } from "@/lib/types/payroll";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /** "1 Apr 2026 – open": the dates a posting runs between. */
 function periodText(row: WorkLocation): string {
@@ -164,7 +165,7 @@ export function WorkLocationsPanel() {
               </Select>
             </FormField>
             <FormField htmlFor="wl-from" label="From">
-              <Input id="wl-from" type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+              <DatePicker id="wl-from" value={effectiveFrom} onChange={setEffectiveFrom} />
             </FormField>
             <FormField htmlFor="wl-reason" label="Reason" optional>
               <Input id="wl-reason" maxLength={255} value={reason} onChange={(e) => setReason(e.target.value)} />

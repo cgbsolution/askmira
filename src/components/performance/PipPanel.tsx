@@ -35,6 +35,7 @@ import type { EmployeeInputState, MilestoneStatus, PipCloseResult, PipDetail } f
 import { formatDate, formatDateRange, formatDay, toISODate } from "@/lib/utils";
 
 import { StatusBadge, humanize, useAction } from "./shared";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /**
  * One improvement plan. The trail — milestones, check-ins with both sides of
@@ -251,7 +252,7 @@ function CheckInDialog({ detail, onClose, onDone }: { detail: PipDetail; onClose
         <div className="grid gap-3">
           <div className="grid grid-cols-2 gap-3">
             <FormField htmlFor="ci-held" label="Held on">
-              <Input id="ci-held" type="date" max={today} value={heldOn} onChange={(e) => setHeldOn(e.target.value)} />
+              <DatePicker id="ci-held" max={today} value={heldOn} onChange={setHeldOn} />
             </FormField>
             <FormField htmlFor="ci-milestone" label="About milestone" optional>
               <Select value={milestone} onValueChange={setMilestone}>
@@ -478,7 +479,7 @@ function CloseDialog({ detail, onClose, onDone }: { detail: PipDetail; onClose: 
         </FormField>
         {outcome === "extended" && (
           <FormField htmlFor="cl-end" label="New end date">
-            <Input id="cl-end" type="date" min={detail.pip.end_date} value={newEnd} onChange={(e) => setNewEnd(e.target.value)} />
+            <DatePicker id="cl-end" min={detail.pip.end_date} value={newEnd} onChange={setNewEnd} />
           </FormField>
         )}
         <FormField htmlFor="cl-reason" label="Reason" optional={!needsReason}>

@@ -16,13 +16,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Stepper } from "@/components/ui/stepper";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { downloadFile, post } from "@/lib/api";
 import type { ImportPreview, ImportResult, ImportRow, ImportRowOutcome } from "@/lib/types/people";
 import { cn, formatDay } from "@/lib/utils";
+import { FileInput } from "@/components/ui/file-input";
 
 const STEPS = [
   { title: "Choose file", description: "Template or an export" },
@@ -163,10 +163,9 @@ export function ImportEmployeesPanel() {
                   label="Spreadsheet"
                   hint="An .xlsx or .csv file, up to 10 MB. Nothing is saved until you press Import."
                 >
-                  <Input
+                  <FileInput
                     key={fileKey}
                     id="import-file"
-                    type="file"
                     accept=".xlsx,.csv"
                     onChange={(event) => {
                       setFile(event.target.files?.[0] ?? null);

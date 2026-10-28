@@ -16,9 +16,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { api, del } from "@/lib/api";
 import type { EmployeeRecord } from "@/lib/types/people";
+import { FileInput } from "@/components/ui/file-input";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 
@@ -103,9 +103,8 @@ export function PhotoDialog({
           </Alert>
         )}
         <FormField htmlFor="photo-file" label="Image">
-          <Input
+          <FileInput
             id="photo-file"
-            type="file"
             accept="image/png,image/jpeg,.png,.jpg,.jpeg"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />

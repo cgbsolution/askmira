@@ -24,24 +24,33 @@ const apiTarget = (
 const apiOrigin = new URL(apiTarget).origin;
 
 /**
+ * Google Maps for attendance (see `src/lib/maps.ts`). The key and the choice of
+ * map are API settings, fetched after sign-in, so Google's hosts are always
+ * allowed below; with no key the page simply never contacts them.
+ * Google's published allowlist for the Maps JavaScript API (raster maps).
+ */
+const g = (sources: string) => ` ${sources}`;
+
+/**
  * Content-Security-Policy for the portal.
  *
  * - Scripts only from this origin. `'unsafe-inline'` is needed for the inline
  *   bootstrap scripts Next.js emits; `'unsafe-eval'` only in development, for
  *   fast refresh.
  * - The browser may talk to this origin and the API, nothing else.
- * - Map tiles for attendance locations come from OpenStreetMap, as images only.
+ * - Attendance maps: Google Maps (its script, tiles and fonts), and
+ *   OpenStreetMap tiles, as images only, for the Leaflet fallback.
  * - Documents such as offer letters are previewed in a sandboxed iframe
  *   (`srcdoc` or a blob), never injected into the page.
  * - Nobody may frame the portal.
  */
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.supabase.co https://tile.openstreetmap.org",
-  "font-src 'self' data:",
-  `connect-src 'self' ${apiOrigin}${isDev ? " ws://localhost:* http://localhost:*" : ""}`,
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${g("https://maps.googleapis.com https://maps.gstatic.com")}`,
+  `style-src 'self' 'unsafe-inline'${g("https://fonts.googleapis.com")}`,
+  `img-src 'self' data: blob: https://*.supabase.co https://tile.openstreetmap.org${g("https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.googleusercontent.com")}`,
+  `font-src 'self' data:${g("https://fonts.gstatic.com")}`,
+  `connect-src 'self' ${apiOrigin}${isDev ? " ws://localhost:* http://localhost:*" : ""}${g("https://*.googleapis.com https://*.google.com https://*.gstatic.com")}`,
   "frame-src 'self' blob:",
   "worker-src 'self' blob:",
   "frame-ancestors 'none'",

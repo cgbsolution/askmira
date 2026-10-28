@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, CalendarDays, Loader2, MapPin, Plus, Trash2, Vote } from "lucide-react";
+import { BarChart3, CalendarDays, ChevronRight, Loader2, MapPin, Plus, Trash2, Vote } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +28,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { HR } from "@/lib/access";
 import { ApiError, post } from "@/lib/api";
+import { DateTimePicker } from "@/components/common/DateTimePicker";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Poll {
   id: string;
@@ -333,14 +335,21 @@ function Events() {
                   </div>
                 )}
                 {event.attendees && event.attendees.length > 0 && (
-                  <details className="text-sm">
-                    <summary className="cursor-pointer text-muted-foreground">Who is coming ({event.attendees.length})</summary>
+                  <Collapsible className="text-sm">
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="group h-7 justify-start px-1 font-normal text-muted-foreground">
+                        <ChevronRight className="transition-transform group-data-[state=open]:rotate-90" />
+                        Who is coming ({event.attendees.length})
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
                     <ul className="mt-1 grid gap-0.5">
                       {event.attendees.map((name) => (
                         <li key={name}>{name}</li>
                       ))}
                     </ul>
-                  </details>
+                    </CollapsibleContent>
+                  </Collapsible>
                 )}
                 {!event.cancelled && (
                   <RequireRole roles={HR}>
@@ -407,7 +416,7 @@ function NewEventDialog({ onClose, onCreated }: { onClose: () => void; onCreated
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField htmlFor="event-starts" label="Starts">
-              <Input id="event-starts" type="datetime-local" value={starts} onChange={(e) => setStarts(e.target.value)} />
+              <DateTimePicker id="event-starts" value={starts} onChange={setStarts} />
             </FormField>
             <FormField htmlFor="event-capacity" label="Places" optional>
               <Input id="event-capacity" inputMode="numeric" value={capacity} onChange={(e) => setCapacity(e.target.value.replace(/\D/g, ""))} />

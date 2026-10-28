@@ -29,6 +29,7 @@ import { EVENT_TYPE } from "@/components/people/labels";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, patch, post } from "@/lib/api";
 import type { ManagedUser } from "@/lib/types/admin";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 type Process = "leave" | "expense" | "regularisation" | "timesheet" | "lifecycle";
 
@@ -366,10 +367,10 @@ function RuleDialog({
               </FormField>
             </div>
           ) : CATEGORY_CHOICES[process] ? (
-            <fieldset className="grid gap-1.5">
-              <legend className="mb-1 text-sm font-medium">
+            <FieldSet className="grid gap-1.5">
+              <FieldLegend className="mb-1 text-sm font-medium">
                 {process === "lifecycle" ? "Kinds of change" : "Kinds of correction"} (none = all)
-              </legend>
+              </FieldLegend>
               <div className="flex flex-wrap gap-3">
                 {Object.entries(CATEGORY_CHOICES[process] ?? {}).map(([value, label]) => (
                   <div key={value} className="flex items-center gap-1.5">
@@ -384,14 +385,14 @@ function RuleDialog({
                   </div>
                 ))}
               </div>
-            </fieldset>
+            </FieldSet>
           ) : process === "timesheet" ? null : (
             <div className="grid gap-3 sm:grid-cols-3">
               <FormField htmlFor="rule-days" label="From days" optional>
                 <Input id="rule-days" inputMode="decimal" value={minDays} onChange={(e) => setMinDays(e.target.value)} />
               </FormField>
-              <fieldset className="grid gap-1.5 sm:col-span-2">
-                <legend className="mb-1 text-sm font-medium">Leave types (none = all)</legend>
+              <FieldSet className="grid gap-1.5 sm:col-span-2">
+                <FieldLegend className="mb-1 text-sm font-medium">Leave types (none = all)</FieldLegend>
                 <div className="flex flex-wrap gap-3">
                   {(leaveTypes.data ?? []).map((option) => (
                     <div key={option.id} className="flex items-center gap-1.5">
@@ -406,13 +407,13 @@ function RuleDialog({
                     </div>
                   ))}
                 </div>
-              </fieldset>
+              </FieldSet>
             </div>
           )}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <fieldset className="grid gap-1.5">
-              <legend className="mb-1 text-sm font-medium">Departments (none = all)</legend>
+            <FieldSet className="grid gap-1.5">
+              <FieldLegend className="mb-1 text-sm font-medium">Departments (none = all)</FieldLegend>
               {(departments.data ?? []).map((option) => (
                 <div key={option.id} className="flex items-center gap-1.5">
                   <Checkbox
@@ -425,9 +426,9 @@ function RuleDialog({
                   </Label>
                 </div>
               ))}
-            </fieldset>
-            <fieldset className="grid gap-1.5">
-              <legend className="mb-1 text-sm font-medium">Locations (none = all)</legend>
+            </FieldSet>
+            <FieldSet className="grid gap-1.5">
+              <FieldLegend className="mb-1 text-sm font-medium">Locations (none = all)</FieldLegend>
               {(locations.data ?? []).map((option) => (
                 <div key={option.id} className="flex items-center gap-1.5">
                   <Checkbox
@@ -440,11 +441,11 @@ function RuleDialog({
                   </Label>
                 </div>
               ))}
-            </fieldset>
+            </FieldSet>
           </div>
 
-          <fieldset className="grid gap-2">
-            <legend className="mb-1 text-sm font-medium">Approvers, in order{process === "expense" ? " (finance decides last)" : ""}</legend>
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="mb-1 text-sm font-medium">Approvers, in order{process === "expense" ? " (finance decides last)" : ""}</FieldLegend>
             {steps.map((step, index) => (
               <div key={index} className="flex flex-wrap items-center gap-2">
                 <span className="w-6 text-sm text-muted-foreground">{index + 1}.</span>
@@ -505,7 +506,7 @@ function RuleDialog({
                 </Button>
               </div>
             )}
-          </fieldset>
+          </FieldSet>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <FormField htmlFor="rule-escalate" label="Escalate after (hours)" optional hint="A step waiting longer goes to the approver's manager, else HR">

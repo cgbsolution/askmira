@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, put } from "@/lib/api";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 const RIGHT_LABEL: Record<string, string> = {
   can_view: "View",
@@ -458,8 +459,8 @@ function PersonDialog({
         </DialogHeader>
         <DataTable variant="plain" columns={columns} data={overview.areas} getRowId={(area) => area.key} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <fieldset className="grid gap-2">
-            <legend className="mb-1 text-sm font-medium">Departments</legend>
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="mb-1 text-sm font-medium">Departments</FieldLegend>
             {(departments.data ?? []).map((option) => (
               <div key={option.id} className="flex items-center gap-2">
                 <Checkbox
@@ -472,9 +473,9 @@ function PersonDialog({
                 </Label>
               </div>
             ))}
-          </fieldset>
-          <fieldset className="grid gap-2">
-            <legend className="mb-1 text-sm font-medium">Locations</legend>
+          </FieldSet>
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="mb-1 text-sm font-medium">Locations</FieldLegend>
             {(locations.data ?? []).map((option) => (
               <div key={option.id} className="flex items-center gap-2">
                 <Checkbox
@@ -487,7 +488,7 @@ function PersonDialog({
                 </Label>
               </div>
             ))}
-          </fieldset>
+          </FieldSet>
         </div>
         <DialogFooter>
           <Button variant="outline" disabled={busy} onClick={onClose}>

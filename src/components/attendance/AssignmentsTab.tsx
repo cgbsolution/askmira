@@ -26,7 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -53,6 +52,7 @@ import {
   shortTime,
 } from "./shared";
 import { Field } from "./ShiftsTab";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /**
  * LoadError's words as DataTable's `error` and `onRetry`: a 403 reads as a
@@ -340,24 +340,22 @@ function AssignDialog({
               error={shown.cycle}
               hint="The date that counts as day 1 of the roster."
             >
-              <Input
+              <DatePicker
                 id="assign-cycle"
-                type="date"
                 value={cycleStart}
                 aria-invalid={Boolean(shown.cycle)}
-                onChange={(event) => setCycleStart(event.target.value)}
+                onChange={setCycleStart}
               />
             </Field>
           )}
 
           <div className="grid grid-cols-2 gap-3">
             <Field id="assign-from" label="Effective from" error={shown.from}>
-              <Input
+              <DatePicker
                 id="assign-from"
-                type="date"
                 value={from}
                 aria-invalid={Boolean(shown.from)}
-                onChange={(event) => setFrom(event.target.value)}
+                onChange={setFrom}
               />
             </Field>
             <Field
@@ -365,13 +363,12 @@ function AssignDialog({
               label={<>Effective to <span className="text-muted-foreground">(optional)</span></>}
               error={shown.to}
             >
-              <Input
+              <DatePicker
                 id="assign-to"
-                type="date"
                 min={from}
                 value={to}
                 aria-invalid={Boolean(shown.to)}
-                onChange={(event) => setTo(event.target.value)}
+                onChange={setTo}
               />
             </Field>
           </div>
@@ -454,13 +451,12 @@ function EndAssignmentDialog({
           </DialogDescription>
         </DialogHeader>
         <Field id="end-date" label="Last day" error={submitted ? (error ?? undefined) : undefined}>
-          <Input
+          <DatePicker
             id="end-date"
-            type="date"
             min={assignment?.effective_from}
             value={endDate}
             aria-invalid={submitted && Boolean(error)}
-            onChange={(event) => setEndDate(event.target.value)}
+            onChange={setEndDate}
           />
         </Field>
         {serverError && (

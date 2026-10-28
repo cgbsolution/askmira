@@ -29,6 +29,7 @@ import type { ExitGratuityInput, ExitReason, GratuityPayout } from "@/lib/types/
 import { formatDay, formatDays, toISODate } from "@/lib/utils";
 
 import { EXIT_REASON_LABEL, WorkingButton } from "./common";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const PAYOUT_COLUMNS: ColumnDef<GratuityPayout>[] = [
   {
@@ -222,13 +223,12 @@ function ComputePayoutCard({ onComputed }: { onComputed: () => void }) {
             </Select>
           </FormField>
           <FormField htmlFor="payout-exit-date" label="Exit date">
-            <Input
+            <DatePicker
               id="payout-exit-date"
-              type="date"
               required
               value={exitDate}
               disabled={isBusy}
-              onChange={(event) => setExitDate(event.target.value)}
+              onChange={setExitDate}
             />
           </FormField>
           <FormField htmlFor="payout-unpaid" label="Unpaid leave days">

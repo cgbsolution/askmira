@@ -18,6 +18,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { patch } from "@/lib/api";
 import type { OfferDetail, TermsUpdateResult } from "@/lib/types/hiring";
 import type { SalaryStructure } from "@/lib/types/payroll";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /**
  * Edit an offer's terms. Only the fields that changed are sent. A material
@@ -138,19 +139,17 @@ export function OfferTermsDialog({
           <Input id="terms-grade" maxLength={32} value={form.grade} onChange={(e) => set({ grade: e.target.value })} />
         </FormField>
         <FormField htmlFor="terms-joining" label="Joining date">
-          <Input
+          <DatePicker
             id="terms-joining"
-            type="date"
             value={form.joiningDate}
-            onChange={(e) => set({ joiningDate: e.target.value })}
+            onChange={(picked) => set({ joiningDate: picked })}
           />
         </FormField>
         <FormField htmlFor="terms-valid" label="Valid until" optional>
-          <Input
+          <DatePicker
             id="terms-valid"
-            type="date"
             value={form.validUntil}
-            onChange={(e) => set({ validUntil: e.target.value })}
+            onChange={(picked) => set({ validUntil: picked })}
           />
         </FormField>
         <FormField htmlFor="terms-probation" label="Probation (months)">

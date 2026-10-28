@@ -57,6 +57,7 @@ import type {
 import { formatDate, formatMoney, toISODate } from "@/lib/utils";
 
 import { ADMIN_ROLES, describeRate, Fact, HR_ROLES, LoanStatusBadge } from "./common";
+import { DatePicker } from "@/components/common/DatePicker";
 
 type Action = "approve" | "reject" | "disburse" | "prepay";
 
@@ -538,12 +539,11 @@ function LoanActionDialog({
 
           {action === "disburse" && (
             <FormField htmlFor="loan-disbursed-on" label="Disbursed on">
-              <Input
+              <DatePicker
                 id="loan-disbursed-on"
-                type="date"
                 value={disbursedOn}
                 disabled={isBusy}
-                onChange={(event) => setDisbursedOn(event.target.value)}
+                onChange={setDisbursedOn}
               />
             </FormField>
           )}

@@ -31,6 +31,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { get, patch, post } from "@/lib/api";
 import type { EmploymentStatus } from "@/lib/types";
 import type { EmployeeInput, EmployeeRecord, EmploymentType, Gender } from "@/lib/types/people";
+import { DatePicker } from "@/components/common/DatePicker";
 
 type Values = {
   employee_code: string;
@@ -403,7 +404,7 @@ export function EmployeeForm({
               optional
               hint="For correcting the past. Empty means today; a future change is raised as a lifecycle event."
             >
-              <Input id="emp-effective" type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+              <DatePicker id="emp-effective" value={effectiveFrom} onChange={setEffectiveFrom} />
             </FormField>
           )}
           {grades.length > 0 ? (

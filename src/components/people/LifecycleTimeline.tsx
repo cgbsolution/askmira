@@ -12,11 +12,11 @@ import { useOrgReference } from "@/components/people/useOrgReference";
 import { FormField } from "@/components/common/FormField";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { EmployeeHistory, EmployeeStateOn } from "@/lib/types/people";
 import { formatDate, formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /** Renders an event's before/after value readably: ids become names. */
 export function useFieldValue() {
@@ -157,7 +157,7 @@ function RecordOnDate({ employeeId }: { employeeId: string }) {
       </CardHeader>
       <CardContent className="grid gap-4">
         <FormField htmlFor={`state-on-${employeeId}`} label="Date" className="max-w-48">
-          <Input id={`state-on-${employeeId}`} type="date" value={on} onChange={(e) => setOn(e.target.value)} />
+          <DatePicker id={`state-on-${employeeId}`} value={on} onChange={setOn} />
         </FormField>
         {on && query.isLoading ? (
           <Skeleton className="h-24 w-full" />

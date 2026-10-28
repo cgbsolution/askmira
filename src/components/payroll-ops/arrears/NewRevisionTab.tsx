@@ -38,6 +38,7 @@ import type {
   RevisionType,
 } from "@/lib/types/payroll-ops";
 import { formatDay, formatMoney } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 interface Row {
   key: number;
@@ -196,12 +197,11 @@ export function NewRevisionTab({
                 </Select>
               </FormField>
               <FormField htmlFor="revision-effective" label="Effective from">
-                <Input
+                <DatePicker
                   id="revision-effective"
-                  type="date"
                   required
                   value={effectiveFrom}
-                  onChange={(event) => setEffectiveFrom(event.target.value)}
+                  onChange={setEffectiveFrom}
                 />
               </FormField>
             </div>

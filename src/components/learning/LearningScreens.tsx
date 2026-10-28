@@ -29,6 +29,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, downloadFile, post } from "@/lib/api";
 import { formatDay, toISODate } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 interface Assignment {
   id: string;
@@ -232,10 +234,10 @@ function CourseDialog({ assignment, onClose, onDone }: { assignment: Assignment;
               <section className="grid gap-4 border-t border-border pt-4">
                 <p className="text-sm text-muted-foreground">Pass mark {content.pass_mark}%.</p>
                 {quiz.map((q, qi) => (
-                  <fieldset key={qi} className="grid gap-2">
-                    <legend className="mb-1 text-sm font-medium">
+                  <FieldSet key={qi} className="grid gap-2">
+                    <FieldLegend className="mb-1 text-sm font-medium">
                       {qi + 1}. {q.question}
-                    </legend>
+                    </FieldLegend>
                     {q.options.map((option, oi) => (
                       <div key={oi} className="flex items-center gap-2">
                         <Checkbox
@@ -248,7 +250,7 @@ function CourseDialog({ assignment, onClose, onDone }: { assignment: Assignment;
                         </Label>
                       </div>
                     ))}
-                  </fieldset>
+                  </FieldSet>
                 ))}
               </section>
             ) : (
@@ -535,7 +537,7 @@ function AssignDialog({ course, onClose, onDone }: { course: CourseRow; onClose:
           <DialogDescription>To everyone currently employed. Anyone already holding a valid completion is skipped.</DialogDescription>
         </DialogHeader>
         <FormField htmlFor="assign-due" label="Due by">
-          <Input id="assign-due" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+          <DatePicker id="assign-due" value={due} onChange={setDue} />
         </FormField>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>

@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { CustomField } from "@/lib/types/people";
 import { formatDay } from "@/lib/utils";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 /** The workspace's custom fields in profile order (sensitive ones for HR only). */
 export function useCustomFields() {
@@ -112,11 +113,11 @@ export function CustomFieldInputs({
         if (field.field_type === "multiselect") {
           const chosen = new Set(Array.isArray(value) ? (value as string[]) : []);
           return (
-            <fieldset key={field.id} className="grid content-start gap-1.5">
-              <legend className="mb-1 text-sm font-medium">
+            <FieldSet key={field.id} className="grid content-start gap-1.5">
+              <FieldLegend className="mb-1 text-sm font-medium">
                 {field.label}
                 {field.is_required && <span className="text-destructive"> *</span>}
-              </legend>
+              </FieldLegend>
               <div className="flex flex-wrap gap-x-4 gap-y-2">
                 {(field.options ?? []).map((option) => (
                   <div key={option} className="flex items-center gap-1.5">
@@ -137,7 +138,7 @@ export function CustomFieldInputs({
                 ))}
               </div>
               {errors?.[field.key] && <p className="text-xs text-destructive">{errors[field.key]}</p>}
-            </fieldset>
+            </FieldSet>
           );
         }
         return (

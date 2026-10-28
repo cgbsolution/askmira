@@ -13,7 +13,6 @@ import { apiErrorMessage, InlineProblem } from "@/components/payroll-ops/shared"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { AccrualRunResult, GratuityAccrual } from "@/lib/types/payroll-ops";
@@ -21,6 +20,7 @@ import { formatDay, formatDays, toISODate } from "@/lib/utils";
 
 import { AccrualDateSelect, useAccrualDates } from "./AccrualDatePicker";
 import { WorkingButton } from "./common";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const ACCRUAL_COLUMNS: ColumnDef<GratuityAccrual>[] = [
   {
@@ -185,14 +185,13 @@ function RunAccrualCard({ onRan }: { onRan: (asOf: string) => void }) {
       <CardContent className="space-y-3">
         <div className="flex flex-wrap items-end gap-3">
           <FormField htmlFor="accrue-as-of" label="As of">
-            <Input
+            <DatePicker
               id="accrue-as-of"
-              type="date"
               required
               className="w-44"
               value={asOf}
               disabled={isBusy}
-              onChange={(event) => setAsOf(event.target.value)}
+              onChange={setAsOf}
             />
           </FormField>
           <Button disabled={isBusy} onClick={() => void run()}>

@@ -28,6 +28,8 @@ import { ApiError, downloadFile, post } from "@/lib/api";
 import { formatDay } from "@/lib/utils";
 
 import { type Member, type Plan, RELATION_LABEL, type Relation } from "./MyBenefitsScreen";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 interface PendingEvent {
   id: string;
@@ -92,7 +94,7 @@ export function BenefitsAdminScreen() {
           }
           toolbar={
             <FormField htmlFor="endorse-since" label="Endorsements since" className="max-w-44">
-              <Input id="endorse-since" type="date" value={since} onChange={(e) => setSince(e.target.value)} />
+              <DatePicker id="endorse-since" value={since} onChange={setSince} />
             </FormField>
           }
           isLoading={plans.isLoading && !plans.data}
@@ -313,23 +315,23 @@ function NewPlanDialog({ onClose, onCreated }: { onClose: () => void; onCreated:
               <Input id="plan-sum" inputMode="decimal" value={sum} onChange={(e) => setSum(e.target.value)} />
             </FormField>
             <FormField htmlFor="plan-start" label="Policy starts">
-              <Input id="plan-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <DatePicker id="plan-start" value={start} onChange={setStart} />
             </FormField>
             <FormField htmlFor="plan-end" label="Policy ends">
-              <Input id="plan-end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+              <DatePicker id="plan-end" value={end} onChange={setEnd} />
             </FormField>
             <FormField htmlFor="plan-opens" label="Enrolment opens" optional>
-              <Input id="plan-opens" type="date" value={opens} onChange={(e) => setOpens(e.target.value)} />
+              <DatePicker id="plan-opens" value={opens} onChange={setOpens} />
             </FormField>
             <FormField htmlFor="plan-closes" label="Enrolment closes" optional>
-              <Input id="plan-closes" type="date" value={closes} onChange={(e) => setCloses(e.target.value)} />
+              <DatePicker id="plan-closes" value={closes} onChange={setCloses} />
             </FormField>
             <FormField htmlFor="plan-premium" label="Company premium per covered person" optional>
               <Input id="plan-premium" inputMode="decimal" value={premium} onChange={(e) => setPremium(e.target.value)} />
             </FormField>
           </div>
-          <fieldset className="grid gap-1.5">
-            <legend className="mb-1 text-sm font-medium">Covers, besides the employee</legend>
+          <FieldSet className="grid gap-1.5">
+            <FieldLegend className="mb-1 text-sm font-medium">Covers, besides the employee</FieldLegend>
             <div className="flex flex-wrap gap-4">
               {COVERABLE.map((relation) => (
                 <div key={relation} className="flex items-center gap-1.5">
@@ -351,7 +353,7 @@ function NewPlanDialog({ onClose, onCreated }: { onClose: () => void; onCreated:
                 </div>
               ))}
             </div>
-          </fieldset>
+          </FieldSet>
           <div className="grid gap-4 sm:grid-cols-3">
             <FormField htmlFor="plan-topup-name" label="Top-up offered" optional>
               <Input id="plan-topup-name" placeholder="+5 lakh" value={topUpName} onChange={(e) => setTopUpName(e.target.value)} />

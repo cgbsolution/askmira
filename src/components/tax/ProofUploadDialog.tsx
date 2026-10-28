@@ -21,6 +21,7 @@ import type { TaxDeclaration, TaxProof } from "@/lib/types/tax";
 import { formatMoney } from "@/lib/utils";
 
 import { UPLOAD_ACCEPT, UPLOAD_HINT, uploadProblem } from "./common";
+import { FileInput } from "@/components/ui/file-input";
 
 /** Upload one proof document against a declaration. */
 export function ProofUploadDialog({
@@ -118,9 +119,8 @@ export function ProofUploadDialog({
             hint={UPLOAD_HINT}
             error={attempted ? fileError : null}
           >
-            <Input
+            <FileInput
               id="proof-file"
-              type="file"
               accept={UPLOAD_ACCEPT}
               aria-invalid={attempted && Boolean(fileError)}
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}

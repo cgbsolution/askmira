@@ -39,6 +39,8 @@ import type {
   ViolationAction,
 } from "@/lib/types/expenses";
 import { cn } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 type RuleRow = RuleInput & { key: number };
 
@@ -358,12 +360,11 @@ export function PoliciesVersionDialog({
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="policy-effective">In force from</Label>
-              <Input
+              <DatePicker
                 id="policy-effective"
-                type="date"
                 value={effectiveFrom}
                 aria-invalid={touched && !effectiveFrom}
-                onChange={(event) => setEffectiveFrom(event.target.value)}
+                onChange={setEffectiveFrom}
               />
             </div>
             <div className="grid gap-1.5">
@@ -387,10 +388,10 @@ export function PoliciesVersionDialog({
             />
           </div>
 
-          <fieldset className="grid gap-2">
-            <legend className="text-sm font-medium text-foreground">
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="text-sm font-medium text-foreground">
               Locations <span className="font-normal text-muted-foreground">(none ticked means all locations)</span>
-            </legend>
+            </FieldLegend>
             {locationsError ? (
               <p className="text-sm text-destructive">{locationsError}</p>
             ) : locations.length === 0 ? (
@@ -421,7 +422,7 @@ export function PoliciesVersionDialog({
                 })}
               </div>
             )}
-          </fieldset>
+          </FieldSet>
 
           <div className="grid gap-2">
             <div className="flex items-center justify-between gap-2">

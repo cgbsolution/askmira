@@ -9,10 +9,10 @@ import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { apiMessage, periodLabel } from "@/components/payroll/labels";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { post } from "@/lib/api";
 import type { PayrollRun } from "@/lib/types/payroll";
+import { DatePicker } from "@/components/common/DatePicker";
 
 type Action = "approve" | "publish" | "paid" | "cancel" | null;
 
@@ -133,11 +133,10 @@ export function RunActions({ run, onChanged }: { run: PayrollRun; onChanged: (ru
         onConfirm={() => call("mark-paid", { payment_date: paymentDate || null }, "Run marked paid.")}
       >
         <FormField htmlFor="paid-on" label="Payment date" optional hint="Defaults to today.">
-          <Input
+          <DatePicker
             id="paid-on"
-            type="date"
             value={paymentDate}
-            onChange={(event) => setPaymentDate(event.target.value)}
+            onChange={setPaymentDate}
           />
         </FormField>
       </ConfirmDialog>

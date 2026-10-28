@@ -34,6 +34,8 @@ import type {
 import { toISODate } from "@/lib/utils";
 
 import { CITY_TIER_LABEL, errorDetail, isMoneyInput, isPositiveAmount } from "./shared";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 const UNSET = "__unset";
 const ALL_TIERS = Object.keys(CITY_TIER_LABEL) as CityTier[];
@@ -177,12 +179,11 @@ export function TravelRequestDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="travel-from">From</Label>
-              <Input
+              <DatePicker
                 id="travel-from"
-                type="date"
                 value={fromDate}
-                onChange={(event) => {
-                  const value = event.target.value;
+                onChange={(picked) => {
+                  const value = picked;
                   setFromDate(value);
                   if (value && toDate < value) setToDate(value);
                 }}
@@ -190,18 +191,17 @@ export function TravelRequestDialog({
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="travel-to">To</Label>
-              <Input
+              <DatePicker
                 id="travel-to"
-                type="date"
                 min={fromDate}
                 value={toDate}
-                onChange={(event) => setToDate(event.target.value)}
+                onChange={setToDate}
               />
             </div>
           </div>
 
-          <fieldset className="grid gap-2">
-            <legend className="mb-1.5 text-sm font-medium text-foreground">Destinations</legend>
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="mb-1.5 text-sm font-medium text-foreground">Destinations</FieldLegend>
             {destinations.map((row, index) => (
               <div key={row.key} className="grid grid-cols-[1fr_10rem_auto] items-end gap-2">
                 <div className="grid gap-1.5">
@@ -261,7 +261,7 @@ export function TravelRequestDialog({
             >
               <Plus /> Add destination
             </Button>
-          </fieldset>
+          </FieldSet>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">

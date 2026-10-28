@@ -28,6 +28,7 @@ import { Progress } from "@/components/ui/progress";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import { formatDay, toISODate } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 interface Grant {
   id: string;
@@ -436,7 +437,7 @@ function GrantDialog({ plan, onClose, onDone }: { plan: Plan; onClose: () => voi
               <Input id="grant-price" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} />
             </FormField>
             <FormField htmlFor="grant-date" label="Grant date">
-              <Input id="grant-date" type="date" value={granted} onChange={(e) => setGranted(e.target.value)} />
+              <DatePicker id="grant-date" value={granted} onChange={setGranted} />
             </FormField>
           </div>
         </div>
@@ -470,7 +471,7 @@ function ValuationDialog({ plan, onClose, onDone }: { plan: Plan; onClose: () =>
         </DialogHeader>
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField htmlFor="val-from" label="From">
-            <Input id="val-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <DatePicker id="val-from" value={from} onChange={setFrom} />
           </FormField>
           <FormField htmlFor="val-fmv" label="Fair value a unit (₹)">
             <Input id="val-fmv" inputMode="decimal" value={fmv} onChange={(e) => setFmv(e.target.value)} />
@@ -505,7 +506,7 @@ function ExerciseDialog({ grant, onClose, onDone }: { grant: Grant; onClose: () 
         </DialogHeader>
         <div className="grid gap-4 sm:grid-cols-2">
           <FormField htmlFor="ex-date" label="Exercise date">
-            <Input id="ex-date" type="date" value={on} onChange={(e) => setOn(e.target.value)} />
+            <DatePicker id="ex-date" value={on} onChange={setOn} />
           </FormField>
           <FormField htmlFor="ex-units" label="Units">
             <Input id="ex-units" inputMode="numeric" value={units} onChange={(e) => setUnits(e.target.value.replace(/\D/g, ""))} />

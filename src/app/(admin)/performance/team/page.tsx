@@ -23,7 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -39,6 +38,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { CycleProgress, CycleSummary, Delegation, TeamReviewRow } from "@/lib/types/performance";
 import { formatDay, toISODate } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const ALL = "__all__";
 
@@ -492,10 +492,10 @@ function DelegateDialog({
         </FormField>
         <div className="grid grid-cols-2 gap-3">
           <FormField htmlFor="dg-from" label="From">
-            <Input id="dg-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <DatePicker id="dg-from" value={from} onChange={setFrom} />
           </FormField>
           <FormField htmlFor="dg-until" label="Until">
-            <Input id="dg-until" type="date" min={from} value={until} onChange={(e) => setUntil(e.target.value)} />
+            <DatePicker id="dg-until" min={from} value={until} onChange={setUntil} />
           </FormField>
         </div>
         <FormField htmlFor="dg-reason" label="Reason" optional>

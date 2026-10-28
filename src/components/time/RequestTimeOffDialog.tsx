@@ -26,7 +26,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -48,6 +47,7 @@ import type {
   LeaveType,
 } from "@/lib/types";
 import { formatDay, formatDays, pluralDays, toISODate } from "@/lib/utils";
+import { FileInput } from "@/components/ui/file-input";
 
 const ACCEPT = "application/pdf,image/png,image/jpeg";
 
@@ -358,9 +358,8 @@ export function RequestTimeOffDialog({
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
-                  <Input
+                  <FileInput
                     id="leave-document"
-                    type="file"
                     accept={ACCEPT}
                     disabled={isUploading}
                     onChange={(event) => void upload(event.target.files?.[0] ?? null)}

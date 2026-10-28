@@ -23,6 +23,7 @@ import { post } from "@/lib/api";
 import type { Page } from "@/lib/types";
 import type { CandidateSummary, OfferComponentKind, OfferInput } from "@/lib/types/hiring";
 import type { SalaryStructure } from "@/lib/types/payroll";
+import { DatePicker } from "@/components/common/DatePicker";
 
 export const OFFER_COMPONENT_KINDS: OfferComponentKind[] = [
   "joining_bonus",
@@ -225,19 +226,17 @@ export function OfferFormDialog({ onCreated }: { onCreated: (offerId: string) =>
             <Input id="offer-grade" maxLength={32} value={grade} onChange={(e) => setGrade(e.target.value)} />
           </FormField>
           <FormField htmlFor="offer-joining" label="Joining date">
-            <Input
+            <DatePicker
               id="offer-joining"
-              type="date"
               value={joiningDate}
-              onChange={(e) => setJoiningDate(e.target.value)}
+              onChange={setJoiningDate}
             />
           </FormField>
           <FormField htmlFor="offer-valid-until" label="Valid until" optional>
-            <Input
+            <DatePicker
               id="offer-valid-until"
-              type="date"
               value={validUntil}
-              onChange={(e) => setValidUntil(e.target.value)}
+              onChange={setValidUntil}
             />
           </FormField>
           <FormField htmlFor="offer-probation" label="Probation (months)">

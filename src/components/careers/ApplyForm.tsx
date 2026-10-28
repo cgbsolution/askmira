@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError, post } from "@/lib/api";
 import type { ApplyResult } from "@/lib/types/hiring";
 import { formatDate } from "@/lib/utils";
+import { FileInput } from "@/components/ui/file-input";
 
 type Fields = {
   full_name: string;
@@ -250,9 +251,8 @@ export function ApplyForm({
               hint={`PDF only, up to ${resumeMaxMb} MB.`}
               error={errors.resume}
             >
-              <Input
+              <FileInput
                 id="apply-resume"
-                type="file"
                 accept="application/pdf,.pdf"
                 aria-invalid={Boolean(errors.resume)}
                 onChange={(event) => {

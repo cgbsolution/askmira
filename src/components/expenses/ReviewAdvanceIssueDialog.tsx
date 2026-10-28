@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError, get, post } from "@/lib/api";
 import type { Advance, AdvanceBlockCheck, AdvanceInput, TravelRequest } from "@/lib/types/expenses";
+import { DatePicker } from "@/components/common/DatePicker";
 
 type Check =
   | { state: "loading" }
@@ -133,11 +134,10 @@ export function ReviewAdvanceIssueDialog({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="advance-issued-on">Issued on</Label>
-            <Input
+            <DatePicker
               id="advance-issued-on"
-              type="date"
               value={issuedOn}
-              onChange={(event) => setIssuedOn(event.target.value)}
+              onChange={setIssuedOn}
             />
           </div>
         </div>

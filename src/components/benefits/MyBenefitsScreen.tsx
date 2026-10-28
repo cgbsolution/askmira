@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 export type Relation = "spouse" | "child" | "parent" | "parent_in_law";
 
@@ -289,11 +290,10 @@ function MemberRows({
               ))}
             </SelectContent>
           </Select>
-          <Input
+          <DatePicker
             aria-label="Date of birth"
-            type="date"
             value={member.date_of_birth ?? ""}
-            onChange={(e) => update(index, { date_of_birth: e.target.value || null })}
+            onChange={(picked) => update(index, { date_of_birth: picked || null })}
           />
           <Button size="icon" variant="ghost" aria-label="Remove" onClick={() => onChange(members.filter((_, i) => i !== index))}>
             <Trash2 />
@@ -442,7 +442,7 @@ function LifeEventDialog({ item, onClose, onDone }: { item: MyPlan; onClose: () 
               </Select>
             </FormField>
             <FormField htmlFor="le-date" label="When">
-              <Input id="le-date" type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+              <DatePicker id="le-date" value={eventDate} onChange={setEventDate} />
             </FormField>
           </div>
           {removing ? (

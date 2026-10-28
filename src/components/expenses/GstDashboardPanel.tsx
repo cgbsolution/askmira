@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { GstDashboard } from "@/lib/types/expenses";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /** Captured, eligible, confirmed and at-risk credit for a period, in rupees. */
 export function GstDashboardPanel() {
@@ -56,11 +57,11 @@ export function GstDashboardPanel() {
           >
             <div className="grid gap-1.5">
               <Label htmlFor="gst-dash-start">From</Label>
-              <Input id="gst-dash-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <DatePicker id="gst-dash-start" value={start} onChange={setStart} />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="gst-dash-end">To</Label>
-              <Input id="gst-dash-end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+              <DatePicker id="gst-dash-end" value={end} onChange={setEnd} />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="gst-dash-label">

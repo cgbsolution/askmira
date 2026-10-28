@@ -30,6 +30,7 @@ import { HR } from "@/lib/access";
 import { ApiError, patch, post } from "@/lib/api";
 import type { EmployeeSummary, Page } from "@/lib/types";
 import type { EmploymentKind, RequisitionDetail, RequisitionInput } from "@/lib/types/hiring";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /** Radix Select refuses an empty-string value, so "not chosen" is this sentinel. */
 const NONE = "none";
@@ -542,11 +543,10 @@ export function RequisitionFormDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField htmlFor="req-joining" label="Target joining date" optional>
-              <Input
+              <DatePicker
                 id="req-joining"
-                type="date"
                 value={form.target_joining_date}
-                onChange={(event) => set("target_joining_date", event.target.value)}
+                onChange={(picked) => set("target_joining_date", picked)}
               />
             </FormField>
             <FormField
@@ -555,11 +555,10 @@ export function RequisitionFormDialog({
               optional
               error={errors.target_close_date}
             >
-              <Input
+              <DatePicker
                 id="req-close"
-                type="date"
                 value={form.target_close_date}
-                onChange={(event) => set("target_close_date", event.target.value)}
+                onChange={(picked) => set("target_close_date", picked)}
               />
             </FormField>
           </div>

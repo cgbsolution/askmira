@@ -15,7 +15,6 @@ import {
   STATUS_LABEL,
 } from "@/components/payroll-ops/filings/labels";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -30,6 +29,7 @@ import type {
   LegalEntity,
   ReturnType,
 } from "@/lib/types/payroll-ops";
+import { MonthPicker } from "@/components/common/MonthPicker";
 
 /** Every generated, blocked, filed and rejected return, newest first. */
 export function FilingsList({
@@ -198,11 +198,10 @@ export function FilingsList({
               ))}
             </SelectContent>
           </Select>
-          <Input
-            type="month"
+          <MonthPicker
             aria-label="Period"
             value={period}
-            onChange={(event) => setPeriod(event.target.value)}
+            onChange={setPeriod}
             className="h-9 w-44"
           />
           {filtered && (

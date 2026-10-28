@@ -20,7 +20,6 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { del, downloadFile, post, put } from "@/lib/api";
 import type { EmployeeSummary } from "@/lib/types";
@@ -36,6 +35,7 @@ import {
   type SalaryStructure,
   type StandardStatus,
 } from "@/lib/types/payroll";
+import { HiddenFileInput } from "@/components/ui/file-input";
 
 /** What a revision may carry as its file: what the server's vault takes. */
 const FILE_TYPES = ["application/pdf", "image/png", "image/jpeg"];
@@ -390,12 +390,10 @@ export function SalaryEditor({
               )
             ) : (
               <>
-                <Input
+                <HiddenFileInput
                   ref={fileInput}
                   id="sm-file"
-                  type="file"
                   accept="application/pdf,image/png,image/jpeg"
-                  className="sr-only"
                   tabIndex={-1}
                   onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
                 />

@@ -48,6 +48,7 @@ import {
   isMoneyInput,
   isPositiveAmount,
 } from "./shared";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const NONE = "__none";
 const ALL_KINDS: ClaimKind[] = ["receipted", "mileage", "per_diem"];
@@ -430,23 +431,21 @@ export function ClaimCaptureDialog({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-1.5">
                 <Label htmlFor="claim-incurred-on">Incurred on</Label>
-                <Input
+                <DatePicker
                   id="claim-incurred-on"
-                  type="date"
                   max={today}
                   value={incurredOn}
-                  onChange={(event) => setIncurredOn(event.target.value)}
+                  onChange={setIncurredOn}
                 />
               </div>
               {needsSettlementDate && (
                 <div className="grid gap-1.5">
                   <Label htmlFor="claim-settlement-date">Settlement date</Label>
-                  <Input
+                  <DatePicker
                     id="claim-settlement-date"
-                    type="date"
                     min={incurredOn || undefined}
                     value={settlementDate}
-                    onChange={(event) => setSettlementDate(event.target.value)}
+                    onChange={setSettlementDate}
                   />
                   <p className="text-xs text-muted-foreground">
                     {currency} converts to {meta.reporting_currency} at the rate on this date.

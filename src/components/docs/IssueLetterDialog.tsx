@@ -30,6 +30,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { post } from "@/lib/api";
 import type { BulkLetterJob, IssuedLetter, LetterTemplate } from "@/lib/types/docs";
+import { DatePicker } from "@/components/common/DatePicker";
 
 type Mode = "single" | "bulk";
 
@@ -273,7 +274,7 @@ export function IssueLetterDialog({
                 optional
                 hint="A relieving letter for a past exit should show the salary in force then."
               >
-                <Input id="issue-asof" type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+                <DatePicker id="issue-asof" value={asOf} onChange={setAsOf} />
               </FormField>
               <DialogFooter>
                 <Button

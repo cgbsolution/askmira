@@ -28,6 +28,7 @@ import type { Instrument, SurveyKind } from "@/lib/types/culture";
 import { toISODate } from "@/lib/utils";
 
 import { apiDetail } from "../cultureShared";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const KINDS: { value: SurveyKind; label: string }[] = [
   { value: "pulse", label: "Pulse" },
@@ -163,10 +164,10 @@ export function NewSurveyDialog({
           )}
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField htmlFor="survey-opens" label="Opens">
-              <Input id="survey-opens" type="date" value={opensOn} onChange={(e) => setOpensOn(e.target.value)} />
+              <DatePicker id="survey-opens" value={opensOn} onChange={setOpensOn} />
             </FormField>
             <FormField htmlFor="survey-closes" label="Closes" error={closesOn && closesOn < opensOn ? "Closes before it opens." : undefined}>
-              <Input id="survey-closes" type="date" value={closesOn} onChange={(e) => setClosesOn(e.target.value)} />
+              <DatePicker id="survey-closes" value={closesOn} onChange={setClosesOn} />
             </FormField>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

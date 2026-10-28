@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, downloadFile, post } from "@/lib/api";
 import { formatDay, toISODate } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 interface Contractor {
   id: string;
@@ -680,7 +681,7 @@ function InvoiceDialog({ contractors, onClose, onCreated }: { contractors: Contr
               <Input id="inv-number" maxLength={64} value={number} onChange={(e) => setNumber(e.target.value)} />
             </FormField>
             <FormField htmlFor="inv-date" label="Invoice date">
-              <Input id="inv-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <DatePicker id="inv-date" value={date} onChange={setDate} />
             </FormField>
             <FormField htmlFor="inv-amount" label="Amount before GST">
               <Input id="inv-amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />

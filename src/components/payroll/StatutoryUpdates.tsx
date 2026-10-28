@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 interface Notice {
   id: string;
@@ -263,7 +264,7 @@ function PublishDialog({ onClose, onDone }: { onClose: () => void; onDone: () =>
             <Input id="notice-jurisdiction" maxLength={8} className="uppercase" value={jurisdiction} onChange={(e) => setJurisdiction(e.target.value)} />
           </FormField>
           <FormField htmlFor="notice-from" label="Takes effect">
-            <Input id="notice-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <DatePicker id="notice-from" value={from} onChange={setFrom} />
           </FormField>
           <FormField htmlFor="notice-title" label="Title" className="sm:col-span-3">
             <Input id="notice-title" value={title} onChange={(e) => setTitle(e.target.value)} />

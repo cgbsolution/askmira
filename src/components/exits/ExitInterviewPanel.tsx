@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post, put } from "@/lib/api";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 export const EXIT_REASONS: Record<string, string> = {
   compensation: "Pay",
@@ -198,8 +199,8 @@ function InterviewForm({
           </SelectContent>
         </Select>
       </FormField>
-      <fieldset className="grid gap-1.5">
-        <legend className="mb-1 text-sm font-medium">Anything else that played a part</legend>
+      <FieldSet className="grid gap-1.5">
+        <FieldLegend className="mb-1 text-sm font-medium">Anything else that played a part</FieldLegend>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           {Object.entries(EXIT_REASONS)
             .filter(([key]) => key !== primary)
@@ -223,7 +224,7 @@ function InterviewForm({
               </div>
             ))}
         </div>
-      </fieldset>
+      </FieldSet>
       <div className="grid gap-3 sm:grid-cols-2">
         {Object.entries(RATINGS).map(([key, label]) => (
           <FormField key={key} htmlFor={`exit-rating-${exitId}-${key}`} label={label} optional>

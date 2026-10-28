@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -33,6 +32,7 @@ import type {
   PayrollRunSummary,
 } from "@/lib/types/payroll-ops";
 import { toISODate } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 export function runLabel(run: PayrollRunSummary): string {
   const period = formatPeriod(`${run.period_year}-${String(run.period_month).padStart(2, "0")}`);
@@ -177,13 +177,12 @@ export function PrepareBatchDialog({
             )}
           </FormField>
           <FormField htmlFor="prepare-value-date" label="Value date">
-            <Input
+            <DatePicker
               id="prepare-value-date"
-              type="date"
               required
               min={toISODate(new Date())}
               value={valueDate}
-              onChange={(event) => setValueDate(event.target.value)}
+              onChange={setValueDate}
             />
             <p className="text-xs text-muted-foreground">The date the bank should credit salaries.</p>
           </FormField>

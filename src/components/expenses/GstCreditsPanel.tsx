@@ -10,7 +10,6 @@ import { EligibilityBadge, ReconciliationBadge, formatMoney, humanizeKey } from 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -22,6 +21,7 @@ import {
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { GstCredit, GstEligibility, Gstr2bMatch } from "@/lib/types/expenses";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const ALL = "__all__";
 
@@ -204,11 +204,11 @@ export function GstCreditsPanel() {
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="gst-credit-start">Invoice from</Label>
-            <Input id="gst-credit-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            <DatePicker id="gst-credit-start" value={start} onChange={setStart} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="gst-credit-end">Invoice to</Label>
-            <Input id="gst-credit-end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+            <DatePicker id="gst-credit-end" value={end} onChange={setEnd} />
           </div>
           <Button type="submit" disabled={Boolean(periodProblem) || query.isLoading}>
             Apply

@@ -26,6 +26,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { PipSummary } from "@/lib/types/performance";
 import { formatDateRange, toISODate } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /** Improvement plans for the caller's reporting line (all of them for HR). */
 export default function PipsPage() {
@@ -197,10 +198,10 @@ function OpenPipDialog({ onClose, onCreated }: { onClose: () => void; onCreated:
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField htmlFor="pip-start" label="Starts">
-              <Input id="pip-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <DatePicker id="pip-start" value={start} onChange={setStart} />
             </FormField>
             <FormField htmlFor="pip-end" label="Ends" hint="At least 30 days is expected.">
-              <Input id="pip-end" type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} />
+              <DatePicker id="pip-end" min={start} value={end} onChange={setEnd} />
             </FormField>
           </div>
           <FormField htmlFor="pip-reason" label="Why this plan">
@@ -220,7 +221,7 @@ function OpenPipDialog({ onClose, onCreated }: { onClose: () => void; onCreated:
                   <Input id={`m-desc-${index}`} maxLength={2000} value={m.description} onChange={(e) => update(index, { description: e.target.value })} />
                 </FormField>
                 <FormField htmlFor={`m-date-${index}`} label="By">
-                  <Input id={`m-date-${index}`} type="date" value={m.target_date} onChange={(e) => update(index, { target_date: e.target.value })} />
+                  <DatePicker id={`m-date-${index}`} value={m.target_date} onChange={(picked) => update(index, { target_date: picked })} />
                 </FormField>
                 <Button
                   variant="ghost"

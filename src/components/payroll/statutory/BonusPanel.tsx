@@ -28,6 +28,7 @@ import { ADMIN } from "@/lib/access";
 import type { Page } from "@/lib/types";
 import type { BonusComputation, EntityOption, PayrollRun } from "@/lib/types/payroll";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const OWN_PAYMENT = "own";
 
@@ -288,7 +289,7 @@ export function BonusPanel() {
           </FormField>
           {target === OWN_PAYMENT && (
             <FormField htmlFor="bonus-paid-on" label="Paid on">
-              <Input id="bonus-paid-on" type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />
+              <DatePicker id="bonus-paid-on" value={paidOn} onChange={setPaidOn} />
             </FormField>
           )}
         </div>

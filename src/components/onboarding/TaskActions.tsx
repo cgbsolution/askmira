@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { FileInput } from "@/components/ui/file-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { downloadFile, post } from "@/lib/api";
@@ -197,10 +197,9 @@ function CompleteTaskDialog({
                   </Button>
                 </div>
               ) : (
-                <Input
+                <FileInput
                   key={inputKey}
                   id="onboarding-upload"
-                  type="file"
                   accept={ACCEPT}
                   disabled={isBusy}
                   onChange={(event) => {

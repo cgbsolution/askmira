@@ -52,6 +52,7 @@ import type {
   RecommendationResult,
 } from "@/lib/types/performance";
 import { formatDate, formatDay, toISODate } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const DECIMAL = /^\d+(\.\d{1,2})?$/;
 
@@ -535,7 +536,7 @@ function PromotionDialog({ row, onClose, onDone }: { row: IncrementCandidate; on
       }}
     >
       <FormField htmlFor="pr-eff" label="Effective from" hint="A past date flags arrears from that date.">
-        <Input id="pr-eff" type="date" value={effective} onChange={(e) => setEffective(e.target.value)} />
+        <DatePicker id="pr-eff" value={effective} onChange={setEffective} />
       </FormField>
     </ConfirmDialog>
   );
@@ -605,7 +606,7 @@ function NewCycleDialog({ onClose, onDone }: { onClose: () => void; onDone: (id:
             <Input id="ic-name" maxLength={160} value={name} onChange={(e) => setName(e.target.value)} />
           </FormField>
           <FormField htmlFor="ic-eff" label="Effective from">
-            <Input id="ic-eff" type="date" value={effective} onChange={(e) => setEffective(e.target.value)} />
+            <DatePicker id="ic-eff" value={effective} onChange={setEffective} />
           </FormField>
           <FormField htmlFor="ic-budget" label="Budget (₹ per year)">
             <Input id="ic-budget" inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} />
@@ -622,7 +623,7 @@ function NewCycleDialog({ onClose, onDone }: { onClose: () => void; onDone: (id:
             </Select>
           </FormField>
           <FormField htmlFor="ic-release" label="Letters release on" optional>
-            <Input id="ic-release" type="date" value={release} onChange={(e) => setRelease(e.target.value)} />
+            <DatePicker id="ic-release" value={release} onChange={setRelease} />
           </FormField>
           <FormField htmlFor="ic-linked" label="Ratings from" className="col-span-2">
             <Select value={linked} onValueChange={setLinked}>

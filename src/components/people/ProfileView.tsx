@@ -356,7 +356,7 @@ export function ProfileView({
                 <Card tier="tier1">
                   <CardHeader>
                     <CardTitle className="text-base">Contact details</CardTitle>
-                    {isSelf && (
+                    {(isSelf || isHr) && (
                       <CardAction>
                         <Button size="sm" variant="outline" onClick={() => setEditingContact(true)}>
                           <Pencil /> Edit
@@ -577,11 +577,12 @@ export function ProfileView({
           </SheetContent>
         </Sheet>
       )}
-      {isSelf && (
+      {(isSelf || isHr) && (
         <ContactDetailsDialog
           open={editingContact}
           onOpenChange={setEditingContact}
           record={employee}
+          asHr={!isSelf}
           onSaved={(saved) => record.setData(saved)}
         />
       )}

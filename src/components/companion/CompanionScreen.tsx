@@ -32,6 +32,7 @@ import { cn, formatDate, initials } from "@/lib/utils";
 import { CompanionCardView } from "./CompanionCards";
 import type {
   CompanionMessage,
+  CompanionPick,
   CompanionStatus,
   Conversation,
   ConversationDetail,
@@ -259,19 +260,21 @@ function Thread({
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, pending]);
 
-  const send = async () => {
-    const text = draft.trim();
+  // A typed message, or a choice clicked on an earlier answer (a person from a list).
+  const send = async (picked?: CompanionPick) => {
+    const text = picked ? picked.text : draft.trim();
     if (!text || pending) return;
-    setDraft("");
+    if (!picked) setDraft("");
     setPending(text);
     try {
       const turn = await post<Turn>("/companion/messages", {
         text,
         conversation_id: conversationId,
+        ...(picked ? { pick: { tool: picked.tool, inputs: picked.inputs } } : {}),
       });
       onTurn(turn);
     } catch (caught) {
-      setDraft(text);
+      if (!picked) setDraft(text);
       toast.error(caught instanceof ApiError ? caught.detail : `${status.name} could not answer.`);
     } finally {
       setPending(null);
@@ -291,7 +294,14 @@ function Thread({
               <Welcome status={status} onPick={(text) => setDraft(text)} />
             ) : (
               messages.map((message) => (
-                <Bubble key={message.id} message={message} name={status.name} mine={initials(user?.full_name ?? "")} />
+                <Bubble
+                  key={message.id}
+                  message={message}
+                  name={status.name}
+                  mine={initials(user?.full_name ?? "")}
+                  onPick={(picked) => void send(picked)}
+                  picking={pending !== null}
+                />
               ))
             )}
             {pending ? (
@@ -394,7 +404,19 @@ function Welcome({ status, onPick }: { status: CompanionStatus; onPick: (text: s
   );
 }
 
-function Bubble({ message, name, mine }: { message: CompanionMessage; name: string; mine: string }) {
+function Bubble({
+  message,
+  name,
+  mine,
+  onPick,
+  picking = false,
+}: {
+  message: CompanionMessage;
+  name: string;
+  mine: string;
+  onPick?: (pick: CompanionPick) => void;
+  picking?: boolean;
+}) {
   if (message.role === "user") {
     return (
       <div className="flex items-start justify-end gap-3">
@@ -423,7 +445,7 @@ function Bubble({ message, name, mine }: { message: CompanionMessage; name: stri
         </div>
         {message.text ? <p className="whitespace-pre-line text-sm leading-6">{message.text}</p> : null}
         {message.cards.map((card, index) => (
-          <CompanionCardView key={index} card={card} />
+          <CompanionCardView key={index} card={card} onPick={onPick} picking={picking} />
         ))}
       </div>
     </div>

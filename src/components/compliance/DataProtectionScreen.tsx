@@ -41,6 +41,8 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, downloadFile, post, put } from "@/lib/api";
 import { NOTICE_LANGUAGES, REQUEST_STATUS_LABEL, REQUEST_TYPE_LABEL, type ErasurePlan, type RequestStatus, type RequestType } from "@/lib/types/dpdp";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
+import { DateTimePicker } from "@/components/common/DateTimePicker";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 function detail(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;
@@ -566,7 +568,7 @@ function RaiseBreachDialog({ open, onOpenChange, onRaised }: { open: boolean; on
             <Input id="breach-ref" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="INC-2026-001" className="font-mono" />
           </FormField>
           <FormField htmlFor="breach-aware" label="Became aware at">
-            <Input id="breach-aware" type="datetime-local" value={awareAt} onChange={(e) => setAwareAt(e.target.value)} />
+            <DateTimePicker id="breach-aware" value={awareAt} onChange={setAwareAt} />
           </FormField>
           <FormField htmlFor="breach-description" label="What happened" className="sm:col-span-2">
             <Textarea id="breach-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
@@ -588,8 +590,8 @@ function RaiseBreachDialog({ open, onOpenChange, onRaised }: { open: boolean; on
               </Label>
             </div>
           </div>
-          <fieldset className="grid gap-1.5 sm:col-span-2">
-            <legend className="mb-1 text-sm font-medium">Data affected</legend>
+          <FieldSet className="grid gap-1.5 sm:col-span-2">
+            <FieldLegend className="mb-1 text-sm font-medium">Data affected</FieldLegend>
             <div className="grid max-h-44 gap-1.5 overflow-y-auto rounded-md border border-border p-2 sm:grid-cols-2">
               {(categories.data?.categories ?? []).map((row) => (
                 <div key={row.key} className="flex items-center gap-2">
@@ -604,7 +606,7 @@ function RaiseBreachDialog({ open, onOpenChange, onRaised }: { open: boolean; on
                 </div>
               ))}
             </div>
-          </fieldset>
+          </FieldSet>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>
@@ -990,8 +992,8 @@ function ConfigTab({ onSaved }: { onSaved: () => void }) {
             AI processing of employee data is enabled
           </Label>
         </div>
-        <fieldset className="grid gap-2 sm:col-span-2">
-          <legend className="text-sm font-medium">Response periods (days)</legend>
+        <FieldSet className="grid gap-2 sm:col-span-2">
+          <FieldLegend className="text-sm font-medium">Response periods (days)</FieldLegend>
           <p className="text-xs text-muted-foreground">Blank uses the default. A period longer than the statutory bound is refused.</p>
           <div className="grid gap-3 sm:grid-cols-5">
             {SLA_TYPES.map((type) => (
@@ -1000,7 +1002,7 @@ function ConfigTab({ onSaved }: { onSaved: () => void }) {
               </FormField>
             ))}
           </div>
-        </fieldset>
+        </FieldSet>
         <div className="sm:col-span-2">
           <Button onClick={save} disabled={isBusy || !contact.trim()}>
             {isBusy && <Loader2 className="animate-spin" />} Save configuration

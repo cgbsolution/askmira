@@ -49,6 +49,7 @@ import type {
   UnmappedTds,
 } from "@/lib/types/payroll-ops";
 import { formatDay, toISODate } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const ADMIN = ["admin"] as const;
 
@@ -418,13 +419,12 @@ function AddChallanDialog({
               />
             </FormField>
             <FormField htmlFor="challan-date" label="Deposit date">
-              <Input
+              <DatePicker
                 id="challan-date"
-                type="date"
                 required
                 max={toISODate(new Date())}
                 value={depositDate}
-                onChange={(event) => setDepositDate(event.target.value)}
+                onChange={setDepositDate}
               />
             </FormField>
             <FormField htmlFor="challan-form-kind" label="Return">
@@ -617,12 +617,11 @@ function MapChallanDialog({
                 />
               </FormField>
               <FormField htmlFor="map-date" label="Deducted on">
-                <Input
+                <DatePicker
                   id="map-date"
-                  type="date"
                   required
                   value={deductionDate}
-                  onChange={(event) => setDeductionDate(event.target.value)}
+                  onChange={setDeductionDate}
                 />
               </FormField>
             </div>

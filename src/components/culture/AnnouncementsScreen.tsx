@@ -42,6 +42,8 @@ import type { AcknowledgementRegister, Announcement, ManagedAnnouncement } from 
 import { cn, formatDateTime } from "@/lib/utils";
 
 import { apiDetail } from "./cultureShared";
+import { DateTimePicker } from "@/components/common/DateTimePicker";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 /**
  * Culture → Announcements.
@@ -389,15 +391,15 @@ function NewAnnouncementDialog({
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField htmlFor="announce-publish" label="Publish at" optional hint="Blank means now.">
-              <Input id="announce-publish" type="datetime-local" value={publishAt} onChange={(e) => setPublishAt(e.target.value)} />
+              <DateTimePicker id="announce-publish" value={publishAt} onChange={setPublishAt} />
             </FormField>
             <FormField htmlFor="announce-expires" label="Stop showing at" optional>
-              <Input id="announce-expires" type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+              <DateTimePicker id="announce-expires" value={expiresAt} onChange={setExpiresAt} />
             </FormField>
           </div>
 
-          <fieldset className="grid gap-2">
-            <legend className="text-sm font-medium">Channels</legend>
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="text-sm font-medium">Channels</FieldLegend>
             <div className="flex flex-wrap gap-4">
               {CHANNELS.map((option) => (
                 <div key={option.value} className="flex items-center gap-2">
@@ -413,10 +415,10 @@ function NewAnnouncementDialog({
                 </div>
               ))}
             </div>
-          </fieldset>
+          </FieldSet>
 
-          <fieldset className="grid gap-2">
-            <legend className="text-sm font-medium">Audience</legend>
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="text-sm font-medium">Audience</FieldLegend>
             <p className="text-xs text-muted-foreground">Nothing ticked means everyone. Departments and locations combine: both must match.</p>
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="grid max-h-40 gap-1.5 overflow-y-auto rounded-md border border-border p-2">
@@ -448,7 +450,7 @@ function NewAnnouncementDialog({
                 ))}
               </div>
             </div>
-          </fieldset>
+          </FieldSet>
 
           <div className="flex items-start gap-3">
             <Switch id="announce-ack" checked={needsAck} onCheckedChange={setNeedsAck} />

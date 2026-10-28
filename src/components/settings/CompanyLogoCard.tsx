@@ -6,9 +6,9 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { ApiError, del, get, post } from "@/lib/api";
+import { HiddenFileInput } from "@/components/ui/file-input";
 
 /**
  * Settings → Company → Workspace: the logo on this company's own sign-in page.
@@ -78,11 +78,9 @@ export function CompanyLogoCard() {
         </CardAction>
       </CardHeader>
       <CardContent>
-        <Input
+        <HiddenFileInput
           ref={input}
-          type="file"
           accept="image/png,image/jpeg"
-          className="hidden"
           onChange={(event) => void upload(event.target.files?.[0])}
         />
         {logoUrl ? (

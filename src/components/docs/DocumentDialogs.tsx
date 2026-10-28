@@ -32,6 +32,7 @@ import { patch, post } from "@/lib/api";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { DocumentCategory, DocumentCategoryOption, VaultDocument } from "@/lib/types/docs";
 import type { EmployeeProfile } from "@/lib/types/people";
+import { FileInput } from "@/components/ui/file-input";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = "application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg";
@@ -320,9 +321,8 @@ export function UploadDocumentDialog({
             </FormField>
           </div>
           <FormField htmlFor="doc-file" label="File" error={errors.file}>
-            <Input
+            <FileInput
               id="doc-file"
-              type="file"
               accept={ACCEPT}
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />
@@ -638,9 +638,8 @@ export function SelfUploadDialog({
             </FormField>
           </div>
           <FormField htmlFor="self-doc-file" label="File" error={errors.file}>
-            <Input
+            <FileInput
               id="self-doc-file"
-              type="file"
               accept={ACCEPT}
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
             />

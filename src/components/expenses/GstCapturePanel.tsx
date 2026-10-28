@@ -21,6 +21,7 @@ import {
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { get, post } from "@/lib/api";
 import type { GstCaptureInput, GstCaptureResult, GstinVerdict, OrgLegalEntity } from "@/lib/types/expenses";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const STATE_RE = /^\d{2}$/;
@@ -302,12 +303,11 @@ export function GstCapturePanel() {
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="gst-cap-date">Invoice date</Label>
-              <Input
+              <DatePicker
                 id="gst-cap-date"
-                type="date"
                 value={form.invoice_date}
                 aria-invalid={invalid("invoice_date")}
-                onChange={(e) => set("invoice_date", e.target.value)}
+                onChange={(picked) => set("invoice_date", picked)}
               />
             </div>
             <div className="grid gap-1.5">

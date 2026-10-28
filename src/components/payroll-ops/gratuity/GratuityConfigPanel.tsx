@@ -31,6 +31,7 @@ import { formatDate } from "@/lib/utils";
 
 import { EXIT_REASON_LABEL, SERVICE_ROUNDING_LABEL } from "./common";
 import { TextField } from "./TextField";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 interface FormState {
   eligibilityYears: string;
@@ -315,10 +316,10 @@ export function GratuityConfigPanel({
             onChange={(checked) => set("includeNotice", checked)}
           />
 
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-foreground">
+          <FieldSet className="gap-2">
+            <FieldLegend className="text-sm font-medium text-foreground">
               Exit reasons that waive the service requirement
-            </legend>
+            </FieldLegend>
             <div className="grid gap-2 sm:grid-cols-3">
               {(Object.keys(EXIT_REASON_LABEL) as ExitReason[]).map((reason) => (
                 <div key={reason} className="flex items-center gap-2">
@@ -341,7 +342,7 @@ export function GratuityConfigPanel({
                 </div>
               ))}
             </div>
-          </fieldset>
+          </FieldSet>
 
           {problem && <InlineProblem>{problem}</InlineProblem>}
 

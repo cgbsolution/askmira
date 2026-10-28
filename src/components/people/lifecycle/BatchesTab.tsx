@@ -38,6 +38,7 @@ import { formatDate, formatDateTime, toISODate } from "@/lib/utils";
 import { EmployeePicker, type PickedEmployee } from "../EmployeePicker";
 import { EVENT_TYPE, apiMessage } from "../labels";
 import { EventFields, type FieldValues, toNewValues } from "./EventFields";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const BATCH_COLUMNS: ColumnDef<LifecycleBatch>[] = [
   {
@@ -243,7 +244,7 @@ function BulkDialog({
                   </Select>
                 </FormField>
                 <FormField htmlFor="bulk-effective" label="Effective from">
-                  <Input id="bulk-effective" type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+                  <DatePicker id="bulk-effective" value={effectiveFrom} onChange={setEffectiveFrom} />
                 </FormField>
               </div>
 

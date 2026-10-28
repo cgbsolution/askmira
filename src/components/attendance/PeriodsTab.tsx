@@ -27,7 +27,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -47,6 +46,7 @@ import {
   formatDateTime,
 } from "./shared";
 import { Field } from "./ShiftsTab";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const MAX_RECOMPUTE_DAYS = 93;
 
@@ -286,22 +286,20 @@ export function PeriodsTab() {
         <CardContent className="space-y-2">
           <div className="flex flex-wrap items-end gap-3">
             <Field id="period-start" label="Period start">
-              <Input
+              <DatePicker
                 id="period-start"
-                type="date"
                 value={start}
                 aria-invalid={!rangeOk}
-                onChange={(event) => setStart(event.target.value)}
+                onChange={setStart}
               />
             </Field>
             <Field id="period-end" label="Period end">
-              <Input
+              <DatePicker
                 id="period-end"
-                type="date"
                 min={start}
                 value={end}
                 aria-invalid={!rangeOk}
-                onChange={(event) => setEnd(event.target.value)}
+                onChange={setEnd}
               />
             </Field>
           </div>

@@ -27,6 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { get, post } from "@/lib/api";
 import type { RuleSet, RuleSetInput, RuleType } from "@/lib/types/payroll";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const STATE_TYPES: RuleType[] = ["professional_tax", "labour_welfare_fund"];
 
@@ -165,11 +166,10 @@ export function NewRuleSetDialog({ onCreated }: { onCreated: () => void }) {
             </FormField>
           </div>
           <FormField htmlFor="rs-from" label="Effective from">
-            <Input
+            <DatePicker
               id="rs-from"
-              type="date"
               value={effectiveFrom}
-              onChange={(event) => setEffectiveFrom(event.target.value)}
+              onChange={setEffectiveFrom}
             />
           </FormField>
           <FormField htmlFor="rs-source" label="Source" hint="Notification, circular or gazette reference.">

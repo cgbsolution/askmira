@@ -5,7 +5,10 @@
  *   npm run check:ui
  *
  * Every interactive or structural control — button, input, select, textarea,
- * label, table, dialog, progress, hr — must come from `src/components/ui/`.
+ * label, table, dialog, progress, hr, fieldset, details — must come from
+ * `src/components/ui/`. The browser's own pickers count as raw HTML too, even
+ * through the shadcn Input: `<Input type="date">` draws a native calendar, so
+ * date/time/month/colour/file fields must use the shadcn pickers.
  * Inline styles and raw HTML injection are refused everywhere. Plain layout and
  * text wrappers (div, span, p, ul, li, nav, section, form) are fine: shadcn's own
  * components are built from them.
@@ -17,10 +20,34 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "src");
 const allowedDir = path.join(root, "components", "ui") + path.sep;
 
+const PICKERS = {
+  date: "DatePicker from @/components/common/DatePicker",
+  time: "TimePicker from @/components/ui/time-picker",
+  "datetime-local": "DateTimePicker from @/components/common/DateTimePicker",
+  month: "MonthPicker from @/components/common/MonthPicker",
+  week: "DatePicker from @/components/common/DatePicker",
+  color: "ColorPicker from @/components/ui/color-picker",
+  file: "FileInput / HiddenFileInput from @/components/ui/file-input",
+  range: "a shadcn Slider in @/components/ui (add one in shadcn's style)",
+};
+
 const RULES = [
   {
     pattern: /<(button|input|select|textarea|label|table|thead|tbody|tfoot|tr|td|th|dialog|progress|hr|option)(\s|>|\/|$)/g,
     message: (m) => `raw <${m[1]}> — use the shadcn component from @/components/ui`,
+  },
+  {
+    pattern: /<(fieldset|legend)(\s|>|$)/g,
+    message: (m) => `raw <${m[1]}> — use FieldSet / FieldLegend from @/components/ui/field`,
+  },
+  {
+    pattern: /<(details|summary)(\s|>|$)/g,
+    message: (m) => `raw <${m[1]}> — use Collapsible from @/components/ui/collapsible`,
+  },
+  {
+    // The shadcn Input still draws the browser's own picker for these types.
+    pattern: /\btype=["'{`]+(date|time|datetime-local|month|week|color|file|range)\b/g,
+    message: (m) => `native ${m[1]} picker — use ${PICKERS[m[1]]}`,
   },
   { pattern: /\bstyle=\{\{/g, message: () => "inline style — use Tailwind classes and tokens" },
   { pattern: /dangerouslySetInnerHTML|\.innerHTML\s*=/g, message: () => "raw HTML injection" },

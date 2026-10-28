@@ -30,6 +30,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { post } from "@/lib/api";
 import type { EmployeeSummary } from "@/lib/types";
 import type { ExitCreateInput, ExitRecord, ExitType } from "@/lib/types/payroll-ops";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /**
  * Start an exit (resignation, termination, …) for someone else.
@@ -173,13 +174,12 @@ export function StartExitDialog({ onCreated }: { onCreated: (record: ExitRecord)
             label="Resignation or notice date"
             error={touched && !resignationDate ? "The date is required." : null}
           >
-            <Input
+            <DatePicker
               id="exit-resignation-date"
-              type="date"
               value={resignationDate}
               disabled={isSubmitting}
               aria-invalid={touched && !resignationDate}
-              onChange={(event) => setResignationDate(event.target.value)}
+              onChange={setResignationDate}
             />
           </FormField>
 
@@ -192,14 +192,13 @@ export function StartExitDialog({ onCreated }: { onCreated: (record: ExitRecord)
                 requestedBeforeResignation ? "Cannot be before the resignation date." : null
               }
             >
-              <Input
+              <DatePicker
                 id="exit-requested-lwd"
-                type="date"
                 min={resignationDate || undefined}
                 value={requestedLwd}
                 disabled={isSubmitting}
                 aria-invalid={requestedBeforeResignation}
-                onChange={(event) => setRequestedLwd(event.target.value)}
+                onChange={setRequestedLwd}
               />
             </FormField>
             <FormField
@@ -208,14 +207,13 @@ export function StartExitDialog({ onCreated }: { onCreated: (record: ExitRecord)
               optional
               error={approvedBeforeResignation ? "Cannot be before the resignation date." : null}
             >
-              <Input
+              <DatePicker
                 id="exit-approved-lwd"
-                type="date"
                 min={resignationDate || undefined}
                 value={approvedLwd}
                 disabled={isSubmitting}
                 aria-invalid={approvedBeforeResignation}
-                onChange={(event) => setApprovedLwd(event.target.value)}
+                onChange={setApprovedLwd}
               />
             </FormField>
           </div>

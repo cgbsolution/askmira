@@ -18,13 +18,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import { parseCsv } from "@/lib/csv";
 import type { ImportResult, ReconciliationRun } from "@/lib/types/rewards";
 import { formatDate, toISODate } from "@/lib/utils";
+import { MonthPicker } from "@/components/common/MonthPicker";
+import { FileInput } from "@/components/ui/file-input";
 
 function detail(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;
@@ -207,10 +208,10 @@ function ImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
           <>
             <div className="grid gap-4">
               <FormField htmlFor="import-fulfilments" label="Fulfilment file" optional hint={fulfilments.length ? `${fulfilments.length} rows read` : undefined}>
-                <Input id="import-fulfilments" type="file" accept=".csv,text/csv" onChange={(e) => read(e.target.files?.[0], setFulfilments)} />
+                <FileInput id="import-fulfilments" accept=".csv,text/csv" onChange={(e) => read(e.target.files?.[0], setFulfilments)} />
               </FormField>
               <FormField htmlFor="import-invoices" label="Invoice file" optional hint={invoices.length ? `${invoices.length} rows read` : undefined}>
-                <Input id="import-invoices" type="file" accept=".csv,text/csv" onChange={(e) => read(e.target.files?.[0], setInvoices)} />
+                <FileInput id="import-invoices" accept=".csv,text/csv" onChange={(e) => read(e.target.files?.[0], setInvoices)} />
               </FormField>
             </div>
             <DialogFooter>
@@ -266,7 +267,7 @@ function RunDialog({ open, onOpenChange, onDone }: { open: boolean; onOpenChange
           <DialogDescription>Matches redemptions against the partner&apos;s fulfilments and invoices for the month.</DialogDescription>
         </DialogHeader>
         <FormField htmlFor="reconcile-month" label="Month">
-          <Input id="reconcile-month" type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+          <MonthPicker id="reconcile-month" value={month} onChange={setMonth} />
         </FormField>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>

@@ -32,6 +32,7 @@ import type {
 import { EmailDesignPanel } from "./EmailDesignPanel";
 import { NotificationTemplatesPanel } from "./NotificationTemplatesPanel";
 import { errorDetail, formatDateTime } from "./settingsShared";
+import { TimePicker } from "@/components/ui/time-picker";
 
 const CHANNEL_LABEL: Record<string, string> = {
   in_app: "In-app",
@@ -183,21 +184,19 @@ function PolicyPanel({ onSaved }: { onSaved: () => void }) {
           </div>
 
           <FormField htmlFor="quiet-start" label="Quiet hours start">
-            <Input
+            <TimePicker
               id="quiet-start"
-              type="time"
               value={values.quiet_start}
               disabled={!values.quiet_hours_enabled}
-              onChange={(event) => set("quiet_start", event.target.value)}
+              onChange={(picked) => set("quiet_start", picked)}
             />
           </FormField>
           <FormField htmlFor="quiet-end" label="Quiet hours end">
-            <Input
+            <TimePicker
               id="quiet-end"
-              type="time"
               value={values.quiet_end}
               disabled={!values.quiet_hours_enabled}
-              onChange={(event) => set("quiet_end", event.target.value)}
+              onChange={(picked) => set("quiet_end", picked)}
             />
           </FormField>
 

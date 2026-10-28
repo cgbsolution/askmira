@@ -16,6 +16,7 @@ import type { PunchImportResult, PunchImportRowError } from "@/lib/types/attenda
 
 import { errorDetail } from "./shared";
 import { Field } from "./ShiftsTab";
+import { FileInput } from "@/components/ui/file-input";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 
@@ -103,10 +104,9 @@ export function ImportPunchesTab() {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field id="import-file" label="CSV file" error={submitted ? (fileError ?? undefined) : undefined}>
-              <Input
+              <FileInput
                 key={fileKey}
                 id="import-file"
-                type="file"
                 accept=".csv,text/csv"
                 aria-invalid={submitted && Boolean(fileError)}
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}

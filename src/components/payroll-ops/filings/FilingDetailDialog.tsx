@@ -35,6 +35,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { AcknowledgementInput, FilingRecord } from "@/lib/types/payroll-ops";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 type Mode = "none" | "acknowledge" | "reject";
 
@@ -240,11 +241,10 @@ function AcknowledgeForm({
           />
         </FormField>
         <FormField htmlFor="ack-filed-at" label="Filed on" optional>
-          <Input
+          <DatePicker
             id="ack-filed-at"
-            type="date"
             value={filedAt}
-            onChange={(event) => setFiledAt(event.target.value)}
+            onChange={setFiledAt}
           />
         </FormField>
       </div>

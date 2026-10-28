@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError, get, post } from "@/lib/api";
 
 import { shrinkPhoto } from "./shrinkPhoto";
+import { HiddenFileInput } from "@/components/ui/file-input";
 
 interface KioskInfo {
   kiosk_name: string;
@@ -262,13 +263,11 @@ export function KioskScreen({ token }: { token: string }) {
                       ? "Take a photo"
                       : "Add a photo"}
                 </Label>
-                <Input
+                <HiddenFileInput
                   key={photoKey}
                   id="kiosk-photo"
-                  type="file"
                   accept="image/*"
                   capture="user"
-                  className="sr-only"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file)

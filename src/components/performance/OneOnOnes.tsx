@@ -59,6 +59,7 @@ import type {
   ReportOneOnOneSummary,
 } from "@/lib/types/performance";
 import { formatDate, formatDay, toISODate } from "@/lib/utils";
+import { TimePicker } from "@/components/ui/time-picker";
 
 /** "10:30:00" → "10:30". */
 function clock(value: string | null): string | null {
@@ -397,7 +398,7 @@ function ScheduleDialog({
               <DatePicker id="oo-day" value={day} onChange={setDay} min={today} />
             </FormField>
             <FormField htmlFor="oo-time" label="Time" optional>
-              <Input id="oo-time" type="time" className="h-11" value={time} onChange={(e) => setTime(e.target.value)} />
+              <TimePicker id="oo-time" className="h-11" value={time} onChange={setTime} />
             </FormField>
             <FormField htmlFor="oo-duration" label="Minutes">
               <Input
@@ -863,7 +864,7 @@ function RescheduleDialog({
             <DatePicker id="rs-day" value={day} onChange={setDay} />
           </FormField>
           <FormField htmlFor="rs-time" label="Time" optional>
-            <Input id="rs-time" type="time" className="h-11" value={time} onChange={(e) => setTime(e.target.value)} />
+            <TimePicker id="rs-time" className="h-11" value={time} onChange={setTime} />
           </FormField>
         </div>
         <DialogFooter>

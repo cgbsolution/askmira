@@ -40,6 +40,7 @@ import type {
   PerDiemRateInput,
 } from "@/lib/types/expenses";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const PERCENT_RE = /^\d{1,3}(\.\d{1,2})?$/;
 const FX_RATE_RE = /^\d{1,9}(\.\d{1,6})?$/;
@@ -272,7 +273,7 @@ export function PoliciesMileageRates({ canWrite }: { canWrite: boolean }) {
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="mileage-from">In force from</Label>
-          <Input id="mileage-from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+          <DatePicker id="mileage-from" value={from} onChange={setFrom} />
         </div>
       </RateDialogFrame>
     </>
@@ -426,7 +427,7 @@ export function PoliciesPerDiemRates({ canWrite }: { canWrite: boolean }) {
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="perdiem-from">In force from</Label>
-            <Input id="perdiem-from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+            <DatePicker id="perdiem-from" value={from} onChange={setFrom} />
           </div>
         </div>
         <div className="flex items-center justify-between gap-3">
@@ -561,7 +562,7 @@ export function PoliciesExchangeRates({ canWrite }: { canWrite: boolean }) {
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="fx-date">Quote date</Label>
-            <Input id="fx-date" type="date" value={quoteDate} onChange={(event) => setQuoteDate(event.target.value)} />
+            <DatePicker id="fx-date" value={quoteDate} onChange={setQuoteDate} />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="fx-source">Source</Label>

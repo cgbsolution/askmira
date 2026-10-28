@@ -33,6 +33,7 @@ import type {
   SalaryStructure,
   SalaryStructureInput,
 } from "@/lib/types/payroll";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /**
  * Build a structure from existing components. The API refuses one with no
@@ -114,7 +115,7 @@ export function NewStructureDialog({
           </FormField>
           <div className="grid grid-cols-3 gap-3">
             <FormField htmlFor="st-from" label="Effective from">
-              <Input id="st-from" type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+              <DatePicker id="st-from" value={effectiveFrom} onChange={setEffectiveFrom} />
             </FormField>
             <FormField htmlFor="st-rounding" label="Rounding">
               <Select value={rounding} onValueChange={(v) => setRounding(v as RoundingMode)}>

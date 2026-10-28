@@ -29,6 +29,8 @@ import type { Shift, ShiftCreateInput, ShiftInput, ShiftUpdateInput } from "@/li
 import { cn } from "@/lib/utils";
 
 import { errorDetail, parseWholeNumber, shortTime, WEEKDAYS } from "./shared";
+import { TimePicker } from "@/components/ui/time-picker";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 /**
  * LoadError's words, split the way DataTable takes them: a 403 is said as a
@@ -461,21 +463,19 @@ function ShiftDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <Field id="shift-start" label="Starts" error={shown.start_time}>
-              <Input
+              <TimePicker
                 id="shift-start"
-                type="time"
                 value={form.start_time}
                 aria-invalid={Boolean(shown.start_time)}
-                onChange={(event) => set("start_time", event.target.value)}
+                onChange={(picked) => set("start_time", picked)}
               />
             </Field>
             <Field id="shift-end" label="Ends" error={shown.end_time}>
-              <Input
+              <TimePicker
                 id="shift-end"
-                type="time"
                 value={form.end_time}
                 aria-invalid={Boolean(shown.end_time)}
-                onChange={(event) => set("end_time", event.target.value)}
+                onChange={(picked) => set("end_time", picked)}
               />
             </Field>
           </div>
@@ -564,8 +564,8 @@ function ShiftDialog({
           </Field>
 
           {(courses.data ?? []).length > 0 && (
-            <fieldset className="grid gap-1.5">
-              <legend className="mb-1 text-sm font-medium">Courses needed to work it</legend>
+            <FieldSet className="grid gap-1.5">
+              <FieldLegend className="mb-1 text-sm font-medium">Courses needed to work it</FieldLegend>
               <p className="text-xs text-muted-foreground">
                 Nobody is assigned this shift, or swapped onto it, without these completed and in date.
               </p>
@@ -590,7 +590,7 @@ function ShiftDialog({
                   </div>
                 ))}
               </div>
-            </fieldset>
+            </FieldSet>
           )}
 
           <div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">
@@ -605,8 +605,8 @@ function ShiftDialog({
             />
           </div>
 
-          <fieldset className="grid gap-2">
-            <legend className="mb-1 text-sm font-medium">Weekly off days</legend>
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="mb-1 text-sm font-medium">Weekly off days</FieldLegend>
             <div className="flex flex-wrap gap-3">
               {WEEKDAYS.map((day) => {
                 const checked = form.weekly_off_days.includes(day.iso);
@@ -631,7 +631,7 @@ function ShiftDialog({
                 );
               })}
             </div>
-          </fieldset>
+          </FieldSet>
 
           {!isCreate && (
             <div className="flex items-center justify-between rounded-md border border-border px-3 py-2.5">

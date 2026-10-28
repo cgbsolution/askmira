@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ApiError, post } from "@/lib/api";
+import { FileInput } from "@/components/ui/file-input";
 
 interface UploadResult {
   financial_year: string;
@@ -79,7 +80,7 @@ export function Form16PartATab() {
             <Input id="part-a-year" value={year} maxLength={7} onChange={(e) => setYear(e.target.value)} />
           </FormField>
           <FormField htmlFor="part-a-file" label="TRACES ZIP">
-            <Input key={fileKey} id="part-a-file" type="file" accept=".zip,application/zip" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <FileInput key={fileKey} id="part-a-file" accept=".zip,application/zip" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
           </FormField>
           <Button disabled={busy || !file || !/^\d{4}-\d{2}$/.test(year)} onClick={() => void upload()}>
             {busy && <Loader2 className="animate-spin" />} Upload

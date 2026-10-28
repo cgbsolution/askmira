@@ -27,6 +27,7 @@ import type { ShiftSwap, ShiftSwapStatus, SwapShift } from "@/lib/types/attendan
 import { formatDay, toISODate } from "@/lib/utils";
 
 import { errorDetail, shortTime } from "./shared";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const STATUS: Record<ShiftSwapStatus, { label: string; variant: "outline" | "warning" | "success" | "muted" | "secondary" }> = {
   awaiting_partner: { label: "Waiting for colleague", variant: "outline" },
@@ -220,7 +221,7 @@ function AskSwapDialog({
             <EmployeePicker id="swap-partner" value={partner} onChange={setPartner} excludeId={excludeId} placeholder="Choose a colleague" />
           </FormField>
           <FormField htmlFor="swap-day" label="Day">
-            <Input id="swap-day" type="date" min={tomorrow} value={day} onChange={(e) => setDay(e.target.value)} />
+            <DatePicker id="swap-day" min={tomorrow} value={day} onChange={setDay} />
           </FormField>
           <FormField htmlFor="swap-reason" label="Why">
             <Textarea id="swap-reason" rows={3} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} />

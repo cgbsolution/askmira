@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError, post } from "@/lib/api";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 const AMOUNT = /^\d{1,14}(\.\d{1,2})?$/;
 const SHARE = /^\d{1,3}(\.\d{1,2})?$/;
@@ -158,8 +159,8 @@ export function ReferralProgrammeDialog({ onCreated }: { onCreated: () => void }
         />
       </FormField>
 
-      <fieldset className="grid gap-2">
-        <legend className="mb-1 text-sm font-medium text-foreground">Bonus by grade</legend>
+      <FieldSet className="grid gap-2">
+        <FieldLegend className="mb-1 text-sm font-medium text-foreground">Bonus by grade</FieldLegend>
         {bonus.map((row, index) => (
           <div key={index} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
             <div className="grid gap-1">
@@ -211,12 +212,12 @@ export function ReferralProgrammeDialog({ onCreated }: { onCreated: () => void }
             {errors.bonus}
           </p>
         )}
-      </fieldset>
+      </FieldSet>
 
-      <fieldset className="grid gap-2">
-        <legend className="mb-1 text-sm font-medium text-foreground">
+      <FieldSet className="grid gap-2">
+        <FieldLegend className="mb-1 text-sm font-medium text-foreground">
           Payment milestones <span className="font-normal text-muted-foreground">(optional)</span>
-        </legend>
+        </FieldLegend>
         {milestones.map((row, index) => (
           <div
             key={index}
@@ -299,7 +300,7 @@ export function ReferralProgrammeDialog({ onCreated }: { onCreated: () => void }
             {errors.milestones}
           </p>
         )}
-      </fieldset>
+      </FieldSet>
 
       <FormField
         htmlFor="programme-roles"

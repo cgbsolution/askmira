@@ -34,6 +34,7 @@ import { EmployeePicker, type PickedEmployee } from "../EmployeePicker";
 import { useFieldValue } from "../LifecycleTimeline";
 import { EVENT_TYPE, FIELD_LABEL, apiMessage } from "../labels";
 import { EventFields, type FieldValues, toNewValues } from "./EventFields";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /** Event types that may carry a salary revision. */
 const CARRIES_SALARY = new Set<LifecycleEventType>(["promotion", "demotion", "grade_change", "confirmation"]);
@@ -160,11 +161,10 @@ export function RaiseEventDialog({
               </Select>
             </FormField>
             <FormField htmlFor="event-effective" label="Effective from">
-              <Input
+              <DatePicker
                 id="event-effective"
-                type="date"
                 value={effectiveFrom}
-                onChange={(event) => setEffectiveFrom(event.target.value)}
+                onChange={setEffectiveFrom}
               />
             </FormField>
           </div>

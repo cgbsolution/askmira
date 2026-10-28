@@ -24,7 +24,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
@@ -46,6 +45,7 @@ import { formatDistance, nearestPlace, PunchLocation, useLivePosition } from "./
 import { PunchPhoto } from "./PunchPhoto";
 import { shrinkPhoto } from "./shrinkPhoto";
 import { errorDetail, formatClock, formatMinutes, LoadError, shortTime } from "./shared";
+import { HiddenFileInput } from "@/components/ui/file-input";
 
 // A punch-in older than this is a forgotten punch-out, not a shift in
 // progress: the next punch is an IN again, and the day goes to regularisation.
@@ -480,13 +480,11 @@ export function PunchCard({
                   {photoMode === "required" ? "Take a photo to punch" : "Add a photo (optional)"}
                 </Label>
               )}
-              <Input
+              <HiddenFileInput
                 key={photoInputKey}
                 id={compact ? "punch-photo-home" : "punch-photo"}
-                type="file"
                 accept="image/*"
                 capture="user"
-                className="sr-only"
                 disabled={isPunching !== null}
                 onChange={(event) => void takePhoto(event.target.files?.[0])}
               />

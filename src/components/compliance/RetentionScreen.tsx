@@ -36,6 +36,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post, put } from "@/lib/api";
 import { formatDate, formatDateTime } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 type Action = "delete" | "anonymise" | "archive";
 type RunStatus = "dry_run" | "awaiting_approval" | "approved" | "executed" | "rejected";
@@ -502,10 +503,10 @@ function HoldDialog({ open, onOpenChange, onPlaced }: { open: boolean; onOpenCha
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField htmlFor="hold-from" label="Records from" optional>
-              <Input id="hold-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <DatePicker id="hold-from" value={from} onChange={setFrom} />
             </FormField>
             <FormField htmlFor="hold-to" label="Records to" optional>
-              <Input id="hold-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              <DatePicker id="hold-to" value={to} onChange={setTo} />
             </FormField>
           </div>
           {whole && (

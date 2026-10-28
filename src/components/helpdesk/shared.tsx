@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { ApiError, downloadFile } from "@/lib/api";
 import type {
   RequestKind,
@@ -15,6 +14,7 @@ import type {
   TicketPriority,
   TicketStatus,
 } from "@/lib/types/helpdesk";
+import { FileInput } from "@/components/ui/file-input";
 
 /**
  * Shared presentation for the helpdesk screens: the status vocabulary, the SLA
@@ -229,10 +229,9 @@ export function AttachmentPicker({
   }
   return (
     <div className="grid gap-1">
-      <Input
+      <FileInput
         key={inputKey}
         id={id}
-        type="file"
         accept={ACCEPT}
         disabled={disabled}
         onChange={(event) => {

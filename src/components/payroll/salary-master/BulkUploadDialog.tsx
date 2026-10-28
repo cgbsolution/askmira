@@ -21,11 +21,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { downloadFile, post } from "@/lib/api";
 import type { SalaryImportResult, SalaryImportRow } from "@/lib/types/payroll";
+import { FileInput } from "@/components/ui/file-input";
 
 const STATUS: Record<SalaryImportRow["status"], { label: string; variant: "success" | "destructive" | "muted" }> = {
   ready: { label: "Ready", variant: "success" },
@@ -214,9 +214,8 @@ export function BulkUploadDialog({
           <div className="grid content-start gap-2 rounded-xl border border-border p-4">
             <p className="font-medium text-foreground">2. Upload the filled sheet</p>
             <FormField htmlFor="bulk-file" label="Excel or CSV file">
-              <Input
+              <FileInput
                 id="bulk-file"
-                type="file"
                 accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
                 onChange={(event) => {
                   setFile(event.target.files?.[0] ?? null);

@@ -48,6 +48,8 @@ import { Fact } from "./common";
 import { FinancialYearSelect } from "./FinancialYearSelect";
 import { MyFlexiDeclaration } from "./FlexiDeclaration";
 import { QueryPanel } from "./QueryPanel";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FileInput } from "@/components/ui/file-input";
 
 const MAX_BILL_BYTES = 5 * 1024 * 1024;
 const BILL_TYPES = ["application/pdf", "image/png", "image/jpeg"];
@@ -330,13 +332,12 @@ function SubmitClaimDialog({
               />
             </FormField>
             <FormField htmlFor="claim-bill-date" label="Bill date" optional>
-              <Input
+              <DatePicker
                 id="claim-bill-date"
-                type="date"
                 max={toISODate(new Date())}
                 value={billDate}
                 disabled={isBusy}
-                onChange={(event) => setBillDate(event.target.value)}
+                onChange={setBillDate}
               />
             </FormField>
           </div>
@@ -357,10 +358,10 @@ function SubmitClaimDialog({
             optional={!component?.bill_required}
             hint="PDF, PNG or JPEG, up to 5 MB. The server checks the file's contents, not just its name."
           >
-            <Input
+            <FileInput
               ref={fileInput}
               id="claim-file"
-              type="file"
+              file={file}
               accept="application/pdf,image/png,image/jpeg"
               required={Boolean(component?.bill_required)}
               disabled={isBusy}

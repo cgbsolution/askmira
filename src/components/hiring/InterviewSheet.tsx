@@ -56,6 +56,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, patch, post } from "@/lib/api";
 import type { InterviewDetail, PanelResponse } from "@/lib/types/hiring";
+import { DateTimePicker } from "@/components/common/DateTimePicker";
 
 type ManageAction = "outcome" | "reschedule" | "cancel" | null;
 type Outcome = "completed" | "candidate_no_show" | "panel_no_show";
@@ -416,11 +417,10 @@ function InterviewManageDialogs({
       >
         <div className="grid gap-3 sm:grid-cols-2">
           <FormField htmlFor="interview-new-start" label="New start">
-            <Input
+            <DateTimePicker
               id="interview-new-start"
-              type="datetime-local"
               value={start}
-              onChange={(event) => setStart(event.target.value)}
+              onChange={setStart}
             />
           </FormField>
           <FormField htmlFor="interview-new-tz" label="Time zone" hint="For example Asia/Kolkata">

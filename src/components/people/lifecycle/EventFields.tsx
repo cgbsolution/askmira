@@ -16,6 +16,7 @@ import type { EmploymentType, LifecycleEventType } from "@/lib/types/people";
 import { EmployeePicker, type PickedEmployee } from "../EmployeePicker";
 import { EMPLOYMENT_TYPE, EVENT_FIELDS, FIELD_LABEL, NONE } from "../labels";
 import { useOrgReference } from "../useOrgReference";
+import { DatePicker } from "@/components/common/DatePicker";
 
 export type FieldValues = Record<string, string>;
 
@@ -118,11 +119,10 @@ export function EventFields({
           case "probation_end_date":
             return (
               <FormField key={field} htmlFor={id} label={label} optional>
-                <Input
+                <DatePicker
                   id={id}
-                  type="date"
                   value={values[field] ?? ""}
-                  onChange={(event) => set(field, event.target.value)}
+                  onChange={(picked) => set(field, picked)}
                 />
               </FormField>
             );

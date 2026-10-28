@@ -38,6 +38,8 @@ import type { Location } from "@/lib/types/people";
 import { formatDate } from "@/lib/utils";
 
 import { minutesLabel } from "./OvertimeScreen";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 const ALL = "__all__";
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -283,10 +285,10 @@ function NewPolicyDialog({ onCreated }: { onCreated: () => void }) {
               </Select>
             </FormField>
           </div>
-          <fieldset className="grid gap-2">
-            <legend className="mb-1 text-sm font-medium text-foreground">
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="mb-1 text-sm font-medium text-foreground">
               Ordinary rate is made of
-            </legend>
+            </FieldLegend>
             {earnings.length === 0 && (
               <p className="text-sm text-muted-foreground">No earning components defined yet.</p>
             )}
@@ -310,7 +312,7 @@ function NewPolicyDialog({ onCreated }: { onCreated: () => void }) {
                 </div>
               ))}
             </div>
-          </fieldset>
+          </FieldSet>
           <div className="grid gap-3 sm:grid-cols-3">
             <FormField htmlFor="otp-multiplier" label="Multiplier" required hint="2 = double">
               <Input id="otp-multiplier" inputMode="decimal" value={multiplier} onChange={(e) => setMultiplier(e.target.value)} />
@@ -371,7 +373,7 @@ function NewPolicyDialog({ onCreated }: { onCreated: () => void }) {
             <Switch id="otp-approval" checked={approval} onCheckedChange={setApproval} />
           </div>
           <FormField htmlFor="otp-from" label="In force from" required>
-            <Input id="otp-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <DatePicker id="otp-from" value={from} onChange={setFrom} />
           </FormField>
           {error && (
             <p role="alert" className="text-sm text-destructive">

@@ -63,7 +63,35 @@ export type CompanionCard =
       problem: string | null;
     }
   | { type: "own_record"; text: string; open: string }
+  | {
+      /** One person's record (salary, leave, profile…) or the headcount: figures, then a table. */
+      type: "record";
+      title: string;
+      subtitle: string;
+      heading: string;
+      figures: { label: string; value: string }[];
+      table?: { columns: string[]; rows: unknown[][] };
+      note: string;
+      open?: string;
+      open_label?: string;
+    }
+  | {
+      /** Several people match: each option, clicked, asks again for that one person. */
+      type: "choices";
+      title: string;
+      caption: string;
+      options: CompanionPick[];
+    }
   | { type: "launch"; product: string; name: string; href: string };
+
+/** A choice on an answer: what it says when sent, and the lookup it runs. */
+export interface CompanionPick {
+  label: string;
+  detail: string;
+  text: string;
+  tool: string;
+  inputs: Record<string, string>;
+}
 
 export interface CompanionMessage {
   id: string;

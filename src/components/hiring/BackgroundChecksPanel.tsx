@@ -25,6 +25,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, downloadFile, post } from "@/lib/api";
+import { HiddenFileInput } from "@/components/ui/file-input";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 type CheckOutcome = "pending" | "clear" | "discrepancy" | "unable_to_verify";
 
@@ -154,11 +156,9 @@ function CheckCard({ row, onChanged }: { row: BackgroundCheck; onChanged: () => 
           )}
           {row.status !== "awaiting_consent" && row.status !== "cancelled" && (
             <>
-              <Input
+              <HiddenFileInput
                 ref={fileInput}
-                type="file"
                 accept="application/pdf,image/png,image/jpeg"
-                className="hidden"
                 aria-label="Agency report"
                 onChange={(event) => {
                   const file = event.target.files?.[0];
@@ -242,8 +242,8 @@ function RequestDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
-          <fieldset className="grid gap-2">
-            <legend className="mb-1 text-sm font-medium">Checks</legend>
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="mb-1 text-sm font-medium">Checks</FieldLegend>
             {(catalogue.data?.check_types ?? []).map((check) => (
               <div key={check.key} className="flex items-center gap-2">
                 <Checkbox
@@ -258,7 +258,7 @@ function RequestDialog({
                 </Label>
               </div>
             ))}
-          </fieldset>
+          </FieldSet>
           <FormField htmlFor="bgv-agency" label="Agency" hint="Named to the candidate before they agree.">
             <Input id="bgv-agency" maxLength={255} value={agency} onChange={(event) => setAgency(event.target.value)} />
           </FormField>

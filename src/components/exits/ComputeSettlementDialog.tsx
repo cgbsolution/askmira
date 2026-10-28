@@ -33,6 +33,7 @@ import type {
   SettlementComputeInput,
   SettlementSources,
 } from "@/lib/types/payroll-ops";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 type Key = keyof SettlementComputeInput;
 
@@ -281,11 +282,11 @@ export function ComputeSettlementDialog({
               )}
 
               {SECTIONS.map((section) => (
-                <fieldset key={section.title} className="grid gap-3">
-                  <legend className="mb-1">
+                <FieldSet key={section.title} className="grid gap-3">
+                  <FieldLegend className="mb-1">
                     <span className="text-sm font-semibold text-foreground">{section.title}</span>
                     <span className="ml-2 text-xs text-muted-foreground">{section.hint}</span>
-                  </legend>
+                  </FieldLegend>
                   {section.rows.map((row) => {
                     const problem = touched ? problemFor.get(row.amount) : null;
                     const source = prefilledFrom[row.amount];
@@ -324,7 +325,7 @@ export function ComputeSettlementDialog({
                       </div>
                     );
                   })}
-                </fieldset>
+                </FieldSet>
               ))}
 
               <p className="text-xs text-muted-foreground">

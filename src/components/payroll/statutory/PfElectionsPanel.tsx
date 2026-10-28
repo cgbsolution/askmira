@@ -34,6 +34,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { PfElection } from "@/lib/types/payroll";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /** "1 Apr 2026 – open": the dates an election applies between. */
 function periodText(row: PfElection): string {
@@ -161,7 +162,7 @@ export function PfElectionsPanel() {
               <EmployeePicker id="pf-employee" value={employeeId} onChange={(id) => setEmployeeId(id)} />
             </FormField>
             <FormField htmlFor="pf-from" label="Effective from">
-              <Input id="pf-from" type="date" value={effectiveFrom} onChange={(e) => setEffectiveFrom(e.target.value)} />
+              <DatePicker id="pf-from" value={effectiveFrom} onChange={setEffectiveFrom} />
             </FormField>
             <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
               <FormField htmlFor="pf-actual" label="PF on actual wages" hint="Raises the employer's contribution too.">

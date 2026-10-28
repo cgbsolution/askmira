@@ -42,6 +42,7 @@ import type {
   OrgLegalEntity,
 } from "@/lib/types/expenses";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /** The company's own GST registrations and the Section 17(5) blocked categories. */
 export function GstConfigPanel({ canAdmin }: { canAdmin: boolean }) {
@@ -615,12 +616,11 @@ function BlockedCategoryDialog({
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="blocked-reviewed-on">Reviewed on</Label>
-                <Input
+                <DatePicker
                   id="blocked-reviewed-on"
-                  type="date"
                   value={form.reviewed_on ?? ""}
                   aria-invalid={touched && errors.reviewed_on}
-                  onChange={(e) => set("reviewed_on", e.target.value || null)}
+                  onChange={(picked) => set("reviewed_on", picked || null)}
                 />
               </div>
             </div>

@@ -1,13 +1,15 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Users } from "lucide-react";
+import { ChevronRight, Users } from "lucide-react";
 import React from "react";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Feedback360 } from "@/lib/types/performance";
+import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const RELATION: Record<string, string> = {
   manager: "Manager",
@@ -93,8 +95,14 @@ export function Feedback360Panel({ requests }: { requests: Feedback360[] }) {
               </div>
             )}
             {request.responses_named && request.responses_named.length > 0 && (
-              <details className="text-sm">
-                <summary className="cursor-pointer text-muted-foreground">Each answer, with its writer</summary>
+              <Collapsible className="text-sm">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="group h-7 justify-start px-1 font-normal text-muted-foreground">
+                    <ChevronRight className="transition-transform group-data-[state=open]:rotate-90" />
+                    Each answer, with its writer
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
                 <ul className="mt-2 grid gap-2">
                   {request.responses_named.map((answer, index) => (
                     <li key={index} className="rounded-md border p-3">
@@ -108,7 +116,8 @@ export function Feedback360Panel({ requests }: { requests: Feedback360[] }) {
                     </li>
                   ))}
                 </ul>
-              </details>
+                </CollapsibleContent>
+              </Collapsible>
             )}
           </div>
         ))}

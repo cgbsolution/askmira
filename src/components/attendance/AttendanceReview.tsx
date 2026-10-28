@@ -20,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -60,6 +59,7 @@ import {
 } from "./shared";
 import { SwapQueue } from "./ShiftSwaps";
 import { TeamToday } from "./TeamToday";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /**
  * Attendance review for managers and HR (their reporting line, or everyone for HR).
@@ -449,24 +449,22 @@ function ExceptionsReport() {
         <>
           <div className="flex items-center gap-2">
             <Label htmlFor="exc-from">From</Label>
-            <Input
+            <DatePicker
               id="exc-from"
-              type="date"
               className="h-9 w-auto"
               value={from}
-              onChange={(event) => setFrom(event.target.value)}
+              onChange={setFrom}
               aria-invalid={!rangeOk}
             />
           </div>
           <div className="flex items-center gap-2">
             <Label htmlFor="exc-to">To</Label>
-            <Input
+            <DatePicker
               id="exc-to"
-              type="date"
               className="h-9 w-auto"
               min={from}
               value={to}
-              onChange={(event) => setTo(event.target.value)}
+              onChange={setTo}
               aria-invalid={!rangeOk}
             />
           </div>

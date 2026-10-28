@@ -14,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -29,6 +28,7 @@ import { toISODate } from "@/lib/utils";
 
 import { EmployeePicker, type PickedEmployee } from "../EmployeePicker";
 import { apiMessage } from "../labels";
+import { DatePicker } from "@/components/common/DatePicker";
 
 export type StatusAction = "freeze" | "unfreeze" | "abolish";
 
@@ -106,7 +106,7 @@ export function StatusDialog({
         </DialogHeader>
         <div className="grid gap-4">
           <FormField htmlFor="position-status-on" label="With effect from">
-            <Input id="position-status-on" type="date" value={on} onChange={(e) => setOn(e.target.value)} />
+            <DatePicker id="position-status-on" value={on} onChange={setOn} />
           </FormField>
           <FormField htmlFor="position-status-reason" label="Reason" optional={!copy?.needsReason}>
             <Textarea
@@ -226,7 +226,7 @@ export function AssignDialog({
             </Select>
           </FormField>
           <FormField htmlFor="assign-from" label="From">
-            <Input id="assign-from" type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            <DatePicker id="assign-from" value={fromDate} onChange={setFromDate} />
           </FormField>
           <FormField htmlFor="assign-note" label="Note" optional>
             <Textarea id="assign-note" value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
@@ -293,7 +293,7 @@ export function VacateDialog({
         </DialogHeader>
         <div className="grid gap-4">
           <FormField htmlFor="vacate-on" label="Vacant from">
-            <Input id="vacate-on" type="date" value={on} onChange={(e) => setOn(e.target.value)} />
+            <DatePicker id="vacate-on" value={on} onChange={setOn} />
           </FormField>
           <FormField htmlFor="vacate-reason" label="Reason" optional>
             <Textarea id="vacate-reason" value={reason} onChange={(e) => setReason(e.target.value)} rows={2} />

@@ -43,6 +43,7 @@ import { formatDate, toISODate } from "@/lib/utils";
 
 import { NONE, apiMessage, fromSelect } from "../labels";
 import { useOrgReference } from "../useOrgReference";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const KIND_LABEL: Record<ScenarioChangeKind, string> = {
   create: "New seat",
@@ -366,7 +367,7 @@ function NewScenarioDialog({
             <Input id="scenario-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="FY27 sales expansion" />
           </FormField>
           <FormField htmlFor="scenario-as-of" label="As of">
-            <Input id="scenario-as-of" type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} />
+            <DatePicker id="scenario-as-of" value={asOf} onChange={setAsOf} />
           </FormField>
           <FormField htmlFor="scenario-description" label="Description" optional>
             <Textarea id="scenario-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />

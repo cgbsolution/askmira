@@ -37,6 +37,8 @@ import type {
   PayrollRunInput,
   RunType,
 } from "@/lib/types/payroll";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 /** The run types that can be opened here; full and final is settled from the exit. */
 const OPENABLE: RunType[] = ["regular", "off_cycle", "bonus", "arrear"];
@@ -214,8 +216,8 @@ export function CreateRunDialog({ onCreated }: { onCreated: (run: PayrollRun) =>
               <FormField htmlFor="run-people" label="Who it pays" required>
                 <EmployeeMultiPicker id="run-people" value={people} onChange={setPeople} />
               </FormField>
-              <fieldset className="grid gap-2">
-                <legend className="mb-1 text-sm font-medium text-foreground">Pays from</legend>
+              <FieldSet className="grid gap-2">
+                <FieldLegend className="mb-1 text-sm font-medium text-foreground">Pays from</FieldLegend>
                 {sourceOptions.map((option) => (
                   <div key={option.key} className="flex items-center gap-2">
                     <Checkbox
@@ -228,7 +230,7 @@ export function CreateRunDialog({ onCreated }: { onCreated: (run: PayrollRun) =>
                     </Label>
                   </div>
                 ))}
-              </fieldset>
+              </FieldSet>
               <FormField htmlFor="run-reason" label="Why this run is needed" required>
                 <Textarea
                   id="run-reason"
@@ -247,11 +249,10 @@ export function CreateRunDialog({ onCreated }: { onCreated: (run: PayrollRun) =>
             optional
             hint="Can also be recorded when the run is marked paid."
           >
-            <Input
+            <DatePicker
               id="run-payment-date"
-              type="date"
               value={paymentDate}
-              onChange={(event) => setPaymentDate(event.target.value)}
+              onChange={setPaymentDate}
             />
           </FormField>
           {error && (

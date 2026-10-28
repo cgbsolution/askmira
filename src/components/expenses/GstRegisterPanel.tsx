@@ -11,12 +11,12 @@ import { QueryBoundary, errorDetail } from "@/components/expenses/ReviewCommon";
 import { EligibilityBadge, ReconciliationBadge, formatMoney } from "@/components/expenses/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { downloadFile } from "@/lib/api";
 import type { GstEligibility, GstRegister, GstRegisterLine, Gstr2bMatch } from "@/lib/types/expenses";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /** The badges' words, for sorting, the search and the CSV. */
 const ELIGIBILITY_TEXT: Record<GstEligibility, string> = {
@@ -141,11 +141,11 @@ export function GstRegisterPanel() {
           >
             <div className="grid gap-1.5">
               <Label htmlFor="gst-reg-start">From</Label>
-              <Input id="gst-reg-start" type="date" required value={start} onChange={(e) => setStart(e.target.value)} />
+              <DatePicker id="gst-reg-start" required value={start} onChange={setStart} />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="gst-reg-end">To</Label>
-              <Input id="gst-reg-end" type="date" required value={end} onChange={(e) => setEnd(e.target.value)} />
+              <DatePicker id="gst-reg-end" required value={end} onChange={setEnd} />
             </div>
             <Button type="submit" disabled={!canLoad || query.isLoading}>
               Load register

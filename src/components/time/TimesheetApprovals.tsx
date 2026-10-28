@@ -32,6 +32,7 @@ import type { ApprovalStep } from "@/lib/types";
 import { formatDay, toISODate } from "@/lib/utils";
 
 import type { ProjectRow } from "./TimesheetScreen";
+import { DatePicker } from "@/components/common/DatePicker";
 
 interface PendingWeek {
   id: string;
@@ -178,10 +179,10 @@ function Report() {
       toolbar={
         <div className="flex flex-wrap gap-3">
           <FormField htmlFor="rep-start" label="From">
-            <Input id="rep-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            <DatePicker id="rep-start" value={start} onChange={setStart} />
           </FormField>
           <FormField htmlFor="rep-end" label="To">
-            <Input id="rep-end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+            <DatePicker id="rep-end" value={end} onChange={setEnd} />
           </FormField>
         </div>
       }

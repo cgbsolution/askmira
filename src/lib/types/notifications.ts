@@ -113,6 +113,12 @@ export type EmailDesignInput = Omit<EmailDesign, "company_name" | "has_logo">;
 /** The brand colour emails use until a workspace picks one (the server's default). */
 export const DEFAULT_EMAIL_ACCENT = "#EB061D";
 
+/** Quick picks for the email brand colour: the AskMira kit first, then common brand hues. */
+export const EMAIL_ACCENT_PRESETS = [
+  "#EB061D", "#F8A01A", "#271E1C", "#B8650A", "#C2185B", "#7B1FA2",
+  "#3949AB", "#1E88E5", "#00897B", "#43A047", "#6D4C41", "#546E7A",
+] as const;
+
 export interface EmailPreview {
   subject: string;
   html: string;

@@ -30,6 +30,7 @@ import {
   isMoneyInput,
   isPositiveAmount,
 } from "./shared";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /**
  * GST invoices attached to one claim, and a form to add one.
@@ -342,12 +343,11 @@ function GstInvoiceForm({
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="gst-invoice-date">Invoice date</Label>
-          <Input
+          <DatePicker
             id="gst-invoice-date"
-            type="date"
             max={today}
             value={invoiceDate}
-            onChange={(event) => setInvoiceDate(event.target.value)}
+            onChange={setInvoiceDate}
           />
         </div>
       </div>

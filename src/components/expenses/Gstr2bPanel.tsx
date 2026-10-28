@@ -32,6 +32,8 @@ import type {
   OrgLegalEntity,
 } from "@/lib/types/expenses";
 import { formatDate, formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FileInput } from "@/components/ui/file-input";
 
 const MAX_BYTES = 2 * 1024 * 1024;
 const CSV_HEADER = "vendor_gstin,vendor_name,invoice_number,invoice_date,taxable_value,cgst,sgst,igst,cess";
@@ -293,10 +295,9 @@ export function Gstr2bPanel() {
             <div className="grid gap-3 md:grid-cols-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="gstr2b-file">CSV file</Label>
-                <Input
+                <FileInput
                   key={fileKey}
                   id="gstr2b-file"
-                  type="file"
                   accept=".csv,text/csv"
                   aria-invalid={Boolean(fileProblem)}
                   onChange={(event) => {
@@ -316,7 +317,7 @@ export function Gstr2bPanel() {
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="gstr2b-imported-on">Downloaded on</Label>
-                <Input id="gstr2b-imported-on" type="date" value={importedOn} onChange={(e) => setImportedOn(e.target.value)} />
+                <DatePicker id="gstr2b-imported-on" value={importedOn} onChange={setImportedOn} />
               </div>
             </div>
             <div className="grid gap-1.5">
@@ -403,11 +404,11 @@ export function Gstr2bPanel() {
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="rec-start">From</Label>
-              <Input id="rec-start" type="date" value={recStart} onChange={(e) => setRecStart(e.target.value)} />
+              <DatePicker id="rec-start" value={recStart} onChange={setRecStart} />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="rec-end">To</Label>
-              <Input id="rec-end" type="date" value={recEnd} onChange={(e) => setRecEnd(e.target.value)} />
+              <DatePicker id="rec-end" value={recEnd} onChange={setRecEnd} />
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="rec-entity">Legal entity</Label>

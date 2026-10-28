@@ -41,6 +41,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { CycleDetail, CycleSummary, CycleType, Distribution, ProbationOutcome, ProbationReview, StageInput } from "@/lib/types/performance";
 import { formatDate, formatDateRange, formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 const TYPES: CycleType[] = ["annual", "half_yearly", "quarterly", "probation", "off_cycle"];
 const DEFAULT_STAGES: StageInput[] = [
@@ -236,10 +237,10 @@ function NewCycleDialog({ onClose, onCreated }: { onClose: () => void; onCreated
               </Select>
             </FormField>
             <FormField htmlFor="c-start" label="Period starts">
-              <Input id="c-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <DatePicker id="c-start" value={start} onChange={setStart} />
             </FormField>
             <FormField htmlFor="c-end" label="Period ends">
-              <Input id="c-end" type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} />
+              <DatePicker id="c-end" min={start} value={end} onChange={setEnd} />
             </FormField>
             <FormField htmlFor="c-esc" label="Escalate after (days overdue)">
               <Input id="c-esc" type="number" min={1} max={90} value={escalation} onChange={(e) => setEscalation(e.target.value)} />
@@ -483,10 +484,10 @@ function CloneDialog({ cycleId, onClose, onDone }: { cycleId: string; onClose: (
         </FormField>
         <div className="grid grid-cols-2 gap-3">
           <FormField htmlFor="cl-start" label="Period starts">
-            <Input id="cl-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+            <DatePicker id="cl-start" value={start} onChange={setStart} />
           </FormField>
           <FormField htmlFor="cl-end" label="Period ends">
-            <Input id="cl-end" type="date" min={start} value={end} onChange={(e) => setEnd(e.target.value)} />
+            <DatePicker id="cl-end" min={start} value={end} onChange={setEnd} />
           </FormField>
         </div>
         <DialogFooter>
@@ -689,7 +690,7 @@ function ProbationOutcomeDialog({ review, onClose, onDone }: { review: Probation
         </FormField>
         {outcome === "extend" && (
           <FormField htmlFor="po-end" label="New probation end date">
-            <Input id="po-end" type="date" min={review.probation_end_date} value={newEnd} onChange={(e) => setNewEnd(e.target.value)} />
+            <DatePicker id="po-end" min={review.probation_end_date} value={newEnd} onChange={setNewEnd} />
           </FormField>
         )}
         <FormField htmlFor="po-notes" label="Notes" optional>

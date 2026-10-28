@@ -7,7 +7,6 @@ import { FormField } from "@/components/common/FormField";
 import { humanize } from "@/components/hiring/labels";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { ApiError, post } from "@/lib/api";
 import type { CandidatePortal } from "@/lib/types/hiring";
+import { FileInput } from "@/components/ui/file-input";
 
 const ALLOWED_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg"];
 
@@ -107,10 +107,10 @@ export function DocumentUploadForm({
           hint={`PDF, PNG or JPEG, up to ${rules.max_mb} MB.`}
           error={errors.file}
         >
-          <Input
+          <FileInput
             id="doc-file"
+            file={file}
             ref={fileInput}
-            type="file"
             accept=".pdf,.png,.jpg,.jpeg"
             aria-invalid={Boolean(errors.file)}
             onChange={(event) => {

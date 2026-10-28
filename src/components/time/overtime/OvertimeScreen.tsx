@@ -13,7 +13,6 @@ import { apiMessage } from "@/components/payroll/labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -39,6 +38,7 @@ import type { OvertimeEntry, OvertimeStatus, OvertimeSyncResult } from "@/lib/ty
 import { formatDate } from "@/lib/utils";
 
 import { OvertimePolicyPanel } from "./OvertimePolicyPanel";
+import { DatePicker } from "@/components/common/DatePicker";
 
 export const OT_STATUS: Record<
   OvertimeStatus,
@@ -274,19 +274,17 @@ function ReviewPanel({ isHr }: { isHr: boolean }) {
               ))}
             </SelectContent>
           </Select>
-          <Input
-            type="date"
+          <DatePicker
             aria-label="From"
             className="h-8 w-40"
             value={start}
-            onChange={(event) => setStart(event.target.value)}
+            onChange={setStart}
           />
-          <Input
-            type="date"
+          <DatePicker
             aria-label="To"
             className="h-8 w-40"
             value={end}
-            onChange={(event) => setEnd(event.target.value)}
+            onChange={setEnd}
           />
           {decidable.length > 0 && (
             <Button

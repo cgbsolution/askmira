@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { ApiError, del, patch, post } from "@/lib/api";
 import { INDIAN_STATES } from "@/lib/states";
 import type { WelcomeEmail } from "@/lib/types/admin";
+import { FileInput } from "@/components/ui/file-input";
 
 export interface Issued {
   title: string;
@@ -384,9 +385,8 @@ export function CreateWorkspaceDialog({
                     </Button>
                   </div>
                 ) : null}
-                <Input
+                <FileInput
                   id="ws-logo"
-                  type="file"
                   accept="image/png,image/jpeg"
                   onChange={(event) => setLogo(event.target.files?.[0] ?? null)}
                 />

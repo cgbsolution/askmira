@@ -57,6 +57,7 @@ import type {
 import { formatDate, formatDateTime, toISODate } from "@/lib/utils";
 
 import { ReconciliationTab } from "./ReconciliationTab";
+import { DatePicker } from "@/components/common/DatePicker";
 
 function detail(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;
@@ -236,9 +237,9 @@ function LiabilityTab() {
         title="Movement"
         toolbar={
           <>
-            <Input type="date" aria-label="From" value={start} onChange={(e) => setStart(e.target.value)} className="w-40" />
+            <DatePicker aria-label="From" value={start} onChange={setStart} className="w-40" />
             <span className="text-sm text-muted-foreground">to</span>
-            <Input type="date" aria-label="To" value={end} onChange={(e) => setEnd(e.target.value)} className="w-40" />
+            <DatePicker aria-label="To" value={end} onChange={setEnd} className="w-40" />
           </>
         }
         isLoading={movement.isLoading}
@@ -455,10 +456,10 @@ function BudgetDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpen
           )}
           <div className="grid grid-cols-2 gap-3">
             <FormField htmlFor="budget-start" label="From">
-              <Input id="budget-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+              <DatePicker id="budget-start" value={start} onChange={setStart} />
             </FormField>
             <FormField htmlFor="budget-end" label="To" error={end && end < start ? "Ends before it starts." : undefined}>
-              <Input id="budget-end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+              <DatePicker id="budget-end" value={end} onChange={setEnd} />
             </FormField>
           </div>
           <FormField htmlFor="budget-points" label="Points allocated">
@@ -866,7 +867,7 @@ function ValuationDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpe
             <Input id="valuation-rate" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value.trim())} />
           </FormField>
           <FormField htmlFor="valuation-from" label="From">
-            <Input id="valuation-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <DatePicker id="valuation-from" value={from} onChange={setFrom} />
           </FormField>
           <FormField htmlFor="valuation-note" label="Note" optional>
             <Input id="valuation-note" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -961,7 +962,7 @@ function TaxRuleDialog({ open, onOpenChange, onSaved }: { open: boolean; onOpenC
             <Input id="rule-threshold" inputMode="decimal" value={threshold} onChange={(e) => setThreshold(e.target.value.trim())} />
           </FormField>
           <FormField htmlFor="rule-from" label="From">
-            <Input id="rule-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <DatePicker id="rule-from" value={from} onChange={setFrom} />
           </FormField>
           <FormField htmlFor="rule-basis" label="Basis" optional className="sm:col-span-2" hint="The provision or opinion this rests on.">
             <Textarea id="rule-basis" value={basis} onChange={(e) => setBasis(e.target.value)} rows={2} />

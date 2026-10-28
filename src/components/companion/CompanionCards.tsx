@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ChevronRight, ExternalLink, Info } from "lucide-react";
+import { AlertTriangle, ChevronRight, ExternalLink, Info, UserRound } from "lucide-react";
 import Link from "next/link";
 import React from "react";
 
@@ -10,8 +10,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
-import type { CompanionCard } from "./types";
+import type { CompanionCard, CompanionPick } from "./types";
 
 const OUTCOME_LABEL = {
   answered: "Answered",
@@ -48,7 +49,16 @@ function RowLink({ href }: { href: string | null | undefined }) {
  * What the companion looked up, rendered under its reply. Each card is a
  * record AskMira read as the person; the model never saw it.
  */
-export function CompanionCardView({ card }: { card: CompanionCard }) {
+export function CompanionCardView({
+  card,
+  onPick,
+  picking = false,
+}: {
+  card: CompanionCard;
+  /** Sends a choice as the person's next message; absent where choices cannot be sent. */
+  onPick?: (pick: CompanionPick) => void;
+  picking?: boolean;
+}) {
   switch (card.type) {
     case "notice":
       return (
@@ -69,6 +79,7 @@ export function CompanionCardView({ card }: { card: CompanionCard }) {
             <p className="text-xs text-muted-foreground">{card.caption}</p>
           </div>
           <div className="overflow-x-auto">
+            {/* table-ok: a compact read-only result inside a chat bubble, not a list screen */}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -182,6 +193,98 @@ export function CompanionCardView({ card }: { card: CompanionCard }) {
           <Button asChild variant="link" className="h-auto justify-start p-0">
             <Link href={card.open}>Open the page</Link>
           </Button>
+        </div>
+      );
+
+    case "record":
+      return (
+        <div className="grid gap-3 rounded-lg border bg-card p-3">
+          <div className="grid gap-0.5">
+            <p className="text-sm font-semibold">{card.title}</p>
+            {card.subtitle ? <p className="text-xs text-muted-foreground">{card.subtitle}</p> : null}
+          </div>
+          {card.heading ? (
+            <Badge variant="secondary" className="w-fit">
+              {card.heading}
+            </Badge>
+          ) : null}
+          {card.figures.length > 0 ? (
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
+              {card.figures.map((figure) => (
+                <div key={figure.label} className="grid min-w-0 gap-0.5">
+                  <dt className="text-xs text-muted-foreground">{figure.label}</dt>
+                  <dd className="break-words text-sm font-medium tabular-nums">{figure.value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          {card.table && card.table.rows.length > 0 ? (
+            <div className="overflow-x-auto">
+              {/* table-ok: a compact read-only result inside a chat bubble, not a list screen */}
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {card.table.columns.map((column, index) => (
+                      <TableHead key={column} className={index > 0 ? "text-right" : undefined}>
+                        {column}
+                      </TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {card.table.rows.map((row, index) => (
+                    <TableRow key={index}>
+                      {row.map((cell, cellIndex) => (
+                        <TableCell
+                          key={cellIndex}
+                          className={cn("whitespace-nowrap", cellIndex > 0 && "text-right tabular-nums")}
+                        >
+                          {cell === null || cell === undefined || cell === "" ? "—" : String(cell)}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : null}
+          {card.note ? <p className="text-xs leading-5 text-muted-foreground">{card.note}</p> : null}
+          {card.open ? (
+            <Button asChild variant="link" className="h-auto justify-start p-0">
+              <Link href={card.open}>
+                <ChevronRight /> {card.open_label ?? "Open the page"}
+              </Link>
+            </Button>
+          ) : null}
+        </div>
+      );
+
+    case "choices":
+      return (
+        <div className="grid gap-2 rounded-lg border bg-card p-3">
+          <div className="grid gap-0.5">
+            <p className="text-sm font-medium">{card.title}</p>
+            <p className="text-xs text-muted-foreground">{card.caption}</p>
+          </div>
+          <div className="grid gap-1.5">
+            {card.options.map((option) => (
+              <Button
+                key={`${option.tool}-${JSON.stringify(option.inputs)}`}
+                variant="outline"
+                className="h-auto w-full justify-start gap-3 px-3 py-2 text-left"
+                disabled={!onPick || picking}
+                onClick={() => onPick?.(option)}
+              >
+                <UserRound className="shrink-0 text-muted-foreground" />
+                <span className="grid min-w-0 gap-0.5">
+                  <span className="truncate text-sm font-medium">{option.label}</span>
+                  {option.detail ? (
+                    <span className="truncate text-xs font-normal text-muted-foreground">{option.detail}</span>
+                  ) : null}
+                </span>
+              </Button>
+            ))}
+          </div>
         </div>
       );
 

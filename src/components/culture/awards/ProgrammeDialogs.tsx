@@ -30,6 +30,8 @@ import type { AwardCadence, AwardProgramme } from "@/lib/types/culture";
 import { toISODate } from "@/lib/utils";
 
 import { apiDetail } from "../cultureShared";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 const CADENCES: { value: AwardCadence; label: string }[] = [
   { value: "monthly", label: "Monthly" },
@@ -141,8 +143,8 @@ export function NewProgrammeDialog({
             <Textarea id="programme-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
           </FormField>
 
-          <fieldset className="grid gap-2">
-            <legend className="text-sm font-medium">Categories</legend>
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="text-sm font-medium">Categories</FieldLegend>
             {categories.map((row, index) => (
               <div key={index} className="flex gap-2">
                 <Input
@@ -165,10 +167,10 @@ export function NewProgrammeDialog({
             <Button variant="outline" size="sm" className="w-fit" onClick={() => setCategories([...categories, ""])}>
               <Plus /> Add category
             </Button>
-          </fieldset>
+          </FieldSet>
 
-          <fieldset className="grid gap-2">
-            <legend className="text-sm font-medium">Criteria</legend>
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="text-sm font-medium">Criteria</FieldLegend>
             {criteria.map((row, index) => (
               <div key={index} className="flex gap-2">
                 <Input
@@ -200,7 +202,7 @@ export function NewProgrammeDialog({
             </Button>
             {duplicate && <p className="text-xs text-destructive">Two categories or two criteria have the same name.</p>}
             {!weightsOk && <p className="text-xs text-destructive">Weights are whole numbers from 1 to 10.</p>}
-          </fieldset>
+          </FieldSet>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>
@@ -304,18 +306,18 @@ export function NewCycleDialog({
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2">
             <FormField htmlFor="cycle-opens" label="Nominations open">
-              <Input id="cycle-opens" type="date" value={opensOn} onChange={(e) => setOpensOn(e.target.value)} />
+              <DatePicker id="cycle-opens" value={opensOn} onChange={setOpensOn} />
             </FormField>
             <FormField
               htmlFor="cycle-closes"
               label="Nominations close"
               error={closesOn && closesOn < opensOn ? "Closes before it opens." : undefined}
             >
-              <Input id="cycle-closes" type="date" value={closesOn} onChange={(e) => setClosesOn(e.target.value)} />
+              <DatePicker id="cycle-closes" value={closesOn} onChange={setClosesOn} />
             </FormField>
           </div>
           <FormField htmlFor="cycle-announce" label="Results announced" optional>
-            <Input id="cycle-announce" type="date" value={announceOn} onChange={(e) => setAnnounceOn(e.target.value)} />
+            <DatePicker id="cycle-announce" value={announceOn} onChange={setAnnounceOn} />
           </FormField>
           <FormField htmlFor="cycle-jurors" label={`Jury (${jurors.length})`}>
             <EmployeePicker id="cycle-jurors" value={picker} onChange={addJuror} placeholder="Add a juror" />

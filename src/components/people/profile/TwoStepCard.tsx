@@ -143,9 +143,9 @@ export function TwoStepCard({ onEnabled }: { onEnabled?: () => void } = {}) {
               <li>1. Open an authenticator app (Google Authenticator, Microsoft Authenticator, Authy, 1Password).</li>
               <li>
                 2. Add an account with this key, or{" "}
-                <a href={setup.otpauth_uri} className="font-medium text-primary underline-offset-4 hover:underline">
-                  open it in the app
-                </a>{" "}
+                <Button asChild variant="link" className="h-auto p-0">
+                  <a href={setup.otpauth_uri}>open it in the app</a>
+                </Button>{" "}
                 on this phone:
               </li>
             </ol>

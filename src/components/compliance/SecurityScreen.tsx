@@ -37,6 +37,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post, put } from "@/lib/api";
 import { formatDate, formatDateTime, toISODate } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 function detail(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;
@@ -563,7 +564,7 @@ function DrillDialog({ open, onOpenChange, onRecorded }: { open: boolean; onOpen
             </Select>
           </FormField>
           <FormField htmlFor="drill-on" label="Performed on">
-            <Input id="drill-on" type="date" value={on} onChange={(e) => setOn(e.target.value)} />
+            <DatePicker id="drill-on" value={on} onChange={setOn} />
           </FormField>
           <FormField htmlFor="drill-rto" label="Time to restore (minutes)">
             <Input id="drill-rto" inputMode="numeric" value={rto} onChange={(e) => setRto(e.target.value.replace(/\D/g, ""))} />
@@ -748,7 +749,7 @@ function FindingDialog({ open, onOpenChange, onRecorded }: { open: boolean; onOp
             </Select>
           </FormField>
           <FormField htmlFor="finding-on" label="Found on">
-            <Input id="finding-on" type="date" value={on} onChange={(e) => setOn(e.target.value)} />
+            <DatePicker id="finding-on" value={on} onChange={setOn} />
           </FormField>
           <FormField htmlFor="finding-tester" label="Tester" optional className="sm:col-span-2">
             <Input id="finding-tester" value={tester} onChange={(e) => setTester(e.target.value)} />

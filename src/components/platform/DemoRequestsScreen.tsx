@@ -272,13 +272,17 @@ function RequestSheet({
               </SheetHeader>
               <div className="space-y-5 px-4">
                 <div className="grid gap-2 text-sm">
-                  <a className="flex items-center gap-2 text-primary hover:underline" href={`mailto:${request.work_email}`}>
-                    <Mail className="size-4" /> {request.work_email}
-                  </a>
-                  {request.phone && (
-                    <a className="flex items-center gap-2 text-primary hover:underline" href={`tel:${request.phone.replace(/\s+/g, "")}`}>
-                      <Phone className="size-4" /> {request.phone}
+                  <Button asChild variant="link" className="h-auto justify-start p-0">
+                    <a href={`mailto:${request.work_email}`}>
+                      <Mail /> {request.work_email}
                     </a>
+                  </Button>
+                  {request.phone && (
+                    <Button asChild variant="link" className="h-auto justify-start p-0">
+                      <a href={`tel:${request.phone.replace(/\s+/g, "")}`}>
+                        <Phone /> {request.phone}
+                      </a>
+                    </Button>
                   )}
                 </div>
                 <dl className="grid grid-cols-2 gap-3 text-sm">

@@ -29,6 +29,7 @@ import {
   uploadProblem,
   useHasLoaded,
 } from "./common";
+import { FileInput } from "@/components/ui/file-input";
 
 type MoneyField = "gross_salary" | "tds_deducted" | "pf_deducted" | "professional_tax" | "exempt_allowances";
 
@@ -270,10 +271,9 @@ export function PreviousEmployerPanel({
                     htmlFor="prev-document"
                     label={record.has_document ? "Replace document" : "Document"}
                   >
-                    <Input
+                    <FileInput
                       key={fileInputKey}
                       id="prev-document"
-                      type="file"
                       accept={UPLOAD_ACCEPT}
                       className="max-w-sm"
                       aria-invalid={fileAttempted && Boolean(fileError)}

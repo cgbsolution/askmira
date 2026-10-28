@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { ApiError, post } from "@/lib/api";
 import type { ReferralPayout, ReferralRow } from "@/lib/types/hiring";
 import { formatMoney, toISODate } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /** HR records that a referred candidate was hired, which schedules the bonus payouts. */
 export function ReferralHireDialog({ referral, onDone }: { referral: ReferralRow; onDone: () => void }) {
@@ -54,12 +55,11 @@ export function ReferralHireDialog({ referral, onDone }: { referral: ReferralRow
       onClosed={() => setErrors({})}
     >
       <FormField htmlFor={`hired-on-${referral.id}`} label="Joined on" error={errors.hiredOn}>
-        <Input
+        <DatePicker
           id={`hired-on-${referral.id}`}
-          type="date"
           value={hiredOn}
           required
-          onChange={(event) => setHiredOn(event.target.value)}
+          onChange={setHiredOn}
         />
       </FormField>
       <FormField htmlFor={`hired-grade-${referral.id}`} label="Grade" error={errors.grade}>

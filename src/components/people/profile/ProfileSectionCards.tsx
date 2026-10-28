@@ -210,10 +210,14 @@ export function AddressesCard({
     >
       <div className="grid gap-4 sm:grid-cols-2">
         <AddressBlock label="Current address" address={a.current} />
-        <AddressBlock
-          label={a.permanent_same_as_current ? "Permanent address (same as current)" : "Permanent address"}
-          address={a.permanent}
-        />
+        {a.permanent_same_as_current && a.current ? (
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground">Permanent address</p>
+            <p className="mt-0.5 text-sm font-medium text-foreground">Same as current address</p>
+          </div>
+        ) : (
+          <AddressBlock label="Permanent address" address={a.permanent} />
+        )}
       </div>
     </SectionCard>
   );

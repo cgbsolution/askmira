@@ -17,6 +17,7 @@ import type { ProjectRow } from "@/components/time/TimesheetScreen";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 interface Rate {
   id: string;
@@ -126,7 +127,7 @@ export function HourlyRatesCard({ employeeId }: { employeeId: string }) {
               <Input id="rate-amount" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} />
             </FormField>
             <FormField htmlFor="rate-from" label="From">
-              <Input id="rate-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              <DatePicker id="rate-from" value={from} onChange={setFrom} />
             </FormField>
             <Button disabled={busy || !(Number(rate) > 0) || !from} onClick={() => void add()}>
               {busy && <Loader2 className="animate-spin" />} Add rate

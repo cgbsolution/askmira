@@ -32,6 +32,8 @@ import type { ActionPlan, ActionPlanItem, PlanStatus } from "@/lib/types/culture
 import { formatDate, toISODate } from "@/lib/utils";
 
 import { apiDetail } from "../cultureShared";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 const PLAN_STATUS: Record<PlanStatus, { label: string; variant: "outline" | "secondary" | "warning" | "success" | "muted" }> = {
   draft: { label: "Draft", variant: "outline" },
@@ -357,12 +359,12 @@ function NewPlanDialog({
               <EmployeePicker id="plan-owner" value={owner} onChange={setOwner} />
             </FormField>
             <FormField htmlFor="plan-due" label="Due">
-              <Input id="plan-due" type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+              <DatePicker id="plan-due" value={due} onChange={setDue} />
             </FormField>
           </div>
 
-          <fieldset className="grid gap-3">
-            <legend className="text-sm font-medium">Items</legend>
+          <FieldSet className="grid gap-3">
+            <FieldLegend className="text-sm font-medium">Items</FieldLegend>
             {items.map((item, index) => (
               <div key={index} className="grid gap-2 rounded-md border border-border p-3">
                 <Input
@@ -373,7 +375,7 @@ function NewPlanDialog({
                 />
                 <div className="grid gap-2 sm:grid-cols-[1fr_160px_auto]">
                   <EmployeePicker value={item.owner} onChange={(next) => setItem(index, { owner: next })} placeholder="Owner" />
-                  <Input type="date" aria-label={`Item ${index + 1} due`} value={item.due} onChange={(e) => setItem(index, { due: e.target.value })} />
+                  <DatePicker aria-label={`Item ${index + 1} due`} value={item.due} onChange={(picked) => setItem(index, { due: picked })} />
                   <Button
                     variant="ghost"
                     size="icon"
@@ -389,7 +391,7 @@ function NewPlanDialog({
             <Button variant="outline" size="sm" className="w-fit" onClick={() => setItems([...items, { description: "", owner: null, due: "" }])}>
               <Plus /> Add item
             </Button>
-          </fieldset>
+          </FieldSet>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>

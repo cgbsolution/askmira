@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -38,6 +37,7 @@ import {
 import { formatDay, parseISODate, toISODate } from "@/lib/utils";
 
 import { errorDetail, formatClock, localDateTimeToISO, STATUS_LABELS } from "./shared";
+import { TimePicker } from "@/components/ui/time-picker";
 
 export const KIND_LABELS: Record<RegularisationKind, string> = {
   missed_punch: "Missed punch",
@@ -289,23 +289,23 @@ export function AttendanceRequestDialog({
                   label="Came in at"
                   optional={kind === "status_change"}
                 >
-                  <Input
+                  <TimePicker
                     id="req-in"
-                    type="time"
                     className="h-11"
                     value={firstIn}
                     aria-invalid={submitted && !timesOk}
-                    onChange={(event) => setFirstIn(event.target.value)}
+                    step={1}
+                    onChange={setFirstIn}
                   />
                 </FormField>
                 <FormField htmlFor="req-out" label="Left at" optional={kind === "status_change"}>
-                  <Input
+                  <TimePicker
                     id="req-out"
-                    type="time"
                     className="h-11"
                     value={lastOut}
                     aria-invalid={submitted && !timesOk}
-                    onChange={(event) => setLastOut(event.target.value)}
+                    step={1}
+                    onChange={setLastOut}
                   />
                 </FormField>
               </div>

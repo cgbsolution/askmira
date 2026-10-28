@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 
 import { errorDetail, parseWholeNumber, shortTime } from "./shared";
 import { Field, loadErrorProps } from "./ShiftsTab";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 /** A UI bound so the day list stays usable; the API's own limit wins if lower. */
 const MAX_CYCLE_DAYS = 62;
@@ -326,8 +327,8 @@ function RosterDialog({
           </Field>
 
           {cycleOk && (
-            <fieldset className="grid gap-2">
-              <legend className="mb-1 text-sm font-medium">Pattern</legend>
+            <FieldSet className="grid gap-2">
+              <FieldLegend className="mb-1 text-sm font-medium">Pattern</FieldLegend>
               <div className="grid gap-2 sm:grid-cols-2">
                 {pattern.map((value, index) => (
                   <div key={index} className="flex items-center gap-2">
@@ -361,7 +362,7 @@ function RosterDialog({
                 ))}
               </div>
               {shown.pattern && <p className="text-xs text-destructive">{shown.pattern}</p>}
-            </fieldset>
+            </FieldSet>
           )}
 
           {!isCreate && (

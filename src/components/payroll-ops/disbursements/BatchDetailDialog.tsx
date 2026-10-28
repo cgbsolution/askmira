@@ -40,7 +40,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -54,6 +53,8 @@ import type {
   ReconcileOutcome,
 } from "@/lib/types/payroll-ops";
 import { formatDay, toISODate } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
+import { FileInput } from "@/components/ui/file-input";
 
 const ADMIN = ["admin"] as const;
 const HR = ["admin", "sub_admin"] as const;
@@ -639,13 +640,12 @@ function HeldSalaries({
       {canPay && waiting.length > 0 && sent && (
         <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void pay(event)} noValidate>
           <FormField htmlFor="held-value-date" label="Value date">
-            <Input
+            <DatePicker
               id="held-value-date"
-              type="date"
               required
               min={toISODate(new Date())}
               value={valueDate}
-              onChange={(event) => setValueDate(event.target.value)}
+              onChange={setValueDate}
             />
           </FormField>
           <Button type="submit" size="sm" disabled={isPaying}>
@@ -774,10 +774,9 @@ function ReconcilePanel({
       </div>
       <form className="flex flex-wrap items-end gap-3" onSubmit={(event) => void importFile(event)} noValidate>
         <FormField htmlFor="reconcile-file" label="Response file">
-          <Input
+          <FileInput
             key={inputKey}
             id="reconcile-file"
-            type="file"
             accept=".csv,text/csv"
             required
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
@@ -873,13 +872,12 @@ function ReconcilePanel({
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <FormField htmlFor="supplement-value-date" label="Value date">
-              <Input
+              <DatePicker
                 id="supplement-value-date"
-                type="date"
                 required
                 min={toISODate(new Date())}
                 value={valueDate}
-                onChange={(event) => setValueDate(event.target.value)}
+                onChange={setValueDate}
               />
             </FormField>
             <Button type="submit" size="sm" disabled={isSupplementing}>

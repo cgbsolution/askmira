@@ -18,7 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -32,6 +31,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import type { GstReviewInput, GstReviewQueue } from "@/lib/types/expenses";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 type Line = GstReviewQueue["lines"][number];
 
@@ -180,7 +180,7 @@ export function GstReviewPanel() {
               </div>
               <div className="grid gap-1.5">
                 <Label htmlFor="gst-review-date">Decided on</Label>
-                <Input id="gst-review-date" type="date" value={decidedOn} onChange={(e) => setDecidedOn(e.target.value)} />
+                <DatePicker id="gst-review-date" value={decidedOn} onChange={setDecidedOn} />
               </div>
             </div>
             <div className="grid gap-1.5">

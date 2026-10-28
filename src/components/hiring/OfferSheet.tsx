@@ -61,6 +61,7 @@ import { ApiError, downloadFile, post } from "@/lib/api";
 import type { OfferApprovalView, OfferDetail } from "@/lib/types/hiring";
 import type { LetterTemplate } from "@/lib/types/docs";
 import { formatDay } from "@/lib/utils";
+import { DatePicker } from "@/components/common/DatePicker";
 
 /** A calendar date from the API, without the UTC-midnight shift. */
 const day = (value: string | null) => (value ? formatDay(value, true) : "—");
@@ -623,7 +624,7 @@ function OfferActionDialogs({
           </Select>
         </FormField>
         <FormField htmlFor="offer-release-valid" label="Valid until" optional>
-          <Input id="offer-release-valid" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} />
+          <DatePicker id="offer-release-valid" value={validUntil} onChange={setValidUntil} />
         </FormField>
       </ActionDialog>
 

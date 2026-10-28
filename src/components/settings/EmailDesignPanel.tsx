@@ -8,6 +8,7 @@ import { FormField } from "@/components/common/FormField";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,6 +18,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { post, put } from "@/lib/api";
 import {
   DEFAULT_EMAIL_ACCENT,
+  EMAIL_ACCENT_PRESETS,
   type EmailDesign,
   type EmailDesignInput,
   type EmailTestResult,
@@ -146,12 +148,11 @@ export function EmailDesignPanel() {
               error={colourOk ? null : "A colour like #EB061D."}
             >
               <div className="flex items-center gap-2">
-                <Input
-                  type="color"
+                <ColorPicker
                   aria-label="Pick the brand colour"
                   value={colourOk ? draft.accent_colour : DEFAULT_EMAIL_ACCENT}
-                  onChange={(event) => set("accent_colour", event.target.value.toUpperCase())}
-                  className="h-9 w-14 cursor-pointer p-1"
+                  presets={EMAIL_ACCENT_PRESETS}
+                  onChange={(picked) => set("accent_colour", picked)}
                 />
                 <Input
                   id="email-accent"

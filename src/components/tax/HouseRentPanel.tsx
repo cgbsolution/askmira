@@ -34,6 +34,7 @@ import {
   startYearOf,
   useHasLoaded,
 } from "./common";
+import { FieldLegend, FieldSet } from "@/components/ui/field";
 
 const PAN_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 
@@ -188,8 +189,8 @@ export function HouseRentPanel({
               </Button>
             </div>
 
-            <fieldset className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              <legend className="sr-only">Monthly rent</legend>
+            <FieldSet className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              <FieldLegend className="sr-only">Monthly rent</FieldLegend>
               {months.map((slot, index) => {
                 const id = `rent-${slot.year}-${slot.month}`;
                 return (
@@ -216,7 +217,7 @@ export function HouseRentPanel({
                   </FormField>
                 );
               })}
-            </fieldset>
+            </FieldSet>
             {attempted && noRent && (
               <p className="text-xs text-destructive">Enter the rent for at least one month.</p>
             )}

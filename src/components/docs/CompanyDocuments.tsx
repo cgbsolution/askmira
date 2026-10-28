@@ -54,6 +54,7 @@ import { AcknowledgementRegisterSheet, AcknowledgePolicyDialog } from "./PolicyA
 import { del, downloadFile, patch, post } from "@/lib/api";
 import type { CompanyDocument } from "@/lib/types/docs";
 import { cn, formatDay } from "@/lib/utils";
+import { FileInput } from "@/components/ui/file-input";
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = "application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg";
@@ -302,9 +303,8 @@ function CompanyDocumentDialog({
           </FormField>
           {!editing && (
             <FormField htmlFor="company-doc-file" label="File" error={errors.file}>
-              <Input
+              <FileInput
                 id="company-doc-file"
-                type="file"
                 accept={ACCEPT}
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               />
