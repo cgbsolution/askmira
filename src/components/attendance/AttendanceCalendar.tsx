@@ -54,6 +54,7 @@ import { PunchPhoto } from "./PunchPhoto";
 import {
   formatClock,
   formatMinutes,
+  isWeeklyOff,
   LoadError,
   monthBounds,
   shortTime,
@@ -171,11 +172,6 @@ function CorrectionBadge({ day }: { day: AttendanceDay }) {
   );
 }
 
-function isoWeekday(iso: string): number {
-  const day = parseISODate(iso).getDay();
-  return day === 0 ? 7 : day;
-}
-
 /**
  * One person's month as a calendar: every day, computed or not.
  *
@@ -274,9 +270,11 @@ export function AttendanceCalendar({
     if (leave?.status === "approved") return { ...base, kind: "on_leave", label: leave.leave_type };
     if (leave) return { ...base, kind: "leave_pending", label: `${leave.leave_type} (pending)` };
     if (iso === today) return { ...base, kind: "today", label: "Today" };
-    const weekOffs = data?.shift_today?.weekly_off_days ?? [];
+    const shiftToday = data?.shift_today;
     if (iso > today) {
-      if (weekOffs.includes(isoWeekday(iso))) return { ...base, kind: "week_off", label: "Off" };
+      if (shiftToday && isWeeklyOff(shiftToday, parseISODate(iso))) {
+        return { ...base, kind: "week_off", label: "Off" };
+      }
       return { ...base, kind: "upcoming", label: "" };
     }
     return { ...base, kind: "not_computed", label: "—" };

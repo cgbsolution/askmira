@@ -38,13 +38,20 @@ import type {
   PunchInput,
   ShiftBrief,
 } from "@/lib/types/attendance";
-import { cn, toISODate } from "@/lib/utils";
+import { cn, parseISODate, toISODate } from "@/lib/utils";
 
 import { AttendanceMap, type MapPoint } from "./AttendanceMap";
 import { formatDistance, nearestPlace, PunchLocation, useLivePosition } from "./location";
 import { PunchPhoto } from "./PunchPhoto";
 import { shrinkPhoto } from "./shrinkPhoto";
-import { errorDetail, formatClock, formatMinutes, LoadError, shortTime } from "./shared";
+import {
+  errorDetail,
+  formatClock,
+  formatMinutes,
+  isWeeklyOff,
+  LoadError,
+  shortTime,
+} from "./shared";
 import { HiddenFileInput } from "@/components/ui/file-input";
 
 // A punch-in older than this is a forgotten punch-out, not a shift in
@@ -137,12 +144,6 @@ function lateBy(shift: ShiftBrief, firstIn: Punch | undefined): number {
   const arrived = at.getHours() * 60 + at.getMinutes();
   const late = arrived - minutesOf(shift.start_time);
   return late > shift.grace_in_minutes ? late : 0;
-}
-
-function isoWeekday(isoDate: string): number {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  const weekday = new Date(year, month - 1, day).getDay();
-  return weekday === 0 ? 7 : weekday;
 }
 
 /** Re-render every `ms`, for a live clock. */
@@ -242,7 +243,7 @@ export function PunchCard({
   const late = shift ? lateBy(shift, firstIn) : 0;
   const holiday = period?.holidays.find((h) => h.holiday_date === period.today);
   const leave = period?.leaves.find((l) => l.leave_date === period.today && l.status === "approved");
-  const weekOff = shift !== null && shift.weekly_off_days.includes(isoWeekday(today));
+  const weekOff = shift !== null && isWeeklyOff(shift, parseISODate(today));
 
   const toggleShare = (value: boolean) => {
     setSharePreference(value);

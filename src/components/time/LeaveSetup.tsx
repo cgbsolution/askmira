@@ -1,5 +1,6 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   CalendarPlus,
   Loader2,
@@ -14,6 +15,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
 import { holidayScopeLabel } from "@/components/time/HolidayList";
@@ -77,7 +79,17 @@ interface LocationOption {
   id: string;
   name: string;
   state_code: string;
+  legal_entity_id?: string;
 }
+
+interface EntityOption {
+  id: string;
+  name: string;
+  is_active: boolean;
+}
+
+/** A holiday for every legal entity of the workspace. */
+const ALL_ENTITIES = "__all_entities";
 
 const FREQUENCY_LABEL: Record<AccrualFrequency, string> = {
   monthly: "Monthly",
@@ -110,6 +122,7 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
   const [policies, setPolicies] = useState<LeavePolicy[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [entities, setEntities] = useState<EntityOption[]>([]);
   const [settings, setSettings] = useState<LeaveSettings | null>(null);
   const [holidayYear, setHolidayYear] = useState(thisYear);
   const [isLoading, setIsLoading] = useState(true);
@@ -124,16 +137,19 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
   const load = useCallback(async () => {
     setIsLoading(true);
     try {
-      const [typeRows, policyRows, locationRows, holidayRows, settingsRow] = await Promise.all([
-        get<LeaveType[]>("/leave/types?include_inactive=true"),
-        get<LeavePolicy[]>("/leave/policies"),
-        get<LocationOption[]>("/org/locations"),
-        get<Holiday[]>(`/leave/holidays?year=${holidayYear}&scope=all`),
-        get<LeaveSettings>("/leave/settings"),
-      ]);
+      const [typeRows, policyRows, locationRows, holidayRows, settingsRow, entityRows] =
+        await Promise.all([
+          get<LeaveType[]>("/leave/types?include_inactive=true"),
+          get<LeavePolicy[]>("/leave/policies"),
+          get<LocationOption[]>("/org/locations"),
+          get<Holiday[]>(`/leave/holidays?year=${holidayYear}&scope=all`),
+          get<LeaveSettings>("/leave/settings"),
+          get<EntityOption[]>("/org/legal-entities"),
+        ]);
       setTypes(typeRows);
       setPolicies(policyRows);
       setLocations(locationRows);
+      setEntities(entityRows);
       setHolidays(holidayRows);
       setSettings(settingsRow);
     } catch (error) {
@@ -154,6 +170,94 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
   const typeName = (id: string) => types.find((type) => type.id === id)?.name ?? "—";
   const locationName = (id: string | null) =>
     id ? (locations.find((location) => location.id === id)?.name ?? "—") : "Everywhere";
+
+  const holidayColumns: ColumnDef<Holiday>[] = [
+    {
+      accessorKey: "holiday_date",
+      header: "Date",
+      meta: {
+        cellClassName: "whitespace-nowrap tabular-nums",
+        text: (row) => formatDay(row.holiday_date, true),
+      },
+      cell: ({ row }) => formatDay(row.original.holiday_date, true),
+    },
+    {
+      accessorKey: "name",
+      header: "Holiday",
+      meta: { text: (row) => (row.is_optional ? `${row.name} · Optional` : row.name) },
+      cell: ({ row }) => (
+        <>
+          <span className="font-medium text-foreground">{row.original.name}</span>
+          {row.original.is_optional && (
+            <Badge variant="outline" className="ml-2">
+              Optional
+            </Badge>
+          )}
+        </>
+      ),
+    },
+    {
+      id: "applies_to",
+      header: "Applies to",
+      accessorFn: (holiday) =>
+        holiday.scope === "location"
+          ? `${holidayScopeLabel(holiday)} (office)`
+          : holiday.scope === "state"
+            ? `${holidayScopeLabel(holiday)} (state)`
+            : "National",
+      meta: { cellClassName: "text-muted-foreground" },
+    },
+    ...(entities.length > 1
+      ? [
+          {
+            id: "company",
+            header: "Company",
+            accessorFn: (holiday: Holiday) => holiday.legal_entity_name ?? "All companies",
+            meta: { cellClassName: "text-muted-foreground" },
+          } satisfies ColumnDef<Holiday>,
+        ]
+      : []),
+    {
+      id: "pay",
+      header: "Pay",
+      accessorFn: (holiday) => (holiday.is_paid === false ? "Unpaid" : "Paid"),
+      cell: ({ row }) =>
+        row.original.is_paid === false ? (
+          <Badge variant="warning">Unpaid</Badge>
+        ) : (
+          <span className="text-muted-foreground">Paid</span>
+        ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      meta: { className: "w-12 text-right", text: false },
+      cell: ({ row }) =>
+        // Past holidays are not edited: attendance and payroll may already reflect them.
+        row.original.holiday_date >= toISODate(new Date()) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Actions for ${row.original.name}`}
+              >
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setEditingHoliday(row.original)}>
+                <Pencil /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setRemovingHoliday(row.original)}>
+                <Trash2 /> Remove
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+    },
+  ];
 
   const changed = () => {
     setEditingType(null);
@@ -187,8 +291,6 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
       toast.error(errorText(error, "Could not change the leave type."));
     }
   };
-
-  const today = toISODate(new Date());
 
   return (
     <div className="grid gap-6">
@@ -372,93 +474,41 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
         </CardContent>
       </Card>
 
-      <Card tier="tier1">
-        <CardHeader>
-          <CardTitle>Holidays</CardTitle>
-          <CardDescription>
-            National, state or single-office holidays. Past ones stay as they are: attendance
-            and payroll may already reflect them.
-          </CardDescription>
-          <CardAction className="flex gap-2">
-            <Select value={String(holidayYear)} onValueChange={(value) => setHolidayYear(Number(value))}>
-              <SelectTrigger size="sm" className="w-24" aria-label="Year">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {[thisYear - 1, thisYear, thisYear + 1].map((option) => (
-                  <SelectItem key={option} value={String(option)}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button size="sm" onClick={() => setEditingHoliday("new")}>
-              <CalendarPlus /> Add holiday
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="p-0">
-          {holidays.length === 0 ? (
-            <p className="px-5 pb-2 text-sm text-muted-foreground">
-              No holidays for {holidayYear} yet. Add them from the state gazette notification.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="pl-5">Date</TableHead>
-                  <TableHead>Holiday</TableHead>
-                  <TableHead>Applies to</TableHead>
-                  <TableHead className="w-12 pr-5" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {holidays.map((holiday) => (
-                  <TableRow key={holiday.id}>
-                    <TableCell className="pl-5 whitespace-nowrap tabular-nums">
-                      {formatDay(holiday.holiday_date, true)}
-                    </TableCell>
-                    <TableCell>
-                      <span className="font-medium text-foreground">{holiday.name}</span>
-                      {holiday.is_optional && (
-                        <Badge variant="outline" className="ml-2">
-                          Optional
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {holiday.scope === "location"
-                        ? `${holidayScopeLabel(holiday)} (office)`
-                        : holiday.scope === "state"
-                          ? `${holidayScopeLabel(holiday)} (state)`
-                          : "National"}
-                    </TableCell>
-                    <TableCell className="pr-5 text-right">
-                      {holiday.holiday_date >= today && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${holiday.name}`}>
-                              <MoreHorizontal />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => setEditingHoliday(holiday)}>
-                              <Pencil /> Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setRemovingHoliday(holiday)}>
-                              <Trash2 /> Remove
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <DataTable
+        tier="tier1"
+        title="Holidays"
+        description="National, state, single-office or one-company holidays, paid or unpaid. Past ones stay as they are: attendance and payroll may already reflect them."
+        columns={holidayColumns}
+        data={holidays}
+        noun="holidays"
+        exportName={`holiday-calendar-${holidayYear}`}
+        searchPlaceholder="Search holidays"
+        isLoading={isLoading}
+        filters={
+          <Select value={String(holidayYear)} onValueChange={(value) => setHolidayYear(Number(value))}>
+            <SelectTrigger className="h-9 w-28" aria-label="Year">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {[thisYear - 1, thisYear, thisYear + 1].map((option) => (
+                <SelectItem key={option} value={String(option)}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+        actions={
+          <Button size="sm" onClick={() => setEditingHoliday("new")}>
+            <CalendarPlus /> Add holiday
+          </Button>
+        }
+        empty={{
+          icon: CalendarPlus,
+          title: `No holidays for ${holidayYear} yet`,
+          description: "Add them from the state gazette notification.",
+        }}
+      />
 
       <LeaveTypeDialog
         editing={editingType}
@@ -475,6 +525,7 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
       <HolidayDialog
         editing={editingHoliday}
         locations={locations}
+        entities={entities}
         onClose={() => setEditingHoliday(null)}
         onSaved={changed}
       />
@@ -1010,11 +1061,13 @@ function PolicyDialog({
 function HolidayDialog({
   editing,
   locations,
+  entities,
   onClose,
   onSaved,
 }: {
   editing: Holiday | "new" | null;
   locations: LocationOption[];
+  entities: EntityOption[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -1025,7 +1078,18 @@ function HolidayDialog({
   const [stateCode, setStateCode] = useState("");
   const [locationId, setLocationId] = useState("");
   const [optional, setOptional] = useState(false);
+  const [entityId, setEntityId] = useState(ALL_ENTITIES);
+  const [paid, setPaid] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Offices of the chosen company only: an office holiday cannot belong to another one.
+  const offices = useMemo(
+    () =>
+      entityId === ALL_ENTITIES
+        ? locations
+        : locations.filter((location) => location.legal_entity_id === entityId),
+    [locations, entityId],
+  );
 
   const states = useMemo(
     () => Array.from(new Set(locations.map((location) => location.state_code))).sort(),
@@ -1041,7 +1105,14 @@ function HolidayDialog({
     setStateCode(source?.scope === "state" ? (source.state_code ?? "") : "");
     setLocationId(source?.location_id ?? "");
     setOptional(source?.is_optional ?? false);
+    setEntityId(source?.legal_entity_id ?? ALL_ENTITIES);
+    setPaid(source?.is_paid ?? true);
   }, [editing]);
+
+  // Changing the company drops an office that is not one of its own.
+  useEffect(() => {
+    if (locationId && !offices.some((office) => office.id === locationId)) setLocationId("");
+  }, [offices, locationId]);
 
   const valid =
     name.trim() &&
@@ -1059,7 +1130,9 @@ function HolidayDialog({
           scope,
           state_code: scope === "state" ? stateCode : null,
           location_id: scope === "location" ? locationId : null,
+          legal_entity_id: entityId === ALL_ENTITIES ? null : entityId,
           is_optional: optional,
+          is_paid: paid,
         });
         toast.success(`${name.trim()} saved`);
       } else {
@@ -1068,7 +1141,9 @@ function HolidayDialog({
           holiday_date: date,
           state_code: scope === "state" ? stateCode : null,
           location_id: scope === "location" ? locationId : null,
+          legal_entity_id: entityId === ALL_ENTITIES ? null : entityId,
           is_optional: optional,
+          is_paid: paid,
         });
         toast.success(`${name.trim()} added`);
       }
@@ -1111,6 +1186,29 @@ function HolidayDialog({
               </Select>
             </FormField>
           </div>
+          {entities.length > 1 && (
+            <FormField
+              htmlFor="holiday-entity"
+              label="Company"
+              hint="One legal entity only, or every company in the workspace."
+            >
+              <Select value={entityId} onValueChange={setEntityId}>
+                <SelectTrigger id="holiday-entity" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_ENTITIES}>All companies</SelectItem>
+                  {entities
+                    .filter((entity) => entity.is_active || entity.id === entityId)
+                    .map((entity) => (
+                      <SelectItem key={entity.id} value={entity.id}>
+                        {entity.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+          )}
           {scope === "state" && (
             <FormField htmlFor="holiday-state" label="State" hint="States of your offices are listed; type another if needed.">
               <div className="flex gap-2">
@@ -1141,10 +1239,14 @@ function HolidayDialog({
             <FormField htmlFor="holiday-location" label="Office">
               <Select value={locationId} onValueChange={setLocationId}>
                 <SelectTrigger id="holiday-location" className="w-full">
-                  <SelectValue placeholder="Choose an office" />
+                  <SelectValue
+                    placeholder={
+                      offices.length === 0 ? "This company has no offices yet" : "Choose an office"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {locations.map((location) => (
+                  {offices.map((location) => (
                     <SelectItem key={location.id} value={location.id}>
                       {location.name} ({location.state_code})
                     </SelectItem>
@@ -1161,6 +1263,17 @@ function HolidayDialog({
               </p>
             </div>
             <Switch id="holiday-optional" checked={optional} onCheckedChange={setOptional} />
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <Label htmlFor="holiday-paid">Paid holiday</Label>
+              <p className="text-xs text-muted-foreground">
+                {paid
+                  ? "A paid day off: nobody loses pay for it."
+                  : "Unpaid: still a day off, but loss of pay unless the person works it."}
+              </p>
+            </div>
+            <Switch id="holiday-paid" checked={paid} onCheckedChange={setPaid} />
           </div>
         </div>
         <DialogFooter>

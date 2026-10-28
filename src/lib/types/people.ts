@@ -137,7 +137,15 @@ export interface LegalEntity {
   pt_registrations: Record<string, string>;
   registered_address: string | null;
   is_active: boolean;
+  /** The work week (a shift) for this company's people with no shift of their own. */
+  default_shift_id?: string | null;
+  /** How a month's salary is divided into days. */
+  salary_days_basis?: SalaryDaysBasis;
+  /** The divisor for `fixed`, usually 26 or 30. */
+  salary_fixed_days?: number | null;
 }
+
+export type SalaryDaysBasis = "calendar" | "fixed" | "working_days";
 
 export interface Location {
   id: string;

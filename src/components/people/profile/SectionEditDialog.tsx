@@ -106,8 +106,8 @@ function initialDraft(
   } else if (section === "personal") {
     draft.record = toFieldValues(PERSONAL_FIELDS, profile.personal as never);
   } else if (section === "statutory") {
-    // HR sees identifiers in full and edits them in place. An employee types
-    // only what changes; the value on file shows as a masked hint.
+    // HR edits identifiers in place. An employee types only what changes; the
+    // value on file shows as a hint.
     draft.record =
       mode === "hr" && !profile.statutory.masked
         ? toFieldValues(STATUTORY_FIELDS, {
@@ -293,7 +293,11 @@ export function SectionEditDialog({
       ? {
           pan: profile.statutory.pan ? `On file: ${profile.statutory.pan}` : "Not on file.",
           uan: profile.statutory.uan ? `On file: ${profile.statutory.uan}` : "Not on file.",
-          aadhaar: `${profile.statutory.aadhaar ? `On file: ${profile.statutory.aadhaar}. ` : ""}${profile.statutory.masked ? "Only admin and HR see it in full." : "Kept encrypted; only admin and HR see it in full."}`,
+          aadhaar: profile.statutory.aadhaar
+            ? profile.statutory.aadhaar_full
+              ? `On file: ${profile.statutory.aadhaar}`
+              : `Only the last four are on file (${profile.statutory.aadhaar.slice(-4)}).`
+            : "Not on file.",
           pf_number: profile.statutory.pf_number ? `On file: ${profile.statutory.pf_number}` : "Not on file.",
           esi_number: profile.statutory.esi_number ? `On file: ${profile.statutory.esi_number}` : "Not on file.",
         }

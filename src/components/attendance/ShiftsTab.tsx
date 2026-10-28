@@ -28,7 +28,14 @@ import { post, put, type ApiError } from "@/lib/api";
 import type { Shift, ShiftCreateInput, ShiftInput, ShiftUpdateInput } from "@/lib/types/attendance";
 import { cn } from "@/lib/utils";
 
-import { errorDetail, parseWholeNumber, shortTime, WEEKDAYS } from "./shared";
+import {
+  errorDetail,
+  MONTH_WEEKS,
+  parseWholeNumber,
+  shortTime,
+  WEEKDAYS,
+  weeklyOffLabel,
+} from "./shared";
 import { TimePicker } from "@/components/ui/time-picker";
 import { FieldLegend, FieldSet } from "@/components/ui/field";
 
@@ -151,12 +158,7 @@ export function ShiftsTab() {
     {
       id: "weekly_off",
       header: "Weekly off",
-      accessorFn: (shift) =>
-        shift.weekly_off_days.length === 0
-          ? "None"
-          : WEEKDAYS.filter((day) => shift.weekly_off_days.includes(day.iso))
-              .map((day) => day.label)
-              .join(", "),
+      accessorFn: (shift) => weeklyOffLabel(shift),
     },
     {
       id: "state",
@@ -259,6 +261,7 @@ interface ShiftForm {
   full_day_threshold_minutes: string;
   is_night_shift: boolean;
   weekly_off_days: number[];
+  alternate_off_weeks: Record<string, number[]>;
   active: boolean;
   allowance_per_day: string;
   allowance_name: string;
@@ -282,6 +285,7 @@ const EMPTY_FORM: ShiftForm = {
   full_day_threshold_minutes: "",
   is_night_shift: false,
   weekly_off_days: [],
+  alternate_off_weeks: {},
   active: true,
   allowance_per_day: "",
   allowance_name: "",
@@ -329,6 +333,13 @@ function validate(form: ShiftForm, isCreate: boolean): Record<string, string> {
   ) {
     errors.end_time = "Ends before it starts — switch on Night shift if it crosses midnight.";
   }
+  const allFive = Object.entries(form.alternate_off_weeks).find(
+    ([day, weeks]) => !form.weekly_off_days.includes(Number(day)) && new Set(weeks).size === 5,
+  );
+  if (allFive) {
+    errors.alternate_off_weeks =
+      "Off in all five weeks is an every-week off — tick it under Weekly off days instead.";
+  }
   return errors;
 }
 
@@ -369,6 +380,7 @@ function ShiftDialog({
       full_day_threshold_minutes: String(target.full_day_threshold_minutes),
       is_night_shift: target.is_night_shift,
       weekly_off_days: [...target.weekly_off_days],
+      alternate_off_weeks: { ...(target.alternate_off_weeks ?? {}) },
       active: target.active,
       allowance_per_day: target.allowance_per_day ?? "",
       allowance_name: target.allowance_name ?? "",
@@ -398,6 +410,12 @@ function ShiftDialog({
       full_day_threshold_minutes: Number(form.full_day_threshold_minutes),
       is_night_shift: form.is_night_shift,
       weekly_off_days: [...form.weekly_off_days].sort((a, b) => a - b),
+      // A day ticked as off every week has nothing left to alternate.
+      alternate_off_weeks: Object.fromEntries(
+        Object.entries(form.alternate_off_weeks)
+          .filter(([day, weeks]) => weeks.length > 0 && !form.weekly_off_days.includes(Number(day)))
+          .map(([day, weeks]) => [day, [...weeks].sort((a, b) => a - b)]),
+      ),
       allowance_per_day: form.allowance_per_day.trim() || null,
       allowance_name: form.allowance_name.trim() || null,
       min_headcount: form.min_headcount.trim() ? Number(form.min_headcount.trim()) : null,
@@ -631,6 +649,58 @@ function ShiftDialog({
                 );
               })}
             </div>
+          </FieldSet>
+
+          <FieldSet className="grid gap-2">
+            <FieldLegend className="mb-1 text-sm font-medium">
+              Alternate weekly offs
+            </FieldLegend>
+            <p className="text-xs text-muted-foreground">
+              Off only in some weeks of the month — for example the 2nd and 4th Saturday. The 2nd
+              Saturday is always the one between the 8th and the 14th.
+            </p>
+            <div className="grid gap-2">
+              {WEEKDAYS.filter((day) => !form.weekly_off_days.includes(day.iso)).map((day) => {
+                const weeks = form.alternate_off_weeks[String(day.iso)] ?? [];
+                return (
+                  <div
+                    key={day.iso}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1.5"
+                    role="group"
+                    aria-label={`${day.label} off in weeks`}
+                  >
+                    <span className="w-10 text-sm text-muted-foreground">{day.label}</span>
+                    {MONTH_WEEKS.map((week) => {
+                      const id = `shift-alt-${day.iso}-${week.week}`;
+                      return (
+                        <div key={week.week} className="flex items-center gap-1.5">
+                          <Checkbox
+                            id={id}
+                            checked={weeks.includes(week.week)}
+                            onCheckedChange={(next) => {
+                              const updated =
+                                next === true
+                                  ? [...weeks, week.week]
+                                  : weeks.filter((w) => w !== week.week);
+                              set("alternate_off_weeks", {
+                                ...form.alternate_off_weeks,
+                                [String(day.iso)]: updated,
+                              });
+                            }}
+                          />
+                          <Label htmlFor={id} className="font-normal">
+                            {week.label}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+            {shown.alternate_off_weeks && (
+              <p className="text-xs text-destructive">{shown.alternate_off_weeks}</p>
+            )}
           </FieldSet>
 
           {!isCreate && (

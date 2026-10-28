@@ -87,7 +87,7 @@ export interface ExtraTab {
 /**
  * One person's profile. What shows depends on who is looking — and the API has
  * already decided what came back: personal fields only for the person and HR,
- * identifiers masked for everyone but HR, pay only for them, lifecycle history
+ * identifiers in full for the person and HR, pay only for them, lifecycle history
  * for HR and the reporting line.
  *
  * Used by the directory (`/people/[id]`) and by My profile (`/profile`, with

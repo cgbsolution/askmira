@@ -169,7 +169,12 @@ export interface Holiday {
   location_id: string | null;
   location_name: string | null;
   scope: HolidayScope;
+  /** One company of the group only; null for every legal entity. */
+  legal_entity_id?: string | null;
+  legal_entity_name?: string | null;
   is_optional: boolean;
+  /** Unpaid: a day off that is loss of pay unless worked. */
+  is_paid?: boolean;
   /** In scope for the viewer's own work location. */
   applies_to_me: boolean;
   /** An optional holiday the viewer opted in to. */

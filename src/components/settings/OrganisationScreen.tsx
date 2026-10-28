@@ -12,10 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
+import { weeklyOffLabel } from "@/components/attendance/shared";
+import type { Shift } from "@/lib/types/attendance";
 import type { Department, LegalEntity, Location } from "@/lib/types/people";
 
 import { DepartmentDialog } from "./DepartmentDialog";
-import { LegalEntityDialog } from "./LegalEntityDialog";
+import { LegalEntityDialog, salaryDaysLabel } from "./LegalEntityDialog";
 import { LocationDialog } from "./LocationDialog";
 
 /**
@@ -34,6 +36,11 @@ export function OrganisationScreen() {
   const entities = useApiQuery<LegalEntity[]>("/org/legal-entities");
   const locations = useApiQuery<Location[]>("/org/locations");
   const departments = useApiQuery<Department[]>("/org/departments");
+  const shifts = useApiQuery<Shift[]>("/attendance/shifts?include_inactive=true");
+  const shiftById = useMemo(
+    () => new Map((shifts.data ?? []).map((row) => [row.id, row])),
+    [shifts.data],
+  );
 
   const [entityForm, setEntityForm] = useState<{ open: boolean; editing: LegalEntity | null }>({
     open: false,
@@ -118,6 +125,31 @@ export function OrganisationScreen() {
       accessorFn: (row) => registration(row.gstin, "GSTIN"),
       meta: { cellClassName: "font-mono text-xs" },
       cell: ({ row }) => <Missing value={row.original.gstin} label="GSTIN" />,
+    },
+    {
+      id: "work_week",
+      header: "Work week",
+      accessorFn: (row) => {
+        const shift = row.default_shift_id ? shiftById.get(row.default_shift_id) : undefined;
+        return shift ? `${shift.name} · off ${weeklyOffLabel(shift)}` : "Workspace default";
+      },
+      cell: ({ row }) => {
+        const shift = row.original.default_shift_id
+          ? shiftById.get(row.original.default_shift_id)
+          : undefined;
+        if (!shift) return <span className="text-muted-foreground">Workspace default</span>;
+        return (
+          <>
+            <div className="text-foreground">{shift.name}</div>
+            <div className="text-xs text-muted-foreground">Off {weeklyOffLabel(shift)}</div>
+          </>
+        );
+      },
+    },
+    {
+      id: "salary_days",
+      header: "Salary days",
+      accessorFn: (row) => salaryDaysLabel(row),
     },
     ...(canManage ? [entityEditColumn] : []),
   ];
@@ -339,6 +371,7 @@ export function OrganisationScreen() {
       <LegalEntityDialog
         open={entityForm.open}
         editing={entityForm.editing}
+        shifts={shifts.data ?? []}
         onOpenChange={(open) => setEntityForm({ open, editing: open ? entityForm.editing : null })}
         onSaved={entities.reload}
       />

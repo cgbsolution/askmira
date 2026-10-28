@@ -101,6 +101,54 @@ export const WEEKDAYS: { iso: number; label: string }[] = [
   { iso: 7, label: "Sun" },
 ];
 
+/** Weeks of the month, for alternate weekly offs: the 2nd Saturday is the one on the 8th-14th. */
+export const MONTH_WEEKS: { week: number; label: string }[] = [
+  { week: 1, label: "1st" },
+  { week: 2, label: "2nd" },
+  { week: 3, label: "3rd" },
+  { week: 4, label: "4th" },
+  { week: 5, label: "5th" },
+];
+
+/** Which week of its month a date falls in, by date: 1-7 is 1, 8-14 is 2 … */
+export function weekOfMonth(date: Date): number {
+  return Math.floor((date.getDate() - 1) / 7) + 1;
+}
+
+/** ISO weekday of a date: Monday 1 … Sunday 7. */
+function isoDay(date: Date): number {
+  return date.getDay() === 0 ? 7 : date.getDay();
+}
+
+/** Whether a date is a weekly off on a shift — every-week offs and alternate ones. */
+export function isWeeklyOff(
+  shift: { weekly_off_days: number[]; alternate_off_weeks?: Record<string, number[]> },
+  date: Date,
+): boolean {
+  const weekday = isoDay(date);
+  if (shift.weekly_off_days.includes(weekday)) return true;
+  return (shift.alternate_off_weeks?.[String(weekday)] ?? []).includes(weekOfMonth(date));
+}
+
+/** "Sun, 2nd & 4th Sat" — a shift's weekly offs in words. */
+export function weeklyOffLabel(shift: {
+  weekly_off_days: number[];
+  alternate_off_weeks?: Record<string, number[]>;
+}): string {
+  const parts = WEEKDAYS.filter((day) => shift.weekly_off_days.includes(day.iso)).map(
+    (day) => day.label,
+  );
+  for (const day of WEEKDAYS) {
+    const weeks = shift.alternate_off_weeks?.[String(day.iso)] ?? [];
+    if (weeks.length === 0 || shift.weekly_off_days.includes(day.iso)) continue;
+    const names = MONTH_WEEKS.filter((w) => weeks.includes(w.week)).map((w) => w.label);
+    const joined =
+      names.length > 1 ? `${names.slice(0, -1).join(", ")} & ${names[names.length - 1]}` : names[0];
+    parts.push(`${joined} ${day.label}`);
+  }
+  return parts.length === 0 ? "None" : parts.join(", ");
+}
+
 // ── Formatting ──────────────────────────────────────────────────────────────
 
 /** The API's `detail`, verbatim, or a fallback for a non-API failure. */

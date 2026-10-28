@@ -12,7 +12,7 @@ import { useAuth } from "@/context/AuthContext";
 
 /**
  * My profile: your own full employee record, the same sections HR sees (with
- * identifiers masked), and your login. A login with no employee record — a
+ * identifiers in full), and your login. A login with no employee record — a
  * consultant, a super admin — gets the login and an honest note, not an
  * empty profile.
  */

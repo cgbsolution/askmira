@@ -465,18 +465,27 @@ export function StatutoryCard({
       onEdit={onEdit}
       icon={IdCard}
       description={
-        s.masked
-          ? "Shown masked. Admin and HR see them in full."
-          : s.aadhaar && !s.aadhaar_full
-            ? "Shown in full to admin and HR only. Only the last four Aadhaar digits were ever saved for this person, so the full number is not on file yet: type it with Edit, or upload your employee Excel again in Onboarding → Add employees to fill it in for everyone."
-            : "Shown in full to admin and HR only."
+        s.aadhaar && !s.aadhaar_full
+          ? "Only the last four Aadhaar digits were ever saved for this person, so the full number is not on file yet: type it with Edit, or upload your employee Excel again in Onboarding → Add employees to fill it in for everyone."
+          : "Seen only by this person and HR."
       }
     >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <DetailItem label="PAN">
           {s.pan ? <span className="font-mono">{s.pan}</span> : <span className="text-destructive">Not on file</span>}
         </DetailItem>
-        <DetailItem label="Aadhaar">{s.aadhaar ? <span className="font-mono">{s.aadhaar}</span> : null}</DetailItem>
+        <DetailItem label="Aadhaar">
+          {s.aadhaar ? (
+            s.aadhaar_full ? (
+              <span className="font-mono">{s.aadhaar}</span>
+            ) : (
+              <span>
+                Ends in <span className="font-mono">{s.aadhaar.slice(-4)}</span>
+                <span className="text-muted-foreground"> · full number not on file</span>
+              </span>
+            )
+          ) : null}
+        </DetailItem>
         <DetailItem label="UAN">{s.uan ? <span className="font-mono">{s.uan}</span> : null}</DetailItem>
         <DetailItem label="PF member id">{s.pf_number ? <span className="font-mono">{s.pf_number}</span> : null}</DetailItem>
         <DetailItem label="ESI number">{s.esi_number ? <span className="font-mono">{s.esi_number}</span> : null}</DetailItem>
@@ -503,9 +512,7 @@ export function BankCard({
       onEdit={onEdit}
       icon={Banknote}
       description={
-        account?.account_number
-          ? "The account salary is credited to. Shown in full to admin and HR only."
-          : "The account salary is credited to. Only the last four digits are shown."
+        "The account salary is credited to. Seen only by this person and HR."
       }
     >
       {account ? (

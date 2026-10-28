@@ -44,9 +44,10 @@ function weekday(holiday: Holiday): string {
   return new Intl.DateTimeFormat("en-IN", { weekday: "long" }).format(parseISODate(holiday.holiday_date));
 }
 
-/** The Applies to column as text: "National", "KA", or "Bengaluru office · KA". */
+/** The Applies to column as text: "National", "KA", or "Bengaluru office · KA", plus the company. */
 function appliesTo(holiday: Holiday): string {
-  return `${holidayScopeLabel(holiday)}${holiday.scope === "location" && holiday.state_code ? ` · ${holiday.state_code}` : ""}`;
+  const place = `${holidayScopeLabel(holiday)}${holiday.scope === "location" && holiday.state_code ? ` · ${holiday.state_code}` : ""}`;
+  return holiday.legal_entity_name ? `${place} · ${holiday.legal_entity_name}` : place;
 }
 
 /**
@@ -179,6 +180,7 @@ export function HolidayList({
             {row.original.name}
           </span>
           {upcoming?.id === row.original.id && <Badge variant="accent">Next</Badge>}
+          {row.original.is_paid === false && <Badge variant="warning">Unpaid</Badge>}
           {row.original.is_optional &&
             (row.original.selected ? (
               <Badge variant="success">Optional · chosen</Badge>

@@ -6,8 +6,10 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    AskMira design tokens — FRD 5.13.
 
-   AskMira Red grounding, Marigold accent, on Cream — the colours of the AskMira
-   logo (frontend/public/brand). Warm Ink carries the nav rail and the text.
+   Maroon grounding, Marigold accent, on Cream. The maroon is the website
+   hero's (#7D0712 → #34040A); the bright logo red stays in the logo only —
+   the user's call (2026-10-28): no light or bright red anywhere in the portal,
+   it is hard on the eyes. The nav rail carries the hero's maroon gradient.
 
    Components reference these tokens and never a raw hex value, so a reskin is
    a change to this file alone.
@@ -70,18 +72,19 @@
   --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman", serif;
   --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", monospace;
 
-  /* ── Brand ramp — AskMira Red #EB061D (the "Ask" speech bubble) ─────── */
-  --color-brand-25: #fff5f5;
-  --color-brand-50: #ffe9eb;
-  --color-brand-100: #ffd3d7;
-  --color-brand-200: #ffabb3;
-  --color-brand-300: #ff7584;
-  --color-brand-400: #f93d52;
-  --color-brand-500: #eb061d;
-  --color-brand-600: #c70418;
-  --color-brand-700: #a10415;
-  --color-brand-800: #7d0712;
-  --color-brand-900: #5c0a11;
+  /* ── Brand ramp — Maroon #7D0712 (the website hero) ─────────────────
+     Tints are muted rose-beige, never pink: a light red stings on screen. */
+  --color-brand-25: #fbf7f6;
+  --color-brand-50: #f6eceb;
+  --color-brand-100: #eedcda;
+  --color-brand-200: #ddbcb9;
+  --color-brand-300: #c4908c;
+  --color-brand-400: #a3585b;
+  --color-brand-500: #8a2128;
+  --color-brand-600: #7d0712;
+  --color-brand-700: #6b0710;
+  --color-brand-800: #5c0a11;
+  --color-brand-900: #48080e;
   --color-brand-950: #34040a;
 
   /* ── Accent ramp — Marigold #F8A01A (the "Mira" wordmark) ───────────── */
@@ -157,7 +160,7 @@
   --popover: #ffffff;
   --popover-foreground: #1a1110;
 
-  --primary: #eb061d; /* AskMira Red */
+  --primary: #7d0712; /* Maroon — the website hero */
   --primary-foreground: #ffffff;
 
   --secondary: #fde8dd; /* Blush, panel weight */
@@ -179,23 +182,25 @@
 
   --border: #f0e2d8;
   --input: #f0e2d8;
-  --ring: #f93d52;
+  --ring: #a3585b;
 
-  /* The nav rail is warm Ink in both themes — the logo's own dark-background
-     treatment, where the red bubble and marigold wordmark read best.
+  /* The nav rail is the website hero's maroon (a gradient, see
+     [data-slot="sidebar-inner"] below), with the Marigold active pill.
      shadcn's naming: `primary` is the Marigold active pill, `accent` the hover
-     tint — the rail lifted by 8% white. */
-  --sidebar: #1a1110;
+     tint — the rail lifted by about 8% white. */
+  --sidebar: #5c0a11;
+  --sidebar-top: #6b0a13;
+  --sidebar-bottom: #34040a;
   --sidebar-foreground: #ffffff;
-  --sidebar-muted: #a89c98;
+  --sidebar-muted: #d6bcba;
   --sidebar-primary: #f8a01a;
   --sidebar-primary-foreground: #100404;
-  --sidebar-accent: #2e2524;
+  --sidebar-accent: #74161e;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #2a201f;
+  --sidebar-border: #6e1219;
   --sidebar-ring: #fab236;
 
-  --chart-1: #eb061d;
+  --chart-1: #7d0712;
   --chart-2: #f8a01a;
   --chart-3: #645853;
   --chart-4: #2d6a8a;
@@ -212,10 +217,10 @@
   --popover: #1e1514;
   --popover-foreground: #f3f0ef;
 
-  /* Lifted off the base red so it reads as text on a near-black card; the
-     label on it goes dark to keep AA contrast. */
-  --primary: #ff4d61;
-  --primary-foreground: #1a0405;
+  /* Maroon lifted a little so a button still stands off a near-black card;
+     white label for AA contrast. Never a light red. */
+  --primary: #9e2630;
+  --primary-foreground: #ffffff;
 
   --secondary: #3a2420;
   --secondary-foreground: #fde8dd;
@@ -234,19 +239,21 @@
 
   --border: #372d2a;
   --input: #372d2a;
-  --ring: #f93d52;
+  --ring: #c4908c;
 
-  --sidebar: #0d0706;
+  --sidebar: #34040a;
+  --sidebar-top: #48080e;
+  --sidebar-bottom: #1c0306;
   --sidebar-foreground: #f3f0ef;
-  --sidebar-muted: #8f837e;
+  --sidebar-muted: #c9aeac;
   --sidebar-primary: #f8a01a;
   --sidebar-primary-foreground: #100404;
-  --sidebar-accent: #241a19;
+  --sidebar-accent: #521019;
   --sidebar-accent-foreground: #f3f0ef;
-  --sidebar-border: #201615;
+  --sidebar-border: #4a0d14;
   --sidebar-ring: #fab236;
 
-  --chart-1: #ff4d61;
+  --chart-1: #c4908c;
   --chart-2: #fab236;
   --chart-3: #ccc3c0;
   --chart-4: #6fa8c8;
@@ -457,4 +464,10 @@
     );
     background-size: 20px 20px;
   }
+}
+
+/* The nav rail: the website hero's maroon, lighter at the top. */
+[data-slot="sidebar-inner"],
+[data-slot="sidebar"][data-mobile="true"] {
+  background-image: linear-gradient(180deg, var(--sidebar-top) 0%, var(--sidebar) 45%, var(--sidebar-bottom) 100%);
 }

@@ -135,7 +135,12 @@ export interface ShiftBrief {
   grace_in_minutes: number;
   is_night_shift: boolean;
   weekly_off_days: number[];
+  /** Weekdays off only in some weeks: `{"6": [2, 4]}` is 2nd and 4th Saturday. */
+  alternate_off_weeks?: AlternateOffWeeks;
 }
+
+/** ISO weekday (as a string) to the weeks of the month (1-5) it is off in. */
+export type AlternateOffWeeks = Record<string, number[]>;
 
 export interface CalendarHoliday {
   holiday_date: string;
@@ -322,6 +327,8 @@ export interface ShiftInput {
   is_night_shift: boolean;
   /** ISO weekdays, 1 = Monday … 7 = Sunday. */
   weekly_off_days: number[];
+  /** Off only in some weeks of the month — alternate Saturdays. */
+  alternate_off_weeks?: AlternateOffWeeks;
   /** A per-day shift differential paid by payroll, in rupees. */
   allowance_per_day?: string | null;
   allowance_name?: string | null;

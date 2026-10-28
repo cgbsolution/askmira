@@ -69,7 +69,7 @@ const FIELD_COLUMNS: ColumnDef<FieldChange>[] = [
 
 /**
  * What a change request asks for against what the record said when it was
- * raised. Identifiers arrive already masked for anyone outside HR.
+ * raised. Identifiers arrive in full.
  */
 export function ChangeRequestDiff({ request }: { request: ChangeRequest }) {
   const proposed = request.proposed as Json;
