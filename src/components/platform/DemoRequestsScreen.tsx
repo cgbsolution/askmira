@@ -76,6 +76,10 @@ const INTEREST_LABEL: Record<string, string> = {
   performance: "Performance",
   engagement: "Engagement",
   ai: "Ask Mira",
+  expenses: "Expense Genie",
+  helpdesk: "CGB Helpdesk",
+  crm: "Saleinx CRM",
+  procurement: "ProcureFlow",
 };
 
 const NOTES_LIMIT = 4000;

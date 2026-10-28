@@ -283,7 +283,10 @@ export function EmployeeForm({
           {textField("first_name", "First name")}
           {textField("last_name", "Last name", { optional: true })}
           {textField("display_name", "Display name", { optional: true })}
-          {textField("work_email", "Work email", { type: "email" })}
+          {textField("work_email", "Work email", {
+            type: "email",
+            hint: isCreate ? undefined : "If they sign in with this address, their login moves to the new one.",
+          })}
           {textField("personal_email", "Personal email", { type: "email", optional: true })}
           {textField("phone", "Phone", { type: "tel", optional: true })}
           {textField("date_of_birth", "Date of birth", { type: "date", optional: true })}
