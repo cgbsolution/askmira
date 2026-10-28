@@ -21,7 +21,7 @@ import type { DayButton } from "react-day-picker";
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Calendar, CalendarDayButton } from "@/components/ui/calendar";
 import {
   Card,
@@ -38,7 +38,9 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import type {
   AttendanceDay,
   AttendanceStatus,
+  CalendarHoliday,
   CalendarLeave,
+  DayTag,
   MyAttendancePeriod,
   Punch,
   Regularisation,
@@ -54,7 +56,6 @@ import { PunchPhoto } from "./PunchPhoto";
 import {
   formatClock,
   formatMinutes,
-  isWeeklyOff,
   LoadError,
   monthBounds,
   shortTime,
@@ -62,7 +63,7 @@ import {
   StatusBadge,
 } from "./shared";
 
-/** What a calendar cell shows, whether or not the day has been computed. */
+/** What a day is, whether or not it has been computed — for the day panel. */
 type CellKind =
   | AttendanceStatus
   | "leave_pending"
@@ -73,65 +74,84 @@ type CellKind =
 
 interface CellInfo {
   kind: CellKind;
-  label: string;
+  /** The colour the API gave the day; null leaves it blank. */
+  tag: DayTag | null;
   row: AttendanceDay | null;
-  holiday: string | null;
+  holiday: CalendarHoliday | null;
   leave: CalendarLeave | null;
   pending: Regularisation | null;
 }
 
-// Status tints. Literal class names (Tailwind only generates what it can
-// see), repeated for the selected state so selection adds a ring instead of
-// repainting the day in the primary colour.
-const TINTS: Record<CellKind, string> = {
-  present:
-    "bg-success/10 text-success data-[selected-single=true]:bg-success/10 data-[selected-single=true]:text-success",
-  half_day:
-    "bg-marigold-50 text-marigold-900 data-[selected-single=true]:bg-marigold-50 data-[selected-single=true]:text-marigold-900 dark:bg-marigold-900/30 dark:text-marigold-100",
-  needs_regularisation:
-    "bg-marigold-100 text-marigold-900 data-[selected-single=true]:bg-marigold-100 data-[selected-single=true]:text-marigold-900 dark:bg-marigold-900/40 dark:text-marigold-100",
-  absent:
-    "bg-destructive/10 text-destructive data-[selected-single=true]:bg-destructive/10 data-[selected-single=true]:text-destructive",
-  lop: "bg-destructive/10 text-destructive data-[selected-single=true]:bg-destructive/10 data-[selected-single=true]:text-destructive",
-  on_leave:
-    "bg-info/10 text-info data-[selected-single=true]:bg-info/10 data-[selected-single=true]:text-info",
-  leave_pending:
-    "bg-info/5 text-info data-[selected-single=true]:bg-info/5 data-[selected-single=true]:text-info",
-  holiday:
-    "bg-muted text-muted-foreground data-[selected-single=true]:bg-muted data-[selected-single=true]:text-muted-foreground",
-  week_off:
-    "bg-muted/60 text-muted-foreground data-[selected-single=true]:bg-muted/60 data-[selected-single=true]:text-muted-foreground",
-  today:
-    "bg-card text-foreground ring-1 ring-primary data-[selected-single=true]:bg-card data-[selected-single=true]:text-foreground",
-  upcoming:
-    "bg-card text-foreground data-[selected-single=true]:bg-card data-[selected-single=true]:text-foreground",
-  not_computed:
-    "bg-card text-muted-foreground data-[selected-single=true]:bg-card data-[selected-single=true]:text-muted-foreground",
-  before_joining:
-    "bg-card text-muted-foreground/60 data-[selected-single=true]:bg-card data-[selected-single=true]:text-muted-foreground/60",
+/**
+ * The calendar's eight day tags, in the order the legend lists them. The API
+ * decides which tag a day wears (services/attendance/calendar_tags.py); this
+ * only names and colours them. Literal class names: Tailwind only generates
+ * what it can see.
+ */
+export const DAY_TAGS: Record<DayTag, { label: string; circle: string; swatch: string }> = {
+  absent: {
+    label: "Absent / Missed punch",
+    circle: "bg-day-absent text-day-absent-foreground",
+    swatch: "bg-day-absent",
+  },
+  week_off: {
+    label: "Week off",
+    circle: "bg-day-week-off text-day-week-off-foreground",
+    swatch: "bg-day-week-off",
+  },
+  unapproved_leave: {
+    label: "Unapproved leave",
+    circle: "bg-day-unapproved-leave text-day-unapproved-leave-foreground",
+    swatch: "bg-day-unapproved-leave",
+  },
+  partial: {
+    label: "Partial",
+    circle: "bg-day-partial text-day-partial-foreground",
+    swatch: "bg-day-partial",
+  },
+  holiday: {
+    label: "Holiday",
+    circle: "bg-day-holiday text-day-holiday-foreground",
+    swatch: "bg-day-holiday",
+  },
+  approved_leave: {
+    label: "Approved leave",
+    circle: "bg-day-approved-leave text-day-approved-leave-foreground",
+    swatch: "bg-day-approved-leave",
+  },
+  full_day: {
+    label: "Full day",
+    circle: "bg-day-full text-day-full-foreground",
+    swatch: "bg-day-full",
+  },
+  optional_holiday: {
+    label: "Optional holiday",
+    circle: "bg-day-optional-holiday text-day-optional-holiday-foreground",
+    swatch: "bg-day-optional-holiday",
+  },
 };
 
-/** Labels short enough for a calendar cell. */
-const SHORT_LABELS: Record<AttendanceStatus, string> = {
-  present: "Present",
-  absent: "Absent",
-  half_day: "Half day",
-  week_off: "Off",
-  holiday: "Holiday",
-  on_leave: "Leave",
-  lop: "LOP",
-  needs_regularisation: "Regularise",
+/** What the day panel says about a day with no tag. */
+const UNTAGGED_LABELS: Partial<Record<CellKind, string>> = {
+  today: "Today — in progress",
+  upcoming: "Working day",
+  not_computed: "Not worked out yet",
+  before_joining: "Before joining",
 };
 
-const LEGEND: { kind: CellKind; label: string }[] = [
-  { kind: "present", label: "Present" },
-  { kind: "half_day", label: "Half day" },
-  { kind: "needs_regularisation", label: "Needs regularisation" },
-  { kind: "absent", label: "Absent / LOP" },
-  { kind: "on_leave", label: "On leave" },
-  { kind: "holiday", label: "Holiday" },
-  { kind: "week_off", label: "Week off" },
-];
+const weekdayNarrow = new Intl.DateTimeFormat("en-IN", { weekday: "narrow" });
+const dayMonth = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" });
+
+/** "25 OCT" — the day panel's heading, as on the old HRMS calendar. */
+function dayHeading(iso: string): string {
+  return dayMonth.format(parseISODate(iso)).toUpperCase();
+}
+
+// The month band: maroon, month in the middle, arrows either side.
+const NAV_BUTTON = cn(
+  buttonVariants({ variant: "ghost" }),
+  "size-9 p-0 text-primary-foreground select-none hover:bg-primary-foreground/15 hover:text-primary-foreground aria-disabled:opacity-50 [&_svg]:size-5",
+);
 
 /**
  * Open the correction dialog for a day. `status` presets "The day should be"
@@ -218,7 +238,11 @@ export function AttendanceCalendar({
     return rows;
   }, [data]);
   const holidays = useMemo(
-    () => new Map((data?.holidays ?? []).map((h) => [h.holiday_date, h.name])),
+    () => new Map((data?.holidays ?? []).map((h) => [h.holiday_date, h])),
+    [data],
+  );
+  const tags = useMemo(
+    () => new Map((data?.day_tags ?? []).map((entry) => [entry.day, entry.tag])),
     [data],
   );
   const leaves = useMemo(() => {
@@ -249,35 +273,19 @@ export function AttendanceCalendar({
     const holiday = holidays.get(iso) ?? null;
     const leave = leaves.get(iso) ?? null;
     const pending = pendingByDate.get(iso) ?? null;
-    const base = { row, holiday, leave, pending };
-    if (row) {
-      const times =
-        row.status === "present" || row.status === "half_day"
-          ? row.first_in && row.last_out
-            ? `${formatClock(row.first_in)}–${formatClock(row.last_out)}`
-            : SHORT_LABELS[row.status]
-          : row.status === "holiday"
-            ? (holiday ?? "Holiday")
-            : row.status === "on_leave" && leave
-              ? leave.leave_type
-              : SHORT_LABELS[row.status];
-      return { ...base, kind: row.status, label: times };
-    }
+    const base = { row, holiday, leave, pending, tag: tags.get(iso) ?? null };
+    if (row) return { ...base, kind: row.status };
     if (data?.date_of_joining && iso < data.date_of_joining) {
-      return { ...base, kind: "before_joining", label: "" };
+      return { ...base, kind: "before_joining", tag: null };
     }
-    if (holiday) return { ...base, kind: "holiday", label: holiday };
-    if (leave?.status === "approved") return { ...base, kind: "on_leave", label: leave.leave_type };
-    if (leave) return { ...base, kind: "leave_pending", label: `${leave.leave_type} (pending)` };
-    if (iso === today) return { ...base, kind: "today", label: "Today" };
-    const shiftToday = data?.shift_today;
+    if (holiday) return { ...base, kind: "holiday" };
+    if (leave?.status === "approved") return { ...base, kind: "on_leave" };
+    if (leave) return { ...base, kind: "leave_pending" };
+    if (iso === today) return { ...base, kind: "today" };
     if (iso > today) {
-      if (shiftToday && isWeeklyOff(shiftToday, parseISODate(iso))) {
-        return { ...base, kind: "week_off", label: "Off" };
-      }
-      return { ...base, kind: "upcoming", label: "" };
+      return { ...base, kind: base.tag === "week_off" ? "week_off" : "upcoming" };
     }
-    return { ...base, kind: "not_computed", label: "—" };
+    return { ...base, kind: "not_computed" };
   };
 
   const selectedInfo = describe(selected);
@@ -286,32 +294,55 @@ export function AttendanceCalendar({
     const iso = toISODate(props.day.date);
     const info = describe(iso);
     const correction = info.row ? correctionLabel(info.row) : null;
+    const style = info.tag ? DAY_TAGS[info.tag] : null;
+    const isSelected = iso === selected;
+    const said = style?.label ?? UNTAGGED_LABELS[info.kind] ?? STATUS_LABELS[info.kind as AttendanceStatus];
     return (
       <CalendarDayButton
         {...props}
+        aria-label={`${formatDay(iso, true)}: ${said ?? ""}${iso === today ? ", today" : ""}`}
         className={cn(
-          "aspect-auto h-full min-h-12 w-full min-w-0 items-stretch justify-start gap-1 overflow-hidden rounded-md border border-transparent p-1.5 text-left sm:min-h-[4.5rem] [&>span]:opacity-100",
-          "data-[selected-single=true]:border-primary data-[selected-single=true]:ring-2 data-[selected-single=true]:ring-primary/30",
-          TINTS[info.kind],
+          "group/daybtn aspect-auto size-auto h-auto w-full min-w-0 gap-1 rounded-full bg-transparent py-1 hover:bg-transparent",
+          "data-[selected-single=true]:bg-transparent data-[selected-single=true]:text-foreground",
+          "[&>span]:text-sm [&>span]:opacity-100",
         )}
       >
-        <span className="flex items-center justify-between gap-1 text-xs font-semibold">
+        <span
+          className={cn(
+            "relative flex size-9 items-center justify-center rounded-full font-semibold tabular-nums transition-shadow sm:size-10 lg:size-11",
+            style
+              ? style.circle
+              : info.kind === "before_joining"
+                ? "text-muted-foreground/50"
+                : "text-foreground group-hover/daybtn:bg-muted",
+            style && "group-hover/daybtn:ring-2 group-hover/daybtn:ring-border",
+            isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-card group-hover/daybtn:ring-primary",
+          )}
+        >
           {props.day.date.getDate()}
-          <span className="flex items-center gap-1">
-            {correction?.manual && (
-              <PencilLine aria-label="Marked manually" className="size-3 text-foreground/70" />
-            )}
-            {correction && !correction.manual && (
-              <BadgeCheck aria-label="Request approved" className="size-3 text-foreground/70" />
-            )}
-            {info.pending && (
-              <span aria-label="Request pending" className="size-1.5 rounded-full bg-accent" />
-            )}
-          </span>
+          {info.pending && (
+            <span
+              aria-hidden
+              className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full bg-accent ring-2 ring-card"
+            />
+          )}
+          {correction && (
+            <span
+              aria-hidden
+              className="absolute -right-1 -bottom-1 flex size-4 items-center justify-center rounded-full bg-card text-foreground shadow-xs ring-1 ring-border"
+            >
+              {correction.manual ? (
+                <PencilLine className="size-2.5" />
+              ) : (
+                <BadgeCheck className="size-2.5" />
+              )}
+            </span>
+          )}
         </span>
-        <span className="hidden min-w-0 truncate text-[11px] leading-tight font-medium sm:block">
-          {info.label}
-        </span>
+        <span
+          aria-hidden
+          className={cn("size-1 rounded-full", iso === today ? "bg-primary" : "bg-transparent")}
+        />
       </CalendarDayButton>
     );
   };
@@ -413,37 +444,49 @@ export function AttendanceCalendar({
                     selected={parseISODate(selected)}
                     onSelect={(date) => date && setSelected(toISODate(date))}
                     showOutsideDays={false}
-                    weekStartsOn={1}
-                    className="w-full p-0 [--cell-size:--spacing(9)]"
+                    weekStartsOn={0}
+                    formatters={{ formatWeekdayName: (date) => weekdayNarrow.format(date) }}
+                    className="w-full p-0"
                     classNames={{
                       root: "w-full",
                       months: "relative flex w-full flex-col",
-                      month: "flex w-full min-w-0 flex-col gap-3",
+                      month: "flex w-full min-w-0 flex-col",
+                      nav: "absolute inset-x-0 top-0 z-10 flex h-14 items-center justify-between px-2 sm:px-4",
+                      button_previous: NAV_BUTTON,
+                      button_next: NAV_BUTTON,
+                      month_caption:
+                        "flex h-14 items-center justify-center rounded-t-lg bg-primary px-14 text-primary-foreground",
+                      caption_label: "text-base font-semibold select-none sm:text-lg",
                       month_grid: "w-full table-fixed border-collapse",
-                      week: "mt-1.5 flex w-full gap-1.5",
-                      weekdays: "flex gap-1.5",
+                      weekdays: "flex rounded-b-lg bg-primary px-1 pb-3",
                       weekday:
-                        "min-w-0 flex-1 rounded-md text-[0.8rem] font-medium text-muted-foreground select-none",
+                        "min-w-0 flex-1 text-center text-sm font-semibold text-primary-foreground/85 select-none",
+                      week: "mt-2 flex w-full px-1",
                       day: "relative min-w-0 flex-1 p-0 select-none",
                       today: "",
                     }}
                     components={{ DayButton: DayCell }}
                   />
-                  <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                    {LEGEND.map((entry) => (
-                      <li key={entry.kind} className="flex items-center gap-1.5">
-                        <span className={cn("size-3 rounded-sm border", TINTS[entry.kind])} />
-                        {entry.label}
+                  <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2.5 text-sm text-foreground">
+                    {(Object.keys(DAY_TAGS) as DayTag[]).map((tag) => (
+                      <li key={tag} className="flex items-center gap-2">
+                        <span className={cn("size-3.5 rounded-[3px]", DAY_TAGS[tag].swatch)} />
+                        {DAY_TAGS[tag].label}
                       </li>
                     ))}
+                  </ul>
+                  <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
                     <li className="flex items-center gap-1.5">
-                      <span className="size-1.5 rounded-full bg-accent" /> Request pending
+                      <span className="size-2 rounded-full bg-accent" /> Request pending
                     </li>
                     <li className="flex items-center gap-1.5">
                       <PencilLine className="size-3" /> Marked manually
                     </li>
                     <li className="flex items-center gap-1.5">
                       <BadgeCheck className="size-3" /> Request approved
+                    </li>
+                    <li className="flex items-center gap-1.5">
+                      <span className="size-1 rounded-full bg-primary" /> Today
                     </li>
                   </ul>
                 </div>
@@ -536,15 +579,32 @@ function DayDetail({
   return (
     <div className="flex flex-col gap-4 rounded-lg border border-border p-4">
       <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {iso === today ? "Today" : hasHappened ? "Selected day" : "Upcoming"}
-        </p>
-        <p className="mt-0.5 text-base font-semibold">{formatDay(iso, true)}</p>
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="flex gap-3">
+          <span
+            aria-hidden
+            className={cn(
+              "w-1 shrink-0 self-stretch rounded-full",
+              info.tag ? DAY_TAGS[info.tag].swatch : "bg-border",
+            )}
+          />
+          <div className="min-w-0">
+            <p className="text-2xl font-semibold tracking-tight tabular-nums">{dayHeading(iso)}</p>
+            <p className="text-base text-muted-foreground">
+              {info.tag
+                ? DAY_TAGS[info.tag].label
+                : (UNTAGGED_LABELS[info.kind] ?? STATUS_LABELS[info.kind as AttendanceStatus])}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {weekdayLong.format(parseISODate(iso))}, {formatDay(iso, true)}
+              {iso === today ? " · Today" : ""}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
           {row ? (
             <StatusBadge status={row.status} />
           ) : info.kind === "holiday" ? (
-            <Badge variant="muted">Holiday</Badge>
+            <Badge variant="muted">{info.holiday?.is_optional ? "Optional holiday" : "Holiday"}</Badge>
           ) : info.kind === "on_leave" ? (
             <Badge variant="secondary">On leave</Badge>
           ) : info.kind === "leave_pending" ? (
@@ -564,12 +624,21 @@ function DayDetail({
       </div>
 
       {(info.holiday || info.leave) && (
-        <p className="text-sm text-muted-foreground">
-          {info.holiday ? `Holiday: ${info.holiday}` : null}
-          {info.leave
-            ? `${info.leave.leave_type}${info.leave.is_half_day ? " (half day)" : ""} — ${info.leave.status}`
-            : null}
-        </p>
+        <div className="space-y-0.5 text-sm text-muted-foreground">
+          {info.holiday && (
+            <p>
+              {info.holiday.is_optional ? "Optional holiday" : "Holiday"}: {info.holiday.name}
+              {info.holiday.is_paid ? "" : " (unpaid)"}
+            </p>
+          )}
+          {info.leave && (
+            <p>
+              {info.leave.leave_type}
+              {info.leave.is_half_day ? " (half day)" : ""} —{" "}
+              {info.leave.status === "pending" ? "waiting for approval" : "approved"}
+            </p>
+          )}
+        </div>
       )}
 
       {row && (
@@ -818,6 +887,7 @@ function HourStrip({ day, shift }: { day: AttendanceDay; shift: ShiftBrief | nul
 }
 
 const weekdayShort = new Intl.DateTimeFormat("en-IN", { weekday: "short" });
+const weekdayLong = new Intl.DateTimeFormat("en-IN", { weekday: "long" });
 
 function DayList({
   days,

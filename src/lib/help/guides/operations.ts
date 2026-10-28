@@ -3,21 +3,37 @@ import type { PageGuide } from "../index";
 /** Guides for Operations and Admin: payroll, reports, compliance, platform, settings. */
 export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
   "/payroll": {
-    summary: "Compute, review, approve and publish a month's pay. Nothing moves without a second person's sign-off.",
+    summary:
+      "Compute, check, approve & lock, then publish a month's pay. Nothing is locked without a second person's sign-off.",
     tasks: [
       {
         title: "Run payroll for a month",
         steps: [
           "Make sure attendance for the month is locked (Attendance → Shifts & rosters → Periods & payroll lock → Lock for payroll).",
           "Press New run, choose the month and legal entity, and open it.",
-          "Compute the run, then review payslips and the variances against last month.",
-          "Acknowledge each variance you accept, then submit for approval.",
-          "A second admin approves; then publish payslips to employees.",
+          "Press Compute. If something is missing (a salary, a rule set, the attendance lock) it says what; fix it and compute again.",
+          "Check the payslips and the variances against last month. Download → Salary register (Excel) gives every person's earnings, deductions and net pay.",
+          "Acknowledge each variance you accept. A second admin presses Approve & lock; then publish payslips to employees.",
+        ],
+      },
+      {
+        title: "Delete a run",
+        steps: [
+          "Open the ⋯ menu on the run's row (or open the run) and choose Delete run.",
+          "Only a run that is not locked can be deleted: Draft, Computed · not locked, Failed or Cancelled. Its payslips go with it and the month can be run again.",
+        ],
+      },
+      {
+        title: "Download a month's payroll data",
+        steps: [
+          "Open the ⋯ menu on the run's row, or the Download button on the run.",
+          "Salary register (Excel) has one row per person with every wage type, deduction, net pay and employer cost; a second sheet lists claims, overtime, adjustments and recoveries.",
         ],
       },
     ],
     tips: [
-      "The person who computes a run cannot also approve it.",
+      "Approve & lock is the lock: a locked run cannot be recomputed or deleted. A correction after that is an arrears or off-cycle run.",
+      "The person who computes a run cannot also approve and lock it.",
       "Statutory rates come from the approved rule set in force on the run's date.",
     ],
     related: [
@@ -31,15 +47,22 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     summary: "One payroll run: its status, payslips, totals and variances against the previous month.",
     tasks: [
       {
-        title: "Review and approve the run",
+        title: "Check and lock the run",
         steps: [
-          "Check totals and open payslips that look unusual.",
-          "Acknowledge each variance with a note on why it is right.",
-          "Submit for approval; the approver approves or sends it back.",
+          "Check totals and open payslips that look unusual. Download → Salary register (Excel) gives the whole month in one sheet.",
+          "Acknowledge each variance with a note on why it is right. Recompute after any change to salaries, attendance or inputs.",
+          "When it is right, someone other than whoever computed it presses Approve & lock.",
         ],
       },
+      {
+        title: "Start the month again",
+        steps: ["While the run is not locked, press Delete run. Its payslips go with it; open a new run for the month."],
+      },
     ],
-    tips: ["After approval, prepare the salary file under Bank files and the returns under Return filings."],
+    tips: [
+      "A locked run cannot be recomputed or deleted; a correction is an arrears or off-cycle run.",
+      "After locking, prepare the salary file under Bank files and the returns under Return filings.",
+    ],
   },
 
   "/payroll/runs/[id]/payslips/[payslipId]": {

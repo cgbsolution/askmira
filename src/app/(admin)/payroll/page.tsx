@@ -1,19 +1,36 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { CircleDollarSign } from "lucide-react";
+import { CircleDollarSign, Download, ExternalLink, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { CreateRunDialog } from "@/components/payroll/CreateRunDialog";
+import { DeleteRunDialog } from "@/components/payroll/DeleteRunDialog";
 import { PayslipProtectionSwitch } from "@/components/payroll/PayslipProtection";
-import { periodLabel, RUN_STATUS, RUN_TYPE } from "@/components/payroll/labels";
+import {
+  isRunDeletable,
+  isRunLocked,
+  periodLabel,
+  RUN_STATUS,
+  RUN_TYPE,
+} from "@/components/payroll/labels";
+import { downloadRegister } from "@/components/payroll/RegisterDownloadMenu";
 import { RunStatusBadge } from "@/components/payroll/RunStatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -29,14 +46,60 @@ const PAGE_SIZE = 25;
 
 const STATUS_FILTERS: { value: RunStatus | "all"; label: string }[] = [
   { value: "all", label: "All statuses" },
-  { value: "draft", label: "Draft" },
-  { value: "pending_review", label: "Awaiting approval" },
-  { value: "approved", label: "Approved" },
-  { value: "paid", label: "Paid" },
-  { value: "failed", label: "Failed" },
+  ...(["draft", "pending_review", "approved", "paid", "failed", "cancelled"] as const).map((value) => ({
+    value,
+    label: RUN_STATUS[value].label,
+  })),
 ];
 
-const RUN_COLUMNS: ColumnDef<PayrollRun>[] = [
+/** Open, download the month's data, or delete a run that is not locked. */
+function RunRowMenu({ run, onDelete }: { run: PayrollRun; onDelete: (run: PayrollRun) => void }) {
+  const period = periodLabel(run.period_year, run.period_month);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label={`Actions for the ${period} run`}>
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuItem asChild>
+          <Link href={`/payroll/runs/${run.id}`}>
+            <ExternalLink /> Open run
+          </Link>
+        </DropdownMenuItem>
+        {run.employee_count > 0 && (
+          <>
+            <DropdownMenuItem onSelect={() => void downloadRegister(run.id, "xlsx")}>
+              <Download /> Salary register (Excel)
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => void downloadRegister(run.id, "csv")}>
+              <Download /> Register summary (CSV)
+            </DropdownMenuItem>
+          </>
+        )}
+        {isRunDeletable(run.status) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onSelect={() => onDelete(run)}>
+              <Trash2 /> Delete run
+            </DropdownMenuItem>
+          </>
+        )}
+        {isRunLocked(run.status) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+              Locked: it cannot be deleted. A correction is an arrears or off-cycle run.
+            </DropdownMenuLabel>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+const runColumns = (onDelete: (run: PayrollRun) => void): ColumnDef<PayrollRun>[] => [
   {
     id: "period",
     header: "Period",
@@ -106,6 +169,18 @@ const RUN_COLUMNS: ColumnDef<PayrollRun>[] = [
       </div>
     ),
   },
+  {
+    id: "actions",
+    header: "Actions",
+    enableHiding: false,
+    enableSorting: false,
+    meta: { className: "w-16 text-right", text: false },
+    cell: ({ row }) => (
+      <div className="flex justify-end">
+        <RunRowMenu run={row.original} onDelete={onDelete} />
+      </div>
+    ),
+  },
 ];
 
 /** Payroll runs (FRD 5.2). Tier 1: every figure here is money. */
@@ -114,6 +189,8 @@ export default function PayrollRunsPage() {
   const [status, setStatus] = useState<RunStatus | "all">("all");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const [deleting, setDeleting] = useState<PayrollRun | null>(null);
+  const columns = useMemo(() => runColumns(setDeleting), []);
   const query = `/payroll/runs?page=${page}&page_size=${pageSize}${
     status === "all" ? "" : `&status=${status}`
   }`;
@@ -122,13 +199,21 @@ export default function PayrollRunsPage() {
   return (
     <PageShell
       title="Payroll runs"
-      description="Compute, review, approve and publish a month's pay. Nothing moves without a second person's sign-off."
+      description="Compute, check, approve & lock, then publish a month's pay. Nothing is locked without a second person's sign-off."
       actions={<CreateRunDialog onCreated={(run) => router.push(`/payroll/runs/${run.id}`)} />}
     >
       <PayslipProtectionSwitch />
+      <DeleteRunDialog
+        run={deleting}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        onDeleted={() => {
+          setDeleting(null);
+          reload();
+        }}
+      />
       <DataTable
         title="Runs"
-        columns={RUN_COLUMNS}
+        columns={columns}
         data={data?.items ?? []}
         noun="runs"
         exportName="payroll-runs"
@@ -140,7 +225,7 @@ export default function PayrollRunsPage() {
           icon: CircleDollarSign,
           title: "No payroll runs yet",
           description:
-            "Open a run for a month. It computes once salaries are assigned, the rule sets are approved and attendance for the month is locked.",
+            "Open a run for a month. It computes once salaries are assigned, the rule sets are approved and attendance for the month is locked. Until you approve and lock it, a run can be recomputed or deleted.",
         }}
         emptyMessage="No runs with this status."
         filters={

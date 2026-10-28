@@ -36,6 +36,24 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
+
+  /* Attendance calendar day tags — see :root. */
+  --color-day-full: var(--day-full);
+  --color-day-full-foreground: var(--day-full-foreground);
+  --color-day-partial: var(--day-partial);
+  --color-day-partial-foreground: var(--day-partial-foreground);
+  --color-day-absent: var(--day-absent);
+  --color-day-absent-foreground: var(--day-absent-foreground);
+  --color-day-week-off: var(--day-week-off);
+  --color-day-week-off-foreground: var(--day-week-off-foreground);
+  --color-day-holiday: var(--day-holiday);
+  --color-day-holiday-foreground: var(--day-holiday-foreground);
+  --color-day-optional-holiday: var(--day-optional-holiday);
+  --color-day-optional-holiday-foreground: var(--day-optional-holiday-foreground);
+  --color-day-approved-leave: var(--day-approved-leave);
+  --color-day-approved-leave-foreground: var(--day-approved-leave-foreground);
+  --color-day-unapproved-leave: var(--day-unapproved-leave);
+  --color-day-unapproved-leave-foreground: var(--day-unapproved-leave-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -180,6 +198,26 @@
   --warning: #b8650a;
   --info: #2d6a8a; /* On leave and other neutral states — never the brand red */
 
+  /* Attendance calendar: the eight day tags HR teams know from older HRMS
+     calendars. Solid circles, so each fill is deep enough for its label;
+     Absent is a muted terracotta, never a light or bright red. */
+  --day-full: #238640;
+  --day-full-foreground: #ffffff;
+  --day-partial: #f8a01a;
+  --day-partial-foreground: #100404;
+  --day-absent: #cc4a3a;
+  --day-absent-foreground: #ffffff;
+  --day-week-off: #2a1f1e;
+  --day-week-off-foreground: #ffffff;
+  --day-holiday: #6363d4;
+  --day-holiday-foreground: #ffffff;
+  --day-optional-holiday: #9a4a1c;
+  --day-optional-holiday-foreground: #ffffff;
+  --day-approved-leave: #78736f;
+  --day-approved-leave-foreground: #ffffff;
+  --day-unapproved-leave: #f9e27d;
+  --day-unapproved-leave-foreground: #100404;
+
   --border: #f0e2d8;
   --input: #f0e2d8;
   --ring: #a3585b;
@@ -236,6 +274,11 @@
   --success: #5cb98d;
   --warning: #fcc45c;
   --info: #6fa8c8;
+
+  /* Week off lifts off the near-black card; the rest read as they are. */
+  --day-week-off: #463a37;
+  --day-approved-leave: #9a9490;
+  --day-approved-leave-foreground: #100404;
 
   --border: #372d2a;
   --input: #372d2a;

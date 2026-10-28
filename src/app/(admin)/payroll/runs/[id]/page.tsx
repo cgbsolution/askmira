@@ -1,8 +1,8 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Lock, LockOpen } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
@@ -10,7 +10,8 @@ import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { JournalExportMenu } from "@/components/payroll/accounting/JournalExportMenu";
 import { InputSourcesPanel } from "@/components/payroll/InputSourcesPanel";
-import { formatMoment, periodLabel, RUN_TYPE } from "@/components/payroll/labels";
+import { formatMoment, isRunLocked, periodLabel, RUN_TYPE } from "@/components/payroll/labels";
+import { RegisterDownloadMenu } from "@/components/payroll/RegisterDownloadMenu";
 import { RegisterPanel } from "@/components/payroll/RegisterPanel";
 import { RunActions } from "@/components/payroll/RunActions";
 import { RunStatusBadge } from "@/components/payroll/RunStatusBadge";
@@ -32,8 +33,38 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
+/** Whether the run is locked, and what that allows. Approval is the lock. */
+function LockNotice({ run }: { run: PayrollRun }) {
+  if (run.status === "cancelled" || run.status === "processing") return null;
+  if (isRunLocked(run.status)) {
+    return (
+      <p className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm text-foreground">
+        <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <span>
+          Locked {formatMoment(run.approved_at)}
+          {run.approved_by_name ? ` by ${run.approved_by_name}` : ""}. It can no longer be recomputed
+          or deleted; a correction is an arrears or off-cycle run.
+        </span>
+      </p>
+    );
+  }
+  return (
+    <p className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm text-foreground">
+      <LockOpen className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span>
+        {run.status === "pending_review"
+          ? "Not locked yet. Check the numbers (Download gives the salary register in Excel), recompute after any change, or delete the run. When it is right, Approve & lock — someone other than whoever computed it."
+          : run.status === "failed"
+            ? "Not locked. Fix what the compute reported below and compute again, or delete the run."
+            : "Not computed yet. Press Compute; if something is missing it says what. A run opened in error can be deleted."}
+      </span>
+    </p>
+  );
+}
+
 export default function PayrollRunPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const runId = params.id;
   const { data: run, error, isLoading, reload, setData } = useApiQuery<PayrollRun>(
     `/payroll/runs/${runId}`,
@@ -77,11 +108,15 @@ export default function PayrollRunPage() {
     >
       <Card tier="tier1">
         <CardContent className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <RunStatusBadge status={run.status} />
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            {/* Top-aligned with the buttons: a hint under them must not push the row apart. */}
+            <div className="pt-2">
+              <RunStatusBadge status={run.status} />
+            </div>
+            <div className="flex flex-wrap items-start justify-end gap-2">
+              <RegisterDownloadMenu run={run} />
               <JournalExportMenu run={run} />
-              <RunActions run={run} onChanged={changed} />
+              <RunActions run={run} onChanged={changed} onDeleted={() => router.push("/payroll")} />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -119,6 +154,7 @@ export default function PayrollRunPage() {
               {run.payment_date ? ` · payment date ${formatDay(run.payment_date, true)}` : ""}
             </li>
           </ul>
+          <LockNotice run={run} />
           {run.run_type !== "regular" && (
             <div className="grid gap-1 rounded-md border border-border bg-muted/40 p-3 text-sm">
               <p className="text-foreground">

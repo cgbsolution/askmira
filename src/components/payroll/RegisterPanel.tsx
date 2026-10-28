@@ -1,18 +1,16 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import Link from "next/link";
-import React, { useState } from "react";
-import { toast } from "sonner";
+import React from "react";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
-import { apiMessage, isZero } from "@/components/payroll/labels";
+import { isZero } from "@/components/payroll/labels";
+import { RegisterDownloadMenu } from "@/components/payroll/RegisterDownloadMenu";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { downloadFile } from "@/lib/api";
 import type { RegisterRow, RunRegister } from "@/lib/types/payroll";
 import { formatDays } from "@/lib/utils";
 
@@ -34,19 +32,7 @@ export function RegisterPanel({ runId, version }: { runId: string; version: numb
   const { data, error, isLoading, reload } = useApiQuery<RunRegister>(
     `/payroll/runs/${runId}/register?v=${version}`,
   );
-  const [downloading, setDownloading] = useState(false);
   const rows = data?.rows ?? [];
-
-  const download = async () => {
-    setDownloading(true);
-    try {
-      await downloadFile(`/payroll/runs/${runId}/register.csv`, "payroll-register.csv");
-    } catch (caught) {
-      toast.error(apiMessage(caught, "Could not download the register."));
-    } finally {
-      setDownloading(false);
-    }
-  };
 
   const columns: ColumnDef<RegisterRow>[] = [
     {
@@ -111,9 +97,7 @@ export function RegisterPanel({ runId, version }: { runId: string; version: numb
       searchPlaceholder="Search by name or code"
       actions={
         rows.length > 0 ? (
-          <Button variant="outline" size="sm" disabled={downloading} onClick={() => void download()}>
-            <Download /> CSV
-          </Button>
+          <RegisterDownloadMenu run={{ id: runId, employee_count: rows.length }} size="sm" />
         ) : undefined
       }
       isLoading={isLoading && !data}

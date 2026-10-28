@@ -26,12 +26,22 @@ export const RUN_STATUS: Record<
 > = {
   draft: { label: "Draft", variant: "muted" },
   processing: { label: "Computing", variant: "muted" },
-  pending_review: { label: "Awaiting approval", variant: "warning" },
-  approved: { label: "Approved", variant: "accent" },
+  pending_review: { label: "Computed · not locked", variant: "warning" },
+  approved: { label: "Locked", variant: "accent" },
   paid: { label: "Paid", variant: "success" },
   failed: { label: "Failed", variant: "destructive" },
   cancelled: { label: "Cancelled", variant: "muted" },
 };
+
+/** Approval is the lock: from then on a run is history, never recomputed or deleted. */
+export function isRunLocked(status: RunStatus): boolean {
+  return status === "approved" || status === "paid";
+}
+
+/** A run that is not locked (and not mid-compute) can be deleted, so the month can run again. */
+export function isRunDeletable(status: RunStatus): boolean {
+  return ["draft", "pending_review", "failed", "cancelled"].includes(status);
+}
 
 export const RUN_TYPE: Record<RunType, string> = {
   regular: "Regular",

@@ -145,6 +145,26 @@ export type AlternateOffWeeks = Record<string, number[]>;
 export interface CalendarHoliday {
   holiday_date: string;
   name: string;
+  /** An optional (restricted) holiday the person opted in to. */
+  is_optional: boolean;
+  /** An unpaid holiday is a day off that is loss of pay unless worked. */
+  is_paid: boolean;
+}
+
+/** The calendar's colour for a day — worked out by the API from the day's record. */
+export type DayTag =
+  | "full_day"
+  | "partial"
+  | "absent"
+  | "week_off"
+  | "holiday"
+  | "optional_holiday"
+  | "approved_leave"
+  | "unapproved_leave";
+
+export interface CalendarDayTag {
+  day: string;
+  tag: DayTag;
 }
 
 export interface CalendarLeave {
@@ -169,6 +189,8 @@ export interface MyAttendancePeriod {
   shifts: ShiftBrief[];
   holidays: CalendarHoliday[];
   leaves: CalendarLeave[];
+  /** Days with something to show; a day left out is blank. */
+  day_tags: CalendarDayTag[];
 }
 
 export type TeamMemberState =
