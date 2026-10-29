@@ -315,8 +315,8 @@ export function EmployeeForm({
         <p className="text-sm font-semibold text-foreground">Placement</p>
         {!isCreate && (
           <p className="text-xs text-muted-foreground">
-            A change to location, department, manager, designation or grade saved here takes effect
-            today and is added to their lifecycle history. For a later date, or one that needs
+            A change to company, location, department, manager, designation or grade saved here takes
+            effect today and is added to their lifecycle history. For a later date, or one that needs
             approval, raise it under Employees → Lifecycle events.
           </p>
         )}

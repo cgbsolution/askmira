@@ -4,11 +4,13 @@ import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 
+import { AskMiraLogo, AskMiraMark } from "@/components/brand/AskMiraLogo";
 import { RailSection } from "@/components/layout/RailSection";
 import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarHeader,
   SidebarMenu,
@@ -61,7 +63,8 @@ export function useConnectorRail(): RailControls {
 
 /**
  * Quick access, on the right: the companion, the hubs a linked product can take
- * over, and the self-service desks (`QUICK_ACCESS`).
+ * over, and the self-service desks (`QUICK_ACCESS`). The AskMira logo sits at
+ * its foot: the top of the navigation is the customer's own company.
  *
  * An icon strip until opened, and it folds back once a page is picked, so the
  * page keeps its width. Built by the same rules as the navigation: a section
@@ -143,6 +146,24 @@ export function ConnectorSidebar() {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="items-center border-t border-sidebar-border px-3 py-3">
+        <div
+          role="img"
+          aria-label="Powered by AskMira"
+          title="Powered by AskMira"
+          className="flex flex-col items-center gap-1"
+        >
+          <span
+            aria-hidden
+            className="text-[10px] font-medium uppercase tracking-[0.15em] text-sidebar-muted group-data-[collapsible=icon]:hidden"
+          >
+            Powered by
+          </span>
+          <AskMiraLogo className="h-8 group-data-[collapsible=icon]:hidden" />
+          <AskMiraMark className="hidden h-8 group-data-[collapsible=icon]:block" />
+        </div>
+      </SidebarFooter>
 
       <SidebarRail aria-label={t("Toggle quick access")} title={t("Toggle quick access")} />
     </Sidebar>

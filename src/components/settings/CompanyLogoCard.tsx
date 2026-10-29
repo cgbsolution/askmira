@@ -15,7 +15,7 @@ import { HiddenFileInput } from "@/components/ui/file-input";
  * PNG or JPEG, up to 1 MB. It is public, like the logo on the company's website.
  */
 export function CompanyLogoCard() {
-  const { tenant } = useAuth();
+  const { tenant, reloadSession } = useAuth();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -36,6 +36,8 @@ export function CompanyLogoCard() {
       const result = await post<{ logo_url: string }>("/org/logo", form);
       setLogoUrl(result.logo_url);
       toast.success("Logo updated. It shows on your sign-in page now.");
+      // People whose company has no logo of its own see this one in the navigation.
+      void reloadSession();
     } catch (caught) {
       toast.error(caught instanceof ApiError ? caught.detail : "Could not upload the logo.");
     } finally {
@@ -50,6 +52,7 @@ export function CompanyLogoCard() {
       await del("/org/logo");
       setLogoUrl(null);
       toast.success("Logo removed.");
+      void reloadSession();
     } catch (caught) {
       toast.error(caught instanceof ApiError ? caught.detail : "Could not remove the logo.");
     } finally {

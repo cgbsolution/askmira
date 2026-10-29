@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useRef, useState } from "react";
 
 import { AskMiraMark } from "@/components/brand/AskMiraLogo";
+import { CompanyMark } from "@/components/brand/CompanyLogo";
 import { HelpButton } from "@/components/help/HelpPanel";
 import { useConnectorRail } from "@/components/layout/ConnectorSidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -58,6 +59,7 @@ export function AppHeader() {
   const quickAccess = useConnectorRail();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
+  const { tenant, company } = useAuth();
   const [term, setTerm] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   // Resolved after mount: the platform is the viewer's, and guessing it during
@@ -91,9 +93,13 @@ export function AppHeader() {
         <AlignLeft className="size-5" />
       </Button>
 
-      {/* Below md the rail is a drawer, so the brand would otherwise vanish. */}
-      <Link href="/" aria-label="AskMira home" className="shrink-0 rounded-lg md:hidden">
-        <AskMiraMark className="h-10" />
+      {/* Below md the rail is a drawer, so the company would otherwise vanish. */}
+      <Link
+        href="/"
+        aria-label={`${company?.name ?? tenant?.name ?? "AskMira"} home`}
+        className="shrink-0 rounded-lg md:hidden"
+      >
+        {tenant ? <CompanyMark company={company} fallbackName={tenant.name} /> : <AskMiraMark className="h-10" />}
       </Link>
 
       <form

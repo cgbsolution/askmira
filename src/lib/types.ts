@@ -50,6 +50,18 @@ export interface Tenant {
   linked_products?: Partial<Record<ProductKey, boolean>>;
 }
 
+/**
+ * The company the signed-in person works for: their legal entity's name and
+ * logo, the workspace's logo when it has none, the workspace's name when they
+ * have no company. Drawn at the top of the navigation.
+ */
+export interface CompanyBrand {
+  name: string;
+  /** A path on the API; null shows the name instead. */
+  logo_url: string | null;
+  legal_entity_id: string | null;
+}
+
 /** The separate products a workspace can be linked to. */
 export type ProductKey = "interview" | "expense" | "helpdesk";
 
@@ -60,6 +72,7 @@ export interface AuthResponse {
   expires_in: number;
   user: AuthUser;
   tenant: Tenant;
+  company?: CompanyBrand | null;
 }
 
 export interface Page<T> {

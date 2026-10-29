@@ -287,7 +287,7 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
         </CardHeader>
         <CardContent>
           {tds ? (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
               <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
                 <dt className="text-muted-foreground">Regime</dt>
                 <dd className="text-right capitalize">{tds.regime}</dd>
@@ -315,6 +315,16 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
                 <dd className="text-right">
                   <Money value={tds.tds_already_deducted} />
                 </dd>
+                {Number(tds.tds_assumed_deducted_by_previous_payroll ?? 0) > 0 && (
+                  <>
+                    <dt className="text-muted-foreground">
+                      Taken as deducted on your previous payroll
+                    </dt>
+                    <dd className="text-right">
+                      <Money value={tds.tds_assumed_deducted_by_previous_payroll ?? "0"} />
+                    </dd>
+                  </>
+                )}
                 <dt className="text-muted-foreground">
                   This month: spread over {tds.months_remaining} month(s)
                 </dt>
@@ -326,11 +336,22 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
                   <Money value={tds.one_off_tds} />
                 </dd>
               </dl>
-              <div className="space-y-3">
+              <div className="min-w-0 space-y-3">
                 <p className="flex items-start gap-2 text-sm text-muted-foreground">
                   <Info className="mt-0.5 size-4 shrink-0" />
                   {tds.declaration_basis}
                 </p>
+                {Number(tds.projection?.earlier_months_from_salary_structure ?? 0) > 0 && (
+                  <p className="flex items-start gap-2 text-sm text-muted-foreground">
+                    <Info className="mt-0.5 size-4 shrink-0" />
+                    <span>
+                      {tds.projection.earlier_months_from_salary_structure} earlier month(s) of
+                      this year were paid on the previous payroll. They are counted at the salary
+                      structure, and their tax is taken as deducted at the year&apos;s steady
+                      monthly rate.
+                    </span>
+                  </p>
+                )}
                 {tds.computation.slabs.length > 0 && (
                   <DataTable
                     variant="plain"

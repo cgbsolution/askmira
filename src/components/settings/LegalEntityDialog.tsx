@@ -1,7 +1,7 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ImageIcon, Loader2, Trash2, Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/common/FormField";
@@ -20,8 +20,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { HiddenFileInput } from "@/components/ui/file-input";
 import { weeklyOffLabel } from "@/components/attendance/shared";
-import { patch, post } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+import { del, patch, post } from "@/lib/api";
 import type { Shift } from "@/lib/types/attendance";
 import type { LegalEntity, SalaryDaysBasis } from "@/lib/types/people";
 
@@ -54,6 +56,10 @@ export function salaryDaysLabel(entity: LegalEntity): string {
   if (entity.salary_days_basis === "working_days") return "Working days";
   return "Calendar days";
 }
+
+/** The API's limit for a logo; checked here too, so a big file is refused before upload. */
+const LOGO_MAX_BYTES = 1024 * 1024;
+const LOGO_TYPES = ["image/png", "image/jpeg"];
 
 const PAN = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const TAN = /^[A-Z]{4}[0-9]{5}[A-Z]$/;
@@ -112,11 +118,19 @@ export function LegalEntityDialog({
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
 }) {
+  const { reloadSession } = useAuth();
   const [values, setValues] = useState<Values>(EMPTY);
   const [isBusy, setIsBusy] = useState(false);
+  // The logo is sent after the entity is saved (a new entity has no id before).
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [removeLogo, setRemoveLogo] = useState(false);
+  const logoInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
+    setLogoFile(null);
+    setRemoveLogo(false);
     setValues(
       editing
         ? {
@@ -136,6 +150,34 @@ export function LegalEntityDialog({
         : EMPTY,
     );
   }, [open, editing]);
+
+  // The picked file's preview, released when it is replaced or the dialog closes.
+  useEffect(() => {
+    if (!logoFile) {
+      setLogoPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(logoFile);
+    setLogoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [logoFile]);
+
+  const pickLogo = (file: File | undefined) => {
+    if (logoInput.current) logoInput.current.value = "";
+    if (!file) return;
+    if (!LOGO_TYPES.includes(file.type)) {
+      toast.error("A logo has to be a PNG or JPEG image.");
+      return;
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      toast.error("That image is over 1 MB. Save a smaller PNG or JPEG and try again.");
+      return;
+    }
+    setLogoFile(file);
+    setRemoveLogo(false);
+  };
+
+  const shownLogo = logoPreview ?? (removeLogo ? null : (editing?.logo_url ?? null));
 
   // Inactive shifts are not offered, except the one already chosen.
   const workWeeks = shifts.filter(
@@ -180,33 +222,51 @@ export function LegalEntityDialog({
       salary_days_basis: values.salary_days_basis,
       salary_fixed_days: values.salary_days_basis === "fixed" ? fixedDays : null,
     };
+    let saved: LegalEntity;
     try {
-      if (editing) {
-        await patch(`/org/legal-entities/${editing.id}`, {
-          ...body,
-          is_active: values.is_active,
-        });
-        toast.success("Entity updated.");
-      } else {
-        await post("/org/legal-entities", body);
-        toast.success("Entity created.");
-      }
-      onSaved();
-      onOpenChange(false);
+      saved = editing
+        ? await patch<LegalEntity>(`/org/legal-entities/${editing.id}`, {
+            ...body,
+            is_active: values.is_active,
+          })
+        : await post<LegalEntity>("/org/legal-entities", body);
     } catch (caught) {
       toast.error(errorDetail(caught, "Could not save the entity."));
+      setIsBusy(false);
+      return;
+    }
+    // The entity is saved. A logo that fails now is said plainly; the dialog
+    // still closes, so a second Save cannot create the entity twice.
+    try {
+      if (logoFile) {
+        const form = new FormData();
+        form.set("file", logoFile);
+        await post(`/org/legal-entities/${saved.id}/logo`, form);
+      } else if (removeLogo && editing?.logo_url) {
+        await del(`/org/legal-entities/${saved.id}/logo`);
+      }
+      toast.success(editing ? "Entity updated." : "Entity created.");
+    } catch (caught) {
+      toast.error(
+        `${saved.name} was saved, but the logo was not: ${errorDetail(caught, "the upload failed")}`,
+      );
     } finally {
       setIsBusy(false);
     }
+    // Their own company's name and logo may be the ones at the top of the navigation.
+    void reloadSession();
+    onSaved();
+    onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={(next) => !isBusy && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{editing ? `Edit ${editing.name}` : "Add a legal entity"}</DialogTitle>
           <DialogDescription>
-            Statutory returns are filed per entity, under these registration numbers.
+            A company of your group — your own, a sister company, or a client whose staff you
+            employ. It has its own payroll run and logo, and files returns under these numbers.
           </DialogDescription>
         </DialogHeader>
 
@@ -233,6 +293,53 @@ export function LegalEntityDialog({
               className="font-mono"
             />
           </FormField>
+
+          <div className="flex flex-col gap-3 rounded-xl border border-border p-3 sm:col-span-2 sm:flex-row sm:items-center">
+            <div className="flex h-16 w-full shrink-0 items-center justify-center rounded-lg border border-border bg-logo-plate p-2 sm:w-40">
+              {shownLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={shownLogo} alt={`${values.name || "Company"} logo`} className="max-h-full max-w-full object-contain" />
+              ) : (
+                <ImageIcon className="size-6 text-muted-foreground" aria-hidden />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-foreground">Logo</p>
+              <p className="text-xs text-muted-foreground">
+                This company&apos;s people see it at the top of the portal and on the app&apos;s Home
+                after they sign in. PNG or JPEG, up to 1 MB. Without one, they see the workspace logo.
+              </p>
+              {logoFile && <p className="mt-1 truncate text-xs text-foreground">{logoFile.name} — saved with the entity</p>}
+              {removeLogo && !logoFile && (
+                <p className="mt-1 text-xs text-foreground">The logo is removed when you save.</p>
+              )}
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <HiddenFileInput
+                ref={logoInput}
+                accept="image/png,image/jpeg"
+                onChange={(event) => pickLogo(event.target.files?.[0])}
+              />
+              <Button type="button" variant="outline" size="sm" disabled={isBusy} onClick={() => logoInput.current?.click()}>
+                <Upload /> {shownLogo ? "Replace" : "Upload"}
+              </Button>
+              {shownLogo && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isBusy}
+                  aria-label="Remove logo"
+                  onClick={() => {
+                    if (logoFile) setLogoFile(null);
+                    else setRemoveLogo(true);
+                  }}
+                >
+                  <Trash2 />
+                </Button>
+              )}
+            </div>
+          </div>
 
           <FormField htmlFor="entity-pan" label="PAN" optional error={errors.pan}>
             <Input

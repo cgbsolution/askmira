@@ -183,6 +183,11 @@ export function JoinerWizard({
     }
     if (index === 1) {
       if (!values.date_of_joining) found.date_of_joining = "Choose the day they join.";
+      // With several companies, one has to be chosen: no payroll run pays a
+      // person who belongs to none.
+      if (org.entities.length > 1 && values.legal_entity_id === NONE) {
+        found.legal_entity_id = "Choose the company that employs and pays them.";
+      }
       for (const field of definitions) {
         const value = custom[field.key];
         const empty =
@@ -217,6 +222,16 @@ export function JoinerWizard({
   };
 
   const submit = async () => {
+    // The stepper can be clicked ahead, so every earlier step is checked again
+    // here; the first one with a problem is shown.
+    for (const index of [0, 1]) {
+      const found = validate(index);
+      if (Object.keys(found).length > 0) {
+        setErrors(found);
+        setStep(index);
+        return;
+      }
+    }
     const text = (value: string) => (value.trim() === "" ? null : value.trim());
     const filled = Object.fromEntries(
       Object.entries(custom).filter(
@@ -433,17 +448,26 @@ export function JoinerWizard({
               </Select>
             </FormField>
             {org.entities.length > 1 && (
-              <FormField htmlFor="joiner-entity" label="Company" optional>
+              <FormField
+                htmlFor="joiner-entity"
+                label="Company"
+                required
+                error={errors.legal_entity_id}
+                hint="Its payroll run pays them, and they see its logo after signing in."
+              >
                 <Select
-                  value={values.legal_entity_id}
+                  value={values.legal_entity_id === NONE ? "" : values.legal_entity_id}
                   onValueChange={(v) => set("legal_entity_id", v)}
                 >
-                  <SelectTrigger id="joiner-entity" className="w-full">
-                    <SelectValue />
+                  <SelectTrigger
+                    id="joiner-entity"
+                    className="w-full"
+                    aria-invalid={Boolean(errors.legal_entity_id)}
+                  >
+                    <SelectValue placeholder="Choose a company" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>None</SelectItem>
-                    {org.entities.map((entity) => (
+                    {org.entities.filter((entity) => entity.is_active).map((entity) => (
                       <SelectItem key={entity.id} value={entity.id}>
                         {entity.name}
                       </SelectItem>

@@ -165,6 +165,8 @@ export interface TdsWorking {
   annual_liability_excluding_this_month_one_off: string;
   annual_liability: string;
   tds_already_deducted: string;
+  /** Tax for months paid on the previous payroll, at the year's steady rate. */
+  tds_assumed_deducted_by_previous_payroll?: string;
   recurring_tds: string;
   one_off_tds: string;
   tds: string;

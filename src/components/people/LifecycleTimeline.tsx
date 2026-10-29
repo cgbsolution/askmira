@@ -24,6 +24,7 @@ export function useFieldValue() {
   return (field: string, value: unknown): string => {
     if (value === null || value === undefined || value === "") return "—";
     const text = String(value);
+    if (field === "legal_entity_id") return org.entityName(text);
     if (field === "department_id") return org.departmentName(text);
     if (field === "location_id") return org.locationName(text);
     if (field === "probation_end_date") return formatDay(text, true);

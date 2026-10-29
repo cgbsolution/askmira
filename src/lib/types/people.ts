@@ -13,6 +13,8 @@ export interface DirectoryEmployee {
   display_name: string | null;
   work_email: string;
   designation: string | null;
+  /** Their company (legal entity): it pays them and files their returns. */
+  legal_entity_id?: string | null;
   department_id: string | null;
   location_id: string | null;
   manager_id: string | null;
@@ -143,6 +145,19 @@ export interface LegalEntity {
   salary_days_basis?: SalaryDaysBasis;
   /** The divisor for `fixed`, usually 26 or 30. */
   salary_fixed_days?: number | null;
+  /** The company's logo (a path on the API); null when it has none. */
+  logo_url?: string | null;
+  /** People in it who have not left. Set on the list only. */
+  headcount?: number | null;
+}
+
+/** POST /employees/bulk/legal-entity — moving people into one company. */
+export interface EntityMoveResult {
+  legal_entity_id: string;
+  legal_entity_name: string;
+  moved: number;
+  already_there: number;
+  skipped: { employee_id: string; employee_code: string | null; name: string | null; reason: string }[];
 }
 
 export type SalaryDaysBasis = "calendar" | "fixed" | "working_days";

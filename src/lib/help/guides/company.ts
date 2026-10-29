@@ -6,14 +6,22 @@ const MANAGERS = ["admin", "sub_admin", "manager"] as const;
 /** Guides for the "Company" pages: people, culture, rewards, performance, hiring. */
 export const COMPANY_GUIDES: Record<string, PageGuide> = {
   "/people": {
-    summary: "Everyone in the company: names, roles, departments and work contacts.",
+    summary: "Everyone in the company: names, roles, companies, departments and work contacts.",
     tasks: [
       {
         title: "Find a colleague",
         steps: [
           "Type a name, employee code or email in the search box (or press Ctrl K from anywhere).",
-          "Filter by department or location if the list is long.",
+          "Filter by company, department or location if the list is long.",
           "Open a person to see their profile.",
+        ],
+      },
+      {
+        title: "Move people to another company",
+        roles: [...HR],
+        steps: [
+          "Filter the list, tick the people (or tick the page, then Select all), and press Move to company.",
+          "Choose the company and confirm. Their company changes today: its payroll pays this month and after, and they see its logo. People who have left are not moved.",
         ],
       },
       {

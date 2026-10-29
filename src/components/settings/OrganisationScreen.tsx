@@ -1,7 +1,8 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Building2, Info, MapPin, Network, Plus } from "lucide-react";
+import { AlertTriangle, Building2, Info, MapPin, Network, Plus } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
@@ -13,8 +14,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { weeklyOffLabel } from "@/components/attendance/shared";
+import type { Page } from "@/lib/types";
 import type { Shift } from "@/lib/types/attendance";
-import type { Department, LegalEntity, Location } from "@/lib/types/people";
+import type { Department, DirectoryEmployee, LegalEntity, Location } from "@/lib/types/people";
+import { initials } from "@/lib/utils";
 
 import { DepartmentDialog } from "./DepartmentDialog";
 import { LegalEntityDialog, salaryDaysLabel } from "./LegalEntityDialog";
@@ -34,6 +37,11 @@ export function OrganisationScreen() {
   const canManage = hasRole("admin");
 
   const entities = useApiQuery<LegalEntity[]>("/org/legal-entities");
+  // People with no company: no payroll run pays them. Counted, not listed.
+  const withoutCompany = useApiQuery<Page<DirectoryEmployee>>(
+    "/employees?without_legal_entity=true&current=true&page_size=1",
+  );
+  const unplaced = withoutCompany.data?.total ?? 0;
   const locations = useApiQuery<Location[]>("/org/locations");
   const departments = useApiQuery<Department[]>("/org/departments");
   const shifts = useApiQuery<Shift[]>("/attendance/shifts?include_inactive=true");
@@ -81,15 +89,32 @@ export function OrganisationScreen() {
       header: "Entity",
       meta: { text: (row) => [row.name, row.code, !row.is_active && "Inactive"].filter(Boolean).join(" · ") },
       cell: ({ row }) => (
-        <>
-          <div className="font-medium text-foreground">{row.original.name}</div>
-          <div className="font-mono text-xs text-muted-foreground">{row.original.code}</div>
-          {!row.original.is_active && (
-            <Badge variant="outline" className="mt-1">
-              Inactive
-            </Badge>
-          )}
-        </>
+        <div className="flex items-center gap-3">
+          <EntityLogo entity={row.original} />
+          <div className="min-w-0">
+            <div className="font-medium text-foreground">{row.original.name}</div>
+            <div className="font-mono text-xs text-muted-foreground">{row.original.code}</div>
+            {!row.original.is_active && (
+              <Badge variant="outline" className="mt-1">
+                Inactive
+              </Badge>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "people",
+      header: "People",
+      accessorFn: (row) => row.headcount ?? 0,
+      meta: { className: "text-right", cellClassName: "tabular-nums" },
+      cell: ({ row }) => (
+        <Link
+          href={`/people?company=${row.original.id}&status=current`}
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+        >
+          {row.original.headcount ?? 0}
+        </Link>
       ),
     },
     {
@@ -260,13 +285,38 @@ export function OrganisationScreen() {
         <TabsContent value="entities" className="mt-4 flex flex-col gap-4">
           <Alert>
             <Info />
-            <AlertTitle>A legal entity is who files</AlertTitle>
+            <AlertTitle>One legal entity per company of your group</AlertTitle>
             <AlertDescription>
-              PF, ESI, professional tax and TDS returns are filed per entity, under its own
-              registration numbers. An employee&apos;s entity comes from their location, so an
-              entity with no registration number produces a return the portal will reject.
+              Add each company your people work for — your own, a sister company, or a client
+              whose staff you employ. Each one has its own payroll run, files PF, ESI,
+              professional tax and TDS under its own registration numbers, and shows its own
+              logo to its people after they sign in. Put people in a company on their record, or
+              many at once from People → Employees: tick them, then Move to company. A client
+              whose staff are on your payroll can carry your registration numbers; an entity with
+              none produces a return the portal will reject.
             </AlertDescription>
           </Alert>
+
+          {unplaced > 0 && (
+            <Alert variant="warning">
+              <AlertTriangle />
+              <AlertTitle>
+                {unplaced} {unplaced === 1 ? "person has" : "people have"} no company
+              </AlertTitle>
+              <AlertDescription>
+                <span>
+                  No payroll run pays them and their returns are filed nowhere until they are put
+                  in one.{" "}
+                  <Link
+                    href="/people?company=none&status=current"
+                    className="font-medium underline underline-offset-4"
+                  >
+                    Show them
+                  </Link>
+                </span>
+              </AlertDescription>
+            </Alert>
+          )}
 
           <DataTable
             title="Legal entities"
@@ -394,6 +444,22 @@ export function OrganisationScreen() {
         onSaved={departments.reload}
       />
     </PageShell>
+  );
+}
+
+/** The company's logo on a light plate, or its initials. */
+function EntityLogo({ entity }: { entity: LegalEntity }) {
+  return (
+    <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-logo-plate p-1">
+      {entity.logo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={entity.logo_url} alt="" className="max-h-full max-w-full object-contain" />
+      ) : (
+        <span aria-hidden className="text-xs font-bold text-logo-plate-foreground">
+          {initials(entity.name)}
+        </span>
+      )}
+    </span>
   );
 }
 

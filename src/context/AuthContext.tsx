@@ -6,11 +6,13 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 
 import { ApiError, get, post } from "@/lib/api";
 import { roleAllows } from "@/lib/access";
-import type { Audience, AuthResponse, AuthUser, Tenant } from "@/lib/types";
+import type { Audience, AuthResponse, AuthUser, CompanyBrand, Tenant } from "@/lib/types";
 
 interface AuthContextValue {
   user: AuthUser | null;
   tenant: Tenant | null;
+  /** The company they work for (their legal entity), drawn at the top of the navigation. */
+  company: CompanyBrand | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   /**
@@ -60,20 +62,24 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
+  const [company, setCompany] = useState<CompanyBrand | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   const reloadSession = useCallback(async () => {
     try {
-      const session = await get<{ user: AuthUser; tenant: Tenant }>("/auth/session", {
-        skipAuthRedirect: true,
-      });
+      const session = await get<{ user: AuthUser; tenant: Tenant; company?: CompanyBrand | null }>(
+        "/auth/session",
+        { skipAuthRedirect: true },
+      );
       setUser(session.user);
       setTenant(session.tenant);
+      setCompany(session.company ?? null);
     } catch (error) {
       if (!(error instanceof ApiError) || error.status === 401 || error.status === 403) {
         setUser(null);
         setTenant(null);
+        setCompany(null);
       }
     }
   }, []);
@@ -87,6 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const accept = useCallback((response: AuthResponse) => {
     setUser(response.user);
     setTenant(response.tenant);
+    setCompany(response.company ?? null);
   }, []);
 
   const login = useCallback(
@@ -132,6 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await post("/auth/logout", undefined, { skipAuthRedirect: true }).catch(() => undefined);
     setUser(null);
     setTenant(null);
+    setCompany(null);
     router.push("/signin");
   }, [router]);
 
@@ -146,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       tenant,
+      company,
       isLoading,
       isAuthenticated: Boolean(user),
       login,
@@ -156,7 +165,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       hasRole,
       hasModule,
     }),
-    [user, tenant, isLoading, login, completeMfa, completeExternal, logout, reloadSession, hasRole, hasModule],
+    [
+      user,
+      tenant,
+      company,
+      isLoading,
+      login,
+      completeMfa,
+      completeExternal,
+      logout,
+      reloadSession,
+      hasRole,
+      hasModule,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -48,6 +48,32 @@ export function EventFields({
         const id = `${idPrefix}-${field}`;
         const label = `New ${FIELD_LABEL[field]?.toLowerCase() ?? field}`;
         switch (field) {
+          case "legal_entity_id":
+            return (
+              <FormField
+                key={field}
+                htmlFor={id}
+                label={label}
+                optional
+                hint="Pays them, and files their PF, ESI and TDS, from the month this takes effect in. Date it the 1st of a month for a clean change."
+              >
+                <Select value={values[field] ?? NONE} onValueChange={(next) => set(field, next)}>
+                  <SelectTrigger id={id} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Unchanged</SelectItem>
+                    {org.entities
+                      .filter((row) => row.is_active)
+                      .map((row) => (
+                        <SelectItem key={row.id} value={row.id}>
+                          {row.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+            );
           case "department_id":
             return (
               <FormField key={field} htmlFor={id} label={label} optional>

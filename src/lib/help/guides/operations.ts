@@ -646,8 +646,27 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         title: "Add a legal entity, location or department",
         steps: ["Open the tab and press Add entity, Add location or Add department (or Edit on one), then save."],
       },
+      {
+        title: "Add each company of your group",
+        steps: [
+          "Add one legal entity per company your people work for: your own, a sister company, or a client whose staff you employ.",
+          "In its dialog press Upload under Logo (PNG or JPEG, up to 1 MB). Its people see that logo at the top of the portal and on the app's Home after they sign in.",
+          "The People column counts each company's current staff; press the number to see them.",
+        ],
+      },
+      {
+        title: "Put people in a company",
+        steps: [
+          "Go to Employees → Directory, filter (by department, say), tick the people or Select all, and press Move to company.",
+          "For a move on a later date, raise a Transfer with a New company under Employees → Lifecycle events, dated the 1st of a month.",
+        ],
+      },
     ],
-    tips: ["Payroll, statutory filings and attendance all depend on these being right."],
+    tips: [
+      "Payroll, statutory filings and attendance all depend on these being right.",
+      "Each company has its own payroll run. A month is paid by the company somebody belongs to on its last day; it is never split between two.",
+      "Somebody with no company is paid by none; the page warns when anyone has none.",
+    ],
   },
 
   "/settings/users": {

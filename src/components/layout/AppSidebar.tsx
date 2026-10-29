@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AskMiraLogo, AskMiraMark } from "@/components/brand/AskMiraLogo";
+import { CompanyLogo } from "@/components/brand/CompanyLogo";
 import { RailSection } from "@/components/layout/RailSection";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -45,8 +46,9 @@ import { humanizeRole, initials } from "@/lib/utils";
 const GROUP_ORDER: NavSection["group"][] = ["main", "admin"];
 
 /**
- * The nav rail from FRD 5.13: warm Ink with the AskMira logo, Marigold on the
- * active item.
+ * The nav rail from FRD 5.13: warm Ink with the person's own company logo on
+ * top (their legal entity's, else the workspace's), Marigold on the active
+ * item. The AskMira logo sits at the foot of the right-hand rail.
  *
  * One list of HR modules, the admin ones under their own heading at the foot.
  * Built from `lib/access.ts`, the same map the route guard reads. A section
@@ -59,7 +61,10 @@ const GROUP_ORDER: NavSection["group"][] = ["main", "admin"];
  */
 export function AppSidebar() {
   const t = useT();
-  const { user, tenant, logout } = useAuth();
+  const { user, tenant, company, logout } = useAuth();
+  // Whether the company's logo is drawn on top; without it the name is drawn
+  // there instead, and the box below must not repeat it.
+  const [logoShown, setLogoShown] = useState(false);
   const { isMobile, setOpenMobile, state } = useSidebar();
   const pathname = usePathname();
 
@@ -109,23 +114,37 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       {/* ── Brand + workspace ──────────────────────────────────────────── */}
       <SidebarHeader className="gap-0 p-0">
-        <div className="flex h-[72px] shrink-0 items-center px-5 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        <div className="flex h-[76px] shrink-0 items-center px-4 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <Link
             href="/"
             onClick={closeOnMobile}
-            aria-label="AskMira home"
-            className="flex items-center gap-2.5 rounded-lg outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+            aria-label={`${company?.name ?? tenant?.name ?? "AskMira"} home`}
+            className="flex w-full min-w-0 items-center rounded-xl outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:w-auto"
           >
-            <AskMiraLogo priority className="h-10 group-data-[collapsible=icon]:hidden" />
-            <AskMiraMark label="AskMira" className="hidden h-10 group-data-[collapsible=icon]:block" />
+            {tenant ? (
+              <CompanyLogo
+                company={company}
+                fallbackName={tenant.name}
+                className="w-full"
+                onLogoShown={setLogoShown}
+              />
+            ) : (
+              <>
+                <AskMiraLogo priority className="h-10 group-data-[collapsible=icon]:hidden" />
+                <AskMiraMark label="AskMira" className="hidden h-10 group-data-[collapsible=icon]:block" />
+              </>
+            )}
           </Link>
         </div>
 
         {tenant && (
           <div className="mx-3 mb-2 rounded-xl border border-white/10 px-3 py-2.5 group-data-[collapsible=icon]:hidden">
-            <p className="truncate text-[13px] font-semibold">{tenant.name}</p>
-            <p className="text-[11px] uppercase tracking-wider text-sidebar-muted">
-              {tenant.plan} workspace
+            {/* Without a logo the name is already drawn above. */}
+            {logoShown && company && (
+              <p className="truncate text-[13px] font-semibold">{company.name}</p>
+            )}
+            <p className="truncate text-[11px] uppercase tracking-wider text-sidebar-muted">
+              {company && company.name !== tenant.name ? tenant.name : `${tenant.plan} workspace`}
             </p>
           </div>
         )}

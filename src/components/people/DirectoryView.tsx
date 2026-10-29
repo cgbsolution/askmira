@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Download, Loader2, Users } from "lucide-react";
+import { Building2, Download, Loader2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -12,6 +12,7 @@ import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
 import { EMPLOYMENT_STATUS, NONE, fromSelect, personName } from "@/components/people/labels";
+import { MoveToCompanyDialog } from "@/components/people/MoveToCompanyDialog";
 import { EmploymentStatusBadge } from "@/components/people/StatusBadges";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { Button } from "@/components/ui/button";
@@ -22,13 +23,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { HR } from "@/lib/access";
-import { ApiError, downloadFile } from "@/lib/api";
+import { ApiError, downloadFile, get } from "@/lib/api";
 import type { EmploymentStatus, Page } from "@/lib/types";
 import type { DirectoryEmployee } from "@/lib/types/people";
 
 const PAGE_SIZE = 25;
+/** The company filter's value for people with no company at all. */
+const NO_COMPANY = "none";
+/** The status filter's value for everybody who has not left (any status but exited). */
+const CURRENT = "current";
 
 /**
  * The company directory. Every colleague may browse it; it carries names,
@@ -40,11 +46,18 @@ const PAGE_SIZE = 25;
 export function DirectoryView() {
   const router = useRouter();
   const params = useSearchParams();
-  const org = useOrgReference();
+  const [orgVersion, setOrgVersion] = useState(0);
+  const org = useOrgReference(orgVersion);
+  const { hasRole } = useAuth();
+  const isHr = hasRole(...HR);
+  const [moving, setMoving] = useState<{ people: DirectoryEmployee[]; clear: () => void } | null>(
+    null,
+  );
 
   const [term, setTerm] = useState(params.get("search") ?? "");
   const [debounced, setDebounced] = useState(term);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const company = params.get("company") ?? NONE;
   const department = params.get("department") ?? NONE;
   const location = params.get("location") ?? NONE;
   const status = params.get("status") ?? NONE;
@@ -79,9 +92,12 @@ export function DirectoryView() {
 
   const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
   if (debounced.trim()) query.set("search", debounced.trim());
+  if (company === NO_COMPANY) query.set("without_legal_entity", "true");
+  else if (fromSelect(company)) query.set("legal_entity_id", company);
   if (fromSelect(department)) query.set("department_id", department);
   if (fromSelect(location)) query.set("location_id", location);
-  if (fromSelect(status)) query.set("status", status);
+  if (status === CURRENT) query.set("current", "true");
+  else if (fromSelect(status)) query.set("status", status);
   const { data, error, isLoading, reload } = useApiQuery<Page<DirectoryEmployee>>(
     `/employees?${query}`,
   );
@@ -101,7 +117,21 @@ export function DirectoryView() {
     }
   };
   const filtered =
-    Boolean(debounced.trim()) || [department, location, status].some((v) => v !== NONE);
+    Boolean(debounced.trim()) || [company, department, location, status].some((v) => v !== NONE);
+
+  // "Select all N people": every page under the current filters, for HR's bulk move.
+  const fetchAll = async () => {
+    const everyone: DirectoryEmployee[] = [];
+    const all = new URLSearchParams(query);
+    all.set("page_size", "200");
+    for (let next = 1; next <= 100; next += 1) {
+      all.set("page", String(next));
+      const batch = await get<Page<DirectoryEmployee>>(`/employees?${all}`);
+      everyone.push(...batch.items);
+      if (everyone.length >= batch.total || batch.items.length === 0) break;
+    }
+    return everyone;
+  };
 
   const columns: ColumnDef<DirectoryEmployee>[] = [
     {
@@ -127,6 +157,12 @@ export function DirectoryView() {
       meta: { cellClassName: "text-muted-foreground" },
     },
     {
+      id: "company",
+      header: "Company",
+      accessorFn: (row) => (row.legal_entity_id ? org.entityName(row.legal_entity_id) : "No company"),
+      meta: { cellClassName: "text-muted-foreground" },
+    },
+    {
       id: "department",
       header: "Department",
       accessorFn: (row) => org.departmentName(row.department_id),
@@ -149,7 +185,7 @@ export function DirectoryView() {
   return (
     <PageShell
       title="Employees"
-      description="Everyone in the company — names, roles, departments and work contacts."
+      description="Everyone in the company — names, roles, companies, departments and work contacts."
       actions={
         <RequireRole roles={HR}>
           <Button variant="outline" onClick={() => void exportCsv()} disabled={exporting}>
@@ -176,8 +212,33 @@ export function DirectoryView() {
         searchPlaceholder="Name, code, email or title"
         search={term}
         onSearchChange={setTerm}
+        bulkActions={
+          isHr
+            ? (selected, clear) => (
+                <Button size="sm" variant="outline" onClick={() => setMoving({ people: selected, clear })}>
+                  <Building2 /> Move to company
+                </Button>
+              )
+            : undefined
+        }
         filters={
           <>
+            {org.entities.length > 0 && (
+              <Select value={company} onValueChange={(v) => update({ company: v })}>
+                <SelectTrigger aria-label="Company" className="h-9 w-48">
+                  <SelectValue placeholder="Company" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>All companies</SelectItem>
+                  {org.entities.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NO_COMPANY}>No company</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
             <Select value={department} onValueChange={(v) => update({ department: v })}>
               <SelectTrigger aria-label="Department" className="h-9 w-44">
                 <SelectValue placeholder="Department" />
@@ -205,11 +266,12 @@ export function DirectoryView() {
               </SelectContent>
             </Select>
             <Select value={status} onValueChange={(v) => update({ status: v })}>
-              <SelectTrigger aria-label="Status" className="h-9 w-36">
+              <SelectTrigger aria-label="Status" className="h-9 w-40">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE}>Any status</SelectItem>
+                <SelectItem value={CURRENT}>Current staff</SelectItem>
                 {(Object.keys(EMPLOYMENT_STATUS) as EmploymentStatus[]).map((key) => (
                   <SelectItem key={key} value={key}>
                     {EMPLOYMENT_STATUS[key].label}
@@ -223,11 +285,25 @@ export function DirectoryView() {
           page,
           pageSize,
           total: data?.total ?? 0,
+          fetchAll: isHr ? fetchAll : undefined,
           onPageChange: (next) => update({ page: String(next) }),
           onPageSizeChange: (size) => {
             setPageSize(size);
             update({ page: null });
           },
+        }}
+      />
+      <MoveToCompanyDialog
+        open={moving !== null}
+        people={moving?.people ?? []}
+        entities={org.entities}
+        onOpenChange={(open) => {
+          if (!open) setMoving(null);
+        }}
+        onMoved={() => {
+          moving?.clear();
+          reload();
+          setOrgVersion((v) => v + 1);
         }}
       />
     </PageShell>

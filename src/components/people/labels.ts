@@ -60,7 +60,7 @@ export const EVENT_TYPE: Record<LifecycleEventType, string> = {
 export const EVENT_FIELDS: Record<LifecycleEventType, string[]> = {
   confirmation: ["probation_end_date"],
   probation_extension: ["probation_end_date"],
-  transfer: ["location_id", "department_id", "manager_id", "designation"],
+  transfer: ["legal_entity_id", "location_id", "department_id", "manager_id", "designation"],
   promotion: ["grade", "designation", "manager_id"],
   demotion: ["grade", "designation"],
   redesignation: ["designation"],
@@ -75,6 +75,7 @@ export const EVENT_FIELDS: Record<LifecycleEventType, string[]> = {
 export const FIELD_LABEL: Record<string, string> = {
   status: "Status",
   probation_end_date: "Probation end date",
+  legal_entity_id: "Company",
   location_id: "Location",
   department_id: "Department",
   manager_id: "Manager",
