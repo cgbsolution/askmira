@@ -1,45 +1,51 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { FileSpreadsheet, FolderKanban, Info, Network, Plus } from "lucide-react";
+import { FolderKanban, Info, Network, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataTable } from "@/components/common/data-table/DataTable";
 import type { ProjectRow } from "@/components/time/TimesheetScreen";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useApiQuery } from "@/hooks/useApiQuery";
+import type { useApiQuery } from "@/hooks/useApiQuery";
+import { del } from "@/lib/api";
 import type { Department, LegalEntity } from "@/lib/types/people";
 
-import { AssignFromSheetDialog, FromDepartmentsDialog, ProjectDialog } from "./ProjectDialogs";
+import { FromDepartmentsDialog, ProjectDialog, projectLikeDepartments } from "./ProjectDialogs";
+import { errorDetail } from "./settingsShared";
 
 /**
  * Settings → Organisation → Projects.
  *
  * Where people work: a client's project (DXC INET, JK Paper, UIDAI…) or the
  * company's own (Internal). Under the legal entity, which still pays them and
- * files their returns. The same list timesheets log hours against.
+ * files their returns. The same list timesheets log hours against. A person
+ * is put on one from their profile, or several at once from People.
  */
 export function ProjectsTab({
   canManage,
+  projects,
   entities,
   departments,
   onDepartmentsChanged,
 }: {
   canManage: boolean;
+  projects: ReturnType<typeof useApiQuery<ProjectRow[]>>;
   entities: LegalEntity[];
   departments: Department[];
   onDepartmentsChanged: () => void;
 }) {
-  const projects = useApiQuery<ProjectRow[]>("/timesheets/projects?include_inactive=true");
   const [form, setForm] = useState<{ open: boolean; editing: ProjectRow | null }>({
     open: false,
     editing: null,
   });
   const [fromDepartments, setFromDepartments] = useState(false);
-  const [fromSheet, setFromSheet] = useState(false);
+  const [deleting, setDeleting] = useState<ProjectRow | null>(null);
 
   const entityName = useMemo(() => new Map(entities.map((row) => [row.id, row.name])), [entities]);
   const rows = projects.data ?? [];
@@ -111,9 +117,20 @@ export function ProjectsTab({
             enableHiding: false,
             meta: { className: "text-right", text: false },
             cell: ({ row }) => (
-              <Button variant="outline" size="sm" onClick={() => setForm({ open: true, editing: row.original })}>
-                Edit
-              </Button>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setForm({ open: true, editing: row.original })}>
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  aria-label={`Delete ${row.original.name}`}
+                  onClick={() => setDeleting(row.original)}
+                >
+                  <Trash2 /> Delete
+                </Button>
+              </div>
             ),
           } satisfies ColumnDef<ProjectRow>,
         ]
@@ -123,6 +140,17 @@ export function ProjectsTab({
   const reloadAll = () => {
     projects.reload();
     onDepartmentsChanged();
+  };
+
+  const remove = async () => {
+    if (!deleting) return;
+    try {
+      await del(`/timesheets/projects/${deleting.id}`);
+      toast.success(`${deleting.name} deleted.`);
+      projects.reload();
+    } catch (caught) {
+      toast.error(errorDetail(caught, "The project could not be deleted."));
+    }
   };
 
   return (
@@ -153,9 +181,6 @@ export function ProjectsTab({
               <Button size="sm" variant="outline" className="h-9" onClick={() => setFromDepartments(true)}>
                 <Network /> From departments
               </Button>
-              <Button size="sm" variant="outline" className="h-9" onClick={() => setFromSheet(true)}>
-                <FileSpreadsheet /> From a sheet
-              </Button>
               <Button size="sm" className="h-9" onClick={() => setForm({ open: true, editing: null })}>
                 <Plus /> Add project
               </Button>
@@ -169,7 +194,7 @@ export function ProjectsTab({
           icon: FolderKanban,
           title: "No projects yet",
           description:
-            "Add Internal and each client project, make them from departments, or upload your old salary register.",
+            "Add Internal and each client project, or move departments like Internal and External here. Then put people on them from their profile.",
         }}
       />
 
@@ -183,10 +208,19 @@ export function ProjectsTab({
       <FromDepartmentsDialog
         open={fromDepartments}
         departments={departments}
+        preselected={projectLikeDepartments(departments, rows).map((row) => row.id)}
         onOpenChange={setFromDepartments}
         onDone={reloadAll}
       />
-      <AssignFromSheetDialog open={fromSheet} onOpenChange={setFromSheet} onDone={projects.reload} />
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title={`Delete ${deleting?.name ?? "this project"}?`}
+        description="It is removed for good. Only a project nobody has been on can be deleted: one with people, payslips or timesheet hours is refused, and you can close it instead (Edit → Open off)."
+        confirmLabel="Delete project"
+        destructive
+        onConfirm={remove}
+      />
     </div>
   );
 }

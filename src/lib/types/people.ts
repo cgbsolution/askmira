@@ -166,27 +166,6 @@ export interface ProjectMoveResult {
   skipped: { employee_id: string; employee_code: string | null; name: string | null; reason: string }[];
 }
 
-/** POST /org/projects/assign-from-sheet — one row of the uploaded register. */
-export interface ProjectSheetRow {
-  line: number;
-  employee_code: string;
-  name: string | null;
-  project: string | null;
-  outcome: "assign" | "unchanged" | "unknown" | "blank" | "skipped" | "duplicate";
-  note: string | null;
-}
-
-export interface ProjectSheetResult {
-  filename: string;
-  applied: boolean;
-  header_row: number;
-  rows: ProjectSheetRow[];
-  counts: Partial<Record<ProjectSheetRow["outcome"], number>>;
-  new_projects: string[];
-  projects_created: string[];
-  moved: number;
-}
-
 /** POST /employees/bulk/legal-entity — moving people into one company. */
 export interface EntityMoveResult {
   legal_entity_id: string;

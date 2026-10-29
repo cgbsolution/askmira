@@ -1,15 +1,12 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import type { ProjectRow } from "@/components/time/TimesheetScreen";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -20,13 +17,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileInput } from "@/components/ui/file-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { patch, post } from "@/lib/api";
-import type { Department, LegalEntity, ProjectSheetResult, ProjectSheetRow } from "@/lib/types/people";
+import type { Department, LegalEntity } from "@/lib/types/people";
 
 import { errorDetail } from "./settingsShared";
 
@@ -217,32 +213,62 @@ export function ProjectDialog({
   );
 }
 
-// ── Make projects from departments ─────────────────────────────────────────
+// ── Departments that are really projects ───────────────────────────────────
+
+/** Departments named like where people work rather than what they do. */
+const PROJECT_LIKE = /\b(internal|external|client|project|onsite|deput)/i;
 
 /**
- * Departments that stood in for projects ("Internal", "External") become
- * projects of the same name, with their people on them.
+ * The departments that look like projects: named Internal / External / a
+ * client, or sharing a name or code with a project already made.
+ */
+export function projectLikeDepartments(departments: Department[], projects: ProjectRow[]): Department[] {
+  const known = new Set(projects.flatMap((project) => [project.name.toLowerCase(), project.code.toLowerCase()]));
+  return departments.filter(
+    (department) =>
+      PROJECT_LIKE.test(department.name) ||
+      PROJECT_LIKE.test(department.code) ||
+      known.has(department.name.toLowerCase()) ||
+      known.has(department.code.toLowerCase()),
+  );
+}
+
+interface FromDepartmentsResult {
+  projects_created: string[];
+  projects_reused: string[];
+  moved: number;
+  leavers_moved: number;
+  unchanged: number;
+  departments_deleted: string[];
+  departments_closed: { name: string; reasons: string[] }[];
+}
+
+/**
+ * Departments that stood in for projects ("Internal", "External") move to
+ * Projects: each becomes a project of the same name, everybody in it goes onto
+ * it, and the department is removed. Departments are for HR, IT, Finance.
  */
 export function FromDepartmentsDialog({
   open,
   departments,
+  preselected,
   onOpenChange,
   onDone,
 }: {
   open: boolean;
   departments: Department[];
+  /** Ticked when the dialog opens: the departments that look like projects. */
+  preselected?: string[];
   onOpenChange: (open: boolean) => void;
   onDone: () => void;
 }) {
   const [chosen, setChosen] = useState<Set<string>>(new Set());
-  const [clear, setClear] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setChosen(new Set());
-      setClear(true);
-    }
+    if (open) setChosen(new Set(preselected ?? []));
+    // Only when it opens: the ticks are the user's from then on.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const toggle = (id: string, on: boolean) =>
@@ -256,51 +282,56 @@ export function FromDepartmentsDialog({
   const submit = async () => {
     setBusy(true);
     try {
-      const result = await post<{
-        projects_created: string[];
-        projects_reused: string[];
-        moved: number;
-        skipped: { employee_code: string; reason: string }[];
-      }>("/org/projects/from-departments", {
+      const result = await post<FromDepartmentsResult>("/org/projects/from-departments", {
         department_ids: [...chosen],
-        clear_department: clear,
       });
-      const made = result.projects_created.length
-        ? `Projects added: ${result.projects_created.join(", ")}. `
-        : "";
-      const message = `${made}${result.moved} ${result.moved === 1 ? "person" : "people"} put on their project.`;
-      if (result.skipped.length) {
-        toast.warning(message, {
-          description: `${result.skipped.length} not moved (their own record, or they have left).`,
+      const parts: string[] = [];
+      if (result.projects_created.length) parts.push(`Projects added: ${result.projects_created.join(", ")}.`);
+      if (result.moved) {
+        parts.push(`${result.moved} ${result.moved === 1 ? "person" : "people"} moved to their project.`);
+      }
+      if (result.leavers_moved) {
+        parts.push(
+          `${result.leavers_moved} ${result.leavers_moved === 1 ? "person who has left was" : "people who have left were"} moved too.`,
+        );
+      }
+      if (!result.moved && !result.leavers_moved) parts.push("Everyone was already on their project.");
+      if (result.departments_deleted.length) {
+        parts.push(`Removed from Departments: ${result.departments_deleted.join(", ")}.`);
+      }
+      if (result.departments_closed.length) {
+        toast.warning(parts.join(" "), {
+          description: result.departments_closed
+            .map((row) => `${row.name} was closed, not deleted: ${row.reasons.join("; ")}.`)
+            .join(" "),
         });
       } else {
-        toast.success(message);
+        toast.success(parts.join(" "));
       }
       onDone();
       onOpenChange(false);
     } catch (caught) {
-      toast.error(errorDetail(caught, "Could not make the projects."));
+      toast.error(errorDetail(caught, "Could not move the departments to Projects."));
     } finally {
       setBusy(false);
     }
   };
 
-  const active = departments.filter((department) => department.is_active);
-
   return (
     <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Make projects from departments</DialogTitle>
+          <DialogTitle>Move departments to Projects</DialogTitle>
           <DialogDescription>
-            Tick the departments that really say where people work (Internal, External, a
-            client). Each becomes a project of the same name and its people go onto it.
+            Tick the departments that are really projects (Internal, External, a client). Each
+            becomes a project of the same name, everybody in it goes onto that project, and the
+            department is removed. Departments are for functions like HR, IT and Finance.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-2 rounded-xl border border-border p-3">
-          {active.length === 0 && <p className="text-sm text-muted-foreground">No departments yet.</p>}
-          {active.map((department) => (
+          {departments.length === 0 && <p className="text-sm text-muted-foreground">No departments yet.</p>}
+          {departments.map((department) => (
             <div key={department.id} className="flex items-center gap-3">
               <Checkbox
                 id={`dept-${department.id}`}
@@ -310,18 +341,20 @@ export function FromDepartmentsDialog({
               <Label htmlFor={`dept-${department.id}`} className="text-sm font-normal">
                 {department.name}{" "}
                 <span className="ml-1 font-mono text-xs text-muted-foreground">{department.code}</span>
+                {!department.is_active && <span className="ml-1 text-xs text-muted-foreground">(closed)</span>}
               </Label>
             </div>
           ))}
         </div>
 
-        <div className="flex items-start gap-3">
-          <Checkbox id="dept-clear" checked={clear} onCheckedChange={(value) => setClear(value === true)} />
-          <Label htmlFor="dept-clear" className="text-sm leading-snug font-normal">
-            Take these departments off their records. Approval rules or sub-admin access tied to
-            these departments stop matching them; you can close the departments afterwards.
-          </Label>
-        </div>
+        <Alert>
+          <AlertDescription>
+            Each person&apos;s project change goes in their history, dated today; people who have
+            left move too. They will have no department until you set their real one (HR, IT,
+            Finance…). A department something else still uses — a position, a budget, an approval
+            rule — is closed instead of deleted, and you are told why.
+          </AlertDescription>
+        </Alert>
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
@@ -329,172 +362,8 @@ export function FromDepartmentsDialog({
           </Button>
           <Button onClick={() => void submit()} disabled={busy || chosen.size === 0}>
             {busy && <Loader2 className="animate-spin" />}
-            Make {chosen.size || ""} {chosen.size === 1 ? "project" : "projects"}
+            Move {chosen.size || ""} to Projects
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── Put everybody on their project from a sheet ────────────────────────────
-
-const OUTCOME: Record<ProjectSheetRow["outcome"], { label: string; variant: "success" | "muted" | "warning" | "destructive" | "secondary" }> = {
-  assign: { label: "Will move", variant: "success" },
-  unchanged: { label: "Already there", variant: "muted" },
-  blank: { label: "No project", variant: "muted" },
-  unknown: { label: "Not found", variant: "destructive" },
-  skipped: { label: "Not moved", variant: "warning" },
-  duplicate: { label: "Listed twice", variant: "warning" },
-};
-
-/**
- * Upload the old HRMS's salary register (or any sheet with Emp Code and
- * Project): check what it would do, then apply it.
- */
-export function AssignFromSheetDialog({
-  open,
-  onOpenChange,
-  onDone,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onDone: () => void;
-}) {
-  const [file, setFile] = useState<File | null>(null);
-  const [result, setResult] = useState<ProjectSheetResult | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setFile(null);
-      setResult(null);
-    }
-  }, [open]);
-
-  const send = async (apply: boolean) => {
-    if (!file) return;
-    setBusy(true);
-    try {
-      const form = new FormData();
-      form.set("file", file);
-      form.set("apply", apply ? "true" : "false");
-      const answer = await post<ProjectSheetResult>("/org/projects/assign-from-sheet", form);
-      if (apply) {
-        const made = answer.projects_created.length
-          ? ` Projects added: ${answer.projects_created.join(", ")}.`
-          : "";
-        toast.success(`${answer.moved} ${answer.moved === 1 ? "person" : "people"} put on their project.${made}`);
-        onDone();
-        onOpenChange(false);
-      } else {
-        setResult(answer);
-      }
-    } catch (caught) {
-      toast.error(errorDetail(caught, "The sheet could not be read."));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const columns: ColumnDef<ProjectSheetRow>[] = [
-    { accessorKey: "line", header: "Row", meta: { cellClassName: "tabular-nums text-muted-foreground" } },
-    {
-      id: "person",
-      header: "Employee",
-      accessorFn: (row) => `${row.employee_code} ${row.name ?? ""}`,
-      cell: ({ row }) => (
-        <>
-          <div className="font-medium text-foreground">{row.original.name ?? "—"}</div>
-          <div className="font-mono text-xs text-muted-foreground">{row.original.employee_code}</div>
-        </>
-      ),
-    },
-    { id: "project", header: "Project", accessorFn: (row) => row.project ?? "—" },
-    {
-      id: "outcome",
-      header: "What happens",
-      accessorFn: (row) => `${OUTCOME[row.outcome].label}${row.note ? ` — ${row.note}` : ""}`,
-      cell: ({ row }) => (
-        <div className="grid gap-0.5">
-          <Badge variant={OUTCOME[row.original.outcome].variant}>{OUTCOME[row.original.outcome].label}</Badge>
-          {row.original.note && <span className="text-xs text-muted-foreground">{row.original.note}</span>}
-        </div>
-      ),
-    },
-  ];
-
-  const moving = result?.counts.assign ?? 0;
-
-  return (
-    <Dialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Put people on projects from a sheet</DialogTitle>
-          <DialogDescription>
-            Your old HRMS&apos;s salary register works as it is: it needs an Emp Code column and a
-            Project column. Check first; nothing changes until you apply.
-          </DialogDescription>
-        </DialogHeader>
-
-        <FormField htmlFor="project-sheet" label="Excel or CSV file">
-          <FileInput
-            id="project-sheet"
-            accept=".xlsx,.csv"
-            onChange={(event) => {
-              setFile(event.target.files?.[0] ?? null);
-              setResult(null);
-            }}
-          />
-        </FormField>
-
-        {result && (
-          <>
-            <Alert>
-              <AlertTitle>
-                {moving} {moving === 1 ? "person moves" : "people move"}
-                {result.counts.unchanged ? `, ${result.counts.unchanged} already on theirs` : ""}
-              </AlertTitle>
-              <AlertDescription className="grid gap-1">
-                <span>Headings found on row {result.header_row}.</span>
-                {result.new_projects.length > 0 && (
-                  <span>
-                    New projects, added on apply:{" "}
-                    <span className="font-medium text-foreground">{result.new_projects.join(", ")}</span>
-                  </span>
-                )}
-                {(result.counts.unknown ?? 0) > 0 && (
-                  <span>{result.counts.unknown} codes are not employees here and are left out.</span>
-                )}
-              </AlertDescription>
-            </Alert>
-            <DataTable
-              columns={columns}
-              data={result.rows}
-              noun="rows"
-              exportName={false}
-              selectable={false}
-              searchPlaceholder="Search the sheet"
-              pageSize={10}
-            />
-          </>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={busy}>
-            Cancel
-          </Button>
-          {result ? (
-            <Button onClick={() => void send(true)} disabled={busy || moving === 0}>
-              {busy && <Loader2 className="animate-spin" />}
-              Apply: move {moving}
-            </Button>
-          ) : (
-            <Button onClick={() => void send(false)} disabled={busy || !file}>
-              {busy && <Loader2 className="animate-spin" />}
-              Check the sheet
-            </Button>
-          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

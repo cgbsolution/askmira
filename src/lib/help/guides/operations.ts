@@ -705,7 +705,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         title: "Set up projects (client projects and Internal)",
         steps: [
           "Open the Projects tab. A project is where somebody works: a client's (DXC INET, JK Paper…) or Internal for your own staff. Your company still employs and pays them.",
-          "Add each one with Add project, or: From departments turns departments like Internal and External into projects and moves their people; From a sheet reads your old salary register's Emp Code and PROJECT columns, shows what it would do, then applies it.",
+          "Add each one with Add project. Put a person on a project from their profile (Edit → Project), or tick several in People and use Move to project. Departments like Internal and External that stood in for projects: Move them to Projects (on either tab) makes each a project, moves its people onto it and removes the department. Delete removes a project nobody has been on; close one that has a history.",
           "The People number shows who is on each project now; press it to see them.",
         ],
       },

@@ -1,12 +1,15 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { AlertTriangle, Building2, Info, MapPin, Network, Plus } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, Building2, Info, MapPin, Network, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 
+import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { PageShell } from "@/components/common/PageShell";
+import type { ProjectRow } from "@/components/time/TimesheetScreen";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { weeklyOffLabel } from "@/components/attendance/shared";
+import { del } from "@/lib/api";
 import type { Page } from "@/lib/types";
 import type { Shift } from "@/lib/types/attendance";
 import type { Department, DirectoryEmployee, LegalEntity, Location } from "@/lib/types/people";
@@ -22,7 +26,9 @@ import { initials } from "@/lib/utils";
 import { DepartmentDialog } from "./DepartmentDialog";
 import { LegalEntityDialog, salaryDaysLabel } from "./LegalEntityDialog";
 import { LocationDialog } from "./LocationDialog";
+import { FromDepartmentsDialog, projectLikeDepartments } from "./ProjectDialogs";
 import { ProjectsTab } from "./ProjectsTab";
+import { errorDetail } from "./settingsShared";
 
 /**
  * Settings → Organisation.
@@ -45,6 +51,7 @@ export function OrganisationScreen() {
   const unplaced = withoutCompany.data?.total ?? 0;
   const locations = useApiQuery<Location[]>("/org/locations");
   const departments = useApiQuery<Department[]>("/org/departments");
+  const projects = useApiQuery<ProjectRow[]>("/timesheets/projects?include_inactive=true");
   const shifts = useApiQuery<Shift[]>("/attendance/shifts?include_inactive=true");
   const shiftById = useMemo(
     () => new Map((shifts.data ?? []).map((row) => [row.id, row])),
@@ -63,6 +70,24 @@ export function OrganisationScreen() {
     open: boolean;
     editing: Department | null;
   }>({ open: false, editing: null });
+  const [deletingDepartment, setDeletingDepartment] = useState<Department | null>(null);
+  const [movingToProjects, setMovingToProjects] = useState(false);
+  // Internal / External / a client: where people work, so it belongs under Projects.
+  const projectLike = useMemo(
+    () => projectLikeDepartments(departments.data ?? [], projects.data ?? []),
+    [departments.data, projects.data],
+  );
+
+  const deleteDepartment = async () => {
+    if (!deletingDepartment) return;
+    try {
+      await del(`/org/departments/${deletingDepartment.id}`);
+      toast.success(`${deletingDepartment.name} deleted.`);
+      departments.reload();
+    } catch (caught) {
+      toast.error(errorDetail(caught, "The department could not be deleted."));
+    }
+  };
 
   const entityName = useMemo(
     () => new Map((entities.data ?? []).map((row) => [row.id, row.name])),
@@ -235,9 +260,20 @@ export function OrganisationScreen() {
     enableHiding: false,
     meta: { className: "text-right", text: false },
     cell: ({ row }) => (
-      <Button variant="outline" size="sm" onClick={() => setDepartmentForm({ open: true, editing: row.original })}>
-        Edit
-      </Button>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={() => setDepartmentForm({ open: true, editing: row.original })}>
+          Edit
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive hover:text-destructive"
+          aria-label={`Delete ${row.original.name}`}
+          onClick={() => setDeletingDepartment(row.original)}
+        >
+          <Trash2 /> Delete
+        </Button>
+      </div>
     ),
   };
   const departmentColumns: ColumnDef<Department>[] = [
@@ -394,6 +430,7 @@ export function OrganisationScreen() {
         <TabsContent value="projects" className="mt-4">
           <ProjectsTab
             canManage={canManage}
+            projects={projects}
             entities={entities.data ?? []}
             departments={departments.data ?? []}
             onDepartmentsChanged={departments.reload}
@@ -401,15 +438,36 @@ export function OrganisationScreen() {
         </TabsContent>
 
         <TabsContent value="departments" className="mt-4 flex flex-col gap-4">
-          <Alert>
-            <Info />
-            <AlertTitle>Departments are what people do; projects are where they work</AlertTitle>
-            <AlertDescription>
-              Internal, External and client names belong under Projects. On the Projects tab,
-              &ldquo;From departments&rdquo; turns such departments into projects and moves their
-              people across.
-            </AlertDescription>
-          </Alert>
+          {projectLike.length > 0 ? (
+            <Alert variant="warning">
+              <AlertTriangle />
+              <AlertTitle>
+                {projectLike.map((row) => row.name).join(", ")}{" "}
+                {projectLike.length === 1 ? "is a project, not a department" : "are projects, not departments"}
+              </AlertTitle>
+              <AlertDescription>
+                <p>
+                  Departments are for functions like HR, IT and Finance; Internal, External and
+                  client names say where people work, so they belong under Projects. Moving them
+                  makes each a project, puts its people on it and removes the department.
+                </p>
+                {canManage && (
+                  <Button size="sm" className="mt-3 h-9" onClick={() => setMovingToProjects(true)}>
+                    <ArrowRightLeft /> Move {projectLike.length === 1 ? "it" : "them"} to Projects
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert>
+              <Info />
+              <AlertTitle>Departments are what people do; projects are where they work</AlertTitle>
+              <AlertDescription>
+                HR, IT, Finance… go here. Internal and client projects go on the Projects tab, and
+                each person&apos;s project is set on their profile.
+              </AlertDescription>
+            </Alert>
+          )}
           <DataTable
             title="Departments"
             description="Departments nest. The tree is what reports, approvals and the org chart group by."
@@ -462,6 +520,25 @@ export function OrganisationScreen() {
           setDepartmentForm({ open, editing: open ? departmentForm.editing : null })
         }
         onSaved={departments.reload}
+      />
+      <ConfirmDialog
+        open={deletingDepartment !== null}
+        onOpenChange={(open) => !open && setDeletingDepartment(null)}
+        title={`Delete ${deletingDepartment?.name ?? "this department"}?`}
+        description="It is removed for good, and people who have left lose it from their record. If anyone still works in it, or a department, position, budget or approval rule uses it, you are told what and nothing changes."
+        confirmLabel="Delete department"
+        destructive
+        onConfirm={deleteDepartment}
+      />
+      <FromDepartmentsDialog
+        open={movingToProjects}
+        departments={departments.data ?? []}
+        preselected={projectLike.map((row) => row.id)}
+        onOpenChange={setMovingToProjects}
+        onDone={() => {
+          departments.reload();
+          projects.reload();
+        }}
       />
     </PageShell>
   );
