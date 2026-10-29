@@ -17,8 +17,11 @@ const STATUS: Record<
 
 /** What each other module contributed to this run, as recorded at compute. */
 export function InputSourcesPanel({ run }: { run: PayrollRun }) {
-  // People left out for having no salary have their own warning at the top of the run.
-  const notices = run.input_notices.filter((notice) => notice.key !== "no_salary");
+  // People left out for having no salary, and people another open run also
+  // pays in full, have their own warnings at the top of the run.
+  const notices = run.input_notices.filter(
+    (notice) => notice.key !== "no_salary" && notice.key !== "whole_month_elsewhere",
+  );
   return (
     <DataPanel
       title="Other sources"

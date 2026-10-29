@@ -223,7 +223,24 @@ function Chat({ status, onSent }: { status: CompanionStatus; onSent: () => void 
           ])
         }
         onTurn={(turn) => {
-          setMessages((current) => [...current, ...turn.messages]);
+          // An offer decided by a "yes" in this turn: the card it came on shows that too.
+          const latest = new Map<string, CompanionProposal>();
+          for (const card of turn.messages[1].cards) {
+            if (card.type === "proposal") latest.set(card.action_id, card);
+          }
+          setMessages((current) => [
+            ...current.map((message) =>
+              latest.size === 0
+                ? message
+                : {
+                    ...message,
+                    cards: message.cards.map((card) =>
+                      card.type === "proposal" ? (latest.get(card.action_id) ?? card) : card,
+                    ),
+                  },
+            ),
+            ...turn.messages,
+          ]);
           if (!activeId) {
             setActiveId(turn.conversation.id);
             conversations.reload();

@@ -62,12 +62,21 @@ function LockNotice({ run }: { run: PayrollRun }) {
   );
 }
 
+/** Statuses whose notices come from a compute that succeeded; others may be stale. */
+const COMPUTED = ["pending_review", "approved", "paid"];
+
 /** People the compute left off because they have no salary, and how they get paid. */
 function NoSalaryNotice({ run }: { run: PayrollRun }) {
   const left = run.input_notices.filter((notice) => notice.key === "no_salary");
-  if (left.length === 0 || run.status === "cancelled" || run.status === "failed") return null;
+  if (left.length === 0 || !COMPUTED.includes(run.status)) return null;
   const period = periodLabel(run.period_year, run.period_month);
+  const lastDay = formatDay(run.effective_date, true);
   const people = left.length === 1 ? "1 person" : `${left.length} people`;
+  const salaryMaster = (
+    <Link href="/payroll/salaries" className="font-medium underline underline-offset-2">
+      Salary master
+    </Link>
+  );
   return (
     <Alert variant="warning">
       <AlertTriangle />
@@ -81,23 +90,37 @@ function NoSalaryNotice({ run }: { run: PayrollRun }) {
         <p className="mt-2">
           {isRunLocked(run.status) ? (
             <>
-              Add their salary in{" "}
-              <Link href="/payroll/salaries" className="font-medium underline underline-offset-2">
-                Salary master
-              </Link>
-              , then open an off-cycle run for {period} with them in it. It pays their whole month.
+              To pay anyone not paid since: add their salary in {salaryMaster}, in force on or
+              before {lastDay}, then open an off-cycle run for {period} with them in it. It pays
+              their whole month, with their loan EMI, claims and allowances for it.
             </>
           ) : (
             <>
-              Everyone else is computed. Add their salary in{" "}
-              <Link href="/payroll/salaries" className="font-medium underline underline-offset-2">
-                Salary master
-              </Link>{" "}
-              and press Recompute to include them, or approve without them and pay them later with
-              an off-cycle run for {period}.
+              Everyone else is computed. Add their salary in {salaryMaster}, in force on or before{" "}
+              {lastDay}, and press Recompute to include them, or approve without them and pay them
+              later with an off-cycle run for {period}.
             </>
           )}
         </p>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/** People this run pays in full who another open run of the month also pays in full. */
+function PaidTwiceNotice({ run }: { run: PayrollRun }) {
+  const twice = run.input_notices.filter((notice) => notice.key === "whole_month_elsewhere");
+  if (twice.length === 0 || run.status !== "pending_review") return null;
+  return (
+    <Alert variant="warning">
+      <AlertTriangle />
+      <AlertTitle>Also paid on another open run</AlertTitle>
+      <AlertDescription>
+        <ul className="list-disc pl-4">
+          {twice.map((notice) => (
+            <li key={notice.message}>{notice.message}</li>
+          ))}
+        </ul>
       </AlertDescription>
     </Alert>
   );
@@ -243,6 +266,7 @@ export default function PayrollRunPage() {
         </Alert>
       )}
 
+      <PaidTwiceNotice run={run} />
       <NoSalaryNotice run={run} />
 
       {run.review_flags.length > 0 && (

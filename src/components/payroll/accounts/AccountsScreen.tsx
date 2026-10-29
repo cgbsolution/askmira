@@ -1316,7 +1316,8 @@ function MapDialog({
               aria-invalid={Boolean(errors.percent)}
               onChange={(event) => {
                 const next = event.target.value.replace(/[\s%]/g, "");
-                if (/^\d{0,3}(\.\d{0,2})?$/.test(next)) setPercent(next);
+                // Digits only, two decimals at most, never above 100 — refused as typed.
+                if (/^\d{0,3}(\.\d{0,2})?$/.test(next) && (next === "" || Number(next) <= 100)) setPercent(next);
               }}
             />
           </FormField>

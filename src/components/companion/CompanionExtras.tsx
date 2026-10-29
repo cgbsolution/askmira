@@ -48,8 +48,10 @@ export function CompanionChart({ card }: { card: CompanionChartCard }) {
     const data = card.x.map((label, row) => {
       const entry: Record<string, string | number> = { month: label };
       card.series.forEach((series, index) => {
-        const parsed = Number.parseFloat(series.values[row] ?? "0");
-        entry[keys[index]] = Number.isFinite(parsed) ? parsed : 0;
+        // An empty value is a month with nothing to show: a gap, never a zero.
+        const raw = series.values[row] ?? "";
+        const parsed = raw === "" ? Number.NaN : Number.parseFloat(raw);
+        if (Number.isFinite(parsed)) entry[keys[index]] = parsed;
       });
       return entry;
     });

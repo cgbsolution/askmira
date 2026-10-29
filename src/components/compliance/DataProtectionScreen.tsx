@@ -889,20 +889,20 @@ function TransfersTab() {
           <TableBody>
             {all.map((row) => (
               <TableRow key={row.key}>
-                <TableCell>
+                <TableCell className="min-w-56 max-w-sm whitespace-normal align-top">
                   <div className="font-medium text-foreground">{row.name}</div>
                   <div className="text-xs text-muted-foreground">{row.service}</div>
-                  {row.ai && <Badge variant="outline" className="mt-1">AI model provider</Badge>}
+                  {row.ai && <Badge variant="outline" className="mt-1">AI recipient</Badge>}
                 </TableCell>
-                <TableCell className="text-sm">
-                  {row.country}
+                <TableCell className="min-w-40 max-w-56 whitespace-normal align-top text-sm">
+                  <div>{row.country}</div>
                   {row.is_cross_border && (
-                    <Badge variant="warning" className="ml-2">
-                      <Globe /> Cross-border
+                    <Badge variant="warning" className="mt-1">
+                      <Globe /> {row.location === "unspecified" ? "Region not confirmed" : "Outside India"}
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="max-w-sm text-xs">
+                <TableCell className="min-w-56 max-w-sm whitespace-normal align-top text-xs">
                   {row.what_is_sent && <div className="text-foreground">{row.what_is_sent}</div>}
                   <div className="text-muted-foreground">May receive: {row.category_names.join(", ")}</div>
                   <div className="text-muted-foreground">Contract: {row.contract_status}</div>

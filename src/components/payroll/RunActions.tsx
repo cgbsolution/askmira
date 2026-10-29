@@ -125,7 +125,7 @@ export function RunActions({
             on it is marked as paid by this run. A correction after that is an arrears or off-cycle
             run.
             {noSalary > 0 &&
-              ` ${noSalary === 1 ? "1 person has" : `${noSalary} people have`} no salary and ${noSalary === 1 ? "is" : "are"} not on this run; an off-cycle run pays them once their salary is added.`}
+              ` ${noSalary === 1 ? "1 person" : `${noSalary} people`} had no salary when this run was computed and ${noSalary === 1 ? "is" : "are"} not on it. If their salary has been added since, cancel and Recompute to include them; otherwise an off-cycle run pays them later.`}
           </>
         }
         confirmLabel="Approve & lock"
