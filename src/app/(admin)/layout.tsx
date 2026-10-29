@@ -6,6 +6,7 @@ import React, { useEffect } from "react";
 import { AccessDenied } from "@/components/common/AccessDenied";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { OperatorBanner } from "@/components/operators/OperatorBanner";
+import { PrivacySetupBanner } from "@/components/compliance/PrivacySetupBanner";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ConnectorRailProvider, ConnectorSidebar } from "@/components/layout/ConnectorSidebar";
 import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -70,6 +71,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <AppHeader />
             <div className="mx-auto w-full max-w-(--breakpoint-2xl) flex-1 p-4 md:p-6">
               <OperatorBanner />
+              <PrivacySetupBanner />
               {decision === "allowed" ? (
                 children
               ) : (

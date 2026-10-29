@@ -135,6 +135,11 @@ export function RespondDialog({
           </div>
         )}
 
+        <p className="text-xs text-muted-foreground">
+          Taking part is your choice. Submitting records that you agree to culture surveys; you can say no at any time
+          under My privacy, and you will not be sent surveys after that.
+        </p>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>
             Not now

@@ -167,7 +167,6 @@ export interface LeavePolicy {
   max_carry_forward_days: string;
   max_consecutive_days: number | null;
   min_notice_days: number;
-  allows_negative_balance: boolean;
   sandwich_weekends_holidays: boolean;
   effective_from: string;
   effective_to: string | null;

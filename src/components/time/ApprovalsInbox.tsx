@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Inbox, Loader2, Palmtree, X } from "lucide-react";
+import { AlertTriangle, Check, Inbox, Loader2, Palmtree, X } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -24,7 +24,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError, get, post } from "@/lib/api";
 import type { CompOffClaim, LeaveRequest, RequestBalance } from "@/lib/types";
 import {
-  cn,
   formatDate,
   formatDateRange,
   formatDay,
@@ -36,13 +35,30 @@ import {
 
 const isZero = (value: string) => /^-?0(\.0+)?$/.test(value);
 
+/** Approving would take the balance below zero, which leave never may. */
+const isShort = (balance: RequestBalance | null | undefined) =>
+  Boolean(balance?.after_approval.startsWith("-"));
+
 /**
  * What the person has of this leave, so the approver need not leave the inbox
  * to look it up. Every figure is the API's; "left" is what approving this one
  * request leaves, with their other pending requests named rather than taken off.
+ *
+ * Leave is taken only against a balance, so a request the balance no longer
+ * covers cannot be approved (the server refuses it too): it says so here.
  */
 function RequestBalanceLine({ balance }: { balance: RequestBalance }) {
-  const negative = balance.after_approval.startsWith("-");
+  if (isShort(balance)) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-destructive">
+        <AlertTriangle className="size-3.5 shrink-0" />
+        <span>
+          Only <span className="font-medium tabular-nums">{pluralDays(balance.available)}</span>{" "}
+          available — not enough to approve. Decline it, or ask HR to credit days first.
+        </span>
+      </p>
+    );
+  }
   return (
     <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
       <Palmtree className="size-3.5 shrink-0 text-brand-600" />
@@ -52,15 +68,10 @@ function RequestBalanceLine({ balance }: { balance: RequestBalance }) {
           {formatDays(balance.available)}
         </span>{" "}
         →{" "}
-        <span
-          className={cn(
-            "font-medium tabular-nums",
-            negative ? "text-destructive" : "text-foreground",
-          )}
-        >
+        <span className="font-medium text-foreground tabular-nums">
           {formatDays(balance.after_approval)}
         </span>{" "}
-        {negative ? "after this — below zero" : "left after this"}
+        left after this
       </span>
       {!isZero(balance.other_pending) && (
         <span className="text-warning">
@@ -233,7 +244,8 @@ export function ApprovalsInbox({
                 </Button>
                 <Button
                   size="sm"
-                  disabled={busy}
+                  disabled={busy || isShort(row.balance)}
+                  title={isShort(row.balance) ? "Not enough balance to approve" : undefined}
                   onClick={() => void decide({ kind: "leave", row }, true, null)}
                 >
                   {busy ? <Loader2 className="animate-spin" /> : <Check />}

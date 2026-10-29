@@ -69,7 +69,12 @@ export function MoveToCompanyDialog({
         employee_ids: people.map((person) => person.id),
         legal_entity_id: target.id,
       });
-      const parts = [`${result.moved} moved to ${result.legal_entity_name}`];
+      const from = new Date(`${result.effective_from}T00:00:00`).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+      const parts = [`${result.moved} moved to ${result.legal_entity_name} from ${from}`];
       if (result.already_there) parts.push(`${result.already_there} already there`);
       if (result.skipped.length) parts.push(`${result.skipped.length} not moved`);
       if (result.skipped.length) {
@@ -104,9 +109,8 @@ export function MoveToCompanyDialog({
             {names}
             {people.length > 3 ? ` and ${people.length - 3} more` : ""}. Their company changes
             today. A month is paid by the company somebody belongs to on its last day, so the new
-            company&apos;s payroll pays all of {month} and after, and files their PF, ESI and TDS
-            for those months; earlier months stay with the old one. They see its logo after signing
-            in.
+            company&apos;s payroll pays all of {month} and after, and files their monthly PF, ESI
+            and TDS; earlier months stay with the old one. They see its logo after signing in.
           </DialogDescription>
         </DialogHeader>
 
@@ -142,7 +146,9 @@ export function MoveToCompanyDialog({
           </Alert>
         )}
         <p className="text-xs text-muted-foreground">
-          A month another company&apos;s approved payroll already paid is never paid again. For a
+          A month another company&apos;s approved payroll already paid is never paid again. The
+          year&apos;s TDS salary statement (Q4 Annexure II) comes from the company they are in at
+          year end; that return flags anybody two companies paid, to be split before filing. For a
           move on a later date, raise a Transfer under Employees → Lifecycle events, dated the 1st
           of a month.
         </p>

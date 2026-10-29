@@ -30,12 +30,15 @@ import { ApiError, del, get, post } from "@/lib/api";
 import { cn, formatDate, initials } from "@/lib/utils";
 
 import { CompanionCardView } from "./CompanionCards";
+import { ChatText } from "./CompanionExtras";
 import type {
   CompanionMessage,
   CompanionPick,
+  CompanionProposal,
   CompanionStatus,
   Conversation,
   ConversationDetail,
+  OfferDecision,
   Turn,
 } from "./types";
 
@@ -43,8 +46,10 @@ import type {
  * Ask Mira — the workspace's AI companion, one conversation at a time.
  *
  * It answers as the person signed in: every lookup runs with their own access,
- * and what it finds is shown here, never sent to the model. Conversations are
- * private to the person who had them.
+ * and what it finds is shown here under its reply. It works a question out in
+ * several steps and can offer to do things (apply for leave, approve a
+ * request); an offer does nothing until the person confirms it. Conversations
+ * are private to the person who had them.
  */
 export function CompanionScreen() {
   const status = useApiQuery<CompanionStatus>("/companion/status");
@@ -206,6 +211,17 @@ function Chat({ status, onSent }: { status: CompanionStatus; onSent: () => void 
         conversationId={activeId}
         messages={messages}
         loading={opening}
+        onDecided={(decision) =>
+          setMessages((current) => [
+            ...current.map((message) => ({
+              ...message,
+              cards: message.cards.map((card) =>
+                card.type === "proposal" && card.action_id === decision.action.action_id ? decision.action : card,
+              ),
+            })),
+            decision.message,
+          ])
+        }
         onTurn={(turn) => {
           setMessages((current) => [...current, ...turn.messages]);
           if (!activeId) {
@@ -244,16 +260,37 @@ function Thread({
   messages,
   loading,
   onTurn,
+  onDecided,
 }: {
   status: CompanionStatus;
   conversationId: string | null;
   messages: CompanionMessage[];
   loading: boolean;
   onTurn: (turn: Turn) => void;
+  onDecided: (decision: OfferDecision) => void;
 }) {
   const { user } = useAuth();
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<string | null>(null);
+  const [deciding, setDeciding] = useState<string | null>(null);
+
+  // Confirm or Cancel on an offer: the module's own service runs (or not), as the person.
+  const decide = async (card: CompanionProposal, confirm: boolean) => {
+    if (deciding || pending) return;
+    setDeciding(card.action_id);
+    try {
+      const decision = await post<OfferDecision>(
+        `/companion/actions/${card.action_id}/${confirm ? "confirm" : "cancel"}`,
+      );
+      onDecided(decision);
+      if (decision.action.status === "done") toast.success(decision.message.text || "Done.");
+      else if (decision.action.status === "failed") toast.error(decision.message.text);
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.detail : "That could not be done.");
+    } finally {
+      setDeciding(null);
+    }
+  };
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -301,6 +338,8 @@ function Thread({
                   mine={initials(user?.full_name ?? "")}
                   onPick={(picked) => void send(picked)}
                   picking={pending !== null}
+                  onDecide={(card, confirm) => void decide(card, confirm)}
+                  deciding={deciding}
                 />
               ))
             )}
@@ -311,8 +350,9 @@ function Thread({
                   name={status.name}
                   mine={initials(user?.full_name ?? "")}
                 />
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" /> {status.name} is thinking…
+                <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="polite">
+                  <Loader2 className="size-4 animate-spin" />
+                  {status.mode === "ai" ? `${status.name} is looking into it…` : `${status.name} is thinking…`}
                 </div>
               </>
             ) : null}
@@ -353,9 +393,14 @@ function Thread({
 function Welcome({ status, onPick }: { status: CompanionStatus; onPick: (text: string) => void }) {
   // The server's examples cover every lookup this person has; the two questions
   // only a model answers are added when AI is planning.
+  const has = (key: string) => status.tools.some((t) => t.key === key);
   const suggestions = [
-    status.tools.some((t) => t.key === "policy_question") ? "What is the work-from-home policy?" : null,
-    status.tools.some((t) => t.key === "report_question") ? "How many people joined this year?" : null,
+    has("apply_leave") ? "I want to take leave next Friday" : null,
+    has("payroll_trend") ? "Show the payroll cost trend for the last 6 months" : null,
+    has("account_pnl") ? "What is the P&L of each client account this year?" : null,
+    has("decide_approvals") ? "What is waiting on my approval?" : null,
+    has("policy_question") ? "What is the work-from-home policy?" : null,
+    has("report_question") ? "How many people joined this year?" : null,
     ...status.examples,
   ]
     .filter((s): s is string => s !== null)
@@ -372,7 +417,7 @@ function Welcome({ status, onPick }: { status: CompanionStatus; onPick: (text: s
           <p className="text-sm leading-6 text-muted-foreground">
             {status.greeting ||
               (status.mode === "ai"
-                ? `Hi! I'm ${status.name}, your company's AI companion. Ask me anything about work.`
+                ? `Hi! I'm ${status.name}, your company's AI companion. Ask me anything about work — I can look things up, compare them, and get things done for you once you confirm.`
                 : `Hi! I'm ${status.name}. Ask me about leave, people, hiring or expenses — across your linked products.`)}
           </p>
         </div>
@@ -410,12 +455,16 @@ function Bubble({
   mine,
   onPick,
   picking = false,
+  onDecide,
+  deciding = null,
 }: {
   message: CompanionMessage;
   name: string;
   mine: string;
   onPick?: (pick: CompanionPick) => void;
   picking?: boolean;
+  onDecide?: (card: CompanionProposal, confirm: boolean) => void;
+  deciding?: string | null;
 }) {
   if (message.role === "user") {
     return (
@@ -437,15 +486,27 @@ function Bubble({
       <div className="grid min-w-0 max-w-[85%] gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-xs font-medium text-muted-foreground">{name}</p>
-          {message.tool_title ? (
-            <Badge variant="outline" className="text-[11px]">
-              {message.tool_title}
+          {(message.steps && message.steps.length > 0
+            ? [...new Set(message.steps.map((step) => step.title))]
+            : message.tool_title
+              ? [message.tool_title]
+              : []
+          ).map((title) => (
+            <Badge key={title} variant="outline" className="text-[11px]">
+              {title}
             </Badge>
-          ) : null}
+          ))}
         </div>
-        {message.text ? <p className="whitespace-pre-line text-sm leading-6">{message.text}</p> : null}
+        {message.text ? <ChatText text={message.text} /> : null}
         {message.cards.map((card, index) => (
-          <CompanionCardView key={index} card={card} onPick={onPick} picking={picking} />
+          <CompanionCardView
+            key={card.type === "proposal" ? card.action_id : index}
+            card={card}
+            onPick={onPick}
+            picking={picking}
+            onDecide={onDecide}
+            deciding={card.type === "proposal" && deciding === card.action_id}
+          />
         ))}
       </div>
     </div>

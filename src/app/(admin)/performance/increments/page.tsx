@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import { Check, CircleDollarSign, Loader2, Mail, Plus, TrendingUp, X } from "lucide-react";
 import React, { useState } from "react";
+import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
@@ -553,8 +554,25 @@ function ReleaseDialog({ cycleId, onClose, onDone }: { cycleId: string; onClose:
       description="All approved letters go together, and only on or after the release date. Refused while approvals are outstanding unless you release partially on purpose."
       confirmLabel="Release"
       onConfirm={async () => {
-        const r = await run("release", () => post(`/performance/cycles/${cycleId}/release-letters`, { force_partial: partial }), "Letters released.");
+        const r = await run(
+          "release",
+          () =>
+            post<{ applied?: { arrears_not_raised?: string[] } }>(
+              `/performance/cycles/${cycleId}/release-letters`,
+              { force_partial: partial },
+            ),
+          "Letters released.",
+        );
         if (r === undefined) throw new Error("failed");
+        // People who moved company since the effective date: the months the
+        // other company paid have no arrears raised, and HR is told so.
+        const elsewhere = r.applied?.arrears_not_raised ?? [];
+        if (elsewhere.length > 0) {
+          toast.warning(
+            `${elsewhere.length} ${elsewhere.length === 1 ? "person's" : "people's"} arrears need working out by hand`,
+            { description: elsewhere.slice(0, 3).join(" "), duration: 20000 },
+          );
+        }
         onDone();
       }}
     >

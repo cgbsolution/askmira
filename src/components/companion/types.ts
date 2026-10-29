@@ -26,7 +26,11 @@ export interface Citation {
   href: string | null;
 }
 
-/** What AskMira looked up and showed, as the person. Never sent to the model. */
+/**
+ * What AskMira looked up and showed, as the person. The model reads a trimmed
+ * view of a card only where the DPDP register allows it; the card itself is
+ * the record behind every figure Mira states.
+ */
 export type CompanionCard =
   | { type: "notice"; tone: "info" | "warning"; text: string }
   | {
@@ -82,7 +86,36 @@ export type CompanionCard =
       caption: string;
       options: CompanionPick[];
     }
-  | { type: "launch"; product: string; name: string; href: string };
+  | { type: "launch"; product: string; name: string; href: string }
+  | CompanionChartCard
+  | CompanionProposal;
+
+/** A month-by-month series: one value per month on `x`, per series. */
+export interface CompanionChartCard {
+  type: "chart";
+  title: string;
+  caption: string;
+  chart: "line" | "bar";
+  /** "inr" (rupees), "count" or "percent". */
+  unit: string;
+  x: string[];
+  series: { name: string; values: string[] }[];
+}
+
+/** Something Mira offered to do. Nothing happens until the person confirms. */
+export interface CompanionProposal {
+  type: "proposal";
+  action_id: string;
+  kind: string;
+  status: "proposed" | "done" | "cancelled" | "failed" | "expired";
+  expires_at: string;
+  title: string;
+  figures: { label: string; value: string }[];
+  notes: string[];
+  confirm_label: string;
+  question: string;
+  result: { text?: string; open?: string; error?: boolean } | null;
+}
 
 /** A choice on an answer: what it says when sent, and the lookup it runs. */
 export interface CompanionPick {
@@ -100,8 +133,16 @@ export interface CompanionMessage {
   tool: string | null;
   tool_title: string | null;
   arguments: Record<string, unknown> | null;
+  /** The tools a reply used, in order. */
+  steps?: { tool: string; title: string }[];
   cards: CompanionCard[];
   created_at: string | null;
+}
+
+/** An offer confirmed or declined with its button: its new state, and Mira's note of it. */
+export interface OfferDecision {
+  action: CompanionProposal;
+  message: CompanionMessage;
 }
 
 export interface Conversation {
@@ -128,6 +169,8 @@ export interface CompanionConfig {
   tools: Record<string, boolean>;
   daily_messages_per_person: number;
   monthly_token_budget: number;
+  /** Whether Mira reads what its lookups find (within what the DPDP register allows). */
+  ai_reads_results: boolean;
 }
 
 export interface CompanionSettings {

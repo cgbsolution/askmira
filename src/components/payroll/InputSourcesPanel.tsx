@@ -17,6 +17,8 @@ const STATUS: Record<
 
 /** What each other module contributed to this run, as recorded at compute. */
 export function InputSourcesPanel({ run }: { run: PayrollRun }) {
+  // People left out for having no salary have their own warning at the top of the run.
+  const notices = run.input_notices.filter((notice) => notice.key !== "no_salary");
   return (
     <DataPanel
       title="Other sources"
@@ -42,11 +44,11 @@ export function InputSourcesPanel({ run }: { run: PayrollRun }) {
           );
         })}
       </ul>
-      {run.input_notices.length > 0 && (
+      {notices.length > 0 && (
         <div className="border-t border-border px-5 py-3">
           <p className="mb-1 text-xs font-medium text-foreground">Left unprocessed, and why</p>
           <ul className="list-disc space-y-1 pl-4 text-xs text-muted-foreground">
-            {run.input_notices.map((notice, index) => (
+            {notices.map((notice, index) => (
               <li key={`${notice.key}-${index}`}>
                 {notice.label}: {notice.message}
               </li>

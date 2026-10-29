@@ -43,6 +43,7 @@ import { NOTICE_LANGUAGES, REQUEST_STATUS_LABEL, REQUEST_TYPE_LABEL, type Erasur
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 import { DateTimePicker } from "@/components/common/DateTimePicker";
 import { FieldLegend, FieldSet } from "@/components/ui/field";
+import { LogRequestDialog } from "@/components/compliance/LogRequestDialog";
 
 function detail(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;
@@ -100,6 +101,10 @@ interface BreachState {
 
 const OPEN: RequestStatus[] = ["received", "verifying_identity", "in_progress", "escalated"];
 
+/** People whose details sit inside an employee's record rather than a record of their own. */
+const HELD_IN_EMPLOYEE_RECORD = ["dependent", "emergency_contact", "third_party"];
+
+
 /**
  * Compliance → Data protection.
  *
@@ -110,6 +115,12 @@ const OPEN: RequestStatus[] = ["received", "verifying_identity", "in_progress", 
  */
 export function DataProtectionScreen() {
   const config = useApiQuery<{ configured: boolean }>("/dpdp/configuration");
+  const [tab, setTab] = useState("requests");
+  // The admin banner links to ?tab=config; any other tab can be linked the same way.
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("tab");
+    if (wanted) setTab(wanted);
+  }, []);
 
   return (
     <PageShell title="Data protection" description="Rights requests, breaches, consent and the record of processing, under the DPDP Act.">
@@ -118,12 +129,12 @@ export function DataProtectionScreen() {
           <Settings2 />
           <AlertTitle>Data protection is not configured</AlertTitle>
           <AlertDescription>
-            Rights requests, notices and breach notifications need a grievance contact and response periods. Set them
-            under Configuration first.
+            Privacy notices have no one to point employees to until a grievance contact is set. Rights requests are
+            still accepted with the statutory response periods. Set the contact under Configuration.
           </AlertDescription>
         </Alert>
       )}
-      <Tabs defaultValue="requests">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="requests">Rights requests</TabsTrigger>
           <TabsTrigger value="breaches">Breaches</TabsTrigger>
@@ -165,6 +176,7 @@ function RequestsTab() {
   const [resolving, setResolving] = useState<QueueRequest | null>(null);
   const [erasing, setErasing] = useState<QueueRequest | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [logging, setLogging] = useState(false);
 
   const exportFor = async (row: QueueRequest) => {
     setDownloading(row.id);
@@ -189,11 +201,16 @@ function RequestsTab() {
       <DataPanel
         title="Rights requests"
         actions={
-          <div className="flex items-center gap-2">
-            <Switch id="dpr-open" checked={openOnly} onCheckedChange={setOpenOnly} />
-            <Label htmlFor="dpr-open" className="text-sm font-normal">
-              Open only
-            </Label>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Switch id="dpr-open" checked={openOnly} onCheckedChange={setOpenOnly} />
+              <Label htmlFor="dpr-open" className="text-sm font-normal">
+                Open only
+              </Label>
+            </div>
+            <Button size="sm" variant="outline" onClick={() => setLogging(true)}>
+              Log a request
+            </Button>
           </div>
         }
         isLoading={isLoading}
@@ -215,6 +232,9 @@ function RequestsTab() {
           <TableBody>
             {(data?.requests ?? []).map((row) => {
               const open = OPEN.includes(row.status);
+              // A nominee, family member or emergency contact has no record of
+              // their own: the request is answered on the employee's record.
+              const inEmployeeRecord = HELD_IN_EMPLOYEE_RECORD.includes(row.principal_kind);
               return (
                 <TableRow key={row.id}>
                   <TableCell>
@@ -224,6 +244,11 @@ function RequestsTab() {
                   <TableCell className="text-sm">
                     {REQUEST_TYPE_LABEL[row.type]}
                     {row.details && <div className="max-w-xs text-xs text-muted-foreground">{row.details}</div>}
+                    {inEmployeeRecord && open && (
+                      <div className="max-w-xs text-xs text-muted-foreground">
+                        Answer it on the employee&apos;s profile (Family, Nominees, Emergency contacts), then mark it completed.
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className={cn("text-sm", open && row.clock.is_overdue && "font-medium text-destructive")}>
                     Due {formatDate(row.clock.due_by)}
@@ -240,12 +265,12 @@ function RequestsTab() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex flex-wrap justify-end gap-1">
-                      {row.type === "access" && isAdmin && (
+                      {row.type === "access" && isAdmin && !inEmployeeRecord && (
                         <Button size="sm" variant="outline" disabled={downloading === row.id} onClick={() => exportFor(row)}>
                           {downloading === row.id ? <Loader2 className="animate-spin" /> : <Download />} Export
                         </Button>
                       )}
-                      {row.type === "erasure" && open && (
+                      {row.type === "erasure" && open && !inEmployeeRecord && (
                         <Button size="sm" variant="outline" onClick={() => setErasing(row)}>
                           <Trash2 /> Erasure
                         </Button>
@@ -264,6 +289,7 @@ function RequestsTab() {
         </Table>
       </DataPanel>
       <ResolveDialog request={resolving} onOpenChange={(open) => !open && setResolving(null)} onDone={reload} />
+      <LogRequestDialog open={logging} onOpenChange={setLogging} onLogged={reload} />
       <ErasureSheet request={erasing} canExecute={isAdmin} onOpenChange={(open) => !open && setErasing(null)} onDone={reload} />
     </div>
   );
@@ -822,10 +848,22 @@ function RopaTab() {
   );
 }
 
+interface SubProcessorRow {
+  key: string;
+  name: string;
+  service: string;
+  location: string;
+  country: string;
+  is_cross_border: boolean;
+  category_names: string[];
+  what_is_sent: string;
+  contract_status: string;
+}
+
 function TransfersTab() {
   const processors = useApiQuery<{
-    ai_model_providers: { key: string; name: string; service: string; location: string; is_cross_border: boolean; category_names: string[] }[];
-    other_sub_processors: { key: string; name: string; service: string; location: string; is_cross_border: boolean; category_names: string[] }[];
+    ai_model_providers: SubProcessorRow[];
+    other_sub_processors: SubProcessorRow[];
     cross_border_count: number;
     in_india_count: number;
     statement: string;
@@ -845,7 +883,7 @@ function TransfersTab() {
             <TableRow>
               <TableHead>Sub-processor</TableHead>
               <TableHead>Where</TableHead>
-              <TableHead>May receive</TableHead>
+              <TableHead>What is sent</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -857,14 +895,18 @@ function TransfersTab() {
                   {row.ai && <Badge variant="outline" className="mt-1">AI model provider</Badge>}
                 </TableCell>
                 <TableCell className="text-sm">
-                  {row.location}
+                  {row.country}
                   {row.is_cross_border && (
                     <Badge variant="warning" className="ml-2">
                       <Globe /> Cross-border
                     </Badge>
                   )}
                 </TableCell>
-                <TableCell className="max-w-sm text-xs">{row.category_names.join(", ")}</TableCell>
+                <TableCell className="max-w-sm text-xs">
+                  {row.what_is_sent && <div className="text-foreground">{row.what_is_sent}</div>}
+                  <div className="text-muted-foreground">May receive: {row.category_names.join(", ")}</div>
+                  <div className="text-muted-foreground">Contract: {row.contract_status}</div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -1187,6 +1187,8 @@ export interface PublicJobDetail {
   retention_days: number;
   allow_apply_without_account: boolean;
   organisation: string;
+  /** AI helps read résumés here; the form offers the candidate an optional tick. */
+  ai_screening_offered?: boolean;
   document_rules: { resume_types: string[]; resume_max_mb: number };
 }
 
@@ -1224,6 +1226,8 @@ export interface CandidatePortal {
   documents: { category: string; file_name: string; uploaded_on: string }[];
   document_rules: { categories: string[]; accepted_types: string[]; max_mb: number };
   retention_note: string;
+  /** The candidate's own optional choices: talent pool and AI help. Withdrawable here. */
+  consents?: { purpose: string; name: string; description: string; granted: boolean; decided_at: string | null }[];
 }
 
 export interface SelfScheduleView {

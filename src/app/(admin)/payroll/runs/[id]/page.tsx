@@ -62,6 +62,47 @@ function LockNotice({ run }: { run: PayrollRun }) {
   );
 }
 
+/** People the compute left off because they have no salary, and how they get paid. */
+function NoSalaryNotice({ run }: { run: PayrollRun }) {
+  const left = run.input_notices.filter((notice) => notice.key === "no_salary");
+  if (left.length === 0 || run.status === "cancelled" || run.status === "failed") return null;
+  const period = periodLabel(run.period_year, run.period_month);
+  const people = left.length === 1 ? "1 person" : `${left.length} people`;
+  return (
+    <Alert variant="warning">
+      <AlertTriangle />
+      <AlertTitle>{people} not paid by this run: no salary</AlertTitle>
+      <AlertDescription>
+        <ul className="list-disc pl-4">
+          {left.map((notice) => (
+            <li key={notice.message}>{notice.message}</li>
+          ))}
+        </ul>
+        <p className="mt-2">
+          {isRunLocked(run.status) ? (
+            <>
+              Add their salary in{" "}
+              <Link href="/payroll/salaries" className="font-medium underline underline-offset-2">
+                Salary master
+              </Link>
+              , then open an off-cycle run for {period} with them in it. It pays their whole month.
+            </>
+          ) : (
+            <>
+              Everyone else is computed. Add their salary in{" "}
+              <Link href="/payroll/salaries" className="font-medium underline underline-offset-2">
+                Salary master
+              </Link>{" "}
+              and press Recompute to include them, or approve without them and pay them later with
+              an off-cycle run for {period}.
+            </>
+          )}
+        </p>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 export default function PayrollRunPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -201,6 +242,8 @@ export default function PayrollRunPage() {
           </AlertDescription>
         </Alert>
       )}
+
+      <NoSalaryNotice run={run} />
 
       {run.review_flags.length > 0 && (
         <Alert variant="warning">

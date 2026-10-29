@@ -82,6 +82,8 @@ const EMPTY = {
   admin_email: "",
   admin_phone: "",
   admin_designation: "",
+  grievance_contact: "",
+  data_protection_officer_name: "",
 };
 
 type Fields = typeof EMPTY;
@@ -145,7 +147,14 @@ function fieldsFrom(target: EditTarget): Fields {
   };
 }
 
-const ADMIN_FIELDS: (keyof Fields)[] = ["admin_full_name", "admin_email", "admin_phone", "admin_designation"];
+const ADMIN_FIELDS: (keyof Fields)[] = [
+  "admin_full_name",
+  "admin_email",
+  "admin_phone",
+  "admin_designation",
+  "grievance_contact",
+  "data_protection_officer_name",
+];
 
 const REQUIRED: (keyof Fields)[] = [
   "company_name",
@@ -158,6 +167,7 @@ const REQUIRED: (keyof Fields)[] = [
   "admin_full_name",
   "admin_email",
   "admin_phone",
+  "grievance_contact",
 ];
 
 function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
@@ -221,6 +231,18 @@ export function CreateWorkspaceDialog({
 
   const set = (key: keyof Fields) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setFields((current) => ({ ...current, [key]: event.target.value }));
+  // The privacy contact starts as the admin's email and follows it until someone changes it.
+  const setAdminEmail = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const next = event.target.value;
+    setFields((current) => ({
+      ...current,
+      admin_email: next,
+      grievance_contact:
+        current.grievance_contact === "" || current.grievance_contact === current.admin_email
+          ? next
+          : current.grievance_contact,
+    }));
+  };
   const upper = (key: keyof Fields) => (event: React.ChangeEvent<HTMLInputElement>) =>
     setFields((current) => ({ ...current, [key]: event.target.value.toUpperCase() }));
 
@@ -478,12 +500,39 @@ export function CreateWorkspaceDialog({
               required
               hint="An email can sign in to only one organisation."
             >
-              <Input id="ws-admin-email" type="email" value={fields.admin_email} onChange={set("admin_email")} />
+              <Input id="ws-admin-email" type="email" value={fields.admin_email} onChange={setAdminEmail} />
             </FormField>
             <FormField label="Mobile number" htmlFor="ws-admin-phone" required>
               <Input id="ws-admin-phone" inputMode="tel" value={fields.admin_phone} onChange={set("admin_phone")} />
             </FormField>
           </Section>
+          )}
+
+          {isEdit ? null : (
+            <>
+              <Separator />
+              <Section
+                title="Privacy contact"
+                hint="Who employees write to about their data. It is printed in every privacy notice (DPDP Act). Starts as the admin's email; change it if the company has a data protection officer."
+              >
+                <FormField label="Grievance contact" htmlFor="ws-grievance" required hint="An email address or phone number.">
+                  <Input
+                    id="ws-grievance"
+                    maxLength={200}
+                    value={fields.grievance_contact}
+                    onChange={set("grievance_contact")}
+                  />
+                </FormField>
+                <FormField label="Data protection officer" htmlFor="ws-dpo" optional>
+                  <Input
+                    id="ws-dpo"
+                    maxLength={200}
+                    value={fields.data_protection_officer_name}
+                    onChange={set("data_protection_officer_name")}
+                  />
+                </FormField>
+              </Section>
+            </>
           )}
 
           <Separator />

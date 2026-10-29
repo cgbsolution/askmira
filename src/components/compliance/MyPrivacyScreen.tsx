@@ -37,6 +37,7 @@ import { ApiError, downloadFile, post } from "@/lib/api";
 import { useLocale } from "@/lib/i18n";
 import {
   NOTICE_LANGUAGES,
+  capabilityLabel,
   REQUEST_STATUS_LABEL,
   REQUEST_TYPE_LABEL,
   type AccessExport,
@@ -103,7 +104,7 @@ function ChoicesTab() {
     setBusy(row.purpose);
     try {
       await post("/dpdp/me/consent", { purpose_key: row.purpose, granted: true });
-      toast.success(`Recorded: you agree to ${row.name.toLowerCase()}.`);
+      toast.success(`Recorded: you agreed to "${row.name}".`);
       reload();
     } catch (caught) {
       toast.error(detail(caught, "Could not record your choice."));
@@ -136,8 +137,9 @@ function ChoicesTab() {
           <ShieldCheck />
           <AlertTitle>{effect.summary}</AlertTitle>
           <AlertDescription>
-            {effect.stops.length > 0 && <p>Stopped: {effect.stops.join(", ")}.</p>}
-            {effect.retained.length > 0 && <p>Still kept, because the law or your contract requires it: {effect.retained.join(", ")}.</p>}
+            {effect.stops.length > 0 && <p>Stopped: {effect.stops.map(capabilityLabel).join(", ")}.</p>}
+            {effect.erased.length > 0 && <p>Deleted: {effect.erased.join("; ")}.</p>}
+            {effect.retained.length > 0 && <p>Kept: {effect.retained.join(" ")}</p>}
           </AlertDescription>
         </Alert>
       )}
@@ -161,12 +163,15 @@ function ChoicesTab() {
                     <span className="font-medium text-foreground">{row.name}</span>
                     <Badge variant={badge.variant}>{badge.label}</Badge>
                   </div>
-                  <p className="text-xs text-muted-foreground">
+                  {row.description && <p className="mt-1 text-sm text-muted-foreground">{row.description}</p>}
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {row.lawful_basis_label}
                     {row.decided_at && ` · decided ${formatDateTime(row.decided_at)}`}
                   </p>
                   {row.stops_if_withdrawn.length > 0 && (
-                    <p className="mt-1 text-xs text-muted-foreground">If you say no: {row.stops_if_withdrawn.join(", ")} stop.</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      If you say no, these stop: {row.stops_if_withdrawn.map(capabilityLabel).join(", ")}.
+                    </p>
                   )}
                 </div>
                 <Switch
@@ -199,14 +204,38 @@ function ChoicesTab() {
       <Dialog open={withdrawing !== null} onOpenChange={(next) => !next && setWithdrawing(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Withdraw consent to {withdrawing?.name.toLowerCase()}?</DialogTitle>
+            <DialogTitle>Withdraw your consent: {withdrawing?.name}?</DialogTitle>
             <DialogDescription>
               {withdrawing?.stops_if_withdrawn.length
-                ? `These stop: ${withdrawing.stops_if_withdrawn.join(", ")}.`
+                ? `These stop: ${withdrawing.stops_if_withdrawn.map(capabilityLabel).join(", ")}.`
                 : "Processing for this purpose stops."}{" "}
               You can agree again at any time.
             </DialogDescription>
           </DialogHeader>
+          {withdrawing && (withdrawing.withdrawal_erases.length > 0 || withdrawing.withdrawal_keeps.length > 0) && (
+            <div className="grid gap-2 text-sm">
+              {withdrawing.withdrawal_erases.length > 0 && (
+                <div>
+                  <p className="font-medium text-foreground">Deleted straight away</p>
+                  <ul className="list-disc pl-5 text-muted-foreground">
+                    {withdrawing.withdrawal_erases.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {withdrawing.withdrawal_keeps.length > 0 && (
+                <div>
+                  <p className="font-medium text-foreground">Kept</p>
+                  <ul className="list-disc pl-5 text-muted-foreground">
+                    {withdrawing.withdrawal_keeps.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setWithdrawing(null)}>
               Keep it
@@ -267,7 +296,21 @@ function NoticeTab() {
               <NoticeGroup heading="Where you choose" items={data.choices} />
               <NoticeGroup heading="What happens without a choice, and why" items={data.disclosures} />
               <p className="whitespace-pre-line text-muted-foreground">{data.rights_line}</p>
-              <p className="text-muted-foreground">Grievances: {data.grievance_contact}</p>
+              {data.grievance_contact ? (
+                <p className="text-muted-foreground">
+                  Grievances: {data.grievance_contact}
+                  {data.data_protection_officer_name && ` (${data.data_protection_officer_name})`}
+                </p>
+              ) : (
+                <Alert variant="warning">
+                  <FileQuestion />
+                  <AlertTitle>No privacy contact named yet</AlertTitle>
+                  <AlertDescription>
+                    Your employer has not yet named who handles privacy concerns. You can still see, correct or erase
+                    your data from My rights, and the answer clock starts as soon as you ask.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           </DataPanel>
         </>

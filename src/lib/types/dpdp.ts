@@ -28,6 +28,11 @@ export interface PurposeState {
   agreed_version: number | null;
   current_version: number;
   stops_if_withdrawn: string[];
+  description: string;
+  /** What withdrawing deletes, in plain words (DPDP s.8(7)(a)). */
+  withdrawal_erases: string[];
+  /** What withdrawing does not delete, and why. */
+  withdrawal_keeps: string[];
 }
 
 export interface ConsentView {
@@ -41,8 +46,11 @@ export interface WithdrawalEffect {
   purpose: string;
   name: string;
   stops: string[];
-  /** What continues regardless — held under a statute or the employment contract. */
+  /** What is kept, and why. */
   retained: string[];
+  /** What the withdrawal deleted. */
+  erased: string[];
+  erased_counts?: Record<string, number>;
   summary: string;
 }
 
@@ -72,7 +80,30 @@ export interface Notice {
   choices: NoticeItem[];
   disclosures: NoticeItem[];
   rights_line: string;
-  grievance_contact: string;
+  /** Null until an admin names one; the notice then says so instead of inventing an address. */
+  grievance_contact: string | null;
+  data_protection_officer_name: string | null;
+  grievance_contact_missing: boolean;
+}
+
+/** What each consent switch stops, in words a person reads before deciding. */
+export const CAPABILITY_LABEL: Record<string, string> = {
+  culture_survey_invitations: "culture survey invitations",
+  culture_sentiment_analysis: "AI reading your survey comments for themes",
+  ai_companion_queries: "Ask Mira answering questions about you",
+  ai_context_retrieval: "AI tools reading your record",
+  photo_in_directory: "your photo shown to colleagues",
+  birthday_announcements: "birthday announcements",
+  work_anniversary_announcements: "work-anniversary announcements",
+  talent_pool_retention: "keeping your application for other roles",
+  talent_pool_outreach: "being contacted about other roles",
+  background_check_initiation: "starting a background check",
+  reference_contact: "contacting your references",
+  ai_resume_screening: "AI reading your résumé",
+};
+
+export function capabilityLabel(key: string): string {
+  return CAPABILITY_LABEL[key] ?? key.replaceAll("_", " ");
 }
 
 export interface MyRequest {

@@ -43,6 +43,53 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     ],
   },
 
+  "/payroll/accounts": {
+    summary:
+      "Each client account's P&L: what you billed it against the payroll cost of the people working on it and its other direct costs, month by month.",
+    tasks: [
+      {
+        title: "Set up an account",
+        steps: [
+          "Open Accounts and press Add account. Give it a short code (like ACC-001) and a name.",
+          "Mark an account inactive when the engagement ends; one with history cannot be deleted.",
+        ],
+      },
+      {
+        title: "Say who works on it",
+        steps: [
+          "Open People on accounts and press Map a person: pick the person, the account, their share of time (for example 50%) and the date it starts.",
+          "A person's shares add up to at most 100% on any day. To change a share or move someone, press End on the old mapping and map them again from the next day.",
+          "Their payroll cost is shared by the days each mapping covers, so a move in mid-month is split, not rounded.",
+        ],
+      },
+      {
+        title: "Record billing and costs",
+        steps: [
+          "Open Billing & costs and press Add billing for an invoice, or Add cost for a direct cost (travel, software, a subcontractor).",
+          "A credit note is billing with “This is a credit note” switched on.",
+          "Many at once: press Upload Excel, then Download template, fill one row per invoice or cost, and Check file. Save is possible only when no row has an error.",
+        ],
+      },
+      {
+        title: "Read the P&L",
+        steps: [
+          "Open P&L and pick the months. Each account shows billed, people cost, other cost, margin and margin %.",
+          "Click an account for its months, a chart, and the people whose cost is on it.",
+          "“Payroll cost on no account” is the cost of people, or parts of their month, not mapped to any account.",
+        ],
+      },
+    ],
+    tips: [
+      "People cost is what payroll paid: each payslip's cost to company, all runs of the month that were not cancelled. A month whose payroll is not approved yet may still change.",
+      "Ask Mira can answer “P&L for <account> this year” from the same figures.",
+    ],
+    related: [
+      { label: "Payroll runs", href: "/payroll" },
+      { label: "Salary master", href: "/payroll/salaries" },
+      { label: "Ask Mira", href: "/ask-mira" },
+    ],
+  },
+
   "/payroll/runs/[id]": {
     summary: "One payroll run: its status, payslips, totals and variances against the previous month.",
     tasks: [

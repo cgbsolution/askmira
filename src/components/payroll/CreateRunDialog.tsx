@@ -54,7 +54,7 @@ const TYPE_HELP: Record<string, string> = {
   regular:
     "Everyone employed in the month. Rule versions are resolved by the last day of that month, and never change afterwards.",
   off_cycle:
-    "Pays chosen people on top of the month's approved regular run — late adjustments or overtime. Nobody's salary is paid twice.",
+    "Pays chosen people on top of the month's approved regular run — late adjustments or overtime, or the whole month for someone the regular run left out. Nobody's salary is paid twice.",
   bonus: "Pays a bonus to chosen people on top of the month's approved regular run.",
   arrear: "Pays approved arrears to chosen people on top of the month's approved regular run.",
 };

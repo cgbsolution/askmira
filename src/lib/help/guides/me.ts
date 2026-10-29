@@ -52,7 +52,25 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         steps: [
           "Type your question in the box at the bottom, or press one of the suggestions.",
           "Press Enter or Send. Shift+Enter starts a new line.",
-          "Read Mira's reply and the card under it: the card is the actual record.",
+          "Read Mira's reply and the cards under it: the cards are the actual records, and the small labels above the reply show what Mira looked up.",
+          "Carry on in the same conversation: Mira remembers what was said and found earlier, so “and for last year?” works.",
+        ],
+      },
+      {
+        title: "Get something done (leave, attendance, approvals, HR tickets)",
+        steps: [
+          "Say what you want, for example “I want to take leave on 5 November”.",
+          "Mira checks it first — the leave type, your balance, holidays and who approves it — and shows an offer card with what it will send.",
+          "Nothing is sent until you press the button on the offer (Send for approval, Approve…) or reply “yes”. Press Cancel or say no to drop it.",
+          "Once confirmed it goes through the normal process: a leave request still waits for your approver.",
+        ],
+      },
+      {
+        title: "Ask for a trend or a P&L",
+        roles: ["admin", "sub_admin"],
+        steps: [
+          "Ask “payroll cost trend for the last 6 months”, “why did payroll go up in September”, or “P&L for <account> this year”.",
+          "Mira shows the chart and the table, worked out from the payslips and the account's billing and people mapping.",
         ],
       },
       {
@@ -78,7 +96,8 @@ export const ME_GUIDES: Record<string, PageGuide> = {
       "For free-form questions and policy answers, AI must be on for your workspace and you must agree to “AI assistant” under My privacy in your account menu; nothing is sent to the AI provider until you do.",
       "Mira can tell you your leave balance, latest payslip, attendance and manager; who is on leave; find colleagues; list departments and offices; and answer policy questions from what HR published.",
       "Where your company uses the separate interview or expense tool, Mira can also show the jobs, candidates, interviews and expense claims you may see there.",
-      "Mira never sees what it looks up for you, and never states a fact it did not look up.",
+      "Mira reads what it looks up only where your company's data-protection register lets the AI provider receive that kind of record, and never contact details, ID numbers, bank details or leave reasons. Otherwise it only knows the result is on your screen. It never states a fact it did not look up.",
+      "An offer expires after two hours; ask again and Mira checks the figures afresh.",
       "There is a daily message limit per person; the line under the box shows what is left.",
     ],
     related: [
@@ -176,7 +195,8 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         title: "Apply for leave",
         steps: [
           "Press Request time off.",
-          "Choose the leave type, then the From and To dates; switch on Half day for half a day.",
+          "Choose the leave type: each shows the days you have. Leave is applied only against a balance, so a type with none cannot be picked, and with no balance at all you cannot apply.",
+          "Choose the From and To dates; switch on Half day for half a day.",
           "Add a note for the approver, and a supporting document if the leave type needs one.",
           "Check the line that says what it costs and who it goes to, then press Submit request.",
         ],
@@ -199,14 +219,17 @@ export const ME_GUIDES: Record<string, PageGuide> = {
       {
         title: "Approve or decline your team's leave",
         roles: [...MANAGERS],
-        steps: ["Open the Approvals tab and press Approve, or Decline with a reason the person will see."],
+        steps: [
+          "Open the Approvals tab: each request shows the person's balance and what approving leaves.",
+          "Press Approve, or Decline with a reason the person will see. A request the balance no longer covers cannot be approved.",
+        ],
       },
       {
         title: "Set up leave types, policies and holidays",
         roles: [...HR],
         steps: [
           "Open the Setup tab.",
-          "Add or edit leave types (paid or not, half days, negative balance, sandwich rule).",
+          "Add or edit leave types (paid or not, half days, sandwich rule). Every type, unpaid included, is applied only against a balance: give days through a policy or Adjust balance.",
           "Add policies (who gets how much, and how it accrues) and the holiday calendar.",
         ],
       },

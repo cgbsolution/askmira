@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { ApiError, patch } from "@/lib/api";
+import { ApiError, del, patch } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 
 type DemoStatus = "new" | "contacted" | "qualified" | "closed";
@@ -204,6 +204,10 @@ export function DemoRequestsScreen() {
           setOpen(null);
           if (statusFilter !== "all") reload();
         }}
+        onErased={(id) => {
+          setData((rows) => (rows ? rows.filter((r) => r.id !== id) : rows));
+          setOpen(null);
+        }}
       />
     </PageShell>
   );
@@ -213,11 +217,15 @@ function RequestSheet({
   request,
   onClose,
   onSaved,
+  onErased,
 }: {
   request: DemoRequest | null;
   onClose: () => void;
   onSaved: (saved: DemoRequest) => void;
+  onErased: (id: string) => void;
 }) {
+  const [confirmErase, setConfirmErase] = useState(false);
+  const [erasing, setErasing] = useState(false);
   const [status, setStatus] = useState<DemoStatus>("new");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -238,6 +246,22 @@ function RequestSheet({
   function requestClose() {
     if (dirty) setConfirmDiscard(true);
     else onClose();
+  }
+
+  // The website privacy policy promises deletion on request (DPDP s.12).
+  async function erase() {
+    if (!request || erasing) return;
+    setErasing(true);
+    try {
+      await del(`/platform/demo-requests/${request.id}`);
+      toast.success(`${request.company}: enquiry deleted`);
+      setConfirmErase(false);
+      onErased(request.id);
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.message : "Could not delete. Please try again.");
+    } finally {
+      setErasing(false);
+    }
   }
 
   async function save() {
@@ -350,7 +374,15 @@ function RequestSheet({
                   />
                 </FormField>
               </div>
-              <SheetFooter className="flex-row justify-end gap-2">
+              <SheetFooter className="flex-row flex-wrap justify-end gap-2">
+                <Button
+                  variant="ghost"
+                  className="mr-auto text-destructive"
+                  onClick={() => setConfirmErase(true)}
+                  disabled={saving || erasing}
+                >
+                  Delete at their request
+                </Button>
                 <Button variant="outline" onClick={requestClose} disabled={saving}>
                   Close
                 </Button>
@@ -363,6 +395,16 @@ function RequestSheet({
           )}
         </SheetContent>
       </Sheet>
+      <ConfirmDialog
+        open={confirmErase}
+        onOpenChange={setConfirmErase}
+        title={`Delete ${request?.company ?? "this"} enquiry?`}
+        description="Their name, email, phone and message are deleted for good. Use this when the person asks to be forgotten; the audit trail records only that an enquiry from this company was deleted."
+        confirmLabel="Delete"
+        cancelLabel="Keep it"
+        destructive
+        onConfirm={() => void erase()}
+      />
       <ConfirmDialog
         open={confirmDiscard}
         onOpenChange={setConfirmDiscard}

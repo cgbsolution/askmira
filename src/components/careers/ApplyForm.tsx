@@ -52,6 +52,7 @@ export function ApplyForm({
   privacyParagraphs,
   retentionDays,
   resumeMaxMb,
+  aiScreeningOffered = false,
 }: {
   slug: string;
   code: string;
@@ -60,12 +61,15 @@ export function ApplyForm({
   privacyParagraphs: string[];
   retentionDays: number;
   resumeMaxMb: number;
+  /** The workspace uses AI to help read résumés; the candidate chooses whether theirs is one. */
+  aiScreeningOffered?: boolean;
 }) {
   const [fields, setFields] = useState<Fields>(EMPTY);
   const [resume, setResume] = useState<File | null>(null);
   const [consentProcessing, setConsentProcessing] = useState(false);
   const [consentPool, setConsentPool] = useState(false);
   const [consentWhatsApp, setConsentWhatsApp] = useState(false);
+  const [consentAi, setConsentAi] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -100,7 +104,7 @@ export function ApplyForm({
     }
     const resumeError = checkResume(resume);
     if (resumeError) next.resume = resumeError;
-    if (!consentProcessing) next.consent = "Consent is required to process your application.";
+    if (!consentProcessing) next.consent = "Tick this to confirm you have read the privacy notice.";
     return next;
   }
 
@@ -128,6 +132,7 @@ export function ApplyForm({
     form.append("consent_application_processing", consentProcessing ? "true" : "false");
     form.append("consent_talent_pool", consentPool ? "true" : "false");
     form.append("consent_whatsapp", consentWhatsApp && fields.phone.trim() ? "true" : "false");
+    form.append("consent_ai_screening", aiScreeningOffered && consentAi ? "true" : "false");
     form.append("notice_version", noticeVersion);
     form.append("website", fields.website);
     if (resume) form.append("resume", resume);
@@ -296,8 +301,8 @@ export function ApplyForm({
                 className="mt-0.5"
               />
               <Label htmlFor="apply-consent-processing" className="font-normal leading-snug">
-                I explicitly consent to {organisation} processing the personal data in this
-                application to assess me for this role, and to keeping it for {retentionDays} days. *
+                I have read the privacy notice and want {organisation} to consider this application for this
+                role. It is kept for {retentionDays} days. *
               </Label>
             </div>
             {errors.consent && (
@@ -317,6 +322,21 @@ export function ApplyForm({
                 other suitable roles.
               </Label>
             </div>
+            {aiScreeningOffered && (
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="apply-consent-ai"
+                  checked={consentAi}
+                  onCheckedChange={(value) => setConsentAi(value === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="apply-consent-ai" className="font-normal leading-snug">
+                  Optional: let an AI model help the recruiter compare my résumé with this role. My name, email and
+                  phone are removed first, the model runs outside India (United States), and a person makes every
+                  decision. Without this tick, a person reads it.
+                </Label>
+              </div>
+            )}
             {fields.phone.trim() && (
               <div className="flex items-start gap-3">
                 <Checkbox

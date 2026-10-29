@@ -426,7 +426,6 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
                         {typeName(policy.leave_type_id)}
                         {policy.applies_to_gender && ` · ${GENDER_LABEL[policy.applies_to_gender].toLowerCase()} only`}
                         {policy.sandwich_weekends_holidays && " · sandwich rule"}
-                        {policy.allows_negative_balance && " · negative allowed"}
                       </p>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
@@ -837,7 +836,6 @@ function PolicyDialog({
   const [carry, setCarry] = useState("0");
   const [notice, setNotice] = useState("0");
   const [maxConsecutive, setMaxConsecutive] = useState("");
-  const [negative, setNegative] = useState(false);
   const [sandwich, setSandwich] = useState(false);
   const [effectiveFrom, setEffectiveFrom] = useState(toISODate(new Date()));
   const [isSaving, setIsSaving] = useState(false);
@@ -856,7 +854,6 @@ function PolicyDialog({
     setCarry(source ? source.max_carry_forward_days.replace(/\.00$/, "") : "0");
     setNotice(String(source?.min_notice_days ?? 0));
     setMaxConsecutive(source?.max_consecutive_days ? String(source.max_consecutive_days) : "");
-    setNegative(source?.allows_negative_balance ?? false);
     setSandwich(source?.sandwich_weekends_holidays ?? false);
     setEffectiveFrom(toISODate(new Date()));
   }, [editing, leaveTypes]);
@@ -881,7 +878,6 @@ function PolicyDialog({
       max_carry_forward_days: carry,
       min_notice_days: Number(notice),
       max_consecutive_days: maxConsecutive ? Number(maxConsecutive) : null,
-      allows_negative_balance: negative,
       sandwich_weekends_holidays: sandwich,
     };
     try {
@@ -1026,13 +1022,6 @@ function PolicyDialog({
                 <DatePicker id="policy-from" value={effectiveFrom} onChange={setEffectiveFrom} />
               </FormField>
             )}
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <Label htmlFor="policy-negative">Allow a negative balance</Label>
-              <p className="text-xs text-muted-foreground">Requests beyond the balance warn instead of being refused.</p>
-            </div>
-            <Switch id="policy-negative" checked={negative} onCheckedChange={setNegative} />
           </div>
           <div className="flex items-center justify-between gap-3">
             <div>

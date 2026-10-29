@@ -121,6 +121,7 @@ export default async function JobPage({ params }: { params: Params }) {
             privacyParagraphs={data.privacy_notice_paragraphs}
             retentionDays={data.retention_days}
             resumeMaxMb={data.document_rules.resume_max_mb}
+            aiScreeningOffered={Boolean(data.ai_screening_offered)}
           />
         ) : (
           <Alert>

@@ -55,7 +55,7 @@ export function EventFields({
                 htmlFor={id}
                 label={label}
                 optional
-                hint="Pays them, and files their PF, ESI and TDS, from the month this takes effect in. Date it the 1st of a month for a clean change."
+                hint="Pays them, and files their monthly PF, ESI and TDS, from the month this takes effect in. Date it the 1st of a month for a clean change."
               >
                 <Select value={values[field] ?? NONE} onValueChange={(next) => set(field, next)}>
                   <SelectTrigger id={id} className="w-full">

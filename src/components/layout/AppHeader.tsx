@@ -82,7 +82,9 @@ export function AppHeader() {
   const round = "size-11 rounded-full text-muted-foreground hover:text-foreground";
 
   return (
-    <header className="sticky top-0 z-40 flex h-[76px] shrink-0 items-center gap-3 border-b border-border bg-card px-4 md:px-6">
+    // A phone fits the toggle, the company's 40px mark and five 44px buttons
+    // at 360px only with the tighter gap and padding; from sm up, as before.
+    <header className="sticky top-0 z-40 flex h-[76px] shrink-0 items-center gap-2 border-b border-border bg-card px-3 sm:gap-3 sm:px-4 md:px-6">
       <Button
         variant="outline"
         size="icon"
@@ -97,7 +99,7 @@ export function AppHeader() {
       <Link
         href="/"
         aria-label={`${company?.name ?? tenant?.name ?? "AskMira"} home`}
-        className="shrink-0 rounded-lg md:hidden"
+        className="flex min-w-0 rounded-lg md:hidden"
       >
         {tenant ? <CompanyMark company={company} fallbackName={tenant.name} /> : <AskMiraMark className="h-10" />}
       </Link>
@@ -175,7 +177,7 @@ function UserMenu() {
         <Button
           variant="ghost"
           aria-label={t("Account menu")}
-          className="group h-11 gap-3 rounded-full px-0 hover:bg-transparent sm:pr-1"
+          className="group h-11 gap-3 rounded-full px-0 hover:bg-transparent has-[>svg]:px-0 sm:pr-1 sm:has-[>svg]:px-3"
         >
           <Avatar className="size-11">
             <AvatarFallback className="bg-brand-100 text-sm font-semibold text-brand-600 dark:bg-brand-800 dark:text-brand-100">

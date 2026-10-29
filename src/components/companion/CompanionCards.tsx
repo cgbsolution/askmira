@@ -12,7 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import type { CompanionCard, CompanionPick } from "./types";
+import { CompanionChart, CompanionProposalCard } from "./CompanionExtras";
+import type { CompanionCard, CompanionPick, CompanionProposal } from "./types";
 
 const OUTCOME_LABEL = {
   answered: "Answered",
@@ -47,19 +48,30 @@ function RowLink({ href }: { href: string | null | undefined }) {
 
 /**
  * What the companion looked up, rendered under its reply. Each card is a
- * record AskMira read as the person; the model never saw it.
+ * record AskMira read as the person — the source of every figure in the reply.
  */
 export function CompanionCardView({
   card,
   onPick,
   picking = false,
+  onDecide,
+  deciding = false,
 }: {
   card: CompanionCard;
   /** Sends a choice as the person's next message; absent where choices cannot be sent. */
   onPick?: (pick: CompanionPick) => void;
   picking?: boolean;
+  /** Confirms or declines an offer; absent where offers cannot be decided. */
+  onDecide?: (card: CompanionProposal, confirm: boolean) => void;
+  deciding?: boolean;
 }) {
   switch (card.type) {
+    case "chart":
+      return <CompanionChart card={card} />;
+
+    case "proposal":
+      return <CompanionProposalCard card={card} onDecide={onDecide} busy={deciding} />;
+
     case "notice":
       return (
         <Alert variant={card.tone === "warning" ? "destructive" : "default"}>

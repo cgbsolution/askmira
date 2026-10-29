@@ -34,6 +34,7 @@ export function RunActions({
   const [confirm, setConfirm] = useState<Action>(null);
   const [paymentDate, setPaymentDate] = useState(run.payment_date ?? "");
   const period = periodLabel(run.period_year, run.period_month);
+  const noSalary = run.input_notices.filter((notice) => notice.key === "no_salary").length;
 
   const canCompute = ["draft", "pending_review", "failed"].includes(run.status);
   const canApprove = run.status === "pending_review";
@@ -123,6 +124,8 @@ export function RunActions({
             the run cannot be recomputed or deleted, and every loan, reimbursement, arrear and bonus
             on it is marked as paid by this run. A correction after that is an arrears or off-cycle
             run.
+            {noSalary > 0 &&
+              ` ${noSalary === 1 ? "1 person has" : `${noSalary} people have`} no salary and ${noSalary === 1 ? "is" : "are"} not on this run; an off-cycle run pays them once their salary is added.`}
           </>
         }
         confirmLabel="Approve & lock"

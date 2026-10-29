@@ -75,6 +75,65 @@ function WhatsAppChoice({
   );
 }
 
+/**
+ * The candidate's optional consents — talent pool, AI help reading the résumé —
+ * each withdrawable here in one step, as easily as it was given (DPDP s.6(4)).
+ * What rested on it is deleted with it.
+ */
+function ConsentChoices({
+  token,
+  consents,
+  onChanged,
+}: {
+  token: string;
+  consents: NonNullable<CandidatePortal["consents"]>;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const given = consents.filter((item) => item.granted);
+  if (given.length === 0) return null;
+
+  const withdraw = async (purpose: string, name: string) => {
+    setBusy(purpose);
+    try {
+      await post(`/public/candidate/${encodeURIComponent(token)}/consents/${purpose}/withdraw`);
+      toast.success(`${name}: withdrawn.`);
+      onChanged();
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.detail : "That did not save.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Card tier="tier2">
+      <CardHeader>
+        <CardTitle>Your choices</CardTitle>
+        <CardDescription>What you agreed to when you applied. Switch one off and what rested on it is deleted.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {given.map((item) => (
+          <div key={item.purpose} className="flex items-start gap-3">
+            <div className="flex-1 space-y-1">
+              <p className="text-sm font-medium text-foreground">{item.name}</p>
+              <p className="text-xs text-muted-foreground">{item.description}</p>
+            </div>
+            <Switch
+              aria-label={item.name}
+              checked
+              disabled={busy !== null}
+              onCheckedChange={(on) => {
+                if (!on) void withdraw(item.purpose, item.name);
+              }}
+            />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 /** The candidate's own view: applications, interviews, documents — behind a one-time link token. */
 export function CandidatePortalView({ token }: { token: string }) {
   const { data, error, isLoading, reload } = usePublicQuery<CandidatePortal>(
@@ -118,6 +177,7 @@ export function CandidatePortalView({ token }: { token: string }) {
       </header>
 
       {data.whatsapp && <WhatsAppChoice token={token} whatsapp={data.whatsapp} onChanged={reload} />}
+      {data.consents && <ConsentChoices token={token} consents={data.consents} onChanged={reload} />}
 
       <PortalOffers token={token} candidateName={data.candidate.name} />
       <PortalBackgroundChecks token={token} candidateName={data.candidate.name} />

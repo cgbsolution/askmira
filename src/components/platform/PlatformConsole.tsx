@@ -5,6 +5,7 @@ import {
   Ban,
   Building2,
   Copy,
+  Download,
   Eye,
   KeyRound,
   Loader2,
@@ -44,7 +45,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { WelcomeEmailNotice } from "@/components/settings/WelcomeEmailNotice";
-import { ApiError, del, get, patch, post } from "@/lib/api";
+import { ApiError, del, downloadFile, get, patch, post } from "@/lib/api";
 import type { WelcomeEmail } from "@/lib/types/admin";
 import { formatDate } from "@/lib/utils";
 
@@ -100,6 +101,8 @@ export function PlatformConsole() {
   const [addingTo, setAddingTo] = useState<Workspace | null>(null);
   const [suspending, setSuspending] = useState<Workspace | null>(null);
   const [deleting, setDeleting] = useState<Workspace | null>(null);
+  // Bumped after a delete so the deleted list reloads with the new entry.
+  const [deletedVersion, setDeletedVersion] = useState(0);
   const [changingEmail, setChangingEmail] = useState<{ workspace: Workspace; admin: Admin } | null>(null);
   const [issued, setIssued] = useState<Issued | null>(null);
   const [viewingId, setViewingId] = useState<string | null>(null);
@@ -323,8 +326,17 @@ export function PlatformConsole() {
           reload();
         }}
       />
+      <DeletedWorkspacesPanel key={deletedVersion} />
+
       <SuspendDialog workspace={suspending} onClose={() => setSuspending(null)} onDone={reload} />
-      <DeleteDialog workspace={deleting} onClose={() => setDeleting(null)} onDone={reload} />
+      <DeleteDialog
+        workspace={deleting}
+        onClose={() => setDeleting(null)}
+        onDone={() => {
+          reload();
+          setDeletedVersion((value) => value + 1);
+        }}
+      />
       <ChangeEmailDialog
         target={changingEmail}
         onClose={() => setChangingEmail(null)}
@@ -543,6 +555,73 @@ function ChangeEmailDialog({
  * trail is insert-only and its payroll and statutory records must be kept.
  * The address is typed out, so it is never one stray click.
  */
+interface DeletedWorkspace {
+  id: string;
+  name: string;
+  deleted_at: string | null;
+  purge_after: string | null;
+  purged_at: string | null;
+  can_export: boolean;
+}
+
+/**
+ * Deleted organisations, each with the day its data is purged (DPDP s.8(7)(b)).
+ * Until then the data can be downloaded to hand back to the company.
+ */
+function DeletedWorkspacesPanel() {
+  const { data, error, isLoading, reload } = useApiQuery<DeletedWorkspace[]>("/platform/workspaces/deleted");
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  const download = async (row: DeletedWorkspace) => {
+    setDownloading(row.id);
+    try {
+      await downloadFile(`/platform/workspaces/deleted/${row.id}/export`, `askmira-workspace-${row.id}.zip`);
+    } catch (caught) {
+      toast.error(failure(caught, "The download failed."));
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const when = (row: DeletedWorkspace): string => {
+    const parts = [row.deleted_at ? `Deleted ${formatDate(row.deleted_at)}` : null];
+    if (row.purged_at) parts.push(`data purged ${formatDate(row.purged_at)}`);
+    else if (row.purge_after) parts.push(`data purged on ${formatDate(row.purge_after)}`);
+    return parts.filter(Boolean).join(" · ");
+  };
+
+  return (
+    <DataPanel
+      title="Deleted organisations"
+      description="Kept for 90 days after deletion so their data can be handed back, then purged — every record and file except the audit trail."
+      isLoading={isLoading}
+      error={error?.detail ?? null}
+      onRetry={reload}
+      isEmpty={(data ?? []).length === 0}
+      empty={{ icon: Trash2, title: "No deleted organisations" }}
+    >
+      <ul className="divide-y divide-border">
+        {(data ?? []).map((row) => (
+          <li key={row.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+            <div className="min-w-0">
+              <div className="font-medium text-foreground">{row.name}</div>
+              <div className="text-xs text-muted-foreground">{when(row)}</div>
+            </div>
+            {row.can_export ? (
+              <Button size="sm" variant="outline" disabled={downloading === row.id} onClick={() => void download(row)}>
+                {downloading === row.id ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+                Download data
+              </Button>
+            ) : (
+              <Badge variant="muted">Purged</Badge>
+            )}
+          </li>
+        ))}
+      </ul>
+    </DataPanel>
+  );
+}
+
 function DeleteDialog({
   workspace,
   onClose,
@@ -599,7 +678,11 @@ function DeleteDialog({
               It leaves this list, and its people&apos;s emails and the address{" "}
               <span className="font-mono">{workspace?.workspace}</span> can be used again.
             </p>
-            <p>Its payroll, statutory and audit records are kept, out of reach, for as long as the law requires.</p>
+            <p>
+              Its data is kept, out of everyone&apos;s reach, for 90 days so you can download it from Deleted
+              organisations and give it to the company — it must keep its own payroll and statutory records. Then every
+              record and file is deleted for good. Only the audit trail is kept.
+            </p>
           </AlertDescription>
         </Alert>
         <div className="grid gap-4">

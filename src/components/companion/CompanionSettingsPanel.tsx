@@ -34,6 +34,10 @@ const GROUP_LABEL: Record<string, string> = {
   hiring_data: "Hiring (linked interview tool)",
   expense_data: "Expenses (linked expense tool)",
   helpdesk_data: "IT tickets and assets (linked helpdesk)",
+  actions_leave: "Apply for or withdraw leave (on confirm)",
+  actions_attendance: "Attendance requests (on confirm)",
+  actions_approvals: "Approve or reject requests (on confirm)",
+  actions_helpdesk: "Raise HR tickets (on confirm)",
 };
 
 /**
@@ -133,6 +137,23 @@ export function CompanionSettingsPanel() {
               onChange={(event) => set("company_notes", event.target.value)}
             />
           </FormField>
+
+          <div className="flex items-start gap-3 rounded-lg border p-3">
+            <Switch
+              id="companion-reads-results"
+              checked={draft.ai_reads_results}
+              onCheckedChange={(checked) => set("ai_reads_results", checked)}
+            />
+            <div className="grid gap-0.5">
+              <Label htmlFor="companion-reads-results">Let {draft.name || "Mira"} read what it looks up</Label>
+              <p className="text-xs text-muted-foreground">
+                So it can compare figures, explain a trend and check a balance before it offers to act. It only ever
+                reads the kinds of record your data-protection register lets the AI provider receive (Compliance →
+                DPDP), and never contact details, ID numbers, bank details or leave reasons. Off: it only knows a
+                result is on the person&apos;s screen.
+              </p>
+            </div>
+          </div>
 
           <div className="grid gap-3">
             <p className="text-sm font-medium">What it may do</p>

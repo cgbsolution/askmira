@@ -9,23 +9,39 @@ import { cn, initials } from "@/lib/utils";
 const SQUARE_ENOUGH = 1.6;
 
 /**
- * The company's logo, small, for the phone header (where the rail is a drawer).
- * Its initials when it has no logo.
+ * The company's logo, small, for the phone header (where the rail is a drawer;
+ * the full logo is at the top of that drawer).
+ *
+ * The header has room for one 40px square beside its buttons, so a squarish
+ * logo sits on a 40px light plate, and a wide wordmark — unreadable that small,
+ * and wider than the phone allows — gives way to the company's initials, as in
+ * the collapsed rail. Its initials too when it has no logo.
  */
 export function CompanyMark({ company, fallbackName }: { company: CompanyBrand | null; fallbackName: string }) {
   const name = company?.name || fallbackName;
   const url = company?.logo_url ?? null;
   const [failed, setFailed] = useState<string | null>(null);
-  if (url && failed !== url) {
+  const [wide, setWide] = useState<{ url: string; wide: boolean } | null>(null);
+  const tooWide = wide !== null && wide.url === url && wide.wide;
+  if (url && failed !== url && !tooWide) {
     // On the light plate, as in the rail: the header is dark in dark mode.
     return (
-      <span data-slot="company-mark" className="flex h-10 items-center rounded-lg bg-logo-plate px-1.5">
+      <span
+        data-slot="company-mark"
+        className="flex size-10 min-w-0 items-center justify-center overflow-hidden rounded-lg bg-logo-plate p-1"
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={url}
           alt={name}
           onError={() => setFailed(url)}
-          className="max-h-8 w-auto max-w-28 object-contain"
+          onLoad={(event) => {
+            const image = event.currentTarget;
+            if (image.naturalHeight) {
+              setWide({ url, wide: image.naturalWidth / image.naturalHeight > SQUARE_ENOUGH });
+            }
+          }}
+          className="size-full object-contain"
         />
       </span>
     );
@@ -34,7 +50,7 @@ export function CompanyMark({ company, fallbackName }: { company: CompanyBrand |
     <span
       role="img"
       aria-label={name}
-      className="flex size-10 items-center justify-center rounded-xl bg-primary text-xs font-bold text-primary-foreground"
+      className="flex size-10 min-w-0 items-center justify-center overflow-hidden rounded-xl bg-primary text-xs font-bold text-primary-foreground"
     >
       {initials(name)}
     </span>

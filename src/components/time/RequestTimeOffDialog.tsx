@@ -36,11 +36,13 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, post } from "@/lib/api";
 import type {
   EmployeeSummary,
   HalfDaySession,
   LeaveAttachment,
+  LeaveBalance,
   LeavePreview,
   LeaveRequest,
   LeaveRequestInput,
@@ -97,6 +99,50 @@ export function RequestTimeOffDialog({
     () => leaveTypes.find((type) => type.id === leaveTypeId),
     [leaveTypes, leaveTypeId],
   );
+
+  // Leave is applied only against a balance: the balances of whoever the
+  // request is for, in the year it starts, decide which types can be picked.
+  const balanceYear = startDate.slice(0, 4);
+  const balancesPath =
+    open && (!forSomeoneElse || employeeId)
+      ? `/leave/balances?year=${balanceYear}${employeeId ? `&employee_id=${employeeId}` : ""}`
+      : null;
+  const balancesQuery = useApiQuery<LeaveBalance[]>(balancesPath);
+  // Not the previous person's or year's figures while the next ones load.
+  const balances =
+    balancesPath && !balancesQuery.isLoading && !balancesQuery.error ? balancesQuery.data : null;
+  const left = useMemo(() => {
+    const byType = new Map<string, string>();
+    for (const row of balances ?? []) byType.set(row.leave_type_id, row.available_after_pending);
+    return byType;
+  }, [balances]);
+  // Days on the card that pending requests have already spoken for.
+  const tiedUp = useMemo(
+    () =>
+      new Set(
+        (balances ?? [])
+          .filter((row) => Number(row.available) > 0 && Number(row.available_after_pending) <= 0)
+          .map((row) => row.leave_type_id),
+      ),
+    [balances],
+  );
+  const hasDays = (typeId: string) => Number(left.get(typeId) ?? "0") > 0;
+  const choices = useMemo(
+    () =>
+      balances === null
+        ? leaveTypes
+        : [...leaveTypes].sort((a, b) => Number(hasDays(b.id)) - Number(hasDays(a.id))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [leaveTypes, balances],
+  );
+  const nothingLeft = balances !== null && !leaveTypes.some((type) => hasDays(type.id));
+
+  // A type picked before the balances arrived, or for another person or year,
+  // that has nothing left now is cleared rather than left to be refused.
+  useEffect(() => {
+    if (balances !== null && leaveTypeId && !hasDays(leaveTypeId)) setLeaveTypeId("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [balances, leaveTypeId]);
   const singleDay = startDate === endDate;
   const canHalfDay = Boolean(leaveType?.allows_half_day) && singleDay;
 
@@ -266,20 +312,68 @@ export function RequestTimeOffDialog({
             </FormField>
           )}
 
-          <FormField htmlFor="leave-type" label="Leave type">
-            <Select value={leaveTypeId} onValueChange={setLeaveTypeId}>
+          {nothingLeft && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+              <span>
+                {forSomeoneElse && person
+                  ? `${employeeDisplayName(person)} has no leave balance for ${balanceYear}, so leave cannot be applied.`
+                  : `You have no leave balance for ${balanceYear}, so you cannot apply for leave.`}{" "}
+                Ask HR if this looks wrong.
+              </span>
+            </div>
+          )}
+
+          <FormField
+            htmlFor="leave-type"
+            label="Leave type"
+            hint="Only a type with days available can be applied for."
+          >
+            <Select
+              value={leaveTypeId}
+              onValueChange={setLeaveTypeId}
+              disabled={balances === null || nothingLeft}
+            >
               <SelectTrigger id="leave-type" className="w-full">
-                <SelectValue placeholder="Choose a leave type" />
+                <SelectValue
+                  placeholder={
+                    !balancesPath
+                      ? "Choose the employee first"
+                      : balancesQuery.error
+                        ? "Balances could not be loaded"
+                        : balances === null
+                          ? "Checking balances…"
+                          : nothingLeft
+                            ? "No leave balance"
+                            : "Choose a leave type"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
-                {leaveTypes.map((type) => (
-                  <SelectItem key={type.id} value={type.id}>
+                {choices.map((type) => (
+                  <SelectItem key={type.id} value={type.id} disabled={!hasDays(type.id)}>
                     {type.name}
                     {!type.is_paid && " (unpaid)"}
+                    <span className="text-muted-foreground tabular-nums">
+                      {" · "}
+                      {hasDays(type.id)
+                        ? `${formatDays(left.get(type.id))} available`
+                        : tiedUp.has(type.id)
+                          ? "all taken by pending requests"
+                          : "no balance"}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {balancesQuery.error && balancesPath && (
+              <p className="mt-1.5 flex items-center gap-2 text-sm text-destructive">
+                {balancesQuery.error.detail}
+                <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={balancesQuery.reload}>
+                  Try again
+                </Button>
+              </p>
+            )}
           </FormField>
 
           <div className="grid grid-cols-2 gap-3">

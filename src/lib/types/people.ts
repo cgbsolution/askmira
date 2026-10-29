@@ -155,6 +155,8 @@ export interface LegalEntity {
 export interface EntityMoveResult {
   legal_entity_id: string;
   legal_entity_name: string;
+  /** The day the moves are dated: the workspace's today. */
+  effective_from: string;
   moved: number;
   already_there: number;
   skipped: { employee_id: string; employee_code: string | null; name: string | null; reason: string }[];
