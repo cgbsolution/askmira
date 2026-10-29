@@ -687,7 +687,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
   },
 
   "/settings/organisation": {
-    summary: "Legal entities, work locations and departments: the structures every other module uses.",
+    summary: "Legal entities, projects, work locations and departments: the structures every other module uses.",
     tasks: [
       {
         title: "Add a legal entity, location or department",
@@ -699,6 +699,14 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
           "Add one legal entity per company your people work for: your own, a sister company, or a client whose staff you employ.",
           "In its dialog press Upload under Logo (PNG or JPEG, up to 1 MB). Its people see that logo at the top of the portal and on the app's Home after they sign in.",
           "The People column counts each company's current staff; press the number to see them.",
+        ],
+      },
+      {
+        title: "Set up projects (client projects and Internal)",
+        steps: [
+          "Open the Projects tab. A project is where somebody works: a client's (DXC INET, JK Paper…) or Internal for your own staff. Your company still employs and pays them.",
+          "Add each one with Add project, or: From departments turns departments like Internal and External into projects and moves their people; From a sheet reads your old salary register's Emp Code and PROJECT columns, shows what it would do, then applies it.",
+          "The People number shows who is on each project now; press it to see them.",
         ],
       },
       {

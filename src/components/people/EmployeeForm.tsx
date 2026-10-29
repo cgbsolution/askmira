@@ -44,6 +44,7 @@ type Values = {
   date_of_birth: string;
   gender: string;
   legal_entity_id: string;
+  project_id: string;
   location_id: string;
   department_id: string;
   designation: string;
@@ -70,6 +71,7 @@ function toValues(record?: EmployeeRecord): Values {
     date_of_birth: record?.date_of_birth ?? "",
     gender: record?.gender ?? NONE,
     legal_entity_id: record?.legal_entity_id ?? NONE,
+    project_id: record?.project_id ?? NONE,
     location_id: record?.location_id ?? NONE,
     department_id: record?.department_id ?? NONE,
     designation: record?.designation ?? "",
@@ -99,6 +101,7 @@ function toPayload(values: Values, managerId: string | null, dottedId: string | 
     date_of_birth: text(values.date_of_birth),
     gender: fromSelect(values.gender) as Gender | null,
     legal_entity_id: fromSelect(values.legal_entity_id),
+    project_id: fromSelect(values.project_id),
     location_id: fromSelect(values.location_id),
     department_id: fromSelect(values.department_id),
     manager_id: managerId,
@@ -315,8 +318,8 @@ export function EmployeeForm({
         <p className="text-sm font-semibold text-foreground">Placement</p>
         {!isCreate && (
           <p className="text-xs text-muted-foreground">
-            A change to company, location, department, manager, designation or grade saved here takes
-            effect today and is added to their lifecycle history. For a later date, or one that needs
+            A change to company, project, location, department, manager, designation or grade saved
+            here takes effect today and is added to their lifecycle history. For a later date, or one that needs
             approval, raise it under Employees → Lifecycle events.
           </p>
         )}
@@ -333,6 +336,29 @@ export function EmployeeForm({
                     {e.name}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+          <FormField
+            htmlFor="emp-project"
+            label="Project"
+            optional
+            hint="A client's project, or Internal. Payroll follows the company, not this."
+          >
+            <Select value={values.project_id} onValueChange={(v) => set("project_id", v)}>
+              <SelectTrigger id="emp-project" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>None</SelectItem>
+                {org.projects
+                  .filter((p) => p.active || p.id === values.project_id)
+                  .map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                      {p.billable || /internal/i.test(p.name) ? "" : " (Internal)"}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </FormField>

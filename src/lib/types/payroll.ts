@@ -265,6 +265,9 @@ export interface RegisterRow {
   employee_id: string;
   employee_code: string;
   employee_name: string;
+  /** The project they were on when the run was computed (a client's, or Internal). */
+  project_id?: string | null;
+  project_name?: string | null;
   working_days: string;
   paid_days: string;
   lop_days: string;

@@ -30,9 +30,14 @@ export interface ProjectRow {
   code: string;
   name: string;
   client: string | null;
+  /** A client's project; the company's own (Internal) work is not billable. */
   billable: boolean;
   active: boolean;
+  /** The company of the group that staffs it. */
+  legal_entity_id?: string | null;
   tasks: ProjectTask[];
+  /** People on it who have not left; HR's list only, otherwise null. */
+  headcount?: number | null;
 }
 
 interface Entry {

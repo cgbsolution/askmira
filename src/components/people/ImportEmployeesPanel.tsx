@@ -226,7 +226,9 @@ export function ImportEmployeesPanel() {
                 />
               </div>
 
-              {(preview.new_departments.length > 0 || preview.new_locations.length > 0) && (
+              {(preview.new_departments.length > 0 ||
+                preview.new_locations.length > 0 ||
+                (preview.new_projects?.length ?? 0) > 0) && (
                 <Alert>
                   <AlertTitle>Also created by this import</AlertTitle>
                   <AlertDescription className="grid gap-1.5">
@@ -235,6 +237,14 @@ export function ImportEmployeesPanel() {
                         Departments:{" "}
                         <span className="font-medium text-foreground">
                           {preview.new_departments.join(", ")}
+                        </span>
+                      </span>
+                    )}
+                    {(preview.new_projects?.length ?? 0) > 0 && (
+                      <span>
+                        Projects:{" "}
+                        <span className="font-medium text-foreground">
+                          {preview.new_projects?.join(", ")}
                         </span>
                       </span>
                     )}
@@ -375,6 +385,9 @@ export function ImportEmployeesPanel() {
                   )}
                   {result.locations_created.length > 0 && (
                     <span>Locations created: {result.locations_created.join(", ")}.</span>
+                  )}
+                  {(result.projects_created?.length ?? 0) > 0 && (
+                    <span>Projects created: {result.projects_created?.join(", ")}.</span>
                   )}
                   <span>
                     Nobody was given a login. An admin gives each person one from their profile.

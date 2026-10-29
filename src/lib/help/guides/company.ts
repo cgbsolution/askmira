@@ -12,8 +12,16 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
         title: "Find a colleague",
         steps: [
           "Type a name, employee code or email in the search box (or press Ctrl K from anywhere).",
-          "Filter by company, department or location if the list is long.",
+          "Filter by company, project, department or location if the list is long.",
           "Open a person to see their profile.",
+        ],
+      },
+      {
+        title: "Move people to a project",
+        roles: [...HR],
+        steps: [
+          "Filter the list, tick the people (or tick the page, then Select all), and press Move to project.",
+          "Choose the client's project, Internal, or No project. Their company and payroll stay as they are; the move is in their history.",
         ],
       },
       {

@@ -74,6 +74,32 @@ export function EventFields({
                 </Select>
               </FormField>
             );
+          case "project_id":
+            return (
+              <FormField
+                key={field}
+                htmlFor={id}
+                label={label}
+                optional
+                hint="A client's project, or Internal. Their company and payroll stay as they are."
+              >
+                <Select value={values[field] ?? NONE} onValueChange={(next) => set(field, next)}>
+                  <SelectTrigger id={id} className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>Unchanged</SelectItem>
+                    {org.projects
+                      .filter((row) => row.active)
+                      .map((row) => (
+                        <SelectItem key={row.id} value={row.id}>
+                          {row.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+            );
           case "department_id":
             return (
               <FormField key={field} htmlFor={id} label={label} optional>

@@ -54,28 +54,38 @@ export const EVENT_TYPE: Record<LifecycleEventType, string> = {
   location_change: "Location change",
   manager_change: "Manager change",
   employment_type_change: "Employment type change",
+  project_change: "Project change",
 };
 
 /** The fields each event type may change — mirrors CHANGED_FIELDS in the backend engine. */
 export const EVENT_FIELDS: Record<LifecycleEventType, string[]> = {
   confirmation: ["probation_end_date"],
   probation_extension: ["probation_end_date"],
-  transfer: ["legal_entity_id", "location_id", "department_id", "manager_id", "designation"],
+  transfer: [
+    "legal_entity_id",
+    "project_id",
+    "location_id",
+    "department_id",
+    "manager_id",
+    "designation",
+  ],
   promotion: ["grade", "designation", "manager_id"],
   demotion: ["grade", "designation"],
   redesignation: ["designation"],
-  deputation: ["location_id", "department_id", "manager_id"],
+  deputation: ["project_id", "location_id", "department_id", "manager_id"],
   grade_change: ["grade"],
   department_change: ["department_id", "manager_id"],
   location_change: ["location_id"],
   manager_change: ["manager_id"],
   employment_type_change: ["employment_type", "notice_period_days"],
+  project_change: ["project_id"],
 };
 
 export const FIELD_LABEL: Record<string, string> = {
   status: "Status",
   probation_end_date: "Probation end date",
   legal_entity_id: "Company",
+  project_id: "Project",
   location_id: "Location",
   department_id: "Department",
   manager_id: "Manager",

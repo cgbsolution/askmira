@@ -64,6 +64,7 @@ type Values = {
   date_of_joining: string;
   employment_type: EmploymentType;
   department_id: string;
+  project_id: string;
   designation: string;
   location_id: string;
   legal_entity_id: string;
@@ -82,6 +83,7 @@ const EMPTY: Values = {
   date_of_joining: "",
   employment_type: "full_time",
   department_id: NONE,
+  project_id: NONE,
   designation: "",
   location_id: NONE,
   legal_entity_id: NONE,
@@ -255,6 +257,7 @@ export function JoinerWizard({
         legal_entity_id: fromSelect(values.legal_entity_id),
         location_id: fromSelect(values.location_id),
         department_id: fromSelect(values.department_id),
+        project_id: fromSelect(values.project_id),
         manager_id: manager?.id ?? null,
         designation: text(values.designation),
         employment_type: values.employment_type,
@@ -403,6 +406,29 @@ export function JoinerWizard({
               </Select>
             </FormField>
             {textField("designation", "Designation", { optional: true })}
+            <FormField
+              htmlFor="joiner-project"
+              label="Project"
+              optional
+              hint="A client's project, or Internal. Payroll follows the company, not this."
+            >
+              <Select value={values.project_id} onValueChange={(v) => set("project_id", v)}>
+                <SelectTrigger id="joiner-project" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>None</SelectItem>
+                  {org.projects
+                    .filter((p) => p.active || p.id === values.project_id)
+                    .map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                        {p.billable || /internal/i.test(p.name) ? "" : " (Internal)"}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </FormField>
             <FormField htmlFor="joiner-department" label="Department" optional>
               <Select value={values.department_id} onValueChange={(v) => set("department_id", v)}>
                 <SelectTrigger id="joiner-department" className="w-full">

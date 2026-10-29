@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Building2, Download, Loader2, Users } from "lucide-react";
+import { Building2, Download, FolderKanban, Loader2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useState } from "react";
@@ -13,6 +13,7 @@ import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
 import { EMPLOYMENT_STATUS, NONE, fromSelect, personName } from "@/components/people/labels";
 import { MoveToCompanyDialog } from "@/components/people/MoveToCompanyDialog";
+import { MoveToProjectDialog } from "@/components/people/MoveToProjectDialog";
 import { EmploymentStatusBadge } from "@/components/people/StatusBadges";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ import type { DirectoryEmployee } from "@/lib/types/people";
 const PAGE_SIZE = 25;
 /** The company filter's value for people with no company at all. */
 const NO_COMPANY = "none";
+/** The project filter's value for people on no project. */
+const NO_PROJECT = "none";
 /** The status filter's value for everybody who has not left (any status but exited). */
 const CURRENT = "current";
 
@@ -53,11 +56,16 @@ export function DirectoryView() {
   const [moving, setMoving] = useState<{ people: DirectoryEmployee[]; clear: () => void } | null>(
     null,
   );
+  const [projecting, setProjecting] = useState<{
+    people: DirectoryEmployee[];
+    clear: () => void;
+  } | null>(null);
 
   const [term, setTerm] = useState(params.get("search") ?? "");
   const [debounced, setDebounced] = useState(term);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
   const company = params.get("company") ?? NONE;
+  const project = params.get("project") ?? NONE;
   const department = params.get("department") ?? NONE;
   const location = params.get("location") ?? NONE;
   const status = params.get("status") ?? NONE;
@@ -94,6 +102,8 @@ export function DirectoryView() {
   if (debounced.trim()) query.set("search", debounced.trim());
   if (company === NO_COMPANY) query.set("without_legal_entity", "true");
   else if (fromSelect(company)) query.set("legal_entity_id", company);
+  if (project === NO_PROJECT) query.set("without_project", "true");
+  else if (fromSelect(project)) query.set("project_id", project);
   if (fromSelect(department)) query.set("department_id", department);
   if (fromSelect(location)) query.set("location_id", location);
   if (status === CURRENT) query.set("current", "true");
@@ -117,7 +127,8 @@ export function DirectoryView() {
     }
   };
   const filtered =
-    Boolean(debounced.trim()) || [company, department, location, status].some((v) => v !== NONE);
+    Boolean(debounced.trim()) ||
+    [company, project, department, location, status].some((v) => v !== NONE);
 
   // "Select all N people": every page under the current filters, for HR's bulk move.
   const fetchAll = async () => {
@@ -163,6 +174,12 @@ export function DirectoryView() {
       meta: { cellClassName: "text-muted-foreground" },
     },
     {
+      id: "project",
+      header: "Project",
+      accessorFn: (row) => (row.project_id ? org.projectName(row.project_id) : "—"),
+      meta: { cellClassName: "text-muted-foreground" },
+    },
+    {
       id: "department",
       header: "Department",
       accessorFn: (row) => org.departmentName(row.department_id),
@@ -185,7 +202,7 @@ export function DirectoryView() {
   return (
     <PageShell
       title="Employees"
-      description="Everyone in the company — names, roles, companies, departments and work contacts."
+      description="Everyone in the company — names, roles, companies, projects, departments and work contacts."
       actions={
         <RequireRole roles={HR}>
           <Button variant="outline" onClick={() => void exportCsv()} disabled={exporting}>
@@ -215,9 +232,14 @@ export function DirectoryView() {
         bulkActions={
           isHr
             ? (selected, clear) => (
-                <Button size="sm" variant="outline" onClick={() => setMoving({ people: selected, clear })}>
-                  <Building2 /> Move to company
-                </Button>
+                <>
+                  <Button size="sm" variant="outline" onClick={() => setProjecting({ people: selected, clear })}>
+                    <FolderKanban /> Move to project
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setMoving({ people: selected, clear })}>
+                    <Building2 /> Move to company
+                  </Button>
+                </>
               )
             : undefined
         }
@@ -236,6 +258,22 @@ export function DirectoryView() {
                     </SelectItem>
                   ))}
                   <SelectItem value={NO_COMPANY}>No company</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            {org.projects.length > 0 && (
+              <Select value={project} onValueChange={(v) => update({ project: v })}>
+                <SelectTrigger aria-label="Project" className="h-9 w-48">
+                  <SelectValue placeholder="Project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>All projects</SelectItem>
+                  {org.projects.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={NO_PROJECT}>No project</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -291,6 +329,19 @@ export function DirectoryView() {
             setPageSize(size);
             update({ page: null });
           },
+        }}
+      />
+      <MoveToProjectDialog
+        open={projecting !== null}
+        people={projecting?.people ?? []}
+        projects={org.projects}
+        onOpenChange={(open) => {
+          if (!open) setProjecting(null);
+        }}
+        onMoved={() => {
+          projecting?.clear();
+          reload();
+          setOrgVersion((v) => v + 1);
         }}
       />
       <MoveToCompanyDialog

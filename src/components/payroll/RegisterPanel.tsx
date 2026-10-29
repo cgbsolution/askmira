@@ -1,9 +1,9 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Users } from "lucide-react";
+import { FolderKanban, Users } from "lucide-react";
 import Link from "next/link";
-import React from "react";
+import React, { useMemo } from "react";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
@@ -61,6 +61,13 @@ export function RegisterPanel({ runId, version }: { runId: string; version: numb
       footer: () => <span className="font-semibold">Total</span>,
     },
     {
+      id: "project",
+      header: "Project",
+      accessorFn: (row) => row.project_name ?? "No project",
+      meta: { cellClassName: "text-muted-foreground" },
+      footer: () => null,
+    },
+    {
       accessorKey: "paid_days",
       header: "Paid days",
       meta: {
@@ -85,6 +92,8 @@ export function RegisterPanel({ runId, version }: { runId: string; version: numb
   ];
 
   return (
+    <div className="flex flex-col gap-4">
+      <ByProject rows={rows} />
     <DataTable
       title="Register"
       description="Every payslip on this run. The download is recorded in the audit log."
@@ -108,6 +117,95 @@ export function RegisterPanel({ runId, version }: { runId: string; version: numb
         title: "No payslips yet",
         description: "Payslips appear here once the run is computed.",
       }}
+    />
+    </div>
+  );
+}
+
+/** "1234.56" -> 123456. */
+function paise(value: string): number {
+  return Math.round(Number(value) * 100);
+}
+
+/** 123456 -> "1234.56". */
+function rupees(value: number): string {
+  return (value / 100).toFixed(2);
+}
+
+interface ProjectTotal {
+  key: string;
+  project: string;
+  people: number;
+  gross: number;
+  net: number;
+  cost: number;
+}
+
+/**
+ * The run by project: what each client's project (and Internal) cost this
+ * month. Shown once a run has more than one project on it.
+ */
+function ByProject({ rows }: { rows: RegisterRow[] }) {
+  const totals = useMemo(() => {
+    const groups = new Map<string, ProjectTotal>();
+    for (const row of rows) {
+      const key = row.project_id ?? "none";
+      const group = groups.get(key) ?? {
+        key,
+        project: row.project_name ?? "No project",
+        people: 0,
+        gross: 0,
+        net: 0,
+        cost: 0,
+      };
+      group.people += 1;
+      // Summed in whole paise, so the totals never drift by a fraction.
+      group.gross += paise(row.gross_earnings) + paise(row.other_earnings);
+      group.net += paise(row.net_pay);
+      group.cost += paise(row.employer_cost);
+      groups.set(key, group);
+    }
+    return [...groups.values()].sort((a, b) => b.cost - a.cost);
+  }, [rows]);
+
+  if (totals.length < 2) return null;
+
+  const columns: ColumnDef<ProjectTotal>[] = [
+    { accessorKey: "project", header: "Project", meta: { cellClassName: "font-medium text-foreground" } },
+    { accessorKey: "people", header: "People", meta: { className: "text-right", cellClassName: "tabular-nums" } },
+    {
+      accessorKey: "gross",
+      header: "Gross pay",
+      meta: { className: "text-right", text: (row) => rupees(row.gross) },
+      cell: ({ row }) => <Money value={rupees(row.original.gross)} currency={false} />,
+    },
+    {
+      accessorKey: "net",
+      header: "Net pay",
+      meta: { className: "text-right", text: (row) => rupees(row.net) },
+      cell: ({ row }) => <Money value={rupees(row.original.net)} currency={false} />,
+    },
+    {
+      accessorKey: "cost",
+      header: "Cost to company",
+      meta: { className: "text-right", text: (row) => rupees(row.cost) },
+      cell: ({ row }) => <Money value={rupees(row.original.cost)} currency={false} />,
+    },
+  ];
+
+  return (
+    <DataTable
+      title="By project"
+      description="What each project's people cost this month: gross pay, net pay and cost to company."
+      columns={columns}
+      data={totals}
+      getRowId={(row) => row.key}
+      noun="projects"
+      exportName="payroll-by-project"
+      selectable={false}
+      searchPlaceholder={false}
+      paginate={false}
+      empty={{ icon: FolderKanban, title: "No projects" }}
     />
   );
 }

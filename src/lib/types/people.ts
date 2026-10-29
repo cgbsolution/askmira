@@ -15,6 +15,8 @@ export interface DirectoryEmployee {
   designation: string | null;
   /** Their company (legal entity): it pays them and files their returns. */
   legal_entity_id?: string | null;
+  /** The project they work on: a client's, or the company's own (Internal). */
+  project_id?: string | null;
   department_id: string | null;
   location_id: string | null;
   manager_id: string | null;
@@ -41,6 +43,8 @@ export interface EmployeeRecord {
   legal_entity_id: string | null;
   location_id: string | null;
   department_id: string | null;
+  /** The project they work on: a client's, or Internal. */
+  project_id?: string | null;
   manager_id: string | null;
   /** A second, dotted-line manager: informational, no approval rights. */
   dotted_line_manager_id?: string | null;
@@ -72,6 +76,7 @@ export type EmployeeInput = Partial<
     | "date_of_birth"
     | "gender"
     | "legal_entity_id"
+    | "project_id"
     | "location_id"
     | "department_id"
     | "manager_id"
@@ -149,6 +154,37 @@ export interface LegalEntity {
   logo_url?: string | null;
   /** People in it who have not left. Set on the list only. */
   headcount?: number | null;
+}
+
+/** PATCH /employees/bulk/project — putting people on one project (or none). */
+export interface ProjectMoveResult {
+  project_id: string | null;
+  project_name: string | null;
+  effective_from: string;
+  moved: number;
+  already_there: number;
+  skipped: { employee_id: string; employee_code: string | null; name: string | null; reason: string }[];
+}
+
+/** POST /org/projects/assign-from-sheet — one row of the uploaded register. */
+export interface ProjectSheetRow {
+  line: number;
+  employee_code: string;
+  name: string | null;
+  project: string | null;
+  outcome: "assign" | "unchanged" | "unknown" | "blank" | "skipped" | "duplicate";
+  note: string | null;
+}
+
+export interface ProjectSheetResult {
+  filename: string;
+  applied: boolean;
+  header_row: number;
+  rows: ProjectSheetRow[];
+  counts: Partial<Record<ProjectSheetRow["outcome"], number>>;
+  new_projects: string[];
+  projects_created: string[];
+  moved: number;
 }
 
 /** POST /employees/bulk/legal-entity — moving people into one company. */
@@ -374,7 +410,8 @@ export type LifecycleEventType =
   | "department_change"
   | "location_change"
   | "manager_change"
-  | "employment_type_change";
+  | "employment_type_change"
+  | "project_change";
 
 export type LifecycleStatus =
   | "draft"
@@ -776,6 +813,8 @@ export interface ImportPreview {
   errors: number;
   with_warnings: number;
   new_departments: string[];
+  /** Projects the file names that are not here yet: created on import (admin). */
+  new_projects?: string[];
   new_locations: { name: string; state_code: string }[];
   columns_used: { header: string; field: string; section: string }[];
   columns_ignored: string[];
@@ -794,6 +833,7 @@ export interface ImportResult {
   skipped: number;
   failed: number;
   departments_created: string[];
+  projects_created?: string[];
   locations_created: string[];
   rows: ImportRow[];
   aadhaar_filled?: number;

@@ -22,6 +22,7 @@ import { initials } from "@/lib/utils";
 import { DepartmentDialog } from "./DepartmentDialog";
 import { LegalEntityDialog, salaryDaysLabel } from "./LegalEntityDialog";
 import { LocationDialog } from "./LocationDialog";
+import { ProjectsTab } from "./ProjectsTab";
 
 /**
  * Settings → Organisation.
@@ -273,11 +274,12 @@ export function OrganisationScreen() {
   return (
     <PageShell
       title="Organisation"
-      description="Legal entities, work locations and departments — the structures every other module resolves against."
+      description="Legal entities, projects, work locations and departments — the structures every other module resolves against."
     >
       <Tabs defaultValue="entities">
         <TabsList>
           <TabsTrigger value="entities">Legal entities</TabsTrigger>
+          <TabsTrigger value="projects">Projects</TabsTrigger>
           <TabsTrigger value="locations">Locations</TabsTrigger>
           <TabsTrigger value="departments">Departments</TabsTrigger>
         </TabsList>
@@ -389,7 +391,25 @@ export function OrganisationScreen() {
           />
         </TabsContent>
 
-        <TabsContent value="departments" className="mt-4">
+        <TabsContent value="projects" className="mt-4">
+          <ProjectsTab
+            canManage={canManage}
+            entities={entities.data ?? []}
+            departments={departments.data ?? []}
+            onDepartmentsChanged={departments.reload}
+          />
+        </TabsContent>
+
+        <TabsContent value="departments" className="mt-4 flex flex-col gap-4">
+          <Alert>
+            <Info />
+            <AlertTitle>Departments are what people do; projects are where they work</AlertTitle>
+            <AlertDescription>
+              Internal, External and client names belong under Projects. On the Projects tab,
+              &ldquo;From departments&rdquo; turns such departments into projects and moves their
+              people across.
+            </AlertDescription>
+          </Alert>
           <DataTable
             title="Departments"
             description="Departments nest. The tree is what reports, approvals and the org chart group by."

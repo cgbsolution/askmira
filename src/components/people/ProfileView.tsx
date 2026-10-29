@@ -214,7 +214,11 @@ export function ProfileView({
   return (
     <PageShell
       title={title ?? name}
-      description={[employee.designation, org.departmentName(employee.department_id)]
+      description={[
+        employee.designation,
+        org.projectName(employee.project_id),
+        org.departmentName(employee.department_id),
+      ]
         .filter((part) => part && part !== "—")
         .join(" · ")}
       actions={
@@ -314,6 +318,7 @@ export function ProfileView({
           <Card tier="tier1">
             <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <DetailItem label="Designation">{employee.designation}</DetailItem>
+              <DetailItem label="Project">{org.projectName(employee.project_id)}</DetailItem>
               <DetailItem label="Department">{org.departmentName(employee.department_id)}</DetailItem>
               <DetailItem label="Location">{org.locationName(employee.location_id)}</DetailItem>
               <DetailItem label="Manager">
@@ -423,6 +428,7 @@ export function ProfileView({
                 <EmploymentStatusBadge status={employee.status} />
               </DetailItem>
               <DetailItem label="Legal entity">{org.entityName(employee.legal_entity_id)}</DetailItem>
+              <DetailItem label="Project">{org.projectName(employee.project_id)}</DetailItem>
               <DetailItem label="Grade">{employee.grade ?? (seesPrivate ? null : "Not shown")}</DetailItem>
               <DetailItem label="Date of joining">{day(employee.date_of_joining)}</DetailItem>
               <DetailItem label="Probation ends">{day(employee.probation_end_date)}</DetailItem>
