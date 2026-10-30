@@ -557,7 +557,7 @@ export type Relationship =
   | "grandparent"
   | "friend"
   | "other";
-export type NomineePurpose = "pf" | "eps" | "gratuity" | "insurance";
+export type NomineePurpose = "pf" | "eps" | "gratuity" | "insurance" | "superannuation";
 export type EducationLevel =
   | "secondary"
   | "higher_secondary"
@@ -586,10 +586,11 @@ export interface PersonalDetails {
 export interface Address {
   line1: string;
   line2: string | null;
-  city: string;
+  /** Required when entered in AskMira; an address imported as the old system had it may lack one. */
+  city: string | null;
   district: string | null;
-  state_code: string;
-  pincode: string;
+  state_code: string | null;
+  pincode: string | null;
   country_code: "IN";
 }
 
@@ -602,41 +603,78 @@ export interface Addresses {
 export interface EmergencyContact {
   name: string;
   relationship: Relationship;
-  phone: string;
+  /** The old system's word when it is none of ours ("Home"), recorded as Other. */
+  relationship_text?: string | null;
+  /** Required when entered in AskMira; an imported contact may lack one. */
+  phone: string | null;
   alternate_phone: string | null;
+  landline?: string | null;
   email: string | null;
+  address?: string | null;
   is_primary: boolean;
 }
 
 export interface FamilyMember {
   name: string;
   relationship: Relationship;
+  relationship_text?: string | null;
+  title?: string | null;
   date_of_birth: string | null;
   gender: "female" | "male" | "non_binary" | "undisclosed" | null;
   occupation: string | null;
+  phone?: string | null;
+  blood_group?: string | null;
+  nationality?: string | null;
+  marital_status?: string | null;
+  marriage_date?: string | null;
   is_dependent: boolean;
+  health_insurance?: boolean | null;
+  insurance_number?: string | null;
+  remarks?: string | null;
 }
 
 export interface Nominee {
   name: string;
   relationship: Relationship;
+  relationship_text?: string | null;
   date_of_birth: string | null;
   address: string | null;
+  city?: string | null;
+  country?: string | null;
+  phone?: string | null;
   purpose: NomineePurpose;
-  /** Decimal as a string. */
-  share_percent: string;
+  /** The old system's word for the purpose when it differs ("Pension"). */
+  purpose_text?: string | null;
+  /** Decimal as a string. Null on a nomination imported without a share. */
+  share_percent: string | null;
   guardian_name: string | null;
+  remarks?: string | null;
 }
 
 export interface Education {
   level: EducationLevel;
   qualification: string;
+  /** The course as the old system named it ("Post Graduate", "Others"). */
+  course?: string | null;
+  stream?: string | null;
   specialisation: string | null;
-  institution: string;
+  /** Required when entered in AskMira; an imported qualification may lack one. */
+  institution: string | null;
   board_or_university: string | null;
+  nature_of_course?: string | null;
+  status?: string | null;
   start_year: number | null;
   end_year: number | null;
+  from_date?: string | null;
+  to_date?: string | null;
+  /** As the old system gave it: "2013", "2020-2022". */
+  year?: string | null;
+  date_of_passing?: string | null;
+  percentage?: string | null;
   grade: string | null;
+  duration?: string | null;
+  is_highest?: boolean | null;
+  remarks?: string | null;
 }
 
 export interface PreviousEmployment {
@@ -778,6 +816,8 @@ export interface ImportRow {
   outcome: ImportRowOutcome;
   errors: string[];
   warnings: string[];
+  /** Imported as typed but not as AskMira would have it: for HR to correct. */
+  issues?: string[];
   employee_id: string | null;
 }
 
@@ -791,6 +831,15 @@ export interface ImportPreview {
   skipped: number;
   errors: number;
   with_warnings: number;
+  with_issues?: number;
+  /** Rows that only continue the person above (a second qualification), folded in. */
+  continuation_rows?: number;
+  /** Points about the whole file, said once. */
+  notes?: string[];
+  /** Columns AskMira has no field for, kept as custom fields on the "factoHR" tab. */
+  new_custom_fields?: string[];
+  /** Columns with data that are not kept, and why. */
+  columns_not_kept?: { header: string; why: string }[];
   new_departments: string[];
   /** Projects the file names that are not here yet: created on import (admin). */
   new_projects?: string[];
@@ -814,6 +863,8 @@ export interface ImportResult {
   departments_created: string[];
   projects_created?: string[];
   locations_created: string[];
+  custom_fields_created?: string[];
+  with_issues?: number;
   rows: ImportRow[];
   aadhaar_filled?: number;
   aadhaar_mismatches?: string[];

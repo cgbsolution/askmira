@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Building2, Download, FolderKanban, Loader2, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
@@ -34,6 +34,14 @@ import type { DirectoryEmployee } from "@/lib/types/people";
 const PAGE_SIZE = 25;
 /** The company filter's value for people with no company at all. */
 const NO_COMPANY = "none";
+/** A directory row with its reference names worked out. */
+type DirectoryRow = DirectoryEmployee & {
+  company_name: string;
+  project_name: string;
+  department_name: string;
+  location_name: string;
+};
+
 /** The project filter's value for people on no project. */
 const NO_PROJECT = "none";
 /** The status filter's value for everybody who has not left (any status but exited). */
@@ -112,6 +120,23 @@ export function DirectoryView() {
     `/employees?${query}`,
   );
 
+  // Each row carries its company, project, department and location by name.
+  // The table keeps what it first works out for a row, and those names come
+  // from lists that can arrive after the rows (projects take longest): worked
+  // out here, the rows are made again when a list arrives, so a person on a
+  // project never reads "—" until the page is reloaded.
+  const rows = useMemo<DirectoryRow[]>(
+    () =>
+      (data?.items ?? []).map((row) => ({
+        ...row,
+        company_name: row.legal_entity_id ? org.entityName(row.legal_entity_id) : "No company",
+        project_name: row.project_id ? org.projectName(row.project_id) : "—",
+        department_name: org.departmentName(row.department_id),
+        location_name: org.locationName(row.location_id),
+      })),
+    [data, org],
+  );
+
   const [exporting, setExporting] = useState(false);
   const exportCsv = async () => {
     const filters = new URLSearchParams(query);
@@ -144,7 +169,7 @@ export function DirectoryView() {
     return everyone;
   };
 
-  const columns: ColumnDef<DirectoryEmployee>[] = [
+  const columns: ColumnDef<DirectoryRow>[] = [
     {
       id: "employee",
       header: "Employee",
@@ -170,25 +195,25 @@ export function DirectoryView() {
     {
       id: "company",
       header: "Company",
-      accessorFn: (row) => (row.legal_entity_id ? org.entityName(row.legal_entity_id) : "No company"),
+      accessorFn: (row) => row.company_name,
       meta: { cellClassName: "text-muted-foreground" },
     },
     {
       id: "project",
       header: "Project",
-      accessorFn: (row) => (row.project_id ? org.projectName(row.project_id) : "—"),
+      accessorFn: (row) => row.project_name,
       meta: { cellClassName: "text-muted-foreground" },
     },
     {
       id: "department",
       header: "Department",
-      accessorFn: (row) => org.departmentName(row.department_id),
+      accessorFn: (row) => row.department_name,
       meta: { cellClassName: "text-muted-foreground" },
     },
     {
       id: "location",
       header: "Location",
-      accessorFn: (row) => org.locationName(row.location_id),
+      accessorFn: (row) => row.location_name,
       meta: { cellClassName: "text-muted-foreground" },
     },
     {
@@ -213,7 +238,7 @@ export function DirectoryView() {
     >
       <DataTable
         columns={columns}
-        data={data?.items ?? []}
+        data={rows}
         noun="people"
         exportName="directory"
         isLoading={isLoading && !data}

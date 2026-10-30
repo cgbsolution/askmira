@@ -72,6 +72,11 @@ const OBJECT_SECTIONS: Partial<Record<ProfileSection, FieldSpec[]>> = {
 type Draft = {
   record: FieldValues;
   rows: FieldValues[];
+  /**
+   * Each row as stored, so a save keeps what the form does not show (a
+   * relationship in the old system's words, say). Null for a row added here.
+   */
+  origins: (Record<string, unknown> | null)[];
   current: FieldValues;
   permanent: FieldValues;
   sameAsCurrent: boolean;
@@ -86,6 +91,7 @@ function initialDraft(
   const draft: Draft = {
     record: {},
     rows: [],
+    origins: [],
     current: blankValues(ADDRESS_FIELDS),
     permanent: blankValues(ADDRESS_FIELDS),
     sameAsCurrent: profile.addresses.permanent_same_as_current,
@@ -94,6 +100,7 @@ function initialDraft(
   if (list) {
     const stored = profile[section as keyof EmployeeProfile] as unknown as Record<string, unknown>[];
     draft.rows = stored.map((row) => toFieldValues(list.specs, row));
+    draft.origins = stored.map((row) => ({ ...row }));
     return draft;
   }
   if (section === "addresses") {
@@ -185,7 +192,14 @@ export function SectionEditDialog({
           found[`${index}.${key}`] = message;
         }
       });
-      const data = draft.rows.map((row) => toPayload(list.specs, row));
+      const data = draft.rows.map((row, index) => {
+        const origin = draft.origins[index] ?? {};
+        const next: Record<string, unknown> = { ...origin, ...toPayload(list.specs, row) };
+        // The old system's word only describes the value it came with.
+        if (next.relationship !== origin.relationship) next.relationship_text = null;
+        if (next.purpose !== origin.purpose) next.purpose_text = null;
+        return next;
+      });
       return { write: { section, data } as SectionWrite, found };
     }
     if (section === "addresses") {
@@ -405,7 +419,13 @@ export function SectionEditDialog({
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => setDraft({ ...draft, rows: draft.rows.filter((_, i) => i !== index) })}
+                      onClick={() =>
+                        setDraft({
+                          ...draft,
+                          rows: draft.rows.filter((_, i) => i !== index),
+                          origins: draft.origins.filter((_, i) => i !== index),
+                        })
+                      }
                     >
                       <Trash2 /> Remove
                     </Button>
@@ -424,7 +444,13 @@ export function SectionEditDialog({
                   type="button"
                   variant="outline"
                   className="justify-self-start"
-                  onClick={() => setDraft({ ...draft, rows: [...draft.rows, blankValues(list.specs)] })}
+                  onClick={() =>
+                    setDraft({
+                      ...draft,
+                      rows: [...draft.rows, blankValues(list.specs)],
+                      origins: [...draft.origins, null],
+                    })
+                  }
                 >
                   <Plus /> Add {list.noun}
                 </Button>

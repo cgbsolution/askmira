@@ -11,6 +11,9 @@ import {
 const PHONE = /^[0-9+\-() ]{6,32}$/;
 const PHONE_MESSAGE = "Digits, spaces, +, - and brackets; at least six.";
 
+/** A yes/no that may also be unknown (imported records often do not say). */
+const YES_NO: Record<string, string> = { true: "Yes", false: "No" };
+
 export const IDENTITY_FIELDS: FieldSpec[] = [
   { key: "first_name", label: "First name", maxLength: 128 },
   { key: "last_name", label: "Last name", optional: true, maxLength: 128 },
@@ -66,7 +69,16 @@ export const EMERGENCY_FIELDS: FieldSpec[] = [
     pattern: PHONE,
     patternMessage: PHONE_MESSAGE,
   },
+  {
+    key: "landline",
+    label: "Landline",
+    optional: true,
+    maxLength: 32,
+    pattern: PHONE,
+    patternMessage: PHONE_MESSAGE,
+  },
   { key: "email", label: "Email", optional: true, maxLength: 320 },
+  { key: "address", label: "Address", kind: "textarea", optional: true, wide: true, maxLength: 512 },
   { key: "is_primary", label: "Primary contact", kind: "switch" },
 ];
 
@@ -75,8 +87,17 @@ export const FAMILY_FIELDS: FieldSpec[] = [
   { key: "relationship", label: "Relationship", kind: "select", options: RELATIONSHIP },
   { key: "date_of_birth", label: "Date of birth", kind: "date", optional: true },
   { key: "gender", label: "Gender", kind: "select", options: FAMILY_GENDER, optional: true },
+  { key: "title", label: "Title", optional: true, maxLength: 32, hint: "Mr, Mrs, Shri…" },
   { key: "occupation", label: "Occupation", optional: true, maxLength: 128 },
+  { key: "phone", label: "Phone", optional: true, maxLength: 32 },
+  { key: "blood_group", label: "Blood group", optional: true, maxLength: 16 },
+  { key: "nationality", label: "Nationality", optional: true, maxLength: 64 },
+  { key: "marital_status", label: "Marital status", optional: true, maxLength: 32 },
+  { key: "marriage_date", label: "Marriage date", kind: "date", optional: true },
+  { key: "health_insurance", label: "Health insurance", kind: "select", options: YES_NO, optional: true },
+  { key: "insurance_number", label: "Insurance number", optional: true, maxLength: 64 },
   { key: "is_dependent", label: "Dependant", kind: "switch", hint: "Covered by insurance or benefits." },
+  { key: "remarks", label: "Remarks", kind: "textarea", optional: true, wide: true, maxLength: 500 },
 ];
 
 export const NOMINEE_FIELDS: FieldSpec[] = [
@@ -97,18 +118,34 @@ export const NOMINEE_FIELDS: FieldSpec[] = [
     maxLength: 255,
     hint: "Required when the nominee is under 18.",
   },
+  { key: "phone", label: "Phone", optional: true, maxLength: 32 },
   { key: "address", label: "Address", kind: "textarea", optional: true, wide: true, maxLength: 512 },
+  { key: "city", label: "City", optional: true, maxLength: 128 },
+  { key: "country", label: "Country", optional: true, maxLength: 64 },
+  { key: "remarks", label: "Remarks", kind: "textarea", optional: true, wide: true, maxLength: 500 },
 ];
 
 export const EDUCATION_FIELDS: FieldSpec[] = [
   { key: "level", label: "Level", kind: "select", options: EDUCATION_LEVEL },
   { key: "qualification", label: "Qualification", maxLength: 255, hint: "For example B.Tech or CA." },
+  { key: "course", label: "Course", optional: true, maxLength: 128, hint: "As your old HR system named it." },
+  { key: "stream", label: "Stream", optional: true, maxLength: 255 },
   { key: "specialisation", label: "Specialisation", optional: true, maxLength: 255 },
   { key: "institution", label: "Institution", maxLength: 255 },
   { key: "board_or_university", label: "Board or university", optional: true, maxLength: 255 },
+  { key: "nature_of_course", label: "Full or part time", optional: true, maxLength: 64 },
+  { key: "status", label: "Status", optional: true, maxLength: 64, hint: "Completed, pursuing…" },
   { key: "start_year", label: "Start year", kind: "number", optional: true },
   { key: "end_year", label: "End year", kind: "number", optional: true },
+  { key: "from_date", label: "From", kind: "date", optional: true },
+  { key: "to_date", label: "To", kind: "date", optional: true },
+  { key: "year", label: "Year of passing", optional: true, maxLength: 32 },
+  { key: "date_of_passing", label: "Date of passing", kind: "date", optional: true },
+  { key: "percentage", label: "Percentage", optional: true, maxLength: 16 },
   { key: "grade", label: "Grade or score", optional: true, maxLength: 32 },
+  { key: "duration", label: "Duration", optional: true, maxLength: 64 },
+  { key: "is_highest", label: "Highest qualification", kind: "select", options: YES_NO, optional: true },
+  { key: "remarks", label: "Remarks", kind: "textarea", optional: true, wide: true, maxLength: 500 },
 ];
 
 export const EXPERIENCE_FIELDS: FieldSpec[] = [

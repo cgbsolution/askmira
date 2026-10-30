@@ -30,7 +30,7 @@ const STEPS = [
   { title: "Import", description: "Done" },
 ];
 
-type RowFilter = "all" | ImportRowOutcome;
+type RowFilter = "all" | ImportRowOutcome | "issues";
 
 function form(file: File, extra: Record<string, string> = {}): FormData {
   const body = new FormData();
@@ -53,7 +53,7 @@ export function ImportEmployeesPanel() {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [includeLeavers, setIncludeLeavers] = useState(true);
-  const [busy, setBusy] = useState<"check" | "import" | "template" | "left-out" | null>(null);
+  const [busy, setBusy] = useState<"check" | "import" | "template" | "left-out" | "issues" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const startOver = () => {
@@ -139,6 +139,30 @@ export function ImportEmployeesPanel() {
     }
   };
 
+  /** Everybody with something to look at, one line per point — for HR to work through. */
+  const issuesList = async () => {
+    if (!file) return;
+    setBusy("issues");
+    try {
+      await downloadFile("/employees/import/issues", "employee-import-issues.xlsx", {
+        method: "POST",
+        body: form(file),
+        timeout: 120_000,
+      });
+    } catch (caught) {
+      toast.error(apiMessage(caught, "The issues list could not be downloaded."));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const issuesButton = (
+    <Button variant="outline" disabled={busy !== null} onClick={() => void issuesList()}>
+      {busy === "issues" ? <Loader2 className="animate-spin" /> : <Download />}
+      Download issues list
+    </Button>
+  );
+
   const leftOutButton = (
     <Button variant="outline" disabled={busy !== null} onClick={() => void leftOut()}>
       {busy === "left-out" ? <Loader2 className="animate-spin" /> : <Download />}
@@ -210,12 +234,22 @@ export function ImportEmployeesPanel() {
                 <span className="font-medium text-foreground">{preview.filename}</span> ·{" "}
                 {preview.total_rows} rows. Nothing is saved yet.
               </p>
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <StatTile
                   label="Will be added"
                   value={preview.ready_current + preview.ready_leavers}
                   hint={`${preview.ready_current} working here, ${preview.ready_leavers} who have left`}
                   tone="success"
+                />
+                <StatTile
+                  label="To review after import"
+                  value={preview.with_issues ?? 0}
+                  hint={
+                    preview.with_issues
+                      ? "Imported as typed; see To review below"
+                      : "Nothing imported differently from the file"
+                  }
+                  tone={preview.with_issues ? "warning" : "default"}
                 />
                 <StatTile label="Already in AskMira" value={preview.skipped} hint="Left as they are" />
                 <StatTile
@@ -226,9 +260,27 @@ export function ImportEmployeesPanel() {
                 />
               </div>
 
+              {((preview.notes ?? []).length > 0 || (preview.continuation_rows ?? 0) > 0) && (
+                <Alert>
+                  <AlertTitle>About this file</AlertTitle>
+                  <AlertDescription className="grid gap-1.5">
+                    {(preview.continuation_rows ?? 0) > 0 && (
+                      <span>
+                        {preview.continuation_rows} rows only continue the person above them (a second
+                        qualification, family member or nominee) and are read into that person.
+                      </span>
+                    )}
+                    {(preview.notes ?? []).map((note) => (
+                      <span key={note}>{note}</span>
+                    ))}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {(preview.new_departments.length > 0 ||
                 preview.new_locations.length > 0 ||
-                (preview.new_projects?.length ?? 0) > 0) && (
+                (preview.new_projects?.length ?? 0) > 0 ||
+                (preview.new_custom_fields?.length ?? 0) > 0) && (
                 <Alert>
                   <AlertTitle>Also created by this import</AlertTitle>
                   <AlertDescription className="grid gap-1.5">
@@ -253,9 +305,18 @@ export function ImportEmployeesPanel() {
                         Locations:{" "}
                         <span className="font-medium text-foreground">
                           {preview.new_locations
-                            .map((location) => `${location.name} (${location.state_code})`)
+                            .map((location) => `${location.name} (${location.state_code || "abroad"})`)
                             .join(", ")}
                         </span>
+                      </span>
+                    )}
+                    {(preview.new_custom_fields?.length ?? 0) > 0 && (
+                      <span>
+                        Custom fields:{" "}
+                        <span className="font-medium text-foreground">
+                          {preview.new_custom_fields?.length} on a &quot;factoHR&quot; profile tab
+                        </span>
+                        , for the columns AskMira has no field for (listed under Columns below).
                       </span>
                     )}
                   </AlertDescription>
@@ -326,6 +387,7 @@ export function ImportEmployeesPanel() {
                       Choose another file
                     </Button>
                     {preview.skipped + preview.errors > 0 && leftOutButton}
+                    {(preview.with_issues ?? 0) + preview.errors > 0 && issuesButton}
                   </div>
                   <Button
                     variant="accent"
@@ -389,6 +451,18 @@ export function ImportEmployeesPanel() {
                   {(result.projects_created?.length ?? 0) > 0 && (
                     <span>Projects created: {result.projects_created?.join(", ")}.</span>
                   )}
+                  {(result.custom_fields_created?.length ?? 0) > 0 && (
+                    <span>
+                      {result.custom_fields_created?.length} custom fields added on the &quot;factoHR&quot;
+                      profile tab.
+                    </span>
+                  )}
+                  {(result.with_issues ?? 0) > 0 && (
+                    <span>
+                      {result.with_issues} people were imported as typed with something to review.
+                      Download the issues list and correct them on their profiles.
+                    </span>
+                  )}
                   <span>
                     Nobody was given a login. An admin gives each person one from their profile.
                   </span>
@@ -397,6 +471,7 @@ export function ImportEmployeesPanel() {
               <ImportRows rows={result.rows} />
               <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
                 {result.skipped + result.failed > 0 && leftOutButton}
+                {(result.with_issues ?? 0) + result.failed > 0 && issuesButton}
                 <Button variant="outline" onClick={startOver}>
                   Import another file
                 </Button>
@@ -427,7 +502,12 @@ function ColumnsFound({ preview }: { preview: ImportPreview }) {
       <CollapsibleTrigger asChild>
         <Button variant="ghost" className="h-auto w-full justify-between rounded-xl px-4 py-3">
           <span className="text-sm font-medium">
-            Columns: {preview.columns_used.length} used, {preview.columns_ignored.length} not used
+            Columns: {preview.columns_used.length} used
+            {(preview.new_custom_fields?.length ?? 0) > 0
+              ? `, ${preview.new_custom_fields?.length} kept as custom fields`
+              : ""}
+            {(preview.columns_not_kept?.length ?? 0) > 0 ? `, ${preview.columns_not_kept?.length} not kept` : ""}
+            , {preview.columns_ignored.length} empty
           </span>
           <ChevronDown className={cn("transition-transform", open && "rotate-180")} />
         </Button>
@@ -450,10 +530,33 @@ function ColumnsFound({ preview }: { preview: ImportPreview }) {
             </div>
           ))}
         </div>
+        {(preview.new_custom_fields?.length ?? 0) > 0 && (
+          <div className="grid gap-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Kept as custom fields (factoHR tab)
+            </p>
+            <p className="text-sm text-muted-foreground">{preview.new_custom_fields?.join(" · ")}</p>
+          </div>
+        )}
+        {(preview.columns_not_kept?.length ?? 0) > 0 && (
+          <div className="grid gap-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Not kept, and why
+            </p>
+            <ul className="grid gap-1 text-sm">
+              {preview.columns_not_kept?.map((column) => (
+                <li key={column.header}>
+                  <span className="font-medium">{column.header}</span>{" "}
+                  <span className="text-muted-foreground">— {column.why}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {preview.columns_ignored.length > 0 && (
           <div className="grid gap-1.5">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Not used
+              Empty in this file
             </p>
             <p className="text-sm text-muted-foreground">{preview.columns_ignored.join(" · ")}</p>
           </div>
@@ -466,6 +569,7 @@ function ColumnsFound({ preview }: { preview: ImportPreview }) {
 const FILTERS: { value: RowFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "ready", label: "To add" },
+  { value: "issues", label: "To review" },
   { value: "error", label: "Problems" },
   { value: "skip", label: "Already here" },
 ];
@@ -545,12 +649,19 @@ const IMPORT_ROW_COLUMNS: ColumnDef<ImportRow>[] = [
     id: "notes",
     header: "Notes",
     accessorFn: (row) =>
-      [...row.errors, ...row.warnings, ...(row.outcome === "skip" ? [SKIPPED_NOTE] : [])].join("; "),
+      [...row.errors, ...(row.issues ?? []), ...row.warnings, ...(row.outcome === "skip" ? [SKIPPED_NOTE] : [])].join(
+        "; ",
+      ),
     meta: { className: "min-w-72", cellClassName: "whitespace-normal" },
     cell: ({ row }) => (
       <ul className="grid gap-1 text-xs">
         {row.original.errors.map((message) => (
           <li key={message} className="text-destructive">
+            {message}
+          </li>
+        ))}
+        {(row.original.issues ?? []).map((message) => (
+          <li key={message} className="text-warning">
             {message}
           </li>
         ))}
@@ -568,9 +679,10 @@ const IMPORT_ROW_COLUMNS: ColumnDef<ImportRow>[] = [
 /** The file's rows: what happens to each, and what was left out of it. */
 function ImportRows({ rows }: { rows: ImportRow[] }) {
   const [filter, setFilter] = useState<RowFilter>("all");
-  const shown = filter === "all" ? rows : rows.filter((row) => row.outcome === filter);
-  const count = (value: RowFilter) =>
-    value === "all" ? rows.length : rows.filter((row) => row.outcome === value).length;
+  const matches = (row: ImportRow, value: RowFilter) =>
+    value === "all" ? true : value === "issues" ? (row.issues ?? []).length > 0 : row.outcome === value;
+  const shown = rows.filter((row) => matches(row, filter));
+  const count = (value: RowFilter) => rows.filter((row) => matches(row, value)).length;
 
   return (
     <DataTable

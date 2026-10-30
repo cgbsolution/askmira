@@ -87,7 +87,8 @@ function SectionCard({
   const mode = editModeFor(profile, section, isSelf);
   const pending = profile.pending_requests.find((request) => request.section === section);
   return (
-    <Card tier={tier}>
+    // min-w-0: a wide table scrolls inside the card instead of widening the page.
+    <Card tier={tier} className="min-w-0">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Icon className="size-4 text-brand-600" /> {title ?? SECTION_TITLE[section]}
@@ -119,6 +120,24 @@ function Nothing({ children }: { children: React.ReactNode }) {
   return <p className="text-sm text-muted-foreground">{children}</p>;
 }
 
+/** The parts an address brought in from another HR system may be missing. */
+function addressGaps(address: Address): string[] {
+  return [
+    address.city ? null : "city",
+    address.state_code ? null : "state",
+    address.pincode ? null : "PIN code",
+  ].filter((part): part is string => part !== null);
+}
+
+/** A relationship, with the old system's word when it is none of ours. */
+function relation(code: keyof typeof RELATIONSHIP, asTyped?: string | null): string {
+  return asTyped && code === "other" ? `${RELATIONSHIP[code]} (${asTyped})` : RELATIONSHIP[code];
+}
+
+function yesNo(value: boolean | null | undefined): string | null {
+  return value === true ? "Yes" : value === false ? "No" : null;
+}
+
 function AddressBlock({ label, address }: { label: string; address: Address | null }) {
   return (
     <div className="min-w-0">
@@ -127,12 +146,19 @@ function AddressBlock({ label, address }: { label: string; address: Address | nu
         <div className="mt-0.5 text-sm font-medium text-foreground">
           <p>{address.line1}</p>
           {address.line2 && <p>{address.line2}</p>}
-          <p>
-            {[address.city, address.district].filter(Boolean).join(", ")}
-          </p>
-          <p>
-            {stateName(address.state_code)} {address.pincode}
-          </p>
+          {(address.city || address.district) && (
+            <p>{[address.city, address.district].filter(Boolean).join(", ")}</p>
+          )}
+          {(address.state_code || address.pincode) && (
+            <p>
+              {address.state_code ? stateName(address.state_code) : null} {address.pincode}
+            </p>
+          )}
+          {addressGaps(address).length > 0 && (
+            <p className="mt-1 text-xs font-normal text-muted-foreground">
+              {`No ${addressGaps(address).join(", ")} on record. Edit to add.`}
+            </p>
+          )}
         </div>
       ) : (
         <p className="mt-0.5 text-sm text-muted-foreground">Not recorded</p>
@@ -245,10 +271,18 @@ export function EmergencyContactsCard({
                 <p className="font-medium text-foreground">{contact.name}</p>
                 {contact.is_primary && <Badge variant="secondary">Primary</Badge>}
               </div>
-              <p className="text-xs text-muted-foreground">{RELATIONSHIP[contact.relationship]}</p>
-              <p className="mt-1 text-sm tabular-nums">{contact.phone}</p>
+              <p className="text-xs text-muted-foreground">
+                {relation(contact.relationship, contact.relationship_text)}
+              </p>
+              {contact.phone ? (
+                <p className="mt-1 text-sm tabular-nums">{contact.phone}</p>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">No mobile number on record</p>
+              )}
               {contact.alternate_phone && <p className="text-sm tabular-nums">{contact.alternate_phone}</p>}
+              {contact.landline && <p className="text-sm tabular-nums">Landline {contact.landline}</p>}
               {contact.email && <p className="truncate text-sm">{contact.email}</p>}
+              {contact.address && <p className="mt-1 text-sm text-muted-foreground">{contact.address}</p>}
             </div>
           ))}
         </div>
@@ -258,11 +292,16 @@ export function EmergencyContactsCard({
 }
 
 const FAMILY_COLUMNS: ColumnDef<FamilyMember>[] = [
-  { accessorKey: "name", header: "Name", meta: { cellClassName: "font-medium" } },
+  {
+    accessorKey: "name",
+    header: "Name",
+    meta: { cellClassName: "font-medium" },
+    cell: ({ row }) => [row.original.title, row.original.name].filter(Boolean).join(" "),
+  },
   {
     accessorKey: "relationship",
     header: "Relationship",
-    cell: ({ row }) => RELATIONSHIP[row.original.relationship],
+    cell: ({ row }) => relation(row.original.relationship, row.original.relationship_text),
   },
   {
     accessorKey: "date_of_birth",
@@ -275,9 +314,34 @@ const FAMILY_COLUMNS: ColumnDef<FamilyMember>[] = [
     cell: ({ row }) => (row.original.gender ? FAMILY_GENDER[row.original.gender] : "—"),
   },
   {
+    accessorKey: "phone",
+    header: "Phone",
+    meta: { cellClassName: "tabular-nums" },
+    cell: ({ row }) => row.original.phone ?? "—",
+  },
+  {
     accessorKey: "is_dependent",
     header: "Dependant",
     cell: ({ row }) => (row.original.is_dependent ? "Yes" : "No"),
+  },
+  {
+    id: "more",
+    header: "More",
+    meta: { className: "min-w-56", cellClassName: "min-w-56 max-w-96 whitespace-normal" },
+    cell: ({ row }) => {
+      const m = row.original;
+      const parts = [
+        m.occupation,
+        m.blood_group ? `Blood group ${m.blood_group}` : null,
+        m.nationality,
+        m.marital_status,
+        m.marriage_date ? `Married ${day(m.marriage_date)}` : null,
+        yesNo(m.health_insurance) ? `Health insurance: ${yesNo(m.health_insurance)}` : null,
+        m.insurance_number ? `Insurance no. ${m.insurance_number}` : null,
+        m.remarks,
+      ].filter(Boolean);
+      return parts.length ? <span className="text-xs text-muted-foreground">{parts.join(" · ")}</span> : "—";
+    },
   },
 ];
 
@@ -313,7 +377,7 @@ const NOMINEE_COLUMNS: ColumnDef<Nominee>[] = [
   {
     accessorKey: "relationship",
     header: "Relationship",
-    cell: ({ row }) => RELATIONSHIP[row.original.relationship],
+    cell: ({ row }) => relation(row.original.relationship, row.original.relationship_text),
   },
   {
     accessorKey: "date_of_birth",
@@ -326,10 +390,25 @@ const NOMINEE_COLUMNS: ColumnDef<Nominee>[] = [
     cell: ({ row }) => row.original.guardian_name ?? "—",
   },
   {
+    id: "contact",
+    header: "Contact",
+    meta: { className: "min-w-48", cellClassName: "min-w-48 max-w-80 whitespace-normal" },
+    cell: ({ row }) => {
+      const n = row.original;
+      const parts = [n.phone, n.address, n.city, n.country, n.remarks].filter(Boolean);
+      return parts.length ? <span className="text-xs text-muted-foreground">{parts.join(" · ")}</span> : "—";
+    },
+  },
+  {
     accessorKey: "share_percent",
     header: "Share",
     meta: { className: "text-right", cellClassName: "tabular-nums" },
-    cell: ({ row }) => `${row.original.share_percent}%`,
+    cell: ({ row }) =>
+      row.original.share_percent ? (
+        `${row.original.share_percent}%`
+      ) : (
+        <Badge variant="warning">Not stated</Badge>
+      ),
   },
 ];
 
@@ -351,15 +430,32 @@ export function NomineesCard({
       isSelf={isSelf}
       onEdit={onEdit}
       icon={HeartHandshake}
-      description="Shares total 100% for each purpose."
+      description={
+        rows.some((row) => !row.share_percent)
+          ? "Shares total 100% for each purpose. A share not stated in the imported record must be entered before Form 2 or Form F is printed."
+          : "Shares total 100% for each purpose."
+      }
     >
       {rows.length === 0 ? (
         <Nothing>No nominees declared for PF, pension, gratuity or insurance.</Nothing>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid min-w-0 gap-4">
           {purposes.map((purpose) => (
-            <div key={purpose}>
-              <p className="mb-2 text-sm font-semibold text-foreground">{NOMINEE_PURPOSE[purpose]}</p>
+            <div key={purpose} className="min-w-0">
+              <p className="mb-2 text-sm font-semibold text-foreground">
+                {NOMINEE_PURPOSE[purpose]}
+                {(() => {
+                  // The old system's word, where the heading does not already say it.
+                  const words = Array.from(
+                    new Set(
+                      rows
+                        .filter((row) => row.purpose === purpose && row.purpose_text)
+                        .map((row) => row.purpose_text as string),
+                    ),
+                  ).filter((word) => !NOMINEE_PURPOSE[purpose].toLowerCase().includes(word.toLowerCase()));
+                  return words.length ? ` (${words.join(", ")})` : "";
+                })()}
+              </p>
               <DataTable
                 variant="plain"
                 columns={NOMINEE_COLUMNS}
@@ -393,18 +489,37 @@ export function EducationCard({
         <ul className="grid gap-3">
           {rows.map((row, index) => (
             <li key={index} className="rounded-lg border border-border p-3">
-              <p className="font-medium text-foreground">
-                {row.qualification}
-                {row.specialisation ? `, ${row.specialisation}` : ""}
+              <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                <span>
+                  {row.qualification}
+                  {row.stream ? ` · ${row.stream}` : ""}
+                  {row.specialisation ? `, ${row.specialisation}` : ""}
+                </span>
+                {row.is_highest && <Badge variant="secondary">Highest</Badge>}
               </p>
               <p className="text-sm text-muted-foreground">
-                {[row.institution, row.board_or_university].filter(Boolean).join(" · ")}
+                {[row.institution ?? "Institution not on record", row.board_or_university].filter(Boolean).join(" · ")}
               </p>
               <p className="text-xs text-muted-foreground">
-                {EDUCATION_LEVEL[row.level]}
-                {row.start_year || row.end_year ? ` · ${row.start_year ?? "?"}–${row.end_year ?? "?"}` : ""}
-                {row.grade ? ` · ${row.grade}` : ""}
+                {[
+                  row.course ?? EDUCATION_LEVEL[row.level],
+                  row.nature_of_course,
+                  row.status,
+                  row.from_date || row.to_date
+                    ? `${day(row.from_date) ?? "?"} to ${day(row.to_date) ?? "?"}`
+                    : row.start_year || row.end_year
+                      ? `${row.start_year ?? "?"}–${row.end_year ?? "?"}`
+                      : null,
+                  row.year ? `Year ${row.year}` : null,
+                  row.date_of_passing ? `Passed ${day(row.date_of_passing)}` : null,
+                  row.percentage ? `${row.percentage}%` : null,
+                  row.grade ? `Grade ${row.grade}` : null,
+                  row.duration ? `Duration ${row.duration}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
+              {row.remarks && <p className="text-xs text-muted-foreground">{row.remarks}</p>}
             </li>
           ))}
         </ul>

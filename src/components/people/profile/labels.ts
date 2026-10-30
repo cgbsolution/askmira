@@ -61,6 +61,7 @@ export const NOMINEE_PURPOSE: Record<NomineePurpose, string> = {
   eps: "Pension (EPS)",
   gratuity: "Gratuity",
   insurance: "Insurance",
+  superannuation: "Superannuation",
 };
 
 export const EDUCATION_LEVEL: Record<EducationLevel, string> = {
