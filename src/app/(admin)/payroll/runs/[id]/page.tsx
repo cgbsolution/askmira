@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, ArrowLeft, Lock, LockOpen } from "lucide-react";
+import { AlertTriangle, ArrowLeft, FileSpreadsheet, Lock, LockOpen } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import React, { useState } from "react";
@@ -10,11 +10,17 @@ import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { JournalExportMenu } from "@/components/payroll/accounting/JournalExportMenu";
 import { InputSourcesPanel } from "@/components/payroll/InputSourcesPanel";
-import { formatMoment, isRunLocked, periodLabel, RUN_TYPE } from "@/components/payroll/labels";
+import {
+  formatMoment,
+  isImported,
+  isRunLocked,
+  periodLabel,
+  RUN_TYPE,
+} from "@/components/payroll/labels";
 import { RegisterDownloadMenu } from "@/components/payroll/RegisterDownloadMenu";
 import { RegisterPanel } from "@/components/payroll/RegisterPanel";
 import { RunActions } from "@/components/payroll/RunActions";
-import { RunStatusBadge } from "@/components/payroll/RunStatusBadge";
+import { ImportedBadge, RunStatusBadge } from "@/components/payroll/RunStatusBadge";
 import { VariancePanel } from "@/components/payroll/VariancePanel";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -33,9 +39,35 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
+/** "Imported and locked on 30 Oct 2026, 10:11 by Asha" — when the import was saved, not when it was paid. */
+function importedAndLocked(run: PayrollRun): string {
+  const summary = run.import_summary;
+  const when = formatMoment(summary?.imported_at ?? run.approved_at);
+  const who = summary?.imported_by_name ?? run.approved_by_name;
+  return `Imported and locked on ${when}${who ? ` by ${who}` : ""}`;
+}
+
+/** The register file(s) an imported month was read from, as named when uploaded. */
+function importedFiles(run: PayrollRun): string {
+  const files = run.import_summary?.files ?? [];
+  return files.length > 0 ? files.join(", ") : "the salary register";
+}
+
 /** Whether the run is locked, and what that allows. Approval is the lock. */
 function LockNotice({ run }: { run: PayrollRun }) {
   if (run.status === "cancelled" || run.status === "processing") return null;
+  if (isImported(run)) {
+    return (
+      <p className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm text-foreground">
+        <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <span>
+          {importedAndLocked(run)}. These are the figures as paid on factoHR, read from{" "}
+          {importedFiles(run)}. AskMira never recomputes them, and the run cannot be published,
+          paid or posted to the books again.
+        </span>
+      </p>
+    );
+  }
   if (isRunLocked(run.status)) {
     return (
       <p className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm text-foreground">
@@ -164,18 +196,25 @@ export default function PayrollRunPage() {
     );
   }
 
+  const imported = isImported(run);
+
   return (
     <PageShell
       title={`${periodLabel(run.period_year, run.period_month)} payroll`}
-      description={`${RUN_TYPE[run.run_type]} run · ${run.legal_entity_name ?? "legal entity"} · rules resolved as of ${formatDay(run.effective_date, true)}`}
+      description={
+        imported
+          ? `${RUN_TYPE[run.run_type]} run · ${run.legal_entity_name ?? "legal entity"} · Imported from factoHR — ${importedFiles(run)} — figures as paid there, never recomputed`
+          : `${RUN_TYPE[run.run_type]} run · ${run.legal_entity_name ?? "legal entity"} · rules resolved as of ${formatDay(run.effective_date, true)}`
+      }
       actions={back}
     >
       <Card tier="tier1">
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             {/* Top-aligned with the buttons: a hint under them must not push the row apart. */}
-            <div className="pt-2">
+            <div className="flex flex-wrap items-center gap-1 pt-2">
               <RunStatusBadge status={run.status} />
+              {imported && <ImportedBadge />}
             </div>
             <div className="flex flex-wrap items-start justify-end gap-2">
               <RegisterDownloadMenu run={run} />
@@ -200,24 +239,42 @@ export default function PayrollRunPage() {
               <Money value={run.total_employer_cost} />
             </Stat>
           </div>
-          <ul className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
-            <li>
-              Computed: {formatMoment(run.processed_at)}
-              {run.computed_by_name ? ` by ${run.computed_by_name}` : ""}
-            </li>
-            <li>
-              Approved: {formatMoment(run.approved_at)}
-              {run.approved_by_name ? ` by ${run.approved_by_name}` : ""}
-            </li>
-            <li>
-              Published: {formatMoment(run.published_at)}
-              {run.published_by_name ? ` by ${run.published_by_name}` : ""}
-            </li>
-            <li>
-              Paid: {formatMoment(run.paid_at)}
-              {run.payment_date ? ` · payment date ${formatDay(run.payment_date, true)}` : ""}
-            </li>
-          </ul>
+          {imported ? (
+            // The import time is not when the month was computed, approved or paid:
+            // factoHR did that, and its dates were not imported.
+            <ul className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+              <li>{importedAndLocked(run)}</li>
+              <li className="flex items-start gap-1">
+                <FileSpreadsheet className="mt-px size-3.5 shrink-0" aria-hidden />
+                <span>From: {importedFiles(run)}</span>
+              </li>
+              <li>Computed, approved and paid on factoHR; its dates were not imported.</li>
+              <li>
+                {run.published_at
+                  ? "Payslips published to employees with the import."
+                  : "Payslips not published to employees."}
+              </li>
+            </ul>
+          ) : (
+            <ul className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+              <li>
+                Computed: {formatMoment(run.processed_at)}
+                {run.computed_by_name ? ` by ${run.computed_by_name}` : ""}
+              </li>
+              <li>
+                Approved: {formatMoment(run.approved_at)}
+                {run.approved_by_name ? ` by ${run.approved_by_name}` : ""}
+              </li>
+              <li>
+                Published: {formatMoment(run.published_at)}
+                {run.published_by_name ? ` by ${run.published_by_name}` : ""}
+              </li>
+              <li>
+                Paid: {formatMoment(run.paid_at)}
+                {run.payment_date ? ` · payment date ${formatDay(run.payment_date, true)}` : ""}
+              </li>
+            </ul>
+          )}
           <LockNotice run={run} />
           {run.run_type !== "regular" && (
             <div className="grid gap-1 rounded-md border border-border bg-muted/40 p-3 text-sm">
@@ -283,8 +340,17 @@ export default function PayrollRunPage() {
         </Alert>
       )}
 
-      <VariancePanel run={run} onChanged={changed} />
-      <InputSourcesPanel run={run} />
+      {imported ? (
+        <p className="rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+          Variances and other sources (loans, reimbursements, arrears, bonus): not checked —
+          imported as paid.
+        </p>
+      ) : (
+        <>
+          <VariancePanel run={run} onChanged={changed} />
+          <InputSourcesPanel run={run} />
+        </>
+      )}
       <RegisterPanel runId={run.id} version={version} />
     </PageShell>
   );

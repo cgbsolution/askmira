@@ -7,17 +7,20 @@ import React, { useMemo } from "react";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
-import { isZero } from "@/components/payroll/labels";
+import { isImported, isZero } from "@/components/payroll/labels";
 import { RegisterDownloadMenu } from "@/components/payroll/RegisterDownloadMenu";
 import { Badge } from "@/components/ui/badge";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import type { RegisterRow, RunRegister } from "@/lib/types/payroll";
 import { formatDays } from "@/lib/utils";
 
-const MONEY_COLUMNS: { key: keyof RunRegister["rows"][number] & string; label: string }[] = [
+type MoneyKey = keyof RunRegister["rows"][number] & string;
+
+const MONEY_COLUMNS: { key: MoneyKey; label: string }[] = [
   { key: "gross_earnings", label: "Gross" },
   { key: "other_earnings", label: "Other pay" },
   { key: "pf_employee", label: "PF" },
+  { key: "vpf", label: "VPF" },
   { key: "esi_employee", label: "ESI" },
   { key: "professional_tax", label: "PT" },
   { key: "lwf_employee", label: "LWF" },
@@ -27,12 +30,33 @@ const MONEY_COLUMNS: { key: keyof RunRegister["rows"][number] & string; label: s
   { key: "employer_cost", label: "Employer cost" },
 ];
 
+/** Shown only when a row has one, so the deduction columns still add up when someone pays VPF. */
+const ONLY_WHEN_USED: ReadonlySet<MoneyKey> = new Set(["vpf"]);
+
+const REGISTER_TEXT_HINT = "As written in the factoHR register; not matched to an AskMira project";
+
+/**
+ * The project shown for a row. An imported payslip whose register account was
+ * not matched to a project shows the register's own client text, never the
+ * person's project today.
+ */
+function projectOf(row: RegisterRow, imported: boolean): { label: string; fromRegister: boolean } {
+  if (row.project_name) return { label: row.project_name, fromRegister: false };
+  if (!imported) return { label: "No project", fromRegister: false };
+  const client = row.import_summary?.client?.trim();
+  return { label: client || "Not recorded", fromRegister: Boolean(client) };
+}
+
 /** Everyone on the run, with a drill-down to each payslip's full trace. */
 export function RegisterPanel({ runId, version }: { runId: string; version: number }) {
   const { data, error, isLoading, reload } = useApiQuery<RunRegister>(
     `/payroll/runs/${runId}/register?v=${version}`,
   );
   const rows = data?.rows ?? [];
+  const imported = isImported(data?.run);
+  const moneyColumns = MONEY_COLUMNS.filter(
+    (column) => !ONLY_WHEN_USED.has(column.key) || rows.some((row) => !isZero(String(row[column.key]))),
+  );
 
   const columns: ColumnDef<RegisterRow>[] = [
     {
@@ -63,8 +87,18 @@ export function RegisterPanel({ runId, version }: { runId: string; version: numb
     {
       id: "project",
       header: "Project",
-      accessorFn: (row) => row.project_name ?? "No project",
+      accessorFn: (row) => projectOf(row, imported).label,
       meta: { cellClassName: "text-muted-foreground" },
+      cell: ({ row }) => {
+        const project = projectOf(row.original, imported);
+        return project.fromRegister ? (
+          <span className="italic" title={REGISTER_TEXT_HINT}>
+            {project.label}
+          </span>
+        ) : (
+          project.label
+        );
+      },
       footer: () => null,
     },
     {
@@ -78,7 +112,7 @@ export function RegisterPanel({ runId, version }: { runId: string; version: numb
       cell: ({ row }) => `${formatDays(row.original.paid_days)}/${formatDays(row.original.working_days)}`,
       footer: () => null,
     },
-    ...MONEY_COLUMNS.map(
+    ...moneyColumns.map(
       (column): ColumnDef<RegisterRow> => ({
         id: column.key,
         header: column.label,
@@ -93,10 +127,14 @@ export function RegisterPanel({ runId, version }: { runId: string; version: numb
 
   return (
     <div className="flex flex-col gap-4">
-      <ByProject rows={rows} />
+      <ByProject rows={rows} imported={imported} />
     <DataTable
       title="Register"
-      description="Every payslip on this run. The download is recorded in the audit log."
+      description={
+        imported
+          ? "Every payslip on this run, as paid on factoHR. A project in italics is the register's own client text. The download is recorded in the audit log."
+          : "Every payslip on this run. The download is recorded in the audit log."
+      }
       columns={columns}
       data={rows}
       getRowId={(row) => row.payslip_id}
@@ -145,14 +183,16 @@ interface ProjectTotal {
  * The run by project: what each client's project (and Internal) cost this
  * month. Shown once a run has more than one project on it.
  */
-function ByProject({ rows }: { rows: RegisterRow[] }) {
+function ByProject({ rows, imported }: { rows: RegisterRow[]; imported: boolean }) {
   const totals = useMemo(() => {
     const groups = new Map<string, ProjectTotal>();
     for (const row of rows) {
-      const key = row.project_id ?? "none";
+      const project = projectOf(row, imported);
+      // Imported rows with no matched project group by the register's client text.
+      const key = row.project_id ?? (project.fromRegister ? `register:${project.label.toLowerCase()}` : "none");
       const group = groups.get(key) ?? {
         key,
-        project: row.project_name ?? "No project",
+        project: project.fromRegister ? `${project.label} (register text)` : project.label,
         people: 0,
         gross: 0,
         net: 0,
@@ -166,7 +206,7 @@ function ByProject({ rows }: { rows: RegisterRow[] }) {
       groups.set(key, group);
     }
     return [...groups.values()].sort((a, b) => b.cost - a.cost);
-  }, [rows]);
+  }, [rows, imported]);
 
   if (totals.length < 2) return null;
 

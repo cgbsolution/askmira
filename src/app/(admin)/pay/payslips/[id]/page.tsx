@@ -7,6 +7,7 @@ import React from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
+import { isImported } from "@/components/payroll/labels";
 import { PayslipPasswordHint } from "@/components/payroll/PayslipProtection";
 import { PayslipTrace } from "@/components/payroll/PayslipTrace";
 import { DownloadButton } from "@/components/payroll-ops/shared";
@@ -25,7 +26,11 @@ export default function MyPayslipPage() {
   return (
     <PageShell
       title="Payslip"
-      description="Every line on your payslip, and how it was worked out."
+      description={
+        isImported(data)
+          ? "Every line on your payslip, as paid on your previous payroll (factoHR)."
+          : "Every line on your payslip, and how it was worked out."
+      }
       actions={
         <>
           <Button variant="ghost" size="sm" asChild>

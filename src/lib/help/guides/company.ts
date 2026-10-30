@@ -41,9 +41,13 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
         ],
       },
       {
-        title: "Export the directory",
+        title: "Export employee data",
         roles: [...HR],
-        steps: ["Set the filters you want, then press Export CSV."],
+        steps: [
+          "Set the filters you want, or tick the people you want, then press Export (Export N selected when people are ticked).",
+          "Every column of the employee record is ticked: job, personal, address, statutory, bank, family, education, custom fields. Untick a section or a single column you do not want, or use Find a column.",
+          "Choose Excel or CSV and press Download. Lists such as family members come out as numbered columns (Family member 1, Family member 2…).",
+        ],
       },
     ],
     tips: ["What you see on a profile depends on your role; personal details are for HR and the person."],

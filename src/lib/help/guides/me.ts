@@ -406,6 +406,7 @@ export const ME_GUIDES: Record<string, PageGuide> = {
     ],
     tips: [
       "A payslip appears once the month's payroll is approved and published.",
+      "Months paid on your previous payroll show From factoHR: the figures are as paid there.",
       "A question about a line? Raise a helpdesk ticket under Payroll.",
     ],
     related: [
@@ -421,6 +422,9 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         title: "Understand a line",
         steps: ["Find the line under earnings or deductions and read how it was calculated; the tax working is at the bottom."],
       },
+    ],
+    tips: [
+      "A payslip marked Imported from factoHR shows each line as paid on your previous payroll. Its TDS is what factoHR deducted; no tax working was imported.",
     ],
     related: [{ label: "All payslips", href: "/pay" }],
   },
@@ -455,6 +459,7 @@ export const ME_GUIDES: Record<string, PageGuide> = {
     tips: [
       "Projection shows your expected tax for the year from what you declared.",
       "Declarations change your monthly TDS from the next payroll run.",
+      "For a year paid entirely on your previous payroll (factoHR), Form 16 is issued by that payroll.",
     ],
   },
 

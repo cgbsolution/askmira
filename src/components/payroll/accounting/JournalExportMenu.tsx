@@ -5,7 +5,7 @@ import Link from "next/link";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
-import { apiMessage } from "@/components/payroll/labels";
+import { apiMessage, isImported } from "@/components/payroll/labels";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -31,6 +31,8 @@ export function JournalExportMenu({ run }: { run: PayrollRun }) {
   const [busy, setBusy] = useState<string | null>(null);
 
   if (run.status !== "approved" && run.status !== "paid") return null;
+  // A month imported from factoHR is already in the books from there.
+  if (isImported(run)) return null;
 
   const download = async (key: string, file: string) => {
     setBusy(key);

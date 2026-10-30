@@ -4,7 +4,17 @@ import React from "react";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
-import { COMPONENT_TYPE_LABEL, isZero, periodLabel, RULE_TYPE_LABEL } from "@/components/payroll/labels";
+import {
+  COMPONENT_TYPE_LABEL,
+  IMPORTED_TDS_NOTE,
+  isImported,
+  isZero,
+  periodLabel,
+  REGISTER_PROVIDER,
+  registerRowsLabel,
+  RULE_TYPE_LABEL,
+} from "@/components/payroll/labels";
+import { ImportedBadge } from "@/components/payroll/RunStatusBadge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,6 +140,50 @@ const INPUT_COLUMNS: ColumnDef<PayslipInputLine>[] = [
   },
 ];
 
+/** "Sep-23.xlsx · Sheet1 · Row 12" for a line an imported register carried. */
+function registerSourceText(source: Record<string, unknown>): string {
+  const rows = Array.isArray(source.rows)
+    ? source.rows.filter((row): row is number => typeof row === "number")
+    : typeof source.row === "number"
+      ? [source.row]
+      : [];
+  return [source.file, source.sheet, registerRowsLabel(rows)]
+    .filter((part): part is string => typeof part === "string" && part.length > 0)
+    .join(" · ");
+}
+
+/** Differences an imported register carried (net set by hand, adjustment, rounding). */
+const REGISTER_COLUMNS: ColumnDef<PayslipInputLine>[] = [
+  {
+    accessorKey: "name",
+    header: "Line",
+    meta: { text: (line) => `${line.name} ${line.code}` },
+    cell: ({ row }) => {
+      const where = registerSourceText(row.original.source);
+      return (
+        <>
+          <p className="font-medium text-foreground">{row.original.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {row.original.code}
+            {where ? ` · ${where}` : ""}
+          </p>
+        </>
+      );
+    },
+  },
+  {
+    accessorKey: "basis",
+    header: "How it was worked out",
+    meta: { cellClassName: "max-w-md whitespace-normal text-sm text-muted-foreground" },
+  },
+  {
+    accessorKey: "amount",
+    header: "Amount",
+    meta: { className: "text-right" },
+    cell: ({ row }) => <Money value={row.original.amount} />,
+  },
+];
+
 /** The projection's tax slabs, with its rebate, surcharge and cess beneath. */
 function slabColumns(computation: TdsWorking["computation"]): ColumnDef<TaxSlab>[] {
   return [
@@ -184,7 +238,12 @@ function Figure({ label, value }: { label: string; value: string }) {
  */
 export function PayslipTrace({ payslip }: { payslip: Payslip }) {
   const ruleSetById = new Map(payslip.rule_sets.map((rs) => [rs.id, rs]));
+  const imported = isImported(payslip);
   const tds = payslip.tds_working;
+  const tdsNote = imported ? IMPORTED_TDS_NOTE : payslip.tds_note;
+  const registerLines = payslip.input_lines.filter((line) => line.provider === REGISTER_PROVIDER);
+  const moduleLines = payslip.input_lines.filter((line) => line.provider !== REGISTER_PROVIDER);
+  const source = payslip.import_summary;
   const traceLines: TraceLine[] = [
     ...payslip.lines.map((line) => ({
       key: line.code,
@@ -200,7 +259,7 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
       code: "TDS",
       name: "Income tax (TDS)",
       typeLabel: "Deduction",
-      basis: payslip.tds_note,
+      basis: tdsNote,
       amount: payslip.tds,
     },
   ];
@@ -218,10 +277,29 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
             {payslip.legal_entity_name ? ` · ${payslip.legal_entity_name}` : ""}
             {payslip.payment_date ? ` · paid on ${formatDay(payslip.payment_date, true)}` : ""}
           </CardDescription>
+          {imported && (
+            <ImportedBadge className="whitespace-normal text-left">
+              Imported from factoHR — figures as paid there
+            </ImportedBadge>
+          )}
         </CardHeader>
+        {imported && source && (
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              From the factoHR salary register: {source.file}
+              {source.sheet ? ` · sheet ${source.sheet}` : ""}
+              {source.rows?.length ? ` · ${registerRowsLabel(source.rows).toLowerCase()}` : ""}
+              {source.status ? ` · status “${source.status}”` : ""}
+              {source.client ? ` · client “${source.client}”` : ""}
+            </p>
+          </CardContent>
+        )}
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Figure label="Gross earnings" value={payslip.gross_earnings} />
-          <Figure label="Other payments" value={payslip.other_earnings} />
+          <Figure
+            label={imported ? "Register adjustments" : "Other payments"}
+            value={payslip.other_earnings}
+          />
           <Figure label="Deductions" value={payslip.total_deductions} />
           <Figure label="Net pay" value={payslip.net_pay} />
         </CardContent>
@@ -262,20 +340,36 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
         variant="plain"
         tier="tier1"
         title="Salary and statutory lines"
-        description="Each line says how it was worked out and which approved rule version it used."
+        description={
+          imported
+            ? "Each line as paid on factoHR, with the register row it came from. No AskMira rule worked it out."
+            : "Each line says how it was worked out and which approved rule version it used."
+        }
         columns={TRACE_COLUMNS}
         data={traceLines}
         getRowId={(line) => line.key}
       />
 
-      {payslip.input_lines.length > 0 && (
+      {registerLines.length > 0 && (
+        <DataTable
+          variant="plain"
+          tier="tier1"
+          title="From the register"
+          description="Differences the factoHR register carried, kept as they were so the payslip adds up to what was paid: a net salary set by hand, the adjustment to the bank transfer, and rounding."
+          columns={REGISTER_COLUMNS}
+          data={registerLines}
+          getRowId={(line, index) => `${line.code}-${index}`}
+        />
+      )}
+
+      {moduleLines.length > 0 && (
         <DataTable
           variant="plain"
           tier="tier1"
           title="From other modules"
           description="Loans, reimbursements, arrears, bonuses and recoveries, each with the record it came from."
           columns={INPUT_COLUMNS}
-          data={payslip.input_lines}
+          data={moduleLines}
           getRowId={(line, index) => `${line.code}-${index}`}
         />
       )}
@@ -283,7 +377,7 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
       <Card tier="tier1">
         <CardHeader>
           <CardTitle>Income tax working</CardTitle>
-          <CardDescription>{payslip.tds_note}</CardDescription>
+          <CardDescription>{tdsNote}</CardDescription>
         </CardHeader>
         <CardContent>
           {tds ? (
@@ -377,13 +471,15 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">
-              No projection is stored for this payslip.
+              {imported
+                ? "The TDS line is what factoHR deducted. Its projection for the year was not part of the register."
+                : "No projection is stored for this payslip."}
             </p>
           )}
         </CardContent>
       </Card>
 
-      {payslip.rule_sets.length > 0 && (
+      {!imported && payslip.rule_sets.length > 0 && (
         <Card tier="tier1">
           <CardHeader>
             <CardTitle>Rule versions used</CardTitle>

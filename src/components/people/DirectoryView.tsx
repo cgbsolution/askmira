@@ -1,16 +1,16 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Building2, Download, FolderKanban, Loader2, Users } from "lucide-react";
+import { Building2, FolderKanban, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
+import { ExportEmployeesDialog } from "@/components/people/ExportEmployeesDialog";
 import { EMPLOYMENT_STATUS, NONE, fromSelect, personName } from "@/components/people/labels";
 import { MoveToCompanyDialog } from "@/components/people/MoveToCompanyDialog";
 import { MoveToProjectDialog } from "@/components/people/MoveToProjectDialog";
@@ -27,7 +27,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { HR } from "@/lib/access";
-import { ApiError, downloadFile, get } from "@/lib/api";
+import { get } from "@/lib/api";
 import type { EmploymentStatus, Page } from "@/lib/types";
 import type { DirectoryEmployee } from "@/lib/types/people";
 
@@ -137,23 +137,17 @@ export function DirectoryView() {
     [data, org],
   );
 
-  const [exporting, setExporting] = useState(false);
-  const exportCsv = async () => {
-    const filters = new URLSearchParams(query);
-    filters.delete("page");
-    filters.delete("page_size");
-    setExporting(true);
-    try {
-      await downloadFile(`/employees/export${filters.toString() ? `?${filters}` : ""}`, "directory.csv");
-    } catch (caught) {
-      toast.error(caught instanceof ApiError ? caught.detail : "The directory could not be exported.");
-    } finally {
-      setExporting(false);
-    }
-  };
   const filtered =
     Boolean(debounced.trim()) ||
     [company, project, department, location, status].some((v) => v !== NONE);
+
+  // Export: the ticked people, or everyone the filters match, every column to start with.
+  const [exporting, setExporting] = useState<{ ids: string[] | null } | null>(null);
+  const exportFilters: Record<string, string | boolean> = {};
+  query.forEach((value, key) => {
+    if (key === "page" || key === "page_size") return;
+    exportFilters[key] = value === "true" ? true : value;
+  });
 
   // "Select all N people": every page under the current filters, for HR's bulk move.
   const fetchAll = async () => {
@@ -228,19 +222,17 @@ export function DirectoryView() {
     <PageShell
       title="Employees"
       description="Everyone in the company — names, roles, companies, projects, departments and work contacts."
-      actions={
-        <RequireRole roles={HR}>
-          <Button variant="outline" onClick={() => void exportCsv()} disabled={exporting}>
-            {exporting ? <Loader2 className="animate-spin" /> : <Download />} Export CSV
-          </Button>
-        </RequireRole>
-      }
     >
       <DataTable
         columns={columns}
         data={rows}
         noun="people"
         exportName="directory"
+        onExport={
+          isHr
+            ? (selected) => setExporting({ ids: selected ? selected.map((person) => person.id) : null })
+            : undefined
+        }
         isLoading={isLoading && !data}
         error={error?.detail}
         onRetry={reload}
@@ -356,6 +348,24 @@ export function DirectoryView() {
           },
         }}
       />
+      <RequireRole roles={HR}>
+        <ExportEmployeesDialog
+          open={exporting !== null}
+          onOpenChange={(open) => {
+            if (!open) setExporting(null);
+          }}
+          people={exporting?.ids ?? null}
+          count={exporting?.ids ? exporting.ids.length : (data?.total ?? 0)}
+          filters={exportFilters}
+          description={
+            exporting?.ids
+              ? "the people you ticked"
+              : filtered
+                ? "everyone matching your filters"
+                : "everyone in the directory"
+          }
+        />
+      </RequireRole>
       <MoveToProjectDialog
         open={projecting !== null}
         people={projecting?.people ?? []}

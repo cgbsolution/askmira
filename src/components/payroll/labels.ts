@@ -1,5 +1,5 @@
 import { ApiError } from "@/lib/api";
-import type { RunStatus, RunType, WageGroup } from "@/lib/types/payroll";
+import type { PayrollOrigin, RunStatus, RunType, WageGroup } from "@/lib/types/payroll";
 
 export const MONTHS = [
   "January",
@@ -41,6 +41,27 @@ export function isRunLocked(status: RunStatus): boolean {
 /** A run that is not locked (and not mid-compute) can be deleted, so the month can run again. */
 export function isRunDeletable(status: RunStatus): boolean {
   return ["draft", "pending_review", "failed", "cancelled"].includes(status);
+}
+
+/**
+ * A run or payslip imported as paid on the previous payroll (factoHR): its
+ * figures are the register's, never recomputed, published, paid or posted again.
+ */
+export function isImported(item: { origin?: PayrollOrigin | null } | null | undefined): boolean {
+  return item?.origin === "imported";
+}
+
+/** The provider of the input lines that carry an imported register's own differences. */
+export const REGISTER_PROVIDER = "factohr_register";
+
+/** What an imported payslip says instead of an income-tax working. */
+export const IMPORTED_TDS_NOTE =
+  "TDS as deducted on factoHR (imported). No income-tax working was imported.";
+
+/** "Row 12" / "Rows 12, 13" of a register, as written in the spreadsheet. */
+export function registerRowsLabel(rows: readonly number[] | null | undefined): string {
+  if (!rows || rows.length === 0) return "";
+  return `${rows.length === 1 ? "Row" : "Rows"} ${rows.join(", ")}`;
 }
 
 export const RUN_TYPE: Record<RunType, string> = {

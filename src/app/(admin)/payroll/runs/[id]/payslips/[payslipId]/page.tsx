@@ -7,6 +7,7 @@ import React from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
+import { isImported } from "@/components/payroll/labels";
 import { PayslipTrace } from "@/components/payroll/PayslipTrace";
 import { DownloadButton } from "@/components/payroll-ops/shared";
 import { RunStatusBadge } from "@/components/payroll/RunStatusBadge";
@@ -26,7 +27,11 @@ export default function RunPayslipPage() {
   return (
     <PageShell
       title="Payslip"
-      description="Every line, the rule version behind it, and the income tax working."
+      description={
+        isImported(data)
+          ? "Every line as paid on factoHR, with the register row it came from."
+          : "Every line, the rule version behind it, and the income tax working."
+      }
       actions={
         <>
           <Button variant="ghost" size="sm" asChild>

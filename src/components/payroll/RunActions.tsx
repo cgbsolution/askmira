@@ -9,7 +9,7 @@ import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
 import { Money } from "@/components/common/Money";
 import { DeleteRunDialog } from "@/components/payroll/DeleteRunDialog";
-import { apiMessage, isRunDeletable, periodLabel } from "@/components/payroll/labels";
+import { apiMessage, isImported, isRunDeletable, periodLabel } from "@/components/payroll/labels";
 import { Button } from "@/components/ui/button";
 import { post } from "@/lib/api";
 import type { PayrollRun } from "@/lib/types/payroll";
@@ -36,11 +36,15 @@ export function RunActions({
   const period = periodLabel(run.period_year, run.period_month);
   const noSalary = run.input_notices.filter((notice) => notice.key === "no_salary").length;
 
-  const canCompute = ["draft", "pending_review", "failed"].includes(run.status);
-  const canApprove = run.status === "pending_review";
-  const canPublish = (run.status === "approved" || run.status === "paid") && !run.published_at;
-  const canMarkPaid = run.status === "approved";
-  const canDelete = isRunDeletable(run.status);
+  // A month imported from factoHR was computed, approved and paid there: no
+  // lifecycle step applies to it (the API refuses each one too).
+  const imported = isImported(run);
+  const canCompute = !imported && ["draft", "pending_review", "failed"].includes(run.status);
+  const canApprove = !imported && run.status === "pending_review";
+  const canPublish =
+    !imported && (run.status === "approved" || run.status === "paid") && !run.published_at;
+  const canMarkPaid = !imported && run.status === "approved";
+  const canDelete = !imported && isRunDeletable(run.status);
 
   const call = async (path: string, body: unknown, success: string) => {
     try {

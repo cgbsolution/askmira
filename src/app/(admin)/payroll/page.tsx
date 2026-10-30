@@ -13,6 +13,7 @@ import { CreateRunDialog } from "@/components/payroll/CreateRunDialog";
 import { DeleteRunDialog } from "@/components/payroll/DeleteRunDialog";
 import { PayslipProtectionSwitch } from "@/components/payroll/PayslipProtection";
 import {
+  isImported,
   isRunDeletable,
   isRunLocked,
   periodLabel,
@@ -20,7 +21,7 @@ import {
   RUN_TYPE,
 } from "@/components/payroll/labels";
 import { downloadRegister } from "@/components/payroll/RegisterDownloadMenu";
-import { RunStatusBadge } from "@/components/payroll/RunStatusBadge";
+import { ImportedBadge, RunStatusBadge } from "@/components/payroll/RunStatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -90,7 +91,9 @@ function RunRowMenu({ run, onDelete }: { run: PayrollRun; onDelete: (run: Payrol
           <>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-              Locked: it cannot be deleted. A correction is an arrears or off-cycle run.
+              {isImported(run)
+                ? "Imported from factoHR as paid: locked, never recomputed, published or paid again."
+                : "Locked: it cannot be deleted. A correction is an arrears or off-cycle run."}
             </DropdownMenuLabel>
           </>
         )}
@@ -122,8 +125,16 @@ const runColumns = (onDelete: (run: PayrollRun) => void): ColumnDef<PayrollRun>[
   {
     accessorKey: "status",
     header: "Status",
-    meta: { text: (run) => RUN_STATUS[run.status]?.label ?? run.status },
-    cell: ({ row }) => <RunStatusBadge status={row.original.status} />,
+    meta: {
+      text: (run) =>
+        `${RUN_STATUS[run.status]?.label ?? run.status}${isImported(run) ? " · Imported · factoHR" : ""}`,
+    },
+    cell: ({ row }) => (
+      <div className="flex flex-wrap items-center gap-1">
+        <RunStatusBadge status={row.original.status} />
+        {isImported(row.original) && <ImportedBadge />}
+      </div>
+    ),
   },
   {
     accessorKey: "employee_count",

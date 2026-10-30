@@ -869,3 +869,24 @@ export interface ImportResult {
   aadhaar_filled?: number;
   aadhaar_mismatches?: string[];
 }
+
+/** One column the employee export can write. */
+export interface ExportColumn {
+  key: string;
+  label: string;
+}
+
+/** A section of the employee export's columns (Basic details, Family members…). */
+export interface ExportSection {
+  key: string;
+  label: string;
+  /** A list: its columns repeat once per entry ("Family member 1 - Name", "… 2 - Name"). */
+  repeats: boolean;
+  /** What one entry is called in the file's headers. */
+  entry: string | null;
+  columns: ExportColumn[];
+}
+
+export interface ExportCatalogue {
+  sections: ExportSection[];
+}

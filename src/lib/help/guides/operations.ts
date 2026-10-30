@@ -35,6 +35,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       "Approve & lock is the lock: a locked run cannot be recomputed or deleted. A correction after that is an arrears or off-cycle run.",
       "The person who computes a run cannot also approve and lock it.",
       "Statutory rates come from the approved rule set in force on the run's date.",
+      "A month marked Imported · factoHR was paid on your previous payroll and read from its salary register: its figures are as paid there, locked, and never recomputed, published or paid again.",
     ],
     related: [
       { label: "Salary master", href: "/payroll/salaries" },
@@ -81,6 +82,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     ],
     tips: [
       "People cost is what payroll paid: each payslip's cost to company, all runs of the month that were not cancelled. A month whose payroll is not approved yet may still change.",
+      "Months imported from factoHR count as well; the P&L opens on this financial year, so pick earlier months to see them.",
       "Ask Mira can answer “P&L for <account> this year” from the same figures.",
     ],
     related: [
@@ -109,6 +111,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     tips: [
       "A locked run cannot be recomputed or deleted; a correction is an arrears or off-cycle run.",
       "After locking, prepare the salary file under Bank files and the returns under Return filings.",
+      "A run marked Imported · factoHR shows the register's figures as paid there. Variances and other sources were not checked, and it has no Publish, Mark paid or Journal: it was paid and posted from factoHR.",
     ],
   },
 
@@ -119,6 +122,9 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         title: "Check a payslip",
         steps: ["Read each line and the rule version it used; check the tax working at the bottom."],
       },
+    ],
+    tips: [
+      "An imported payslip (Imported from factoHR) shows each line as paid there, with the register file and row it came from. “From the register” lists the register's own adjustment and rounding; TDS is what factoHR deducted.",
     ],
   },
 
@@ -172,6 +178,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     ],
     tips: [
       "A revision that an approved or paid payroll used is locked: payroll history stays as it was paid. Add a new revision and raise arrears instead.",
+      "Revisions whose reason starts “factoHR payroll register” were dated from your previous payroll's registers. A month imported from factoHR locks the revision it was paid on, like any paid month.",
       "Dating a revision into a month already paid creates arrears, paid through Arrears.",
       "TDS, PROF. TAX, MPF, ESIC and LWF MANUAL: an amount there is deducted instead of what payroll works out for that person. Leave it empty and payroll works it out as usual.",
       "A week is 1/52 of a year; a month has 26 working days of 8 hours, for Weekly, Daily and Hourly amounts.",

@@ -9,7 +9,8 @@ import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { SalaryHistoryList } from "@/components/pay/SalaryHistoryList";
-import { periodLabel, RUN_TYPE } from "@/components/payroll/labels";
+import { isImported, periodLabel, RUN_TYPE } from "@/components/payroll/labels";
+import { ImportedBadge } from "@/components/payroll/RunStatusBadge";
 import { DownloadButton } from "@/components/payroll-ops/shared";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -59,8 +60,13 @@ const PAYSLIP_COLUMNS: ColumnDef<PayslipSummary>[] = [
   {
     accessorKey: "published_at",
     header: "Published",
-    meta: { cellClassName: "text-sm text-muted-foreground", text: (slip) => formatDate(slip.published_at) },
-    cell: ({ row }) => formatDate(row.original.published_at),
+    // An imported month was paid on factoHR; the date it was imported is not when you got it.
+    meta: {
+      cellClassName: "text-sm text-muted-foreground",
+      text: (slip) => (isImported(slip) ? "From factoHR" : formatDate(slip.published_at)),
+    },
+    cell: ({ row }) =>
+      isImported(row.original) ? <ImportedBadge>From factoHR</ImportedBadge> : formatDate(row.original.published_at),
   },
   {
     id: "actions",

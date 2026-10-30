@@ -60,8 +60,36 @@ export interface InputNotice {
   message: string;
 }
 
+/** Whether AskMira computed a run or payslip, or it was imported as paid on another payroll. */
+export type PayrollOrigin = "computed" | "imported";
+
+/** Where an imported run came from. Null on a run AskMira computed. */
+export interface RunImportSummary {
+  system: "factoHR";
+  /** The register file name(s) the month was read from. */
+  files: string[];
+  imported_at: string;
+  imported_by_name: string | null;
+}
+
+/** The register row(s) an imported payslip was read from. Null on a computed payslip. */
+export interface PayslipImportSummary {
+  system: "factoHR";
+  file: string;
+  sheet: string;
+  /** Spreadsheet row numbers; more than one when the register had several rows for the person. */
+  rows: number[];
+  /** The register's own STATUS text for the person, as written. */
+  status: string | null;
+  /** The register's client (or project) text, as written; not matched to an AskMira project. */
+  client: string | null;
+}
+
 export interface PayrollRun {
   id: string;
+  /** "imported": paid on another payroll and read from its register; never recomputed. */
+  origin: PayrollOrigin;
+  import_summary: RunImportSummary | null;
   legal_entity_id: string;
   legal_entity_name: string | null;
   period_year: number;
@@ -197,6 +225,8 @@ export interface TdsWorking {
 export interface Payslip {
   id: string;
   run_id: string;
+  origin: PayrollOrigin;
+  import_summary: PayslipImportSummary | null;
   employee_id: string;
   employee_code: string;
   employee_name: string;
@@ -244,6 +274,8 @@ export interface Payslip {
 export interface PayslipSummary {
   id: string;
   run_id: string;
+  origin: PayrollOrigin;
+  import_summary: PayslipImportSummary | null;
   employee_id: string;
   employee_code: string;
   employee_name: string;
@@ -268,6 +300,8 @@ export interface RegisterRow {
   /** The project they were on when the run was computed (a client's, or Internal). */
   project_id?: string | null;
   project_name?: string | null;
+  /** Imported payslips: the register row(s) they came from, with the register's client text. */
+  import_summary?: PayslipImportSummary | null;
   working_days: string;
   paid_days: string;
   lop_days: string;
