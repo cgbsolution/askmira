@@ -86,7 +86,9 @@ export function Form16Panel() {
                   </>
                 ) : (
                   <TableCell colSpan={4} className="max-w-md whitespace-normal">
-                    <Badge variant="muted">Not ready</Badge>
+                    <Badge variant="muted">
+                      {year.status === "issued_elsewhere" ? `From ${year.issued_by ?? "previous payroll"}` : "Not ready"}
+                    </Badge>
                     <p className="mt-1 text-sm text-muted-foreground">{year.reason}</p>
                   </TableCell>
                 )}

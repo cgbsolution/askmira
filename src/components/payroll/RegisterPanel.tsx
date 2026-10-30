@@ -43,7 +43,7 @@ const REGISTER_TEXT_HINT = "As written in the factoHR register; not matched to a
 function projectOf(row: RegisterRow, imported: boolean): { label: string; fromRegister: boolean } {
   if (row.project_name) return { label: row.project_name, fromRegister: false };
   if (!imported) return { label: "No project", fromRegister: false };
-  const client = row.import_summary?.client?.trim();
+  const client = (row.register_client ?? row.import_summary?.client)?.trim();
   return { label: client || "Not recorded", fromRegister: Boolean(client) };
 }
 
@@ -199,8 +199,10 @@ function ByProject({ rows, imported }: { rows: RegisterRow[]; imported: boolean 
         cost: 0,
       };
       group.people += 1;
-      // Summed in whole paise, so the totals never drift by a fraction.
-      group.gross += paise(row.gross_earnings) + paise(row.other_earnings);
+      // Summed in whole paise, so the totals never drift by a fraction. An imported
+      // month's gross is the register's own Gross Salary: its other lines are the
+      // register's adjustments and differences, already in net pay.
+      group.gross += paise(row.gross_earnings) + (imported ? 0 : paise(row.other_earnings));
       group.net += paise(row.net_pay);
       group.cost += paise(row.employer_cost);
       groups.set(key, group);

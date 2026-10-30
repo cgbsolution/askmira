@@ -297,6 +297,10 @@ export interface Form16Year {
   financial_year: string;
   assessment_year: string;
   available: boolean;
+  /** "available", "not_ready", or "issued_elsewhere" (a year paid on the previous payroll). */
+  status?: "available" | "not_ready" | "issued_elsewhere";
+  /** For a year issued elsewhere: the system that issued it (e.g. "factoHR"). */
+  issued_by?: string | null;
   /** Why Part B cannot be produced yet, when it cannot. */
   reason: string | null;
   taxable_income: string | null;

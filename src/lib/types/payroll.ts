@@ -300,6 +300,8 @@ export interface RegisterRow {
   /** The project they were on when the run was computed (a client's, or Internal). */
   project_id?: string | null;
   project_name?: string | null;
+  /** Imported payslips whose register account matched no AskMira project: the register's text. */
+  register_client?: string | null;
   /** Imported payslips: the register row(s) they came from, with the register's client text. */
   import_summary?: PayslipImportSummary | null;
   working_days: string;

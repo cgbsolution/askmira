@@ -24,7 +24,8 @@ type Tab = "batches" | "profiles" | "accounts";
 
 /** Bank disbursement (prompt 11): salary files with maker-checker, release and reconciliation. */
 export function DisbursementsWorkspace() {
-  const runsQuery = useApiQuery<Page<PayrollRunSummary>>("/payroll/runs?page_size=50");
+  // Months imported from factoHR were paid there: never offered for a salary file.
+  const runsQuery = useApiQuery<Page<PayrollRunSummary>>("/payroll/runs?page_size=50&origin=computed");
   const profiles = useApiQuery<BankProfile[]>("/disbursement/bank-profiles");
   const entities = useApiQuery<LegalEntity[]>("/org/legal-entities");
 
