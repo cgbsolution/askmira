@@ -3,7 +3,8 @@ import type { NextConfig } from "next";
 const isDev = process.env.NODE_ENV !== "production";
 
 /**
- * Where `/api/v1/*` is forwarded. The browser never calls the API host itself.
+ * Where `/api/v1/*` is forwarded (by src/app/api/v1/[...path]/route.ts and,
+ * for big uploads, src/middleware.ts). The browser never calls the API host itself.
  *
  * The session lives in `SameSite=Lax` cookies set by the API. When the portal
  * (say `askmira-sand.vercel.app`) and the API (`hrms.epfassist.com`) are
@@ -95,7 +96,10 @@ const nextConfig: NextConfig = {
   },
   async rewrites() {
     return [
-      { source: "/api/v1/:path*", destination: `${apiTarget}/api/v1/:path*` },
+      // `/api/v1/*` is not rewritten here: src/app/api/v1/[...path]/route.ts
+      // forwards it, retrying connections that do not open, and middleware.ts
+      // rewrites the few uploads too big for that. A rewrite here would run
+      // before the catch-all route and take every request back from it.
       // OAuth discovery for MCP connectors (claude.ai, ChatGPT): they look for it at the
       // root of the address they were given, which is this portal.
       {
