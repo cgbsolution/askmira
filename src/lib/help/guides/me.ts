@@ -234,6 +234,7 @@ export const ME_GUIDES: Record<string, PageGuide> = {
           "Open the Setup tab.",
           "Add or edit leave types (paid or not, half days, sandwich rule). Every type, unpaid included, is applied only against a balance: give days through a policy or Adjust balance.",
           "Add policies (who gets how much, and how it accrues) and the holiday calendar.",
+          "Under Leave settings, set how many days a comp-off lasts. An admin also chooses what happens to unused comp-off at year end: carry it forward to the next year (it still lapses on its own expiry date), or lapse it on 31 December.",
         ],
       },
       {

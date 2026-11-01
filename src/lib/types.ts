@@ -200,9 +200,14 @@ export interface OptionalHolidays {
   holidays: Holiday[];
 }
 
+/** Unused comp-off at the end of the leave year: carried forward, or lapsed. */
+export type CompOffYearEnd = "carry_forward" | "lapse";
+
 export interface LeaveSettings {
   optional_holiday_quota: number;
   comp_off_expiry_days: number;
+  /** Set by an admin only. */
+  comp_off_year_end: CompOffYearEnd;
   comp_off_leave_type_id: string | null;
   comp_off_leave_type_name: string | null;
 }

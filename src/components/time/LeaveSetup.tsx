@@ -19,6 +19,7 @@ import { DataTable } from "@/components/common/data-table/DataTable";
 import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
 import { holidayScopeLabel } from "@/components/time/HolidayList";
+import { useAuth } from "@/context/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +65,7 @@ import {
 } from "@/components/ui/table";
 import { ApiError, del, get, patch, post, put } from "@/lib/api";
 import type {
+  CompOffYearEnd,
   AccrualFrequency,
   AccrualRun,
   Holiday,
@@ -293,7 +295,8 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
   };
 
   return (
-    <div className="grid gap-6">
+    // minmax(0, 1fr): a wide table scrolls inside its card instead of widening the page.
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6">
       <SettingsCard
         settings={settings}
         onSaved={changed}
@@ -602,22 +605,33 @@ function SettingsCard({
   onSaved: () => void;
   onCloseYear: () => void;
 }) {
+  const { hasRole } = useAuth();
+  // Whether people keep or lose comp-off they earned is the admin's call.
+  const isAdmin = hasRole("admin");
   const [quota, setQuota] = useState("");
   const [expiry, setExpiry] = useState("");
+  const [yearEnd, setYearEnd] = useState<CompOffYearEnd>("carry_forward");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (settings) {
       setQuota(String(settings.optional_holiday_quota));
       setExpiry(String(settings.comp_off_expiry_days));
+      setYearEnd(settings.comp_off_year_end);
     }
   }, [settings]);
 
-  const valid = /^\d{1,2}$/.test(quota) && /^\d{1,3}$/.test(expiry) && Number(expiry) >= 1;
+  const valid =
+    /^\d{1,2}$/.test(quota) &&
+    Number(quota) <= 30 &&
+    /^\d{1,3}$/.test(expiry) &&
+    Number(expiry) >= 1 &&
+    Number(expiry) <= 365;
   const dirty =
     settings !== null &&
     (quota !== String(settings.optional_holiday_quota) ||
-      expiry !== String(settings.comp_off_expiry_days));
+      expiry !== String(settings.comp_off_expiry_days) ||
+      yearEnd !== settings.comp_off_year_end);
 
   const save = async () => {
     setIsSaving(true);
@@ -625,6 +639,7 @@ function SettingsCard({
       await put<LeaveSettings>("/leave/settings", {
         optional_holiday_quota: Number(quota),
         comp_off_expiry_days: Number(expiry),
+        ...(isAdmin ? { comp_off_year_end: yearEnd } : {}),
       });
       toast.success("Leave settings saved");
       onSaved();
@@ -665,9 +680,11 @@ function SettingsCard({
           <Input
             id="setting-quota"
             inputMode="numeric"
+            disabled={settings === null}
             className="font-mono"
             value={quota}
-            onChange={(event) => setQuota(event.target.value)}
+            maxLength={2}
+            onChange={(event) => setQuota(event.target.value.replace(/\D/g, "").slice(0, 2))}
           />
         </FormField>
         <FormField
@@ -678,10 +695,37 @@ function SettingsCard({
           <Input
             id="setting-expiry"
             inputMode="numeric"
+            disabled={settings === null}
             className="font-mono"
             value={expiry}
-            onChange={(event) => setExpiry(event.target.value)}
+            maxLength={3}
+            onChange={(event) => setExpiry(event.target.value.replace(/\D/g, "").slice(0, 3))}
           />
+        </FormField>
+        <FormField
+          htmlFor="setting-comp-off-year-end"
+          label="Unused comp-off at year end"
+          hint={
+            isAdmin
+              ? yearEnd === "lapse"
+                ? "Lapses on 31 December, even if its own expiry is later. A credit approved late in the year shows 31 December as its last day."
+                : "Moves into the new year and lapses on its own expiry date."
+              : "Only an admin changes this."
+          }
+        >
+          <Select
+            value={yearEnd}
+            disabled={!isAdmin || settings === null}
+            onValueChange={(value) => setYearEnd(value as CompOffYearEnd)}
+          >
+            <SelectTrigger id="setting-comp-off-year-end" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="carry_forward">Carry forward to the next year</SelectItem>
+              <SelectItem value="lapse">Lapse on 31 December</SelectItem>
+            </SelectContent>
+          </Select>
         </FormField>
       </CardContent>
     </Card>
