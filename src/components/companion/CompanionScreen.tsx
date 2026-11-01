@@ -414,10 +414,15 @@ function Welcome({ status, onPick }: { status: CompanionStatus; onPick: (text: s
   const suggestions = [
     has("apply_leave") ? "I want to take leave next Friday" : null,
     has("payroll_trend") ? "Show the payroll cost trend for the last 6 months" : null,
+    has("query_data") && has("payroll_trend")
+      ? "Payroll cost by department as a pie chart"
+      : has("query_data")
+        ? "My leave days by month this year"
+        : null,
     has("account_pnl") ? "What is the P&L of each client account this year?" : null,
     has("decide_approvals") ? "What is waiting on my approval?" : null,
     has("policy_question") ? "What is the work-from-home policy?" : null,
-    has("report_question") ? "How many people joined this year?" : null,
+    has("query_data") && has("headcount_trend") ? "Joiners and exits by quarter this year" : null,
     ...status.examples,
   ]
     .filter((s): s is string => s !== null)

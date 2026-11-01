@@ -26,6 +26,7 @@ const GROUP_LABEL: Record<string, string> = {
   attendance: "Attendance (HR only)",
   org: "Departments and locations",
   reports: "Reports",
+  data_questions: "Any figure or trend, as charts",
   products: "Linked products",
   person_records: "One employee's record, headcount, joiners and exits",
   approvals: "What is waiting on my approval",
@@ -88,7 +89,7 @@ export function CompanionSettingsPanel() {
       }
     >
       {data && draft ? (
-        <div className="grid gap-6">
+        <div className="grid gap-6 p-4 sm:p-6">
           {!data.ai_enabled ? (
             <Alert>
               <AlertTitle>Ask Mira is off</AlertTitle>

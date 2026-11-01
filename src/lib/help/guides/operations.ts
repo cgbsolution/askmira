@@ -676,8 +676,10 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       {
         title: "Switch AI features and Ask Mira on",
         steps: [
-          "Open the AI tab and turn on “AI features for this workspace”.",
-          "Turn on the features you want, such as Ask Mira chat, and press Save.",
+          "Open the AI tab. Under Who answers, choose the AI provider: Anthropic (Claude), OpenAI (ChatGPT), Google Gemini, or an Ollama server you run.",
+          "Choose a model (or leave it empty for the provider's default) and press Save. For your own account, paste its API key and press Save key; for Ollama, give your server's public https address.",
+          "Press Test connection to check it answers.",
+          "Turn on “AI features for this workspace” and the features you want, such as Ask Mira chat, and press Save.",
           "Set up Ask Mira's name, greeting, tools and limits in the same tab.",
         ],
       },
@@ -689,6 +691,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     tips: [
       "Permissions is the matrix of what each role may do; press Save after changing it.",
       "Integrations is where API keys (New key) and webhooks (New webhook) are made.",
+      "An AI provider's key is stored encrypted and never shown again — only its last four characters. Every AI request is logged under Compliance → Privacy with the provider that received it.",
       "Audit trail shows every change made in the workspace and by whom; Background jobs shows whether scheduled work ran, and Run starts one now.",
     ],
   },

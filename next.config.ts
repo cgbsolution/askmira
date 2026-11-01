@@ -75,6 +75,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // A second dev server (a QA copy, say) must not share `.next` with the first:
+  // two servers writing one build folder break each other's pages.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   reactStrictMode: true,
   poweredByHeader: false,
   // Server-rendered pages call the API directly; a relative URL has no origin there.

@@ -3,7 +3,20 @@
 import { Check, CheckCircle2, ChevronRight, Clock, Loader2, X, XCircle } from "lucide-react";
 import Link from "next/link";
 import React, { useMemo } from "react";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +34,16 @@ import type { CompanionChartCard, CompanionProposal } from "./types";
 
 const SERIES_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 
+/** The design system has five chart colours; past five they repeat, lighter. */
+function seriesColor(index: number, name: string): string {
+  if (name.startsWith("Others")) return "var(--muted-foreground)";
+  return SERIES_COLORS[index % SERIES_COLORS.length];
+}
+function seriesOpacity(index: number, name: string): number {
+  if (name.startsWith("Others")) return 0.45;
+  return index >= SERIES_COLORS.length ? 0.55 : 1;
+}
+
 /** Short Indian amounts for an axis: ₹45.2L, ₹1.3Cr. */
 function compactINR(value: number): string {
   const abs = Math.abs(value);
@@ -31,44 +54,202 @@ function compactINR(value: number): string {
   return `${sign}₹${abs.toFixed(0)}`;
 }
 
+function compactNumber(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 1e7) return `${(value / 1e7).toFixed(1)}Cr`;
+  if (abs >= 1e5) return `${(value / 1e5).toFixed(1)}L`;
+  if (abs >= 1e4) return `${(value / 1e3).toFixed(0)}k`;
+  return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 1 }).format(value);
+}
+
 function formatValue(unit: string, value: number): string {
   if (unit === "inr") return formatINR(value);
   if (unit === "percent") return `${value}%`;
-  return new Intl.NumberFormat("en-IN").format(value);
+  return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(value);
 }
 
-/** A month-by-month series Mira looked up, as a line or bar chart. */
+type Shape = "line" | "area" | "bar" | "stacked_bar" | "horizontal_bar" | "pie" | "donut";
+
+/**
+ * A figure Mira looked up, drawn the way that fits it: a line or area for a
+ * trend, bars to compare, stacked bars for a breakdown, a pie or donut for
+ * shares of a whole. An empty value is a gap, never a zero.
+ */
 export function CompanionChart({ card }: { card: CompanionChartCard }) {
-  const { data, config, keys } = useMemo(() => {
+  const shape: Shape = (["line", "area", "bar", "stacked_bar", "horizontal_bar", "pie", "donut"] as const).includes(
+    card.chart as Shape,
+  )
+    ? (card.chart as Shape)
+    : "bar";
+  const { data, config, keys, slices, total } = useMemo(() => {
     const keys = card.series.map((_, index) => `s${index}`);
     const config: ChartConfig = {};
     card.series.forEach((series, index) => {
-      config[keys[index]] = { label: series.name, color: SERIES_COLORS[index % SERIES_COLORS.length] };
+      config[keys[index]] = { label: series.name, color: seriesColor(index, series.name) };
     });
     const data = card.x.map((label, row) => {
       const entry: Record<string, string | number> = { month: label };
       card.series.forEach((series, index) => {
-        // An empty value is a month with nothing to show: a gap, never a zero.
         const raw = series.values[row] ?? "";
         const parsed = raw === "" ? Number.NaN : Number.parseFloat(raw);
         if (Number.isFinite(parsed)) entry[keys[index]] = parsed;
       });
       return entry;
     });
-    return { data, config, keys };
-  }, [card]);
+    // A pie: one slice per label on x, from the first series.
+    const slices = card.x
+      .map((label, index) => {
+        const value = Number.parseFloat(card.series[0]?.values[index] ?? "");
+        return { key: `c${index}`, label, value: Number.isFinite(value) ? value : 0 };
+      })
+      .filter((slice) => slice.value > 0);
+    if (shape === "pie" || shape === "donut") {
+      slices.forEach((slice, index) => {
+        config[slice.key] = { label: slice.label, color: seriesColor(index, slice.label) };
+      });
+    }
+    const total = slices.reduce((sum, slice) => sum + slice.value, 0);
+    return { data, config, keys, slices, total };
+  }, [card, shape]);
 
-  const tick = (value: number) => (card.unit === "inr" ? compactINR(value) : String(value));
-  const tooltip = (
-    <ChartTooltipContent
-      formatter={(value, name) => (
-        <span className="flex w-full justify-between gap-4">
-          <span className="text-muted-foreground">{config[String(name)]?.label ?? name}</span>
-          <span className="font-mono font-medium tabular-nums">{formatValue(card.unit, Number(value))}</span>
-        </span>
-      )}
-    />
+  const tick = (value: number) => (card.unit === "inr" ? compactINR(value) : compactNumber(value));
+  const formatter = (value: unknown, name: unknown) => (
+    <span className="flex w-full justify-between gap-4">
+      <span className="text-muted-foreground">{config[String(name)]?.label ?? String(name)}</span>
+      <span className="font-mono font-medium tabular-nums">
+        {formatValue(card.unit, Number(value))}
+        {(shape === "pie" || shape === "donut") && total > 0
+          ? ` (${((Number(value) / total) * 100).toFixed(1)}%)`
+          : ""}
+      </span>
+    </span>
   );
+  const tooltip = <ChartTooltipContent formatter={formatter} />;
+  const legend = keys.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null;
+  // Tall enough for every bar's label when they run down the side.
+  const rows = card.x.length;
+  const height =
+    shape === "horizontal_bar"
+      ? rows <= 6
+        ? "h-56"
+        : rows <= 10
+          ? "h-80"
+          : rows <= 16
+            ? "h-[28rem]"
+            : "h-[40rem]"
+      : shape === "pie" || shape === "donut"
+        ? "h-72"
+        : "h-56";
+
+  let chart: React.ReactElement;
+  if (shape === "pie" || shape === "donut") {
+    chart = (
+      <PieChart>
+        <ChartTooltip content={<ChartTooltipContent nameKey="key" hideLabel formatter={formatter} />} />
+        <Pie
+          data={slices}
+          dataKey="value"
+          nameKey="key"
+          innerRadius={shape === "donut" ? "55%" : 0}
+          outerRadius="80%"
+          strokeWidth={2}
+          isAnimationActive={false}
+        >
+          {slices.map((slice, index) => (
+            <Cell
+              key={slice.key}
+              fill={`var(--color-${slice.key})`}
+              fillOpacity={seriesOpacity(index, slice.label)}
+              stroke="var(--card)"
+            />
+          ))}
+        </Pie>
+        <ChartLegend content={<ChartLegendContent nameKey="key" className="flex-wrap gap-x-3 gap-y-1" />} />
+      </PieChart>
+    );
+  } else if (shape === "horizontal_bar") {
+    chart = (
+      <BarChart data={data} layout="vertical" margin={{ left: 4, right: 16 }}>
+        <CartesianGrid horizontal={false} />
+        <XAxis type="number" tickLine={false} axisLine={false} tickFormatter={tick} />
+        <YAxis type="category" dataKey="month" tickLine={false} axisLine={false} width={128} interval={0} />
+        <ChartTooltip content={tooltip} />
+        {legend}
+        {keys.map((key, index) => (
+          <Bar
+            key={key}
+            dataKey={key}
+            fill={`var(--color-${key})`}
+            fillOpacity={seriesOpacity(index, card.series[index].name)}
+            radius={4}
+          />
+        ))}
+      </BarChart>
+    );
+  } else if (shape === "line") {
+    chart = (
+      <LineChart data={data} margin={{ left: 4, right: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} minTickGap={12} />
+        <YAxis tickLine={false} axisLine={false} width={56} tickFormatter={tick} />
+        <ChartTooltip content={tooltip} />
+        {legend}
+        {keys.map((key, index) => (
+          <Line
+            key={key}
+            dataKey={key}
+            type="monotone"
+            stroke={`var(--color-${key})`}
+            strokeOpacity={seriesOpacity(index, card.series[index].name)}
+            strokeWidth={2}
+            dot
+          />
+        ))}
+      </LineChart>
+    );
+  } else if (shape === "area") {
+    chart = (
+      <AreaChart data={data} margin={{ left: 4, right: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} minTickGap={12} />
+        <YAxis tickLine={false} axisLine={false} width={56} tickFormatter={tick} />
+        <ChartTooltip content={tooltip} />
+        {legend}
+        {keys.map((key) => (
+          <Area
+            key={key}
+            dataKey={key}
+            type="monotone"
+            stroke={`var(--color-${key})`}
+            fill={`var(--color-${key})`}
+            fillOpacity={0.2}
+            strokeWidth={2}
+          />
+        ))}
+      </AreaChart>
+    );
+  } else {
+    const stacked = shape === "stacked_bar";
+    chart = (
+      <BarChart data={data} margin={{ left: 4, right: 8 }}>
+        <CartesianGrid vertical={false} />
+        <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} minTickGap={12} />
+        <YAxis tickLine={false} axisLine={false} width={56} tickFormatter={tick} />
+        <ChartTooltip content={tooltip} />
+        {legend}
+        {keys.map((key, index) => (
+          <Bar
+            key={key}
+            dataKey={key}
+            stackId={stacked ? "stack" : undefined}
+            fill={`var(--color-${key})`}
+            fillOpacity={seriesOpacity(index, card.series[index].name)}
+            radius={stacked ? (index === keys.length - 1 ? [4, 4, 0, 0] : 0) : 4}
+          />
+        ))}
+      </BarChart>
+    );
+  }
 
   return (
     <div className="grid gap-2 rounded-lg border bg-card p-3">
@@ -76,31 +257,13 @@ export function CompanionChart({ card }: { card: CompanionChartCard }) {
         <p className="text-sm font-medium">{card.title}</p>
         <p className="text-xs text-muted-foreground">{card.caption}</p>
       </div>
-      <ChartContainer config={config} className="aspect-auto h-56 w-full">
-        {card.chart === "line" ? (
-          <LineChart data={data} margin={{ left: 4, right: 8 }}>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} minTickGap={12} />
-            <YAxis tickLine={false} axisLine={false} width={56} tickFormatter={tick} />
-            <ChartTooltip content={tooltip} />
-            {keys.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null}
-            {keys.map((key) => (
-              <Line key={key} dataKey={key} type="monotone" stroke={`var(--color-${key})`} strokeWidth={2} dot />
-            ))}
-          </LineChart>
-        ) : (
-          <BarChart data={data} margin={{ left: 4, right: 8 }}>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} minTickGap={12} />
-            <YAxis tickLine={false} axisLine={false} width={56} tickFormatter={tick} />
-            <ChartTooltip content={tooltip} />
-            {keys.length > 1 ? <ChartLegend content={<ChartLegendContent />} /> : null}
-            {keys.map((key) => (
-              <Bar key={key} dataKey={key} fill={`var(--color-${key})`} radius={4} />
-            ))}
-          </BarChart>
-        )}
-      </ChartContainer>
+      {(shape === "pie" || shape === "donut") && slices.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nothing to draw: every value is zero.</p>
+      ) : (
+        <ChartContainer config={config} className={cn("aspect-auto w-full", height)}>
+          {chart}
+        </ChartContainer>
+      )}
     </div>
   );
 }

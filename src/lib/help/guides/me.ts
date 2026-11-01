@@ -66,11 +66,12 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         ],
       },
       {
-        title: "Ask for a trend or a P&L",
-        roles: ["admin", "sub_admin"],
+        title: "Ask for a figure, a trend or a chart",
         steps: [
-          "Ask “payroll cost trend for the last 6 months”, “why did payroll go up in September”, or “P&L for <account> this year”.",
-          "Mira shows the chart and the table, worked out from the payslips and the account's billing and people mapping.",
+          "Ask in plain words, for example “payroll cost trend for the last 6 months”, “leave days by type this year as a pie chart”, “exits by quarter”, “employees in each department as a bar chart” or “P&L for <account> this year”.",
+          "Mira draws the chart that fits — a line or area for a trend, bars to compare, stacked bars for a breakdown, a pie or donut for shares — with the table under it.",
+          "Change it with a follow-up: “by department instead”, “as a pie chart”, “only Sales”, “for the last 12 months”.",
+          "You see only what your role may see: an employee sees their own figures, a manager their team's, HR the company's.",
         ],
       },
       {
@@ -86,6 +87,7 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         roles: ["admin"],
         steps: [
           "Go to Settings → Company and open the AI tab.",
+          "Under Who answers, pick the AI provider — Anthropic (Claude), OpenAI (ChatGPT), Google Gemini or your own Ollama server — and a model; paste your API key if AskMira's server has none for it, then press Test connection.",
           "Turn on “AI features for this workspace” and “Ask Mira chat”, then press Save.",
           "In the Ask Mira part of that tab, choose its name, greeting, tools and limits.",
         ],
@@ -97,6 +99,7 @@ export const ME_GUIDES: Record<string, PageGuide> = {
       "Mira can tell you your leave balance, latest payslip, attendance and manager; who is on leave; find colleagues; list departments and offices; and answer policy questions from what HR published.",
       "Where your company uses the separate interview or expense tool, Mira can also show the jobs, candidates, interviews and expense claims you may see there.",
       "Mira reads what it looks up only where your company's data-protection register lets the AI provider receive that kind of record, and never contact details, ID numbers, bank details or leave reasons. Otherwise it only knows the result is on your screen. It never states a fact it did not look up.",
+      "Totals and trends are read by the AI only for groups of five or more people. A smaller group — a two-person team's pay, one person's leave — is on your screen, but Mira cannot see it and will say so.",
       "An offer expires after two hours; ask again and Mira checks the figures afresh.",
       "There is a daily message limit per person; the line under the box shows what is left.",
     ],

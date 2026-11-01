@@ -90,13 +90,16 @@ export type CompanionCard =
   | CompanionChartCard
   | CompanionProposal;
 
-/** A month-by-month series: one value per month on `x`, per series. */
+/**
+ * A figure drawn as a chart: one value per label on `x`, per series. A pie or
+ * donut draws the first series, one slice per label.
+ */
 export interface CompanionChartCard {
   type: "chart";
   title: string;
   caption: string;
-  chart: "line" | "bar";
-  /** "inr" (rupees), "count" or "percent". */
+  chart: "line" | "area" | "bar" | "stacked_bar" | "horizontal_bar" | "pie" | "donut";
+  /** "inr" (rupees), "count", "number" or "percent". */
   unit: string;
   x: string[];
   series: { name: string; values: string[] }[];
