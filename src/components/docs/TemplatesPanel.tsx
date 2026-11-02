@@ -1,6 +1,6 @@
 "use client";
 
-import { History, LayoutTemplate, Loader2, MoreHorizontal, Pencil, Plus, Sparkles } from "lucide-react";
+import { Copy, History, LayoutTemplate, Loader2, MoreHorizontal, Pencil, Plus, Sparkles } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
@@ -38,7 +38,12 @@ import {
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ADMIN } from "@/lib/access";
 import { get, post } from "@/lib/api";
-import type { LetterTemplate, LetterTemplateDetail, TemplateVersion } from "@/lib/types/docs";
+import type {
+  LetterTemplate,
+  LetterTemplateDetail,
+  TemplateContentInput,
+  TemplateVersion,
+} from "@/lib/types/docs";
 import { formatDate } from "@/lib/utils";
 
 /** The template catalogue: create, edit (as a new version), preview, version history. */
@@ -46,6 +51,7 @@ export function TemplatesPanel() {
   const [showAll, setShowAll] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<LetterTemplateDetail | null>(null);
+  const [initial, setInitial] = useState<TemplateContentInput | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [versionsOf, setVersionsOf] = useState<LetterTemplate | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -58,15 +64,36 @@ export function TemplatesPanel() {
   );
   const rows = data ?? [];
 
-  const openEditor = async (template: LetterTemplate | null) => {
+  const openEditor = async (template: LetterTemplate | null, duplicate = false) => {
     if (!template) {
       setEditing(null);
+      setInitial(null);
       setEditorOpen(true);
       return;
     }
     setLoadingId(template.id);
     try {
-      setEditing(await get<LetterTemplateDetail>(`/letter-templates/${template.id}`));
+      const detail = await get<LetterTemplateDetail>(`/letter-templates/${template.id}`);
+      if (duplicate) {
+        // A new template that starts as a copy: its own code, its own versions.
+        setEditing(null);
+        setInitial({
+          name: `${detail.name} (copy)`,
+          category: detail.category,
+          body_html: detail.body_html,
+          header_html: detail.header_html,
+          footer_html: detail.footer_html,
+          requires_approval: detail.requires_approval,
+          approver_roles: detail.approver_roles,
+          requires_signature: detail.requires_signature,
+          signatory_role: detail.signatory_role,
+          use_letterhead: detail.use_letterhead,
+          fields: detail.fields.map((f) => ({ ...f })),
+        });
+      } else {
+        setInitial(null);
+        setEditing(detail);
+      }
       setEditorOpen(true);
     } catch (caught) {
       toast.error(apiMessage(caught, "The template could not be opened."));
@@ -153,6 +180,7 @@ export function TemplatesPanel() {
                     v{template.version}
                     {!template.active && <Badge variant="muted">Superseded</Badge>}
                     {template.is_seed && <Badge variant="warning">Seed — review before use</Badge>}
+                    {!template.use_letterhead && <Badge variant="muted">Plain paper</Badge>}
                   </span>
                 </TableCell>
                 <TableCell>
@@ -183,6 +211,9 @@ export function TemplatesPanel() {
                       <DropdownMenuItem onSelect={() => void openEditor(template)}>
                         <Pencil /> {template.active ? "Edit & preview" : "Open (saves as newest)"}
                       </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => void openEditor(template, true)}>
+                        <Copy /> Duplicate as a new letter
+                      </DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setVersionsOf(template)}>
                         <History /> Version history
                       </DropdownMenuItem>
@@ -199,6 +230,7 @@ export function TemplatesPanel() {
         open={editorOpen}
         onOpenChange={setEditorOpen}
         template={editing}
+        initial={initial}
         onSaved={reload}
       />
 

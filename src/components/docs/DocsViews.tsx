@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/common/EmptyState";
 import { PageShell } from "@/components/common/PageShell";
 import { CompanyDocumentsPanel } from "@/components/docs/CompanyDocuments";
 import { DocumentsPanel } from "@/components/docs/DocumentsPanel";
+import { LetterheadPanel } from "@/components/docs/LetterheadPanel";
 import { LettersPanel } from "@/components/docs/LettersPanel";
 import { TemplatesPanel } from "@/components/docs/TemplatesPanel";
 import { Card } from "@/components/ui/card";
@@ -82,6 +83,17 @@ export function LettersView() {
       description="Issue, approve, sign and verify employment letters. Every letter keeps a fixed, hash-checked copy."
     >
       <LettersPanel manage title="Issued letters" />
+    </PageShell>
+  );
+}
+
+export function LetterheadView() {
+  return (
+    <PageShell
+      title="Letterhead"
+      description="The paper every letter is printed on: colours, logo, contact details and signature."
+    >
+      <LetterheadPanel />
     </PageShell>
   );
 }

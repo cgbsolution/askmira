@@ -391,6 +391,7 @@ export const NAV: NavSection[] = [
       { name: "My documents", path: "/docs", roles: EVERYONE, self: true },
       { name: "Letters", path: "/docs/letters", roles: HR },
       { name: "Templates", path: "/docs/templates", roles: HR },
+      { name: "Letterhead", path: "/docs/letterhead", roles: HR },
     ],
   },
   {

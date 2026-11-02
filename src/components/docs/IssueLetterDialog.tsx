@@ -1,11 +1,12 @@
 "use client";
 
-import { Loader2, Plus, Trash2 } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import { Eye, Loader2, Plus, Trash2 } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/common/FormField";
 import { LETTER_CATEGORY } from "@/components/docs/letterLabels";
+import { PdfPreview } from "@/components/docs/PdfPreview";
 import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
 import { apiMessage } from "@/components/people/labels";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -28,8 +29,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { post } from "@/lib/api";
-import type { BulkLetterJob, IssuedLetter, LetterTemplate } from "@/lib/types/docs";
+import { downloadFile, fetchFile, post } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import type {
+  BulkLetterJob,
+  IssuedLetter,
+  LetterPrefill,
+  LetterTemplate,
+} from "@/lib/types/docs";
 import { DatePicker } from "@/components/common/DatePicker";
 
 type Mode = "single" | "bulk";
@@ -60,6 +67,11 @@ export function IssueLetterDialog({
   const [serverError, setServerError] = useState<string | null>(null);
   const [job, setJob] = useState<BulkLetterJob | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [prefilled, setPrefilled] = useState<Record<string, string>>({});
+  const [isPrefilling, setIsPrefilling] = useState(false);
+  const [pdf, setPdf] = useState<Blob | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const typed = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!open) return;
@@ -71,6 +83,9 @@ export function IssueLetterDialog({
     setAsOf("");
     setServerError(null);
     setJob(null);
+    setPrefilled({});
+    setPdf(null);
+    typed.current = new Set();
   }, [open]);
 
   const template = templates.find((t) => t.id === templateId);
@@ -78,6 +93,69 @@ export function IssueLetterDialog({
     () => (template?.fields ?? []).filter((f) => f.source === "manual"),
     [template],
   );
+  const person = mode === "single" ? (people[0] ?? null) : null;
+
+  // One person and a template: start each typed field from their record
+  // (notice period in words, current designation) and the date the letter's
+  // values resolve on. What HR has already typed is left alone.
+  useEffect(() => {
+    setPdf(null);
+    if (!template || !person) {
+      setPrefilled({});
+      return;
+    }
+    let cancelled = false;
+    setIsPrefilling(true);
+    post<LetterPrefill>(`/letter-templates/${template.id}/prefill`, { employee_id: person.id })
+      .then((result) => {
+        if (cancelled) return;
+        setPrefilled(result.values);
+        setManual((current) => {
+          const next = { ...current };
+          for (const [key, value] of Object.entries(result.values)) {
+            if (!typed.current.has(key)) next[key] = value;
+          }
+          return next;
+        });
+        setAsOf((current) => current || result.as_of);
+      })
+      .catch(() => {
+        if (!cancelled) setPrefilled({});
+      })
+      .finally(() => {
+        if (!cancelled) setIsPrefilling(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template?.id, person?.id]);
+
+  const preview = async () => {
+    setServerError(null);
+    if (!template) return setServerError("Choose a template.");
+    if (!person) return setServerError("Choose who the letter is for.");
+    setIsPreviewing(true);
+    try {
+      const { blob } = await fetchFile("/letter-templates/preview-pdf", {
+        method: "POST",
+        body: {
+          template_id: template.id,
+          employee_id: person.id,
+          manual_values: Object.fromEntries(
+            Object.entries(manual).filter(([, value]) => value.trim() !== ""),
+          ),
+          as_of: asOf || null,
+        },
+        timeout: 60_000,
+      });
+      setPdf(blob);
+    } catch (error) {
+      setServerError(apiMessage(error, "The preview could not be rendered."));
+    } finally {
+      setIsPreviewing(false);
+    }
+  };
 
   const addPerson = (person: PickedEmployee | null) => {
     if (!person) return;
@@ -94,7 +172,13 @@ export function IssueLetterDialog({
     setServerError(null);
     if (!template) return setServerError("Choose a template.");
     if (people.length === 0) return setServerError("Choose who the letter is for.");
-    const missing = manualFields.filter((f) => f.required && !manual[f.token.split(".").pop() ?? ""]?.trim());
+    // In bulk, a typed field that starts from the record is filled in per person.
+    const missing = manualFields.filter(
+      (f) =>
+        f.required &&
+        !(mode === "bulk" && f.source_path) &&
+        !manual[f.token.split(".").pop() ?? ""]?.trim(),
+    );
     if (missing.length) {
       return setServerError(`Fill in: ${missing.map((f) => f.label).join(", ")}.`);
     }
@@ -111,7 +195,15 @@ export function IssueLetterDialog({
           manual_values: manualValues,
           as_of: asOf || null,
         });
-        toast.success(`Letter ${letter.reference_number} issued`);
+        toast.success(`Letter ${letter.reference_number} issued`, {
+          action: {
+            label: "Download PDF",
+            onClick: () =>
+              void downloadFile(`/letters/${letter.id}/pdf`, `${letter.reference_number}.pdf`).catch(
+                (error) => toast.error(apiMessage(error, "The PDF could not be downloaded.")),
+              ),
+          },
+        });
         onIssued();
         onOpenChange(false);
       } else {
@@ -139,7 +231,7 @@ export function IssueLetterDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !isSaving && onOpenChange(next)}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className={cn("max-h-[92vh] overflow-y-auto", pdf ? "sm:max-w-4xl" : "sm:max-w-xl")}>
         <form onSubmit={submit} className="grid gap-4" noValidate>
           <DialogHeader>
             <DialogTitle>Issue a letter</DialogTitle>
@@ -198,6 +290,8 @@ export function IssueLetterDialog({
                   onValueChange={(value) => {
                     setTemplateId(value);
                     setManual({});
+                    setAsOf("");
+                    typed.current = new Set();
                   }}
                 >
                   <SelectTrigger id="issue-template" className="w-full">
@@ -224,7 +318,14 @@ export function IssueLetterDialog({
                 <EmployeePicker
                   id="issue-person"
                   value={mode === "single" ? (people[0] ?? null) : picking}
-                  onChange={addPerson}
+                  onChange={(next) => {
+                    if (mode === "single") {
+                      setAsOf("");
+                      typed.current = new Set();
+                      setManual({});
+                    }
+                    addPerson(next);
+                  }}
                   placeholder={mode === "single" ? "Choose a person" : "Add a person"}
                 />
               </FormField>
@@ -251,19 +352,33 @@ export function IssueLetterDialog({
               )}
               {manualFields.map((field) => {
                 const key = field.token.split(".").pop() ?? field.token;
+                const fromRecord = prefilled[key];
+                const hint =
+                  mode === "bulk" && field.source_path
+                    ? "Leave blank to fill it in from each person's record."
+                    : fromRecord !== undefined
+                      ? manual[key] === fromRecord
+                        ? "Filled in from the record. Change it if this letter needs something else."
+                        : `The record says \u201c${fromRecord}\u201d.`
+                      : undefined;
                 return (
                   <FormField
                     key={field.token}
                     htmlFor={`manual-${key}`}
                     label={field.label}
-                    optional={!field.required}
+                    optional={!field.required || (mode === "bulk" && Boolean(field.source_path))}
+                    hint={hint}
                   >
                     <Input
                       id={`manual-${key}`}
                       value={manual[key] ?? ""}
-                      onChange={(event) =>
-                        setManual((current) => ({ ...current, [key]: event.target.value }))
-                      }
+                      maxLength={500}
+                      disabled={isPrefilling && fromRecord === undefined && Boolean(field.source_path)}
+                      onChange={(event) => {
+                        typed.current.add(key);
+                        setPdf(null);
+                        setManual((current) => ({ ...current, [key]: event.target.value }));
+                      }}
                     />
                   </FormField>
                 );
@@ -274,8 +389,18 @@ export function IssueLetterDialog({
                 optional
                 hint="A relieving letter for a past exit should show the salary in force then."
               >
-                <DatePicker id="issue-asof" value={asOf} onChange={setAsOf} />
+                <DatePicker
+                  id="issue-asof"
+                  value={asOf}
+                  onChange={(value) => {
+                    setAsOf(value);
+                    setPdf(null);
+                  }}
+                />
               </FormField>
+              {mode === "single" && (pdf || isPreviewing) && (
+                <PdfPreview blob={pdf} isLoading={isPreviewing} title="Letter preview" className="h-[65vh]" />
+              )}
               <DialogFooter>
                 <Button
                   type="button"
@@ -285,6 +410,17 @@ export function IssueLetterDialog({
                 >
                   Cancel
                 </Button>
+                {mode === "single" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSaving || isPreviewing || !template || !person}
+                    onClick={() => void preview()}
+                  >
+                    {isPreviewing ? <Loader2 className="animate-spin" /> : <Eye />}
+                    Preview
+                  </Button>
+                )}
                 <Button type="submit" variant="accent" disabled={isSaving}>
                   {isSaving ? <Loader2 className="animate-spin" /> : <Plus />}
                   {mode === "single" ? "Issue letter" : `Issue ${people.length} letters`}

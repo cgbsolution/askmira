@@ -808,10 +808,25 @@ export const ME_GUIDES: Record<string, PageGuide> = {
     summary: "Letter templates, their versions, and the values each one fills in.",
     tasks: [
       {
-        title: "Create or update a template",
+        title: "Change a letter's wording",
         steps: [
-          "Press New template, or use a template's actions to edit it.",
-          "Write the letter with placeholders for values like name and CTC, and save it as a new version.",
+          "Use a template's actions and choose Edit & preview.",
+          "Type in the editor like a document. Use Insert field to add a value that is filled in for each person, such as Designation or CTC per year.",
+          "Pick an employee and press Preview to see the PDF as it will print, then save it as a new version.",
+        ],
+      },
+      {
+        title: "Add a new letter",
+        steps: [
+          "Press New template, or use Duplicate on a letter that is close to what you need.",
+          "Give it a name and category, write it, and save.",
+        ],
+      },
+      {
+        title: "Let HR type a value, starting from the record",
+        steps: [
+          "Add a manual field (for example manual.notice_period) and set Starts from to a record field (Notice period in words).",
+          "When the letter is issued the value is filled in, and HR can change it before issuing.",
         ],
       },
       {
@@ -819,7 +834,30 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         steps: ["Press Install seed templates to add standard Indian letters and statutory forms."],
       },
     ],
-    tips: ["Earlier letters keep the version they were issued with. Review templates with HR and legal before use."],
+    tips: [
+      "Offer (Clients and Internal), Promotion, Experience and the Joining form are installed for every workspace.",
+      "Earlier letters keep the version they were issued with. Review templates with HR and legal before use.",
+    ],
+    related: [{ label: "Letterhead", href: "/docs/letterhead" }],
+  },
+
+  "/docs/letterhead": {
+    summary: "The paper every letter is printed on: design, colours, logo, contact details and signature.",
+    tasks: [
+      {
+        title: "Set up your letterhead",
+        steps: [
+          "Choose a design and set the colours to your brand.",
+          "Upload a logo for letters (otherwise the workspace logo is used) and the signatory's signature.",
+          "Fill in the company name, address, phone, email and website for the footer, then save.",
+        ],
+      },
+    ],
+    tips: [
+      "The preview on the right updates as you change things; it is a sample, not a real letter.",
+      "Letters already issued keep the letterhead they were printed on.",
+    ],
+    related: [{ label: "Templates", href: "/docs/templates" }],
   },
 
   "/assets": {

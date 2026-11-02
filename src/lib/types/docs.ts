@@ -109,6 +109,8 @@ export interface TemplateField {
   label: string;
   source: FieldSource;
   required: boolean;
+  /** For a manual field: the field it starts from ("employee.notice_period"). */
+  source_path?: string | null;
 }
 
 export interface LetterTemplate {
@@ -121,6 +123,8 @@ export interface LetterTemplate {
   requires_approval: boolean;
   requires_signature: boolean;
   is_seed: boolean;
+  /** Printed on the workspace letterhead. */
+  use_letterhead: boolean;
   fields: TemplateField[];
 }
 
@@ -151,13 +155,53 @@ export interface TemplateContentInput {
   approver_roles: string[];
   requires_signature: boolean;
   signatory_role: string | null;
-  fields: (TemplateField & { source_path?: string | null })[];
+  use_letterhead: boolean;
+  fields: TemplateField[];
 }
 
 export interface MergeFields {
   sources: Record<string, string[]>;
   computed: string[];
   manual_note: string;
+  /** "employee.designation" -> "Designation", for the Insert field menu. */
+  labels: Record<string, string>;
+}
+
+export type LetterheadDesign = "wave" | "classic" | "none";
+
+/** What every letter is printed on (Documents -> Letterhead). */
+export interface LetterheadSettings {
+  design: LetterheadDesign;
+  primary_colour: string;
+  secondary_colour: string;
+  accent_colour: string;
+  highlight_colour: string;
+  company_name: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  signatory_name: string;
+  signatory_title: string;
+  show_logo: boolean;
+  show_reference: boolean;
+}
+
+/** Colours offered for the letterhead; any hex can be typed as well. */
+export const LETTERHEAD_PRESETS = [
+  "#1B5A92", "#4DAAF6", "#3A9E96", "#0F2A47", "#7D0712", "#F8A01A",
+  "#271E1C", "#2E7D32", "#6A1B9A", "#C2185B", "#546E7A", "#E00000",
+] as const;
+
+export interface Letterhead extends LetterheadSettings {
+  has_own_logo: boolean;
+  has_workspace_logo: boolean;
+  has_signature: boolean;
+}
+
+export interface LetterPrefill {
+  values: Record<string, string>;
+  as_of: string;
 }
 
 export interface LetterPreview {
