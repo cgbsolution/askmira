@@ -228,21 +228,36 @@ export interface PayslipSheetLine {
   amount: string;
 }
 
-/** The payslip as its PDF prints it: the same details and lines, in the same order. */
+/** An earnings row: the full-month rate, any arrears, and what was paid. */
+export interface PayslipSheetEarning {
+  name: string;
+  actual: string | null;
+  arrears: string | null;
+  amount: string;
+}
+
+/** The payslip as its PDF prints it (factoHR's layout): the same details and lines. */
 export interface PayslipSheet {
   company_name: string;
   company_address: string | null;
+  /** The paying company's logo, else the workspace's. */
+  logo_url: string | null;
+  /** "SALARY SLIP FOR THE MONTH OF SEP-26". */
   title: string;
   reference: string;
-  facts: { label: string; value: string }[];
-  earnings: PayslipSheetLine[];
+  left_facts: { label: string; value: string }[];
+  right_facts: { label: string; value: string }[];
+  payable_days: string;
+  net_paid_days: string;
+  earnings: PayslipSheetEarning[];
   deductions: PayslipSheetLine[];
-  employer_contributions: PayslipSheetLine[];
-  perquisites: PayslipSheetLine[];
+  total_actual: string;
+  total_arrears: string;
   total_earnings: string;
   total_deductions: string;
   net_pay: string;
   net_pay_in_words: string;
+  payment_mode: string | null;
 }
 
 export interface Payslip {
