@@ -8,7 +8,7 @@ import React from "react";
 import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
 import { isImported } from "@/components/payroll/labels";
-import { PayslipTrace } from "@/components/payroll/PayslipTrace";
+import { PayslipViews } from "@/components/payroll/PayslipViews";
 import { DownloadButton } from "@/components/payroll-ops/shared";
 import { RunStatusBadge } from "@/components/payroll/RunStatusBadge";
 import { Badge } from "@/components/ui/badge";
@@ -64,7 +64,7 @@ export default function RunPayslipPage() {
               <Badge variant="accent">Top-up: pays extra lines, not the salary again</Badge>
             )}
           </div>
-          <PayslipTrace payslip={data} />
+          <PayslipViews payslip={data} />
         </>
       )}
     </PageShell>

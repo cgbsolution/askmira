@@ -9,7 +9,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
 import { isImported } from "@/components/payroll/labels";
 import { PayslipPasswordHint } from "@/components/payroll/PayslipProtection";
-import { PayslipTrace } from "@/components/payroll/PayslipTrace";
+import { PayslipViews } from "@/components/payroll/PayslipViews";
 import { DownloadButton } from "@/components/payroll-ops/shared";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -61,7 +61,7 @@ export default function MyPayslipPage() {
           onRetry={error?.status === 404 ? undefined : reload}
         />
       ) : (
-        <PayslipTrace payslip={data} />
+        <PayslipViews payslip={data} />
       )}
     </PageShell>
   );

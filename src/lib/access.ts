@@ -276,6 +276,7 @@ export const NAV: NavSection[] = [
     module: "payroll",
     pages: [
       { name: "Payroll runs", path: "/payroll", roles: HR },
+      { name: "Payslips", path: "/payroll/payslips", roles: HR },
       { name: "Salary master", path: "/payroll/salaries", roles: HR },
       { name: "Account P&L", path: "/payroll/accounts", roles: HR },
       { name: "Adjustments", path: "/payroll/adjustments", roles: HR },

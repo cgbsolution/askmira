@@ -44,6 +44,39 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     ],
   },
 
+  "/payroll/payslips": {
+    summary:
+      "Download or email anybody's payslips — working here or left — for the last month, 3 months, 6 months or 12 months.",
+    tasks: [
+      {
+        title: "Download one person's payslips",
+        steps: [
+          "Pick the period (Last month, Last 3 months, Last 6 months or Last 12 months). It counts back from the latest approved payroll month; change Up to for an earlier month.",
+          "Find the person (search by name, code or email) and press Download on their row.",
+          "One payslip downloads as a PDF; more come as a ZIP with one PDF per month.",
+        ],
+      },
+      {
+        title: "Download or email payslips for many people",
+        steps: [
+          "Tick the people (or the box at the top to tick everybody in the list), then press Download payslips or Email payslips in the bar above the table.",
+          "For email, choose Work email or Personal email (the work email is used where there is no personal one) and press Email.",
+          "A window shows the progress. You can close it; the work carries on and shows under Recent requests.",
+        ],
+      },
+    ],
+    tips: [
+      "Email sends only payslips already released (published) to employees. Months approved but not yet released can be downloaded, not emailed.",
+      "Each person gets one email with all their payslips for the period attached. When payslip passwords are on (Payroll runs), the PDFs open with the employee's password.",
+      "A download is kept for a day under Recent requests, then removed.",
+      "Every download and every email is recorded in the audit log.",
+    ],
+    related: [
+      { label: "Payroll runs", href: "/payroll" },
+      { label: "Email settings", href: "/settings/notifications" },
+    ],
+  },
+
   "/payroll/accounts": {
     summary:
       "Each client account's P&L: what you billed it against the payroll cost of the people working on it and its other direct costs, month by month.",

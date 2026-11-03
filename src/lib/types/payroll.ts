@@ -222,11 +222,37 @@ export interface TdsWorking {
   };
 }
 
+/** A line on the printed payslip: its name and amount (a decimal string). */
+export interface PayslipSheetLine {
+  name: string;
+  amount: string;
+}
+
+/** The payslip as its PDF prints it: the same details and lines, in the same order. */
+export interface PayslipSheet {
+  company_name: string;
+  company_address: string | null;
+  title: string;
+  reference: string;
+  facts: { label: string; value: string }[];
+  earnings: PayslipSheetLine[];
+  deductions: PayslipSheetLine[];
+  employer_contributions: PayslipSheetLine[];
+  perquisites: PayslipSheetLine[];
+  total_earnings: string;
+  total_deductions: string;
+  net_pay: string;
+  net_pay_in_words: string;
+}
+
 export interface Payslip {
   id: string;
   run_id: string;
   origin: PayrollOrigin;
   import_summary: PayslipImportSummary | null;
+  /** The payslip as printed; null when its lines do not add up (`sheet_error` says why). */
+  sheet?: PayslipSheet | null;
+  sheet_error?: string | null;
   employee_id: string;
   employee_code: string;
   employee_name: string;
