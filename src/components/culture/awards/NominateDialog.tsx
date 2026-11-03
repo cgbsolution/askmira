@@ -90,7 +90,7 @@ export function NominateDialog({
         </DialogHeader>
         <div className="grid gap-4">
           <FormField htmlFor="nominee" label="Who">
-            <EmployeePicker id="nominee" value={nominee} onChange={setNominee} excludeId={user?.employee_id} />
+            <EmployeePicker id="nominee" value={nominee} onChange={setNominee} excludeId={user?.employee_id} colleagues />
           </FormField>
           <FormField htmlFor="nomination-category" label="Category" hint={chosen?.description ?? undefined}>
             <Select value={category} onValueChange={setCategory}>

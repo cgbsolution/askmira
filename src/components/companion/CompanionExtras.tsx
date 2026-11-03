@@ -20,6 +20,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   type ChartConfig,
   ChartContainer,
@@ -309,6 +310,31 @@ export function CompanionProposalCard({
             </div>
           ))}
         </dl>
+      ) : null}
+      {card.table && card.table.rows.length > 0 ? (
+        <div className="overflow-x-auto rounded-md border">
+          {/* table-ok: a few rows inside an offer, read-only, not a list screen */}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {card.table.columns.map((column) => (
+                  <TableHead key={column}>{column}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {card.table.rows.map((row, index) => (
+                <TableRow key={index}>
+                  {row.map((cell, cellIndex) => (
+                    <TableCell key={cellIndex} className="whitespace-nowrap tabular-nums">
+                      {cell === null || cell === "" ? "—" : String(cell)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       ) : null}
       {card.notes.filter(Boolean).length > 0 ? (
         <ul className="grid gap-1 text-xs leading-5 text-muted-foreground">

@@ -42,6 +42,9 @@ import type {
   Turn,
 } from "./types";
 
+/** How long the screen waits for a turn or a confirmation (the server stops at 75 s). */
+const TURN_TIMEOUT_MS = 150_000;
+
 /**
  * Ask Mira — the workspace's AI companion, one conversation at a time.
  *
@@ -298,6 +301,9 @@ function Thread({
     try {
       const decision = await post<OfferDecision>(
         `/companion/actions/${card.action_id}/${confirm ? "confirm" : "cancel"}`,
+        undefined,
+        // An order win opens several positions and writes the P&L: give it time.
+        { timeout: TURN_TIMEOUT_MS },
       );
       onDecided(decision);
       if (decision.action.status === "done") toast.success(decision.message.text || "Done.");
@@ -309,6 +315,9 @@ function Thread({
     }
   };
   const endRef = useRef<HTMLDivElement>(null);
+  // The id of a send that got no answer: sending the same words again reuses it,
+  // so the server returns the first answer instead of running the turn twice.
+  const unanswered = useRef<{ text: string; ref: string } | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -320,12 +329,22 @@ function Thread({
     if (!text || pending) return;
     if (!picked) setDraft("");
     setPending(text);
+    const ref = unanswered.current?.text === text ? unanswered.current.ref : crypto.randomUUID();
+    unanswered.current = { text, ref };
     try {
-      const turn = await post<Turn>("/companion/messages", {
-        text,
-        conversation_id: conversationId,
-        ...(picked ? { pick: { tool: picked.tool, inputs: picked.inputs } } : {}),
-      });
+      const turn = await post<Turn>(
+        "/companion/messages",
+        {
+          text,
+          conversation_id: conversationId,
+          // A retry of this same send gets the first answer back, never a second turn.
+          client_ref: ref,
+          ...(picked ? { pick: { tool: picked.tool, inputs: picked.inputs } } : {}),
+        },
+        // A turn may take several lookups (the server allows 75 s): wait for it.
+        { timeout: TURN_TIMEOUT_MS },
+      );
+      unanswered.current = null;
       onTurn(turn);
     } catch (caught) {
       if (!picked) setDraft(text);

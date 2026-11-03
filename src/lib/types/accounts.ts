@@ -120,3 +120,36 @@ export interface AccountImport {
   skipped: number;
   saved: number;
 }
+
+/** A prospective P&L: what a won order is expected to bill and cost, month by month. */
+export interface AccountForecastMonth {
+  month: string;
+  billing: string;
+  people_cost: string;
+  recruitment: string;
+  other_cost: string;
+  cost: string;
+  margin: string;
+}
+
+export interface AccountForecast {
+  id: string;
+  account_id: string;
+  account_code: string;
+  account_name: string;
+  title: string;
+  reference: string;
+  /** "order_win" (booked from Ask Mira) or "manual". */
+  source: string;
+  status: "active" | "withdrawn";
+  start_month: string;
+  months: number;
+  order_value: string | null;
+  billing: string;
+  cost: string;
+  margin: string;
+  margin_pct: string | null;
+  by_month: AccountForecastMonth[];
+  lines: { kind: string; label: string; total: string }[];
+  created_at: string | null;
+}

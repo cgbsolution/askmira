@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Building2, FolderKanban, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { PageShell } from "@/components/common/PageShell";
@@ -48,8 +48,14 @@ const NO_PROJECT = "none";
 const CURRENT = "current";
 
 /**
- * The company directory. Every colleague may browse it; it carries names,
- * titles, departments and work email — nothing personal.
+ * The company directory for HR; for everybody else, their own team.
+ *
+ * The API decides who is in it: HR gets the whole company, anybody else only
+ * their circle — their manager, the colleagues who share that manager, and
+ * the people who report to them — never somebody who has left. So outside HR
+ * the page is "My team", without the company-wide filters or the export.
+ * Picking any other colleague (to thank, nominate, ask for feedback) is a name
+ * search on that screen, not a browse of this one.
  *
  * The header search lands here as `?search=`, and the filters stay in the URL
  * so a filtered view can be shared.
@@ -79,20 +85,38 @@ export function DirectoryView() {
   const status = params.get("status") ?? NONE;
   const page = Math.max(1, Number(params.get("page") ?? "1") || 1);
 
-  // The header search changes the URL while this page is open.
+  // The search as typed. The address bar catches up with it a round trip
+  // later (seconds on a slow line), so `written` keeps what this page put
+  // there and has not seen come back yet: when it does come back it is not
+  // news, and taking it into the box would wipe out letters typed since.
+  const wanted = useRef(params.get("search") ?? "");
+  const written = useRef<string[]>([]);
+
+  // The header search, or Back, changes the URL while this page is open.
   useEffect(() => {
     const incoming = params.get("search") ?? "";
+    const mine = written.current.indexOf(incoming);
+    if (mine >= 0) {
+      written.current.splice(0, mine + 1);
+      return;
+    }
+    if (incoming === wanted.current) return;
+    wanted.current = incoming;
+    written.current = [];
     setTerm(incoming);
     setDebounced(incoming);
   }, [params]);
 
   const update = (changes: Record<string, string | null>) => {
     const next = new URLSearchParams(params.toString());
-    Object.entries(changes).forEach(([key, value]) => {
+    // Start from the search as typed, not the one the address bar last caught up with.
+    Object.entries({ search: wanted.current || null, ...changes }).forEach(([key, value]) => {
       if (value === null || value === "" || value === NONE) next.delete(key);
       else next.set(key, value);
     });
     if (!("page" in changes)) next.delete("page");
+    wanted.current = next.get("search") ?? "";
+    written.current.push(wanted.current);
     router.replace(`/people${next.toString() ? `?${next}` : ""}`);
   };
 
@@ -163,7 +187,7 @@ export function DirectoryView() {
     return everyone;
   };
 
-  const columns: ColumnDef<DirectoryRow>[] = [
+  const allColumns: ColumnDef<DirectoryRow>[] = [
     {
       id: "employee",
       header: "Employee",
@@ -217,17 +241,25 @@ export function DirectoryView() {
       cell: ({ row }) => <EmploymentStatusBadge status={row.original.status} />,
     },
   ];
+  // Outside HR everyone listed is still working here, so a status says nothing.
+  const columns = isHr
+    ? allColumns
+    : allColumns.filter((column) => !("accessorKey" in column && column.accessorKey === "status"));
 
   return (
     <PageShell
-      title="Employees"
-      description="Everyone in the company — names, roles, companies, projects, departments and work contacts."
+      title={isHr ? "Employees" : "My team"}
+      description={
+        isHr
+          ? "Everyone in the company — names, roles, companies, projects, departments and work contacts."
+          : "Your manager, the colleagues who share your manager, and anyone who reports to you."
+      }
     >
       <DataTable
         columns={columns}
         data={rows}
         noun="people"
-        exportName="directory"
+        exportName={isHr ? "directory" : false}
         onExport={
           isHr
             ? (selected) => setExporting({ ids: selected ? selected.map((person) => person.id) : null })
@@ -237,15 +269,25 @@ export function DirectoryView() {
         error={error?.detail}
         onRetry={reload}
         filtered={filtered}
-        empty={{
-          icon: Users,
-          title: "No employees yet",
-          description: "People appear here once HR adds them under Onboarding → Add employees.",
-        }}
+        empty={
+          isHr
+            ? {
+                icon: Users,
+                title: "No employees yet",
+                description: "People appear here once HR adds them under Onboarding → Add employees.",
+              }
+            : {
+                icon: Users,
+                title: "No team to show yet",
+                description: "Your manager and teammates appear here once HR records who you report to.",
+              }
+        }
         emptyMessage="No one matches these filters. Try a different name, or clear a filter."
         searchPlaceholder="Name, code, email or title"
         search={term}
         onSearchChange={setTerm}
+        // Five filters fill a row; the search leads it rather than sitting alone below.
+        searchFirst
         bulkActions={
           isHr
             ? (selected, clear) => (
@@ -261,80 +303,82 @@ export function DirectoryView() {
             : undefined
         }
         filters={
-          <>
-            {org.entities.length > 0 && (
-              <Select value={company} onValueChange={(v) => update({ company: v })}>
-                <SelectTrigger aria-label="Company" className="h-9 w-48">
-                  <SelectValue placeholder="Company" />
+          isHr && (
+            <>
+              {org.entities.length > 0 && (
+                <Select value={company} onValueChange={(v) => update({ company: v })}>
+                  <SelectTrigger aria-label="Company" className="h-9 w-48">
+                    <SelectValue placeholder="Company" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>All companies</SelectItem>
+                    {org.entities.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={NO_COMPANY}>No company</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              {org.projects.length > 0 && (
+                <Select value={project} onValueChange={(v) => update({ project: v })}>
+                  <SelectTrigger aria-label="Project" className="h-9 w-48">
+                    <SelectValue placeholder="Project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>All projects</SelectItem>
+                    {org.projects.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={NO_PROJECT}>No project</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              <Select value={department} onValueChange={(v) => update({ department: v })}>
+                <SelectTrigger aria-label="Department" className="h-9 w-44">
+                  <SelectValue placeholder="Department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>All companies</SelectItem>
-                  {org.entities.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.name}
+                  <SelectItem value={NONE}>All departments</SelectItem>
+                  {org.departments.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
                     </SelectItem>
                   ))}
-                  <SelectItem value={NO_COMPANY}>No company</SelectItem>
                 </SelectContent>
               </Select>
-            )}
-            {org.projects.length > 0 && (
-              <Select value={project} onValueChange={(v) => update({ project: v })}>
-                <SelectTrigger aria-label="Project" className="h-9 w-48">
-                  <SelectValue placeholder="Project" />
+              <Select value={location} onValueChange={(v) => update({ location: v })}>
+                <SelectTrigger aria-label="Location" className="h-9 w-44">
+                  <SelectValue placeholder="Location" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE}>All projects</SelectItem>
-                  {org.projects.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
+                  <SelectItem value={NONE}>All locations</SelectItem>
+                  {org.locations.map((l) => (
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.name}
                     </SelectItem>
                   ))}
-                  <SelectItem value={NO_PROJECT}>No project</SelectItem>
                 </SelectContent>
               </Select>
-            )}
-            <Select value={department} onValueChange={(v) => update({ department: v })}>
-              <SelectTrigger aria-label="Department" className="h-9 w-44">
-                <SelectValue placeholder="Department" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>All departments</SelectItem>
-                {org.departments.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={location} onValueChange={(v) => update({ location: v })}>
-              <SelectTrigger aria-label="Location" className="h-9 w-44">
-                <SelectValue placeholder="Location" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>All locations</SelectItem>
-                {org.locations.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>
-                    {l.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={status} onValueChange={(v) => update({ status: v })}>
-              <SelectTrigger aria-label="Status" className="h-9 w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE}>Any status</SelectItem>
-                <SelectItem value={CURRENT}>Current staff</SelectItem>
-                {(Object.keys(EMPLOYMENT_STATUS) as EmploymentStatus[]).map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {EMPLOYMENT_STATUS[key].label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </>
+              <Select value={status} onValueChange={(v) => update({ status: v })}>
+                <SelectTrigger aria-label="Status" className="h-9 w-40">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>Any status</SelectItem>
+                  <SelectItem value={CURRENT}>Current staff</SelectItem>
+                  {(Object.keys(EMPLOYMENT_STATUS) as EmploymentStatus[]).map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {EMPLOYMENT_STATUS[key].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          )
         }
         server={{
           page,

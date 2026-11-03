@@ -6,14 +6,25 @@ const MANAGERS = ["admin", "sub_admin", "manager"] as const;
 /** Guides for the "Company" pages: people, culture, rewards, performance, hiring. */
 export const COMPANY_GUIDES: Record<string, PageGuide> = {
   "/people": {
-    summary: "Everyone in the company: names, roles, companies, departments and work contacts.",
+    summary:
+      "For HR, everyone in the company. For everyone else, My team: your manager, the colleagues who share your manager, and anyone who reports to you.",
     tasks: [
       {
         title: "Find a colleague",
+        roles: [...HR],
         steps: [
           "Type a name, employee code or email in the search box (or press Ctrl K from anywhere).",
           "Filter by company, project, department or location if the list is long.",
           "Open a person to see their profile.",
+        ],
+      },
+      {
+        title: "See your team",
+        roles: ["employee", "manager"],
+        steps: [
+          "My team lists your manager, the colleagues who share your manager, and anyone who reports to you. People who have left are not listed.",
+          "Open a person to see their work details. Records of people outside your team are not shown.",
+          "To thank, nominate or ask feedback from anyone else in your company, type their name where you do it.",
         ],
       },
       {
@@ -121,7 +132,8 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/people/org-chart": {
-    summary: "Who reports to whom and, for HR and managers, every approved seat including vacant ones.",
+    summary:
+      "Who reports to whom: the whole company for HR; for everyone else, their manager, their team and anyone who reports to them. HR and managers also see every approved seat, including vacant ones.",
     tasks: [
       {
         title: "Explore the reporting lines",

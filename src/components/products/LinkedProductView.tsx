@@ -20,7 +20,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { HR, roleAllows } from "@/lib/access";
 
-type Product = "expense" | "interview" | "helpdesk";
+type Product = "expense" | "interview" | "helpdesk" | "saleinx" | "procurement";
 
 interface ViewConfig {
   title: string;
@@ -39,6 +39,8 @@ const BRAND: Record<Product, string> = {
   expense: "ExpenseGenie",
   interview: "AnytimeHire",
   helpdesk: "CGB Helpdesk",
+  saleinx: "Saleinx",
+  procurement: "ProcureFlow",
 };
 
 const TICKET_STATUSES = ["new", "open", "in_progress", "hold", "closed"];
@@ -142,6 +144,52 @@ const VIEWS: Record<Product, Record<string, ViewConfig>> = {
         "Assets in CGB Helpdesk and who holds each: every organization it serves for its IT team, your own company's for HR.",
       statuses: ["in_use", "spare", "retired"],
       search: "Asset code, type, model or organization",
+    },
+  },
+  saleinx: {
+    deals: {
+      title: "Deals",
+      description:
+        "Leads and deals in Saleinx you can see there: a rep sees their own and unassigned ones, a manager the team's. Ask Mira can add leads and move deals for you.",
+      search: "Deal or company",
+    },
+    pipeline: {
+      title: "Pipeline",
+      description: "Your deals in Saleinx by stage, and their value.",
+    },
+    approvals: {
+      title: "Won, to approve",
+      description: "Deals marked Won by reps, waiting for a manager's approval in Saleinx.",
+      search: "Deal or company",
+    },
+  },
+  procurement: {
+    overview: {
+      title: "Procurement overview",
+      description: "What ProcureFlow shows you: approvals waiting on you, your requisitions, and orders and invoices if your role there sees them.",
+    },
+    approvals: {
+      title: "Waiting for me",
+      description: "Requisitions, purchase orders, invoices and payment runs waiting on your approval in ProcureFlow. Ask Mira can approve or reject them for you.",
+    },
+    requisitions: {
+      title: "Requisitions",
+      description: "Your purchase requisitions in ProcureFlow.",
+      search: "Number or title",
+    },
+    orders: {
+      title: "Purchase orders",
+      description: "Purchase orders in ProcureFlow, for people whose role there reads them.",
+      search: "Number or vendor",
+    },
+    invoices: {
+      title: "Invoices",
+      description: "Vendor invoices in ProcureFlow, for people whose role there reads them.",
+      search: "Number or vendor",
+    },
+    budgets: {
+      title: "Budgets",
+      description: "This period's budgets by cost centre in ProcureFlow: committed, spent and available.",
     },
   },
 };

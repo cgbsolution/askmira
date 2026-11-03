@@ -15,9 +15,10 @@ const MAX_PEOPLE = 5000;
  * or on leave, and their reports floated to the top of the chart.
  *
  * A reporting-line chart needs the whole set to find the roots — somebody's
- * manager may be on page nine — so it cannot be drawn from one page. The
- * directory endpoint is readable by every role, which is why the people chart
- * works for employees while the positions chart (HR and managers only) does not.
+ * manager may be on page nine — so it cannot be drawn from one page. HR gets
+ * the whole company; anybody else gets their own circle from the API (their
+ * manager, the colleagues who share that manager, and their reports), so the
+ * chart shows them their part of the company and nothing beyond it.
  */
 export function useWholeDirectory() {
   const [people, setPeople] = useState<EmployeeSummary[] | null>(null);

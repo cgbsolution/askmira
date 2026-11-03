@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FileText,
   GraduationCap,
+  Handshake,
   Heart,
   Inbox,
   Laptop,
@@ -19,6 +20,7 @@ import {
   Rocket,
   Settings,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
   Target,
   UserCircle2,
@@ -52,6 +54,12 @@ export const PLATFORM: Audience[] = ["super_admin"];
 
 export interface NavPage {
   name: string;
+  /**
+   * What the menu calls the page outside HR, where the API shows the person
+   * less of it: the directory is the whole company for HR, the person's own
+   * team for anybody else.
+   */
+  staffName?: string;
   path: string;
   roles: Audience[];
   /** Guarded but not listed in the section navigation (a create form, say). */
@@ -236,7 +244,7 @@ export const NAV: NavSection[] = [
     group: "main",
     module: "core_hr",
     pages: [
-      { name: "Directory", path: "/people", roles: EVERYONE },
+      { name: "Directory", staffName: "My team", path: "/people", roles: EVERYONE },
       { name: "Org chart", path: "/people/org-chart", roles: EVERYONE },
       { name: "Positions", path: "/people/positions", roles: HR },
       { name: "Lifecycle events", path: "/people/lifecycle", roles: HR },
@@ -334,6 +342,38 @@ export const NAV: NavSection[] = [
       { name: "Company claims", path: "/linked/expense/company", roles: HR },
       { name: "Totals", path: "/linked/expense/totals", roles: EVERYONE },
       { name: "Salary reimbursements", path: "/expenses/reimbursements", roles: EVERYONE, module: "payroll" },
+    ],
+  },
+  {
+    // Saleinx, the sales CRM: only while it is linked (no built-in pages).
+    key: "sales",
+    name: "Sales",
+    icon: Handshake,
+    group: "main",
+    product: "saleinx",
+    pages: [],
+    linkedPages: [
+      { name: "Deals", path: "/linked/saleinx/deals", roles: EVERYONE },
+      { name: "Pipeline", path: "/linked/saleinx/pipeline", roles: EVERYONE },
+      // Saleinx decides who approves a Won (its managers); it says so if not them.
+      { name: "Won, to approve", path: "/linked/saleinx/approvals", roles: EVERYONE },
+    ],
+  },
+  {
+    // ProcureFlow, procure-to-pay: only while it is linked (no built-in pages).
+    key: "procurement",
+    name: "Procurement",
+    icon: ShoppingCart,
+    group: "main",
+    product: "procurement",
+    pages: [],
+    linkedPages: [
+      { name: "Overview", path: "/linked/procurement/overview", roles: EVERYONE },
+      { name: "Waiting for me", path: "/linked/procurement/approvals", roles: EVERYONE },
+      { name: "Requisitions", path: "/linked/procurement/requisitions", roles: EVERYONE },
+      { name: "Purchase orders", path: "/linked/procurement/orders", roles: EVERYONE },
+      { name: "Invoices", path: "/linked/procurement/invoices", roles: EVERYONE },
+      { name: "Budgets", path: "/linked/procurement/budgets", roles: EVERYONE },
     ],
   },
   {
@@ -570,6 +610,9 @@ export const PRODUCTS: Record<ProductKey, { name: string; audience: Audience[] }
   interview: { name: "Interviews", audience: MANAGERS },
   expense: { name: "Expenses", audience: EVERYONE },
   helpdesk: { name: "Helpdesk", audience: EVERYONE },
+  // Who may use these is the product's own call (its members); the page asks it.
+  saleinx: { name: "Sales", audience: EVERYONE },
+  procurement: { name: "Procurement", audience: EVERYONE },
 };
 
 /** The linked product that has taken this section over, if any. */
@@ -621,13 +664,16 @@ export function visiblePages(
   if (!linked && !moduleEnabled(tenant, section.module)) return [];
   const pages = linked ? (section.linkedPages ?? []) : section.pages;
   const hasRecord = Boolean(user?.employee_id);
-  return pages.filter(
-    (page) =>
-      !page.hidden &&
-      (hasRecord || !page.self) &&
-      moduleEnabled(tenant, page.module) &&
-      roleAllows(user, page.roles),
-  );
+  const staff = !roleAllows(user, HR);
+  return pages
+    .filter(
+      (page) =>
+        !page.hidden &&
+        (hasRecord || !page.self) &&
+        moduleEnabled(tenant, page.module) &&
+        roleAllows(user, page.roles),
+    )
+    .map((page) => (staff && page.staffName ? { ...page, name: page.staffName } : page));
 }
 
 /**

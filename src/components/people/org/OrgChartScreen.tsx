@@ -47,7 +47,9 @@ interface SeatNode extends TreeNode {
  * Employees → Org chart.
  *
  * Two charts, because they answer different questions. Reporting lines — who
- * manages whom — comes from the directory and every role may see it. Positions
+ * manages whom — comes from the directory, so it is the whole company for HR
+ * and, for anybody else, their own circle: their manager, the colleagues who
+ * share that manager, and the people who report to them. Positions
  * — the approved seats, including the empty ones — comes from position
  * management, which only HR and managers may read; for everyone else that tab
  * is simply not offered, rather than offered and refused.
@@ -58,11 +60,19 @@ interface SeatNode extends TreeNode {
 export function OrgChartScreen() {
   const { hasRole } = useAuth();
   const canSeePositions = hasRole("admin", "sub_admin", "manager");
+  const isHr = hasRole("admin", "sub_admin");
+  const around = "Who reports to whom around you: your manager, your team and anyone who reports to you.";
 
   return (
     <PageShell
       title="Org chart"
-      description="Who reports to whom, and — for HR and managers — every approved seat, including the empty ones."
+      description={
+        isHr
+          ? "Who reports to whom across the company, and every approved seat, including the empty ones."
+          : canSeePositions
+            ? `${around} Positions shows the approved seats, including the empty ones.`
+            : around
+      }
     >
       {canSeePositions ? (
         <Tabs defaultValue="people">
@@ -278,7 +288,10 @@ interface PendingMove {
 }
 
 function PeopleChart() {
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
+  // Outside HR the chart is the person's own circle, so its top person's
+  // manager is simply not in it — not a reporting line that fails to resolve.
+  const wholeCompany = hasRole("admin", "sub_admin");
   const { people, error, isLoading, truncated, reload, replace, limit } = useWholeDirectory();
   const org = useOrgReference();
   const [view, setView] = useChartView();
@@ -449,12 +462,13 @@ function PeopleChart() {
           </AlertDescription>
         </Alert>
       )}
-      {(orphans > 0 || cycles > 0) && (
+      {((wholeCompany && orphans > 0) || cycles > 0) && (
         <Alert>
           <TriangleAlert />
           <AlertTitle>Some reporting lines do not resolve</AlertTitle>
           <AlertDescription>
-            {orphans > 0 &&
+            {wholeCompany &&
+              orphans > 0 &&
               `${orphans} ${orphans === 1 ? "person reports" : "people report"} to a manager who is not active in the directory, so they are shown at the top level. `}
             {cycles > 0 &&
               `${cycles} ${cycles === 1 ? "person is" : "people are"} in a loop where a manager reports to their own report; fix the manager on their profile.`}

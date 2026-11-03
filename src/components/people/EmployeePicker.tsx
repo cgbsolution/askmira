@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { get } from "@/lib/api";
-import type { Page } from "@/lib/types";
+import { COLLEAGUE_HINT, COLLEAGUE_MIN_CHARS, findColleagues } from "@/lib/colleagues";
+import type { Colleague, Page } from "@/lib/types";
 import type { DirectoryEmployee } from "@/lib/types/people";
 import { cn } from "@/lib/utils";
 
@@ -19,11 +20,19 @@ export interface PickedEmployee {
   label: string;
 }
 
+/** A row the picker can show: a directory entry, or a colleague found by name. */
+type PickerRow = Colleague & { work_email?: string };
+
 /**
  * Search the directory and pick one person.
  *
  * Built from Popover, Input and Button — the directory is paged on the server,
  * so the list is whatever the search returns, never the whole company.
+ *
+ * `colleagues` is for picking anybody in the company, not only the people the
+ * caller's directory shows (their manager, team and reports): someone to thank,
+ * nominate or swap a shift with. It searches by name from two letters and
+ * gets names and titles only.
  */
 export function EmployeePicker({
   id,
@@ -33,6 +42,7 @@ export function EmployeePicker({
   excludeId,
   disabled,
   allowClear = false,
+  colleagues = false,
 }: {
   id?: string;
   value: PickedEmployee | null;
@@ -41,24 +51,36 @@ export function EmployeePicker({
   excludeId?: string | null;
   disabled?: boolean;
   allowClear?: boolean;
+  colleagues?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState("");
-  const [rows, setRows] = useState<DirectoryEmployee[]>([]);
+  const [rows, setRows] = useState<PickerRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+
+  const tooShort = colleagues && term.trim().length < COLLEAGUE_MIN_CHARS;
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    if (tooShort) {
+      setRows([]);
+      setFailed(null);
+      setIsLoading(false);
+      return;
+    }
     const timer = setTimeout(() => {
       setIsLoading(true);
       const params = new URLSearchParams({ page: "1", page_size: "20" });
       if (term.trim()) params.set("search", term.trim());
-      get<Page<DirectoryEmployee>>(`/employees?${params}`)
-        .then((page) => {
+      const search: Promise<PickerRow[]> = colleagues
+        ? findColleagues(term)
+        : get<Page<DirectoryEmployee>>(`/employees?${params}`).then((page) => page.items);
+      search
+        .then((found) => {
           if (cancelled) return;
-          setRows(page.items.filter((row) => row.id !== excludeId));
+          setRows(found.filter((row) => row.id !== excludeId));
           setFailed(null);
         })
         .catch(() => !cancelled && setFailed("Could not search the directory."))
@@ -68,7 +90,7 @@ export function EmployeePicker({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [open, term, excludeId]);
+  }, [open, term, excludeId, colleagues, tooShort]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -95,7 +117,7 @@ export function EmployeePicker({
             autoFocus
             value={term}
             onChange={(event) => setTerm(event.target.value)}
-            placeholder="Name, code or email"
+            placeholder={colleagues ? "Name or employee code" : "Name, code or email"}
             className="pl-8"
             aria-label="Search people"
           />
@@ -105,6 +127,8 @@ export function EmployeePicker({
             <div className="flex items-center gap-2 p-3 text-sm text-muted-foreground">
               <Loader2 className="size-4 animate-spin" /> Searching…
             </div>
+          ) : tooShort ? (
+            <p className="p-3 text-sm text-muted-foreground">{COLLEAGUE_HINT}</p>
           ) : failed ? (
             <p className="p-3 text-sm text-destructive">{failed}</p>
           ) : rows.length === 0 ? (
@@ -143,7 +167,7 @@ export function EmployeePicker({
                         size="sm"
                         name={personName(row)}
                         photoUrl={row.photo_url}
-                        subtitle={`${row.employee_code} · ${row.designation ?? row.work_email}`}
+                        subtitle={[row.employee_code, row.designation ?? row.work_email].filter(Boolean).join(" · ")}
                       />
                       {value?.id === row.id && <Check className="text-primary" />}
                     </Button>

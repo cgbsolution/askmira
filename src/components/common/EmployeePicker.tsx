@@ -7,10 +7,19 @@ import { apiErrorMessage } from "@/components/payroll-ops/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { get } from "@/lib/api";
+import { COLLEAGUE_HINT, COLLEAGUE_MIN_CHARS, findColleagues } from "@/lib/colleagues";
 import type { EmployeeSummary, Page } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function employeeDisplayName(employee: EmployeeSummary): string {
+/** What the picker needs of a person: a directory entry and a colleague both have it. */
+type Pickable = Pick<
+  EmployeeSummary,
+  "id" | "employee_code" | "first_name" | "last_name" | "display_name" | "designation"
+>;
+
+export function employeeDisplayName(
+  employee: Pick<EmployeeSummary, "display_name" | "first_name" | "last_name">,
+): string {
   return (
     employee.display_name || [employee.first_name, employee.last_name].filter(Boolean).join(" ")
   );
@@ -20,37 +29,55 @@ export function employeeDisplayName(employee: EmployeeSummary): string {
  * Search employees and pick one. Which employees come back is the API's
  * decision; the caller's own record is left out, since nobody starts their
  * own exit here. Pass `excludeId={null}` to allow everyone.
+ *
+ * `colleagues` picks anybody in the company rather than somebody the caller's
+ * directory shows (their manager, team and reports) — a colleague to give or
+ * ask feedback. It searches by name from two letters and hands back a
+ * `Colleague`: names and titles, nothing from their record.
  */
-export function EmployeePicker({
+export function EmployeePicker<T extends Pickable = EmployeeSummary>({
   id,
   value,
   onChange,
   excludeId,
   invalid = false,
   disabled = false,
+  colleagues = false,
 }: {
   id: string;
-  value: EmployeeSummary | null;
-  onChange: (employee: EmployeeSummary | null) => void;
+  value: T | null;
+  onChange: (employee: T | null) => void;
   excludeId: string | null;
   invalid?: boolean;
   disabled?: boolean;
+  /** Search the whole company by name; keep the picked person as a `Colleague`. */
+  colleagues?: boolean;
 }) {
   const [search, setSearch] = useState("");
-  const [results, setResults] = useState<EmployeeSummary[]>([]);
+  const [results, setResults] = useState<T[]>([]);
+  const tooShort = colleagues && search.trim().length < COLLEAGUE_MIN_CHARS;
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (value) return;
     let cancelled = false;
+    if (tooShort) {
+      setResults([]);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     const timer = setTimeout(() => {
       const params = new URLSearchParams({ search: search.trim(), page_size: "20" });
-      get<Page<EmployeeSummary>>(`/employees?${params}`)
-        .then((page) => {
+      const found = colleagues
+        ? (findColleagues(search) as Promise<unknown[]> as Promise<T[]>)
+        : get<Page<T>>(`/employees?${params}`).then((page) => page.items);
+      found
+        .then((items) => {
           if (cancelled) return;
-          setResults(page.items.filter((employee) => employee.id !== excludeId));
+          setResults(items.filter((employee) => employee.id !== excludeId));
           setError(null);
         })
         .catch((caught) => {
@@ -66,7 +93,7 @@ export function EmployeePicker({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [search, excludeId, value]);
+  }, [search, excludeId, value, colleagues, tooShort]);
 
   if (value) {
     return (
@@ -102,7 +129,7 @@ export function EmployeePicker({
           value={search}
           disabled={disabled}
           aria-invalid={invalid}
-          placeholder="Search by name or employee code"
+          placeholder={colleagues ? "Type a name or employee code" : "Search by name or employee code"}
           className="pl-9"
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -117,6 +144,8 @@ export function EmployeePicker({
           <p className="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" /> Searching…
           </p>
+        ) : tooShort ? (
+          <p className="px-3 py-3 text-sm text-muted-foreground">{COLLEAGUE_HINT}</p>
         ) : error ? (
           <p className="px-3 py-3 text-sm text-destructive">{error}</p>
         ) : results.length === 0 ? (

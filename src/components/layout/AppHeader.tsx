@@ -59,7 +59,9 @@ export function AppHeader() {
   const quickAccess = useConnectorRail();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
-  const { tenant, company } = useAuth();
+  const { tenant, company, hasRole } = useAuth();
+  // Outside HR the directory is the person's own team, so that is what this searches.
+  const searchesCompany = hasRole(...HR);
   const [term, setTerm] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   // Resolved after mount: the platform is the viewer's, and guessing it during
@@ -111,6 +113,10 @@ export function AppHeader() {
           event.preventDefault();
           const query = term.trim();
           router.push(query ? `/people?search=${encodeURIComponent(query)}` : "/people");
+          // The directory's own search box takes the words from here, where they
+          // can be refined; kept here too, the two boxes would drift apart.
+          setTerm("");
+          searchRef.current?.blur();
         }}
       >
         <Search className="pointer-events-none absolute top-1/2 left-4 size-[18px] -translate-y-1/2 text-muted-foreground" />
@@ -120,7 +126,7 @@ export function AppHeader() {
           value={term}
           maxLength={100}
           onChange={(event) => setTerm(event.target.value)}
-          placeholder="Search people by name, code or email"
+          placeholder={searchesCompany ? "Search people by name, code or email" : "Search your team by name or code"}
           className="rounded-xl pr-16 pl-12 shadow-sm"
           aria-label={t("Search people")}
         />

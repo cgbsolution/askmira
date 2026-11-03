@@ -212,6 +212,7 @@ function Composer({ values, onPosted }: { values: CompanyValue[]; onPosted: () =
               onChange={setTo}
               excludeId={user?.employee_id}
               placeholder="Search for a colleague"
+              colleagues
             />
           </FormField>
           <FormField htmlFor="shoutout-value" label="Value it shows" optional>

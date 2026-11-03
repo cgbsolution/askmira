@@ -218,7 +218,7 @@ function AskSwapDialog({
         </DialogHeader>
         <div className="grid gap-4">
           <FormField htmlFor="swap-partner" label="Colleague">
-            <EmployeePicker id="swap-partner" value={partner} onChange={setPartner} excludeId={excludeId} placeholder="Choose a colleague" />
+            <EmployeePicker id="swap-partner" value={partner} onChange={setPartner} excludeId={excludeId} placeholder="Choose a colleague" colleagues />
           </FormField>
           <FormField htmlFor="swap-day" label="Day">
             <DatePicker id="swap-day" min={tomorrow} value={day} onChange={setDay} />

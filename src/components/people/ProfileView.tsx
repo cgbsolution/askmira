@@ -164,12 +164,19 @@ export function ProfileView({
     return shell(
       <Card tier="tier1">
         {record.error.status === 404 ? (
+          // Outside HR a record opens only for the person's own team, so a 404
+          // there usually means "not your team", not "nobody by that id".
           <EmptyState
             icon={UserRound}
-            title="This person is not in your workspace"
+            title={isHr ? "This person is not in your workspace" : "This person is not in your team"}
+            description={
+              isHr
+                ? undefined
+                : "You can open the records of your manager, the colleagues who share your manager, and anyone who reports to you."
+            }
             action={
               <Button variant="outline" asChild>
-                <Link href="/people">Back to the directory</Link>
+                <Link href="/people">{isHr ? "Back to the directory" : "Back to My team"}</Link>
               </Button>
             }
           />

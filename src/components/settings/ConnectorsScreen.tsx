@@ -58,9 +58,18 @@ export interface Connector {
   last_error: string | null;
 }
 
+/** Where each product's records show in AskMira, for the disconnect warning. */
+const SHOWN_IN: Record<ProductKey, string> = {
+  interview: "Hiring",
+  expense: "Expenses",
+  helpdesk: "Helpdesk and Assets",
+  saleinx: "Sales",
+  procurement: "Procurement",
+};
+
 /**
- * Settings → Connectors. The workspace's admin connects AnytimeHire,
- * ExpenseGenie and CGB Helpdesk: Connect opens the product, an admin of the organisation there
+ * Settings → Connectors. The workspace's admin connects AnytimeHire, ExpenseGenie,
+ * CGB Helpdesk, Saleinx and ProcureFlow: Connect opens the product, an admin of the organisation there
  * signs in and presses Allow, and the product issues a key for this workspace
  * alone. People are sent across at once and every night after.
  */
@@ -143,7 +152,7 @@ export function ConnectorsScreen() {
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
         title={`Disconnect ${removing?.brand ?? ""}?`}
-        description={`${removing?.brand ?? "The product"} forgets this workspace's key. Nobody can open it from AskMira, people stop being synced, and its records leave Expenses, Hiring and Ask Mira. Nothing is deleted on either side; you can connect again.`}
+        description={`${removing?.brand ?? "The product"} forgets this workspace's key. Nobody can open it from AskMira, people stop being synced, and its records leave ${removing ? SHOWN_IN[removing.key] : "AskMira's pages"} and Ask Mira. Nothing is deleted on either side; you can connect again.`}
         confirmLabel="Disconnect"
         destructive
         onConfirm={disconnect}

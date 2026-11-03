@@ -63,7 +63,7 @@ export interface CompanyBrand {
 }
 
 /** The separate products a workspace can be linked to. */
-export type ProductKey = "interview" | "expense" | "helpdesk";
+export type ProductKey = "interview" | "expense" | "helpdesk" | "saleinx" | "procurement";
 
 export interface AuthResponse {
   access_token: string;
@@ -97,6 +97,21 @@ export interface EmployeeSummary {
   dotted_line_manager_id?: string | null;
   photo_url: string | null;
   status: EmploymentStatus;
+}
+
+/**
+ * A colleague found by name to pick — to thank, nominate, ask for feedback or
+ * swap a shift with (`GET /employees/colleagues`). Names and titles only: outside
+ * HR nobody browses the company, so this is never somebody's record.
+ */
+export interface Colleague {
+  id: string;
+  employee_code: string;
+  first_name: string;
+  last_name: string | null;
+  display_name: string | null;
+  designation: string | null;
+  photo_url: string | null;
 }
 
 export interface DashboardSummary {

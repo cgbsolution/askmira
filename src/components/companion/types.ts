@@ -114,6 +114,8 @@ export interface CompanionProposal {
   expires_at: string;
   title: string;
   figures: { label: string; value: string }[];
+  /** A table on the offer: an order win's team with each role's rates. */
+  table?: { columns: string[]; rows: (string | number | null)[][] };
   notes: string[];
   confirm_label: string;
   question: string;

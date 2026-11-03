@@ -53,7 +53,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { HR, MANAGERS } from "@/lib/access";
 import { post } from "@/lib/api";
-import type { EmployeeSummary } from "@/lib/types";
+import type { Colleague } from "@/lib/types";
 import type {
   FeedbackCompetencyAggregate,
   FeedbackCompetencyAnswerInput,
@@ -936,7 +936,7 @@ function GivePrivateDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const [to, setTo] = useState<EmployeeSummary | null>(null);
+  const [to, setTo] = useState<Colleague | null>(null);
   const [kind, setKind] = useState<PrivateFeedbackKind>("appreciation");
   const [body, setBody] = useState("");
   const { busy, run } = useAction();
@@ -951,7 +951,7 @@ function GivePrivateDialog({
         </DialogHeader>
         <div className="grid gap-3">
           <FormField htmlFor="pf-to" label="To">
-            <EmployeePicker id="pf-to" value={to} onChange={setTo} excludeId={selfId} />
+            <EmployeePicker id="pf-to" value={to} onChange={setTo} excludeId={selfId} colleagues />
           </FormField>
           <FormField htmlFor="pf-kind" label="Kind">
             <Select value={kind} onValueChange={(v) => setKind(v as PrivateFeedbackKind)}>
@@ -1009,8 +1009,8 @@ function AskDialog({
   const cycles = useApiQuery<GoalCycleOption[]>("/goals/cycles");
   const [about, setAbout] = useState<string>(selfId ? "me" : "");
   const [subjectId, setSubjectId] = useState("");
-  const [picked, setPicked] = useState<EmployeeSummary | null>(null);
-  const [reviewers, setReviewers] = useState<EmployeeSummary[]>([]);
+  const [picked, setPicked] = useState<Colleague | null>(null);
+  const [reviewers, setReviewers] = useState<Colleague[]>([]);
   const [cycleId, setCycleId] = useState(NONE);
   const [due, setDue] = useState("");
   const [visibility, setVisibility] = useState<FeedbackVisibility>("anonymised");
@@ -1020,7 +1020,7 @@ function AskDialog({
   const today = toISODate(new Date());
   const valid = Boolean(subject) && reviewers.length > 0 && Boolean(due);
 
-  const add = (employee: EmployeeSummary | null) => {
+  const add = (employee: Colleague | null) => {
     if (!employee) return;
     if (employee.id === subject) return;
     setReviewers((current) =>
@@ -1065,7 +1065,7 @@ function AskDialog({
             hint="Search and pick one at a time."
           >
             {reviewers.length < MAX_REVIEWERS && (
-              <EmployeePicker id="ask-reviewer" value={picked} onChange={add} excludeId={subject ?? null} />
+              <EmployeePicker id="ask-reviewer" value={picked} onChange={add} excludeId={subject ?? null} colleagues />
             )}
           </FormField>
           {reviewers.length > 0 && (

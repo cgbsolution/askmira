@@ -142,6 +142,12 @@ export type DataTableProps<TData, TValue> = {
    */
   search?: string;
   onSearchChange?: (value: string) => void;
+  /**
+   * The search box before the filters rather than after them. For a screen
+   * with so many filters that they fill a row: the search then starts the
+   * toolbar instead of wrapping onto a line of its own.
+   */
+  searchFirst?: boolean;
   /** Row checkboxes. On for lists. */
   selectable?: boolean;
   /** Actions on the ticked rows, in the bar that appears once any are ticked. */
@@ -168,6 +174,12 @@ export type DataTableProps<TData, TValue> = {
 };
 
 const SELECT_COLUMN = "__select";
+/**
+ * Filter dropdowns in a toolbar stand as tall as its search box and buttons.
+ * Screens give them `h-9`, but the trigger's own form height (44px, for forms)
+ * outranked that class, so the dropdowns stood taller than the row beside them.
+ */
+const TOOLBAR_SELECTS = "[&_[data-slot=select-trigger][data-size=default]]:h-9";
 const INTERACTIVE = "button, a, input, select, textarea, label, [role=checkbox], [role=menuitem], [role=switch], [role=combobox]";
 
 function defaultRowId<TData>(row: TData, index: number): string {
@@ -283,6 +295,7 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = "Search…",
   search: externalSearch,
   onSearchChange,
+  searchFirst = false,
   selectable: selectableProp = true,
   bulkActions,
   exportName,
@@ -757,9 +770,10 @@ export function DataTable<TData, TValue>({
             {description !== undefined && <CardDescription>{translated(description)}</CardDescription>}
           </div>
           {hasTools && (
-            <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
+            <div className={cn("flex max-w-full flex-wrap items-center justify-end gap-2", TOOLBAR_SELECTS)}>
+              {searchFirst && searchBox}
               {filters}
-              {searchBox}
+              {!searchFirst && searchBox}
               {tools}
               {actions}
             </div>
@@ -783,9 +797,10 @@ export function DataTable<TData, TValue>({
       )}
     >
       {hasToolbar && (
-        <div className={cn("flex flex-wrap items-center gap-2 border-b border-border py-3", edge)}>
+        <div className={cn("flex flex-wrap items-center gap-2 border-b border-border py-3", TOOLBAR_SELECTS, edge)}>
+          {searchFirst && searchBox}
           {filters}
-          {searchBox}
+          {!searchFirst && searchBox}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {tools}
             {actions}

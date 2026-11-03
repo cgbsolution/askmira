@@ -16,6 +16,7 @@ import { Money } from "@/components/common/Money";
 import { MonthPicker } from "@/components/common/MonthPicker";
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { CompanionChart } from "@/components/companion/CompanionExtras";
+import { ForecastTab } from "@/components/payroll/accounts/ForecastTab";
 import { apiMessage } from "@/components/payroll/labels";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -55,8 +56,9 @@ import { cn, formatDate } from "@/lib/utils";
  * Client accounts and their P&L: what was billed to each account against the
  * payroll cost mapped to it and its other direct costs.
  *
- * Four tabs: the P&L itself; the accounts; billing and costs (typed or
- * uploaded); and which people work on which account, from when. Every figure
+ * Five tabs: the P&L itself; the accounts; billing and costs (typed or
+ * uploaded); which people work on which account, from when; and the
+ * prospective P&L that won orders are expected to make (ForecastTab). Every figure
  * on the P&L is worked out by AskMira from those three and from payroll's own
  * payslips — nothing here is typed as a result.
  */
@@ -124,6 +126,7 @@ export function AccountsScreen() {
         <TabsTrigger value="accounts">Accounts</TabsTrigger>
         <TabsTrigger value="entries">Billing &amp; costs</TabsTrigger>
         <TabsTrigger value="people">People on accounts</TabsTrigger>
+        <TabsTrigger value="forecast">Prospective P&amp;L</TabsTrigger>
       </TabsList>
       <TabsContent value="pnl">
         <PnlTab accounts={accounts.data ?? []} initialAccount={params.get("account")} />
@@ -141,6 +144,9 @@ export function AccountsScreen() {
       </TabsContent>
       <TabsContent value="people">
         <PeopleTab accounts={accounts.data ?? []} onChanged={accounts.reload} />
+      </TabsContent>
+      <TabsContent value="forecast">
+        <ForecastTab />
       </TabsContent>
     </Tabs>
   );

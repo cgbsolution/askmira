@@ -368,7 +368,7 @@ function AwardDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (ope
           <>
             <div className="grid gap-4">
               <FormField htmlFor="award-person" label="Who">
-                <EmployeePicker id="award-person" value={person} onChange={setPerson} excludeId={user?.employee_id} />
+                <EmployeePicker id="award-person" value={person} onChange={setPerson} excludeId={user?.employee_id} colleagues />
               </FormField>
               <FormField htmlFor="award-points" label="Points">
                 <Input id="award-points" inputMode="numeric" value={points} onChange={(e) => setPoints(e.target.value.replace(/\D/g, ""))} />
