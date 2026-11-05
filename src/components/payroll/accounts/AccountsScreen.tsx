@@ -51,6 +51,7 @@ import type {
   ClientAccount,
 } from "@/lib/types/accounts";
 import { cn, formatDate } from "@/lib/utils";
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 
 /**
  * Client accounts and their P&L: what was billed to each account against the
@@ -972,6 +973,7 @@ function UploadDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
   const [checked, setChecked] = useState<AccountImport | null>(null);
   const [busy, setBusy] = useState<"check" | "save" | "template" | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const limit = useUploadLimit();
 
   useEffect(() => {
     if (!open) {
@@ -1031,7 +1033,7 @@ function UploadDialog({ open, onClose, onSaved }: { open: boolean; onClose: () =
           >
             <Download /> Download template
           </Button>
-          <FormField htmlFor="entries-file" label="Filled sheet (.xlsx or .csv, up to 5 MB)" required>
+          <FormField htmlFor="entries-file" label={`Filled sheet (.xlsx or .csv, up to ${limit.label})`} required>
             <FileInput
               id="entries-file"
               accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"

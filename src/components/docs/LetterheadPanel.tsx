@@ -27,8 +27,8 @@ import {
   type LetterheadSettings,
 } from "@/lib/types/docs";
 import { cn } from "@/lib/utils";
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 
-const IMAGE_MAX_BYTES = 1024 * 1024;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const DESIGNS: { value: LetterheadDesign; label: string; hint: string }[] = [
@@ -108,6 +108,7 @@ function useStoredImage(path: string | null, version: number) {
 export function LetterheadPanel() {
   const { hasRole } = useAuth();
   const canEdit = hasRole("admin");
+  const limit = useUploadLimit();
   const { data, error, isLoading, reload } = useApiQuery<Letterhead>("/letterhead");
   const [values, setValues] = useState<LetterheadSettings | null>(null);
   const [imageVersion, setImageVersion] = useState(0);
@@ -181,10 +182,7 @@ export function LetterheadPanel() {
       toast.error(`The ${kind} has to be a PNG or JPEG image.`);
       return;
     }
-    if (file.size > IMAGE_MAX_BYTES) {
-      toast.error(`The ${kind} is larger than 1 MB. Use a smaller image.`);
-      return;
-    }
+    // The size was checked as the file was picked (the workspace's upload limit).
     setBusyImage(kind);
     try {
       const form = new FormData();
@@ -316,7 +314,8 @@ export function LetterheadPanel() {
                     : data?.has_workspace_logo
                       ? "Using the workspace logo. Upload one to use a different logo on letters."
                       : "No logo yet: the company name is printed instead."}{" "}
-                PNG or JPEG, up to 1 MB. A wide logo on a white or clear background prints best.
+                PNG or JPEG, up to {limit.label}; a large image is scaled down to print size. A wide logo
+                on a white or clear background prints best.
               </p>
               <div className="flex shrink-0 gap-2">
                 <HiddenFileInput
@@ -469,7 +468,7 @@ export function LetterheadPanel() {
                 )}
               </div>
               <p className="min-w-0 flex-1 text-xs text-muted-foreground">
-                A scan of the signature on white, PNG or JPEG, up to 1 MB. Letters already issued keep
+                A scan of the signature on white, PNG or JPEG, up to {limit.label}. Letters already issued keep
                 the signature they were printed with.
               </p>
               <div className="flex shrink-0 gap-2">

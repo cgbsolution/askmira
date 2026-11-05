@@ -19,6 +19,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
+import { useProductRoles } from "@/hooks/useProductRoles";
 import { QUICK_ACCESS, railEntry, resolvePage, sectionByKey } from "@/lib/access";
 import { useT } from "@/lib/i18n";
 
@@ -73,6 +74,7 @@ export function useConnectorRail(): RailControls {
 export function ConnectorSidebar() {
   const t = useT();
   const { user, tenant } = useAuth();
+  const productRoles = useProductRoles();
   const { isMobile, open, setOpen, setOpenMobile, toggleSidebar } = useSidebar();
   const pathname = usePathname();
 
@@ -92,10 +94,10 @@ export function ConnectorSidebar() {
     () =>
       QUICK_ACCESS.flatMap((key) => {
         const section = sectionByKey(key);
-        const entry = section && railEntry(section, user, tenant);
+        const entry = section && railEntry(section, user, tenant, productRoles);
         return entry ? [entry] : [];
       }),
-    [user, tenant],
+    [user, tenant, productRoles],
   );
 
   const fold = useCallback(() => {

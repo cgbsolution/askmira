@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Loader2, Pencil, Send, Users } from "lucide-react";
+import { ExternalLink, FileText, Loader2, Pencil, RefreshCw, Send, Users } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -35,6 +35,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { HR, MANAGERS } from "@/lib/access";
 import { ApiError, post } from "@/lib/api";
@@ -64,6 +65,66 @@ function experience(min: number | null, max: number | null): string {
 }
 
 /**
+ * Where an approved requisition stands in the linked interview tool: opened
+ * there (with a link to its candidates), or the tool's reason it could not be,
+ * with a button to try again.
+ */
+function LinkedJob({ detail, onOpened }: { detail: RequisitionDetail; onOpened: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const open = async () => {
+    setBusy(true);
+    try {
+      const result = await post<{ opened: boolean; ref?: string; error?: string }>(
+        `/hiring/requisitions/${detail.id}/open-linked-job`,
+      );
+      if (result.opened) toast.success(`${detail.code} is open in AnytimeHire.`);
+      else toast.error(result.error ?? "AnytimeHire could not open it.");
+      onOpened();
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.detail : "AnytimeHire could not be reached.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (detail.linked_job_ref) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">Open in AnytimeHire</p>
+          <p className="text-xs text-muted-foreground">
+            {detail.linked_job_at ? `Opened ${formatDateTime(detail.linked_job_at)}. ` : ""}
+            Candidates and interviews are handled there.
+          </p>
+        </div>
+        <Button size="sm" variant="outline" asChild>
+          <Link href={`/launch/interview?to=/job-openings/${encodeURIComponent(detail.linked_job_ref)}/candidates`}>
+            <ExternalLink /> Candidates in AnytimeHire
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <Alert>
+      <AlertDescription className="space-y-2">
+        <p>
+          {detail.linked_job_error
+            ? `Not opened in AnytimeHire yet: ${detail.linked_job_error}`
+            : "Not opened in AnytimeHire yet."}
+        </p>
+        <RequireRole roles={MANAGERS}>
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => void open()}>
+            {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+            Open in AnytimeHire
+          </Button>
+        </RequireRole>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/**
  * One requisition in a side sheet: budget flags first, then the facts, the
  * approval chain and whichever actions the API says the viewer may take.
  */
@@ -83,6 +144,9 @@ export function RequisitionSheet({
   const [editOpen, setEditOpen] = useState(false);
   const [statusTarget, setStatusTarget] = useState<RequisitionStatusTarget | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { tenant } = useAuth();
+  // With AnytimeHire linked, recruiting happens there: the approved job opens in it.
+  const hireLinked = Boolean(tenant?.linked_products?.interview);
 
   const refresh = (next?: RequisitionDetail) => {
     if (next) setData(next);
@@ -140,13 +204,19 @@ export function RequisitionSheet({
               Submit for approval
             </Button>
           )}
-          <Button size="sm" variant="outline" asChild>
-            <Link href={`/hiring/candidates?requisition_id=${detail.id}`}>
-              <Users /> View candidates
-              <span className="tabular-nums text-muted-foreground">({detail.candidate_count})</span>
-            </Link>
-          </Button>
+          {!hireLinked && (
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/hiring/candidates?requisition_id=${detail.id}`}>
+                <Users /> View candidates
+                <span className="tabular-nums text-muted-foreground">({detail.candidate_count})</span>
+              </Link>
+            </Button>
+          )}
         </div>
+
+        {hireLinked && detail.status === "open" && (
+          <LinkedJob detail={detail} onOpened={() => refresh()} />
+        )}
 
         {detail.can_decide ? (
           <div className="space-y-2 rounded-lg border border-border p-3">

@@ -499,6 +499,142 @@ export interface SalaryStructure {
   rounding_mode: RoundingMode;
   rounding_precision: number;
   active: boolean;
+  /** Built on Payroll → Salary structures as a CTC template. */
+  is_template?: boolean;
+}
+
+// ── Salary structure templates ──────────────────────────────────────────────
+// Rules travel as strings both ways ("4.81" stays "4.81"); the browser never
+// does the arithmetic, the server's calculator does.
+
+export type TemplateMethod = "percent" | "fixed" | "balance" | "slab";
+
+export interface TemplateSlab {
+  /** The slab covers a monthly figure up to this; null on the last slab. */
+  up_to: string | null;
+  /** Null only while being typed: the server then says which box to fill. */
+  amount: string | null;
+}
+
+export interface TemplateCondition {
+  /** CTC, GROSS, PF_WAGES, ESI_WAGES or a wage type's code. */
+  on: string;
+  op: "up_to" | "above";
+  amount: string | null;
+}
+
+export interface TemplateRule {
+  method: TemplateMethod;
+  value?: string | null;
+  of?: string | null;
+  basis?: "monthly" | "annual";
+  ceiling?: string | null;
+  when?: TemplateCondition | null;
+  slabs?: TemplateSlab[];
+  rounding?: "nearest" | "up" | "down";
+}
+
+export interface SalaryTemplateLine {
+  component_code: string;
+  component_name: string;
+  component_type: ComponentType;
+  wage_group: WageGroup;
+  part_of_ctc: boolean;
+  active: boolean;
+  rule: TemplateRule;
+  rule_text: string;
+}
+
+export interface SalaryTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  rounding_precision: number;
+  active: boolean;
+  /** False: a structure of the earlier kind, shown as rules; saving converts it. */
+  is_template: boolean;
+  lines: SalaryTemplateLine[];
+  employer_pf: TemplateRule | null;
+  employer_pf_text: string | null;
+  employer_esi: TemplateRule | null;
+  employer_esi_text: string | null;
+  notes: string[];
+  used_by: number;
+  updated_at: string | null;
+}
+
+export interface SalaryTemplateSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  active: boolean;
+  is_template: boolean;
+  line_count: number;
+  summary: string;
+  employer_in_ctc: string[];
+  used_by: number;
+  updated_at: string | null;
+}
+
+/** What "New structure" opens with. */
+export interface SalaryTemplateDraft {
+  name: string;
+  rounding_precision: number;
+  lines: { component_code: string; rule: TemplateRule }[];
+  employer_pf: TemplateRule | null;
+  employer_esi: TemplateRule | null;
+}
+
+export interface SalaryTemplateInput {
+  name: string;
+  description: string | null;
+  rounding_precision: 0 | 2;
+  lines: { component_code: string; rule: TemplateRule }[];
+  employer_pf: TemplateRule | null;
+  employer_esi: TemplateRule | null;
+}
+
+export interface TemplateCalcLine {
+  component_code: string;
+  component_name: string;
+  component_type: ComponentType;
+  wage_group: WageGroup;
+  part_of_ctc: boolean;
+  rule_text: string;
+  applied: boolean;
+  note: string | null;
+  monthly: string;
+  annual: string;
+  /** In the CTC's own basis: what the Salary master's box is filled with. */
+  amount: string;
+  basis: "annual" | "monthly";
+}
+
+export interface TemplateEmployerLine {
+  key: string;
+  name: string;
+  rule_text: string;
+  applied: boolean;
+  note: string | null;
+  monthly: string;
+  annual: string;
+}
+
+export interface TemplateCalc {
+  structure_id: string | null;
+  structure_name: string;
+  ctc_basis: string;
+  ctc_monthly: string;
+  ctc_annual: string;
+  lines: TemplateCalcLine[];
+  employer: TemplateEmployerLine[];
+  gross_monthly: string;
+  gross_annual: string;
+  employer_monthly: string;
+  allocated_monthly: string;
+  unallocated_monthly: string;
+  group_totals: SalaryGroupTotal[];
+  notes: string[];
 }
 
 export interface StructureComponentDetail {

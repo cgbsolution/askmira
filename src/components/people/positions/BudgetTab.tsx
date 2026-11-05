@@ -42,6 +42,7 @@ import type {
 } from "@/lib/types/people";
 
 import { NONE, apiMessage, currentFinancialYear, fromSelect } from "../labels";
+import { BudgetYearPanel } from "./BudgetYearPanel";
 import { useOrgReference } from "../useOrgReference";
 
 interface CostGap {
@@ -279,6 +280,8 @@ export function BudgetTab() {
           description: "Without one, positions are created without a budget check.",
         }}
       />
+
+      {(hasRole("admin") || hasRole("sub_admin")) && <BudgetYearPanel />}
 
       <DataTable
         title="Cost centres"

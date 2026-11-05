@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useApiQuery } from "@/hooks/useApiQuery";
 import { post } from "@/lib/api";
 import {
   REGULARISABLE_STATUSES,
@@ -132,6 +133,22 @@ export function AttendanceRequestDialog({
   }, [open, initialKind, initialDate, initialStatus, direct]);
 
   const isAdvance = kind === "on_duty" || kind === "work_from_home";
+  // Corrections an employee asks for are limited per month by the admin.
+  const isCorrection = kind === "missed_punch" || kind === "status_change";
+  const allowance = useApiQuery<{ month: string; limit: number | null; used: number; remaining: number | null }>(
+    open && isCorrection && !direct && date
+      ? `/attendance/corrections/allowance?on=${date}${employee ? `&employee_id=${employee.id}` : ""}`
+      : null,
+  );
+  // Only a count for the month asked about, never one still loading from before.
+  const allowanceData =
+    open && isCorrection && !direct && !allowance.isLoading && allowance.data?.month.slice(0, 7) === date.slice(0, 7)
+      ? allowance.data
+      : null;
+  const usedUp = allowanceData?.remaining === 0;
+  const monthWords = date
+    ? parseISODate(date).toLocaleDateString("en-IN", { month: "long", year: "numeric" })
+    : "";
   const maxDate = isAdvance ? addDays(today, MAX_ADVANCE_DAYS) : today;
   const reasonOk = reason.trim().length >= 3;
   const timesOk = kind !== "missed_punch" || Boolean(firstIn || lastOut);
@@ -351,6 +368,16 @@ export function AttendanceRequestDialog({
             />
           </FormField>
 
+          {allowanceData?.limit ? (
+            <Alert variant={usedUp ? "destructive" : "default"}>
+              <AlertDescription>
+                {usedUp
+                  ? `You have used all ${allowanceData.limit} correction requests for ${monthWords}. Ask HR to correct this day; on-duty and work-from-home are not limited.`
+                  : `${allowanceData.remaining} of ${allowanceData.limit} correction requests left for ${monthWords}. A withdrawn request gives its place back.`}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+
           {serverError && (
             <Alert variant="destructive">
               <AlertDescription>{serverError}</AlertDescription>
@@ -362,7 +389,7 @@ export function AttendanceRequestDialog({
           <Button variant="outline" disabled={isSubmitting} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button disabled={isSubmitting} onClick={() => void submit()}>
+          <Button disabled={isSubmitting || usedUp} onClick={() => void submit()}>
             {isSubmitting && <Loader2 className="animate-spin" />}
             {direct
               ? kind === "status_change"

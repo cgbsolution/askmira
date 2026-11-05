@@ -39,6 +39,13 @@ const GROUP_LABEL: Record<string, string> = {
   actions_attendance: "Attendance requests (on confirm)",
   actions_approvals: "Approve or reject requests (on confirm)",
   actions_helpdesk: "Raise HR tickets (on confirm)",
+  actions_it_helpdesk: "Raise and work IT tickets (on confirm)",
+  sales_data: "Sales (linked Saleinx)",
+  actions_sales: "Leads and deal stages in Saleinx (on confirm)",
+  actions_orders: "Book won orders (on confirm)",
+  procurement_data: "Procurement (linked ProcureFlow)",
+  actions_procurement: "Approve in ProcureFlow (on confirm)",
+  budgets: "Department headcount budgets",
 };
 
 /**

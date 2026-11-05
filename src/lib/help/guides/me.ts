@@ -282,7 +282,9 @@ export const ME_GUIDES: Record<string, PageGuide> = {
     ],
     tips: [
       "The Calendar shows each day's in and out times; use the arrows to change month, or Today to come back.",
-      "Late arrivals and half days are worked out from your shift's rules.",
+      "Late arrivals and half days are worked out from your shift's rules. Your company may make every few late marks in a month a half day; the day then says so.",
+      "Your company may limit how many corrections you can ask for in a month; the request form shows how many are left.",
+      "Each punch shows where it was made, with its street address and a Google Maps link.",
     ],
     related: [{ label: "Attendance review", href: "/time/attendance-review" }],
   },
@@ -292,7 +294,20 @@ export const ME_GUIDES: Record<string, PageGuide> = {
     tasks: [
       {
         title: "Check who is in today",
-        steps: ["Open Team today; press a count (In, Not in yet, Late, On leave, Remote) to see who. Refresh reloads it."],
+        steps: [
+          "Open Team today; press a count (In, Not in yet, Late, On leave, Remote) to see who. Refresh reloads it.",
+          "Narrow it with the Company, Project, Department and Location filters; Clear filters shows everyone again.",
+          "Last punch shows the time, the office (or how far from it), the street address and a Map link to Google Maps.",
+        ],
+      },
+      {
+        title: "Export attendance",
+        steps: [
+          "Press Export (or tick people first and press Export N selected).",
+          "Choose the period: one day, a week, a month or custom dates (up to 93 days).",
+          "Choose what to export: Punch in and out (with addresses and map links), Every punch, Day-wise attendance or Summary.",
+          "Choose Excel or CSV and press Download. The filters on the screen apply.",
+        ],
       },
       {
         title: "Decide correction requests",
@@ -390,6 +405,15 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         ],
       },
       {
+        title: "Set the late-mark and correction rules",
+        roles: ["admin"],
+        steps: [
+          "Open Late marks & corrections.",
+          "Choose how many late marks make a half day: every 2nd, 3rd, 4th… late mark in a month becomes a half day automatically, never the 1st. The count restarts each month.",
+          "Choose how many corrections a person may ask for per month, or No limit, and press Save.",
+        ],
+      },
+      {
         title: "Import punches or add a work location",
         steps: [
           "In Import punches, press Upload and import with a device's punch file.",
@@ -397,7 +421,10 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         ],
       },
     ],
-    tips: ["Payroll reads attendance only from locked periods."],
+    tips: [
+      "Payroll reads attendance only from locked periods.",
+      "A changed late-mark rule applies to the current month at once; earlier months stay as they were, and locked days are never changed.",
+    ],
   },
 
   "/pay": {

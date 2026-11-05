@@ -59,6 +59,8 @@ export interface Punch {
   longitude: number | null;
   /** The nearest work location's name when the punch was made. */
   location_label: string | null;
+  /** The street address of the place, once looked up (Google Maps). */
+  address?: string | null;
 }
 
 /** How punches record location in this workspace. */
@@ -68,6 +70,12 @@ export interface AttendanceSettings {
   location_mode: LocationMode;
   /** Off: no photo; optional: asked for; required: a self-service punch needs one. */
   photo_mode: LocationMode;
+  /** Every Nth late mark in a month is a half day (the Nth, 2Nth…). Null: off. */
+  late_marks_per_half_day?: number | null;
+  /** The first month the late-mark rule applies to (set by the server). */
+  late_marks_rule_from?: string | null;
+  /** Corrections a person may ask for per month. Null: no limit. */
+  monthly_correction_limit?: number | null;
 }
 
 /** A work location as the punch map draws it. */
@@ -97,6 +105,8 @@ export interface AttendanceDay {
   early_by_minutes: number;
   overtime_minutes: number;
   is_regularised: boolean;
+  /** A present day the late-mark rule turned into a half day. */
+  late_mark_half_day?: boolean;
   computation_note: string | null;
   /** How the day was set when not by plain punches; only on `/attendance/period`. */
   correction?: DayCorrection | null;
@@ -191,6 +201,9 @@ export interface MyAttendancePeriod {
   leaves: CalendarLeave[];
   /** Days with something to show; a day left out is blank. */
   day_tags: CalendarDayTag[];
+  /** The monthly limit on correction requests (null: none), and how many are used. */
+  corrections_limit?: number | null;
+  corrections_used?: number;
 }
 
 export type TeamMemberState =
@@ -216,6 +229,8 @@ export interface TeamMemberToday {
   last_punch_outside: boolean;
   last_punch_latitude: number | null;
   last_punch_longitude: number | null;
+  /** The street address of the last punch, once looked up. */
+  last_punch_address?: string | null;
   shift_name: string | null;
   shift_start: string | null;
   late_by_minutes: number;
@@ -239,9 +254,12 @@ export interface RegularisationInput {
 }
 
 export interface RegularisationRangeInput {
-  kind: "on_duty" | "work_from_home";
-  start_date: string;
-  end_date: string;
+  kind: "on_duty" | "work_from_home" | "status_change";
+  start_date?: string;
+  end_date?: string;
+  /** HR marking: exactly the days picked on the calendar. */
+  dates?: string[];
+  requested_status?: AttendanceStatus;
   reason: string;
   employee_id?: string | null;
 }

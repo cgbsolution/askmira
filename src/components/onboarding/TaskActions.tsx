@@ -20,6 +20,7 @@ import {
 import { FileInput } from "@/components/ui/file-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 import { downloadFile, post } from "@/lib/api";
 import type { OnboardingTask } from "@/lib/types/onboarding";
 
@@ -27,7 +28,6 @@ import { FormTaskAction } from "./FormTaskAction";
 
 /** The vault takes PDF, PNG and JPEG, checked again from the bytes on the server. */
 const ACCEPT = "application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg";
-const MAX_BYTES = 10 * 1024 * 1024;
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -108,6 +108,7 @@ function CompleteTaskDialog({
   const [file, setFile] = useState<File | null>(null);
   const [fileProblem, setFileProblem] = useState<string | null>(null);
   const [inputKey, setInputKey] = useState(0);
+  const limit = useUploadLimit();
   const [accepted, setAccepted] = useState(false);
   const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -150,7 +151,7 @@ function CompleteTaskDialog({
           <DialogTitle>{task.title}</DialogTitle>
           <DialogDescription>
             {isUpload
-              ? `A PDF, PNG or JPEG, up to 10 MB. It is filed in the document vault under ${documentTypeLabel(task.document_type).toLowerCase()}, where HR verifies it.`
+              ? `A PDF, PNG or JPEG, up to ${limit.label}. It is filed in the document vault under ${documentTypeLabel(task.document_type).toLowerCase()}, where HR verifies it.`
               : isAck
                 ? "Only you can give this acknowledgement. It is recorded with your name and the time."
                 : "Mark this task done. A note helps whoever reads the checklist next."}
@@ -205,11 +206,7 @@ function CompleteTaskDialog({
                   onChange={(event) => {
                     const chosen = event.target.files?.[0] ?? null;
                     setFile(chosen);
-                    setFileProblem(
-                      chosen && chosen.size > MAX_BYTES
-                        ? `This file is ${formatBytes(chosen.size)}; the limit is 10 MB.`
-                        : null,
-                    );
+                    setFileProblem(chosen ? limit.check(chosen) : null);
                   }}
                 />
               )}

@@ -31,6 +31,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
+import { useProductRoles } from "@/hooks/useProductRoles";
 import { useT } from "@/lib/i18n";
 import {
   GROUP_LABEL,
@@ -62,6 +63,7 @@ const GROUP_ORDER: NavSection["group"][] = ["main", "admin"];
 export function AppSidebar() {
   const t = useT();
   const { user, tenant, company, logout } = useAuth();
+  const productRoles = useProductRoles();
   // Whether the company's logo is drawn on top; without it the name is drawn
   // there instead, and the box below must not repeat it.
   const [logoShown, setLogoShown] = useState(false);
@@ -85,14 +87,14 @@ export function AppSidebar() {
 
   const groups = useMemo(() => {
     const sections = NAV.filter((section) => !QUICK_ACCESS.includes(section.key))
-      .map((section) => railEntry(section, user, tenant))
+      .map((section) => railEntry(section, user, tenant, productRoles))
       .filter((entry): entry is RailEntry => entry !== null);
     return GROUP_ORDER.map((group) => ({
       key: group,
       label: GROUP_LABEL[group],
       items: sections.filter(({ section }) => section.group === group),
     })).filter(({ items }) => items.length > 0);
-  }, [user, tenant]);
+  }, [user, tenant, productRoles]);
 
   // A deep link into a long section must not leave its active row below the
   // fold. Waits out the unfold animation, so the measurement is of the final list.

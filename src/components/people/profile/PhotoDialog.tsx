@@ -19,8 +19,7 @@ import {
 import { api, del } from "@/lib/api";
 import type { EmployeeRecord } from "@/lib/types/people";
 import { FileInput } from "@/components/ui/file-input";
-
-const MAX_BYTES = 5 * 1024 * 1024;
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 
 /** Upload or remove a profile photo. Yours, or — for HR — somebody else's. */
 export function PhotoDialog({
@@ -39,6 +38,7 @@ export function PhotoDialog({
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const limit = useUploadLimit();
 
   useEffect(() => {
     if (!open) return;
@@ -53,8 +53,9 @@ export function PhotoDialog({
       setError("Choose a PNG or JPEG image.");
       return;
     }
-    if (file.size > MAX_BYTES) {
-      setError("The image is larger than 5 MB.");
+    const tooBig = limit.check(file);
+    if (tooBig) {
+      setError(tooBig);
       return;
     }
     const form = new FormData();
@@ -94,7 +95,8 @@ export function PhotoDialog({
         <DialogHeader>
           <DialogTitle>Profile photo</DialogTitle>
           <DialogDescription>
-            PNG or JPEG up to 5 MB. Colleagues see it beside the name in the directory.
+            PNG or JPEG up to {limit.label}; it is resized for you. Colleagues see it beside the name
+            in the directory.
           </DialogDescription>
         </DialogHeader>
         {error && (

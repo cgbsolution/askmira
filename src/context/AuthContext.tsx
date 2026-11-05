@@ -188,3 +188,8 @@ export function useAuth(): AuthContextValue {
   if (!context) throw new Error("useAuth must be used inside an AuthProvider");
   return context;
 }
+
+/** The session when there is one, for shared components that also appear on public pages. */
+export function useOptionalAuth(): AuthContextValue | undefined {
+  return useContext(AuthContext);
+}

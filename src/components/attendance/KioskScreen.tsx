@@ -268,6 +268,9 @@ export function KioskScreen({ token }: { token: string }) {
                   id="kiosk-photo"
                   accept="image/*"
                   capture="user"
+                  // The punch selfie is sized by its own shrinkPhoto below.
+                  shrink={false}
+                  maxBytes={false}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file)

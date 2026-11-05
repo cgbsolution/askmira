@@ -87,6 +87,10 @@ export interface RequisitionDetail extends RequisitionSummary {
   can_decide: boolean;
   decide_blocked_reason: string | null;
   candidate_count: number;
+  /** The job this requisition opened in the linked interview tool, once approved. */
+  linked_job_ref?: string | null;
+  linked_job_at?: string | null;
+  linked_job_error?: string | null;
 }
 
 export interface RequisitionInput {

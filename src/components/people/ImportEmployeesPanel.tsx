@@ -23,6 +23,7 @@ import { downloadFile, post } from "@/lib/api";
 import type { ImportPreview, ImportResult, ImportRow, ImportRowOutcome } from "@/lib/types/people";
 import { cn, formatDay } from "@/lib/utils";
 import { FileInput } from "@/components/ui/file-input";
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 
 const STEPS = [
   { title: "Choose file", description: "Template or an export" },
@@ -47,6 +48,7 @@ function form(file: File, extra: Record<string, string> = {}): FormData {
  * way on the server.
  */
 export function ImportEmployeesPanel() {
+  const limit = useUploadLimit();
   const [step, setStep] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(0);
@@ -185,7 +187,7 @@ export function ImportEmployeesPanel() {
                 <FormField
                   htmlFor="import-file"
                   label="Spreadsheet"
-                  hint="An .xlsx or .csv file, up to 10 MB. Nothing is saved until you press Import."
+                  hint={`An .xlsx or .csv file, up to ${limit.label}. Nothing is saved until you press Import.`}
                 >
                   <FileInput
                     key={fileKey}

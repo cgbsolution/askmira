@@ -134,6 +134,9 @@ export function ProfileView({
   const isHr = hasRole("admin", "sub_admin");
   const isAdmin = hasRole("admin");
   const isSelf = Boolean(employee && employee.id === user?.employee_id);
+  // HR marks anybody's day at once — their own only when nobody stands above
+  // them. With a manager, their own days are requests from My attendance.
+  const marksAttendance = isHr && !(isSelf && employee?.manager_id);
   const seesPrivate = isSelf || isHr;
   const customTabs = useCustomTabs(Boolean(employee) && (isHr || isSelf));
   // Managing somebody else's team does not open this person's history: the API
@@ -505,14 +508,14 @@ export function ProfileView({
               title={`${name}'s attendance`}
               version={attendanceVersion}
               onRequest={
-                isHr
+                marksAttendance
                   ? (kind, date, day, isLocked, today, status) =>
                       setMarking({ kind, date, day, isLocked, today, status })
                   : undefined
               }
-              canMark={isHr}
+              canMark={marksAttendance}
             />
-            {isHr && (
+            {marksAttendance && (
               <AttendanceRequestDialog
                 open={marking !== null}
                 onOpenChange={(open) => !open && setMarking(null)}

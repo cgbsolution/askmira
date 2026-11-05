@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { type ApiError, post } from "@/lib/api";
+import type { EmployeeRecord } from "@/lib/types/people";
 import type {
   AttendanceDay,
   AttendanceStatus,
@@ -58,6 +59,11 @@ export function MyAttendance() {
   const regularisations = useApiQuery<Regularisation[]>(
     user?.employee_id ? "/attendance/regularisations" : null,
   );
+  // HR's own correction is applied at once only when nobody stands above them;
+  // with a manager it is a request like anyone's, and the manager decides.
+  const isHr = hasRole("admin", "sub_admin");
+  const me = useApiQuery<EmployeeRecord>(isHr && user?.employee_id ? "/employees/me" : null);
+  const appliesDirectly = isHr && me.data !== null && !me.data.manager_id;
   const reloadRequests = regularisations.reload;
   const changed = useCallback(() => {
     refresh();
@@ -112,7 +118,7 @@ export function MyAttendance() {
         onRequest={(kind, date, day, isLocked, serverToday, status) =>
           setTarget({ kind, date, day, isLocked, today: serverToday, status })
         }
-        canMark={hasRole("admin", "sub_admin")}
+        canMark={appliesDirectly}
       />
       <MyShiftSwaps />
       <KioskPinCard />
@@ -132,7 +138,7 @@ export function MyAttendance() {
         today={target?.today ?? today}
         isLocked={target?.isLocked ?? false}
         onCreated={changed}
-        direct={hasRole("admin", "sub_admin")}
+        direct={appliesDirectly}
         initialStatus={target?.status ?? "present"}
       />
     </div>

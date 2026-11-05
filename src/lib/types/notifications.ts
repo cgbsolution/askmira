@@ -5,7 +5,7 @@
  * `app/services/notifications/admin.py`.
  */
 
-export type Channel = "email" | "push" | "in_app" | "whatsapp";
+export type Channel = "email" | "push" | "in_app" | "whatsapp" | "slack" | "teams";
 export type DigestMode = "immediate" | "daily_digest" | "off";
 
 /**
@@ -15,7 +15,7 @@ export type DigestMode = "immediate" | "daily_digest" | "off";
  * log instead of sending — a workspace that believes email is going out when
  * it is not is worse off than one that is told.
  */
-export type ChannelState = "live" | "not_delivered" | "unverified";
+export type ChannelState = "live" | "not_delivered" | "unverified" | "not_connected";
 
 export interface ChannelStatus {
   channel: Channel;

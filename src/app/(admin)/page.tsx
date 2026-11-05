@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, CalendarPlus, ListChecks, Sparkles, UserPlus, Users } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarPlus, ListChecks, Sparkles, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 
@@ -26,7 +26,7 @@ import { useAuth } from "@/context/AuthContext";
 import { HR, MANAGERS } from "@/lib/access";
 import { get } from "@/lib/api";
 import type { DashboardSummary } from "@/lib/types";
-import { initials } from "@/lib/utils";
+import { formatDay, initials } from "@/lib/utils";
 
 function greetingFor(hour: number) {
   if (hour < 12) return "Good morning";
@@ -88,7 +88,8 @@ export default function HomePage() {
 
   const firstName = summary?.greeting_name ?? user?.full_name?.split(" ")[0] ?? "there";
   const pending = summary?.pending_approvals ?? 0;
-  const show = (value: number | undefined) => (isLoading ? "—" : (value ?? 0));
+  const show = (value: number | null | undefined) => (isLoading ? "—" : (value ?? 0));
+  const nextHoliday = summary?.upcoming_holidays[0] ?? null;
 
   return (
     // Breakpoints are container queries on the page body, not the viewport:
@@ -145,25 +146,64 @@ export default function HomePage() {
       </section>
 
       {/* ── Pulse ──────────────────────────────────────────────────────── */}
+      {/* Company-wide figures are HR's. Everyone else sees their own day and
+          their own team, as the directory shows them only their team. */}
       <div className="grid grid-cols-2 gap-4 @4xl/main:grid-cols-4">
-        <PulseStat
-          label="Headcount"
-          value={show(summary?.headcount)}
-          icon={Users}
-          hint="Active, on notice and on leave"
-        />
-        <PulseStat
-          label="New hires"
-          value={show(summary?.new_hires_30d)}
-          icon={UserPlus}
-          hint="Joined in the last 30 days"
-        />
-        <PulseStat
-          label="On leave today"
-          value={show(summary?.on_leave_today)}
-          icon={CalendarClock}
-          hint="People on approved leave"
-        />
+        {isHr ? (
+          <>
+            <PulseStat
+              label="Headcount"
+              value={show(summary?.headcount)}
+              icon={Users}
+              hint="Active, on notice and on leave"
+            />
+            <PulseStat
+              label="New hires"
+              value={show(summary?.new_hires_30d)}
+              icon={UserPlus}
+              hint="Joined in the last 30 days"
+            />
+            <PulseStat
+              label="On leave today"
+              value={show(summary?.on_leave_today)}
+              icon={CalendarClock}
+              hint="People on approved leave"
+            />
+          </>
+        ) : (
+          <>
+            {isEmployee && (
+              <PulseStat
+                label="Next holiday"
+                value={isLoading ? "—" : nextHoliday ? formatDay(nextHoliday.holiday_date) : "None"}
+                icon={CalendarDays}
+                hint={
+                  isLoading
+                    ? "From your holiday calendar"
+                    : nextHoliday
+                      ? nextHoliday.name
+                      : "None in the next 90 days"
+                }
+              />
+            )}
+            {timeOn && (
+              <PulseStat
+                label="Team on leave today"
+                value={show(summary?.on_leave_today)}
+                icon={CalendarClock}
+                hint="Your manager, team and reports"
+              />
+            )}
+            {hasModule("culture") && (
+              <PulseStat
+                label="Shoutouts this week"
+                value={show(summary?.shoutouts_this_week)}
+                icon={Sparkles}
+                hint="Recognition in your feed"
+              />
+            )}
+          </>
+        )}
         <PulseStat
           label="Awaiting approval"
           value={show(summary?.pending_approvals)}

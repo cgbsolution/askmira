@@ -48,6 +48,8 @@ export interface Tenant {
    * Each replaces a module: its section becomes a launcher.
    */
   linked_products?: Partial<Record<ProductKey, boolean>>;
+  /** The largest file anyone here can upload, in MB. An admin sets it; 10 until then. */
+  max_upload_mb?: number;
 }
 
 /**
@@ -116,8 +118,11 @@ export interface Colleague {
 
 export interface DashboardSummary {
   greeting_name: string;
-  headcount: number;
-  new_hires_30d: number;
+  /** HR only: company-wide figures are not for everyone. Null for anybody else. */
+  headcount: number | null;
+  /** HR only, like `headcount`. */
+  new_hires_30d: number | null;
+  /** The whole company for HR; for anybody else, their own team. */
   on_leave_today: number;
   pending_approvals: number;
   shoutouts_this_week: number;

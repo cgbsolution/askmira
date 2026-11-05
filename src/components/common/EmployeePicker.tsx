@@ -30,8 +30,12 @@ export function employeeDisplayName(
  * decision; the caller's own record is left out, since nobody starts their
  * own exit here. Pass `excludeId={null}` to allow everyone.
  *
- * `colleagues` picks anybody in the company rather than somebody the caller's
- * directory shows (their manager, team and reports) — a colleague to give or
+ * The person picked is somebody to act for — start their exit, raise their
+ * adjustment — so the list is whom the caller may act for: everyone for HR,
+ * their own reporting line for a manager. Never their manager or the
+ * colleagues beside them, whom the directory does show.
+ *
+ * `colleagues` picks anybody in the company instead — a colleague to give or
  * ask feedback. It searches by name from two letters and hands back a
  * `Colleague`: names and titles, nothing from their record.
  */
@@ -70,7 +74,7 @@ export function EmployeePicker<T extends Pickable = EmployeeSummary>({
     }
     setIsLoading(true);
     const timer = setTimeout(() => {
-      const params = new URLSearchParams({ search: search.trim(), page_size: "20" });
+      const params = new URLSearchParams({ search: search.trim(), page_size: "20", reporting_line: "true" });
       const found = colleagues
         ? (findColleagues(search) as Promise<unknown[]> as Promise<T[]>)
         : get<Page<T>>(`/employees?${params}`).then((page) => page.items);

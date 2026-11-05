@@ -486,6 +486,9 @@ export function PunchCard({
                 id={compact ? "punch-photo-home" : "punch-photo"}
                 accept="image/*"
                 capture="user"
+                // The punch selfie is sized by its own pipeline (takePhoto).
+                shrink={false}
+                maxBytes={false}
                 disabled={isPunching !== null}
                 onChange={(event) => void takePhoto(event.target.files?.[0])}
               />

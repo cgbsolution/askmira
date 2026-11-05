@@ -33,12 +33,16 @@ import type {
 } from "@/lib/types/notifications";
 import { cn, formatDateTime } from "@/lib/utils";
 
-const CHANNELS: Channel[] = ["in_app", "email", "push", "whatsapp"];
+const CHANNELS: Channel[] = ["in_app", "email", "push", "whatsapp", "slack", "teams"];
+/** Your company's own chat apps: shown only once an admin connects them. */
+const CHAT: Channel[] = ["slack", "teams"];
 const CHANNEL_LABEL: Record<Channel, string> = {
   in_app: "In-app",
   email: "Email",
   push: "Push",
   whatsapp: "WhatsApp",
+  slack: "Slack",
+  teams: "Teams",
 };
 
 const MODE_LABEL: Record<DigestMode, string> = {
@@ -214,8 +218,12 @@ function PreferencesTab() {
     () => new Map((channels.data ?? []).map((row) => [row.channel, row])),
     [channels.data],
   );
-  const offered = CHANNELS.filter((channel) => live.has(channel) || channel === "in_app");
-  const notDelivered = (channels.data ?? []).filter((row) => row.state !== "live");
+  const offered = CHANNELS.filter((channel) =>
+    CHAT.includes(channel) ? live.get(channel)?.state === "live" : live.has(channel) || channel === "in_app",
+  );
+  const notDelivered = (channels.data ?? []).filter(
+    (row) => row.state !== "live" && !CHAT.includes(row.channel),
+  );
 
   const setCell = (eventKey: string, channel: Channel, value: { enabled: boolean; mode: DigestMode }) => {
     setGrid((current) => ({ ...current, [eventKey]: { ...current[eventKey], [channel]: value } }));
@@ -310,7 +318,11 @@ function PreferencesTab() {
                     )}
                   </TableCell>
                   {offered.map((channel) => {
-                    const cell = grid[event.event_key]?.[channel] ?? { enabled: false, mode: "immediate" as DigestMode };
+                    // A chat app is on unless the person switched it off; the admin decides what it carries.
+                    const cell = grid[event.event_key]?.[channel] ?? {
+                      enabled: CHAT.includes(channel),
+                      mode: "immediate" as DigestMode,
+                    };
                     const id = `pref-${event.event_key}-${channel}`;
                     return (
                       <TableCell key={channel}>
@@ -321,7 +333,7 @@ function PreferencesTab() {
                             aria-label={`${eventLabel(event.event_key)} by ${CHANNEL_LABEL[channel]}`}
                             onCheckedChange={(enabled) => setCell(event.event_key, channel, { ...cell, enabled })}
                           />
-                          {cell.enabled && channel !== "in_app" && (
+                          {cell.enabled && channel !== "in_app" && !CHAT.includes(channel) && (
                             <Select
                               value={cell.mode === "off" ? "immediate" : cell.mode}
                               onValueChange={(mode) => setCell(event.event_key, channel, { ...cell, mode: mode as DigestMode })}

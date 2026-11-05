@@ -182,6 +182,15 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         ],
       },
       {
+        title: "Fill a salary from the CTC with a salary structure",
+        steps: [
+          "In the editor, pick the Salary structure and type CTC TOTAL with its Pay Basis.",
+          "Press Calculate: every wage type of the structure is filled in (Basic, HRA, Special allowance, gratuity, Professional Tax by slab…), in the CTC's Pay Basis. Wage types inside the CTC that the structure does not use are cleared; deductions and reimbursements outside it are kept.",
+          "Review the annexure and change any amount you need; nothing is saved until you press SAVE.",
+          "Employer PF and ESIC kept inside the CTC are shown under the grid. They are not wage types: payroll works them out each month.",
+        ],
+      },
+      {
         title: "Correct or delete a revision",
         steps: [
           "Press the pencil on a card to edit it, or the bin to delete it.",
@@ -241,7 +250,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       {
         title: "Open a set-up page",
         steps: [
-          "Pick a card: Salary structures, Statutory, Rule sets, Accounting, Gratuity & encashment, Benefits, Contractors, Earned wage access or Stock options.",
+          "Pick a card: Statutory, Rule sets, Accounting, Gratuity & encashment, Benefits, Contractors, Earned wage access or Stock options. Salary structures is in the Payroll menu, under Salary master.",
           "While you are on one, Payroll setup stays highlighted in the menu.",
         ],
       },
@@ -251,21 +260,47 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
   },
 
   "/payroll/structures": {
-    summary: "Define salary components, build CTC templates from them, and preview how any CTC resolves.",
+    summary:
+      "CTC templates: the share of the CTC each wage type gets. Set them once, then fill any salary from its CTC on the Salary master.",
     tasks: [
-      {
-        title: "Create a component",
-        steps: ["Press New component: name, type (earning or deduction), taxability and formula."],
-      },
       {
         title: "Create a salary structure",
         steps: [
-          "Press New structure and add components with their share of CTC.",
-          "Use Resolve to preview how a sample CTC splits.",
+          "Press New structure. It opens in the Salary Master's layout with the usual split filled in: Basic 50% of CTC, HRA 40% of Basic, gratuity 4.81% of Basic, Special allowance the balance.",
+          "For each wage type pick Percentage (of CTC, gross, PF or ESI wages, or another line), Fixed amount, Balance of CTC or Slabs.",
+          "Exactly one earning takes the balance, so the structure adds up to the CTC.",
+          "Type a CTC under Try it to see every amount before you save.",
+        ],
+      },
+      {
+        title: "Keep employer PF and ESIC inside the CTC",
+        steps: [
+          "Under 6 Company contribution, set EMPLOYER PF CONTRIBUTION, e.g. 13% of PF wages with the base up to ₹15,000 (Limits).",
+          "Set EMPLOYER ESIC CONTRIBUTION, e.g. 3.25% of ESI wages, applied only while ESI wages are up to ₹21,000, rounded up.",
+          "Pick Not in CTC to have payroll add them on top instead. Payroll still works out what is contributed each month.",
+        ],
+      },
+      {
+        title: "Charge a tax only above an amount",
+        steps: [
+          "On PROF. TAX MANUAL pick Slabs, e.g. ₹0 up to ₹15,000 of gross, ₹200 above.",
+          "Or give any line a condition under Limits: apply only while a figure is up to, or above, an amount.",
+          "Leave TDS on Payroll works it out: payroll projects it from the tax regime and declarations.",
+        ],
+      },
+      {
+        title: "Change, copy or retire a structure",
+        steps: [
+          "Click a structure to edit it. Salaries already saved keep their amounts.",
+          "Use ⋯ → Make a copy for a variant, Switch off to take it out of the Salary master's list, or Delete one nobody uses.",
         ],
       },
     ],
-    tips: ["Grades and bands sets the salary range for each grade; press Add a grade."],
+    tips: [
+      "Wage types lists what structures are built from; press New component for another.",
+      "Grades and bands sets the salary range for each grade; press Add a grade.",
+    ],
+    related: [{ label: "Salary master", href: "/payroll/salaries" }],
   },
 
   "/payroll/statutory": {
@@ -740,7 +775,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         title: "Add each company of your group",
         steps: [
           "Add one legal entity per company your people work for: your own, a sister company, or a client whose staff you employ.",
-          "In its dialog press Upload under Logo (PNG or JPEG, up to 1 MB). Its people see that logo at the top of the portal and on the app's Home after they sign in.",
+          "In its dialog press Upload under Logo (PNG or JPEG within the upload limit; it is resized for you). Its people see that logo at the top of the portal and on the app's Home after they sign in.",
           "The People column counts each company's current staff; press the number to see them.",
         ],
       },

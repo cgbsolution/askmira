@@ -29,6 +29,7 @@ import type {
   SmtpSettings,
 } from "@/lib/types/notifications";
 
+import { ChatAppsPanel } from "./ChatAppsPanel";
 import { EmailDesignPanel } from "./EmailDesignPanel";
 import { NotificationTemplatesPanel } from "./NotificationTemplatesPanel";
 import { errorDetail, formatDateTime } from "./settingsShared";
@@ -39,6 +40,8 @@ const CHANNEL_LABEL: Record<string, string> = {
   email: "Email",
   push: "Mobile push",
   whatsapp: "WhatsApp",
+  slack: "Slack",
+  teams: "Microsoft Teams",
 };
 
 const TIMEZONES = ["Asia/Kolkata", "Asia/Dubai", "Asia/Singapore", "Europe/London", "UTC"];
@@ -97,6 +100,7 @@ export function NotificationSettingsScreen() {
           <TabsTrigger value="policy">Quiet hours &amp; limits</TabsTrigger>
           <TabsTrigger value="relay">Mail relay</TabsTrigger>
           <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+          <TabsTrigger value="chat">Slack &amp; Teams</TabsTrigger>
           <TabsTrigger value="design">Email design</TabsTrigger>
           <TabsTrigger value="templates">Emails &amp; messages</TabsTrigger>
         </TabsList>
@@ -109,6 +113,9 @@ export function NotificationSettingsScreen() {
         </TabsContent>
         <TabsContent value="whatsapp" className="mt-4">
           <WhatsAppPanel onSaved={channels.reload} />
+        </TabsContent>
+        <TabsContent value="chat" className="mt-4">
+          <ChatAppsPanel onSaved={channels.reload} />
         </TabsContent>
         <TabsContent value="design" className="mt-4">
           <EmailDesignPanel />

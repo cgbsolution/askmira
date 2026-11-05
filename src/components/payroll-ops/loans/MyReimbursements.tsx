@@ -50,8 +50,8 @@ import { MyFlexiDeclaration } from "./FlexiDeclaration";
 import { QueryPanel } from "./QueryPanel";
 import { DatePicker } from "@/components/common/DatePicker";
 import { FileInput } from "@/components/ui/file-input";
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 
-const MAX_BILL_BYTES = 5 * 1024 * 1024;
 const BILL_TYPES = ["application/pdf", "image/png", "image/jpeg"];
 
 /** Your reimbursement entitlement for a year, what you have claimed, and new claims. */
@@ -202,6 +202,7 @@ function SubmitClaimDialog({
   componentsError: string | null;
   onSubmitted: () => void;
 }) {
+  const limit = useUploadLimit();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
   const [amount, setAmount] = useState("");
@@ -235,8 +236,8 @@ function SubmitClaimDialog({
     if (component.bill_required && !file) {
       return setProblem(`${component.name} needs a bill. Attach a PDF, PNG or JPEG.`);
     }
-    if (file && file.size > MAX_BILL_BYTES) {
-      return setProblem("The bill is larger than 5 MB. Attach a smaller file.");
+    if (file && limit.check(file)) {
+      return setProblem(limit.check(file));
     }
     if (file && file.type && !BILL_TYPES.includes(file.type)) {
       return setProblem("The bill must be a PDF, PNG or JPEG.");
@@ -356,7 +357,7 @@ function SubmitClaimDialog({
             htmlFor="claim-file"
             label="Bill"
             optional={!component?.bill_required}
-            hint="PDF, PNG or JPEG, up to 5 MB. The server checks the file's contents, not just its name."
+            hint={`PDF, PNG or JPEG, up to ${limit.label}. The server checks the file's contents, not just its name.`}
           >
             <FileInput
               ref={fileInput}

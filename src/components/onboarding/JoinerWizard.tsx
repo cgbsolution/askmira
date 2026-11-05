@@ -52,6 +52,8 @@ const PROBATION = ["none", "3", "6", "12"] as const;
 /** A checklist is suggested for someone joining within this many days, or later. */
 const RECENT_JOINER_DAYS = 30;
 
+export type JoinerValues = Values;
+
 type Values = {
   employee_code: string;
   first_name: string;
@@ -111,7 +113,10 @@ export function JoinerWizard({
   onCancel,
   onAdded,
   renderDoneActions,
+  initial,
 }: {
+  /** Fields already known, e.g. a candidate hired in AnytimeHire. */
+  initial?: Partial<Values>;
   onCancel: () => void;
   /** Fired once the joiner exists, before the done screen shows. */
   onAdded?: (created: JoinerCreated) => void;
@@ -130,7 +135,7 @@ export function JoinerWizard({
   );
 
   const [step, setStep] = useState(0);
-  const [values, setValues] = useState<Values>(EMPTY);
+  const [values, setValues] = useState<Values>({ ...EMPTY, ...initial });
   const [manager, setManager] = useState<PickedEmployee | null>(null);
   const [custom, setCustom] = useState<Record<string, unknown>>({});
   const [templateId, setTemplateId] = useState<string | null>(null);

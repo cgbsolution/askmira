@@ -55,8 +55,7 @@ import { del, downloadFile, patch, post } from "@/lib/api";
 import type { CompanyDocument } from "@/lib/types/docs";
 import { cn, formatDay } from "@/lib/utils";
 import { FileInput } from "@/components/ui/file-input";
-
-const MAX_BYTES = 10 * 1024 * 1024;
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 const ACCEPT = "application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg";
 
 /** The policies an Indian mid-market company usually files, one click away. */
@@ -150,6 +149,7 @@ function CompanyDocumentDialog({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const limit = useUploadLimit();
 
   useEffect(() => {
     if (!open) return;
@@ -172,7 +172,7 @@ function CompanyDocumentDialog({
     if (!type.trim()) found.type = "Say what kind of document this is.";
     if (!title.trim()) found.title = "Give it a title.";
     if (!editing && !file) found.file = "Choose a file.";
-    else if (file && file.size > MAX_BYTES) found.file = "The file is larger than 10 MB.";
+    else if (file && limit.check(file)) found.file = limit.check(file) as string;
     if (issuedOn && validUntil && validUntil < issuedOn) found.valid = "The expiry date cannot be before the issue date.";
     if (requiresAck && !published) found.ack = "A document everyone must acknowledge has to be published.";
     setErrors(found);
@@ -225,7 +225,7 @@ function CompanyDocumentDialog({
             <DialogDescription>
               {editing
                 ? "The file stays as it is. To replace it, add the new version and remove this one."
-                : "A policy or handbook for everyone. PDF, PNG or JPEG up to 10 MB."}
+                : `A policy or handbook for everyone. PDF, PNG or JPEG up to ${limit.label}.`}
             </DialogDescription>
           </DialogHeader>
           {serverError && (

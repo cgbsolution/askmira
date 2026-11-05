@@ -259,6 +259,8 @@ export function ApplyForm({
               <FileInput
                 id="apply-resume"
                 accept="application/pdf,.pdf"
+                // The size is checked below, against the hiring company's own limit.
+                maxBytes={false}
                 aria-invalid={Boolean(errors.resume)}
                 onChange={(event) => {
                   const file = event.target.files?.[0] ?? null;

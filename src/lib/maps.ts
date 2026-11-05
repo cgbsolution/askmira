@@ -23,11 +23,18 @@ const LOAD_TIMEOUT_MS = 10_000;
 
 let loading: Promise<typeof google.maps> | null = null;
 let failed = false;
+let failureReason: string | null = null;
 const failureListeners = new Set<() => void>();
 
-function markFailed() {
+function markFailed(reason: string) {
   failed = true;
+  failureReason ??= reason;
   failureListeners.forEach((listener) => listener());
+}
+
+/** Why the free map is drawn instead of Google's, in words an admin can act on. */
+export function googleMapsFailureReason(): string | null {
+  return failureReason;
 }
 
 /** False once Google has failed on this page load; Leaflet from then on. */
@@ -55,13 +62,14 @@ function injectScript(key: string): Promise<typeof google.maps> {
   return new Promise<typeof google.maps>((resolve, reject) => {
     const fail = (reason: string) => {
       window.clearTimeout(timer);
-      markFailed();
+      markFailed(reason);
       reject(new Error(reason));
     };
     const timer = window.setTimeout(() => fail("Google Maps took too long to load"), LOAD_TIMEOUT_MS);
 
     // Google calls this global for a refused key, at load or later.
-    window.gm_authFailure = () => fail("Google Maps refused the key");
+    window.gm_authFailure = () =>
+      fail("Google refused the key: allow this site and the Maps JavaScript API on it in Google Cloud");
 
     window.__askmiraMapsReady = async () => {
       try {
@@ -102,8 +110,11 @@ export function loadGoogleMaps(): Promise<typeof google.maps> {
     .then((config) => {
       const key = config?.provider === "google" ? config.google_maps_api_key?.trim() : "";
       if (!key) {
-        markFailed();
-        throw new Error("Google Maps is not configured");
+        const reason = config
+          ? "the Google Maps key is not set on the AskMira server (GOOGLE_MAPS_API_KEY)"
+          : "the map settings could not be read";
+        markFailed(reason);
+        throw new Error(reason);
       }
       return injectScript(key);
     });

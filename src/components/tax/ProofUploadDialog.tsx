@@ -20,7 +20,7 @@ import { post } from "@/lib/api";
 import type { TaxDeclaration, TaxProof } from "@/lib/types/tax";
 import { formatMoney } from "@/lib/utils";
 
-import { UPLOAD_ACCEPT, UPLOAD_HINT, uploadProblem } from "./common";
+import { UPLOAD_ACCEPT, useProofUpload } from "./common";
 import { FileInput } from "@/components/ui/file-input";
 
 /** Upload one proof document against a declaration. */
@@ -55,7 +55,8 @@ export function ProofUploadDialog({
       : isZero(amount)
         ? "The proof amount must be more than zero."
         : null;
-  const fileError = uploadProblem(file);
+  const proofUpload = useProofUpload();
+  const fileError = proofUpload.problem(file);
 
   const upload = async () => {
     setAttempted(true);
@@ -116,7 +117,7 @@ export function ProofUploadDialog({
           <FormField
             htmlFor="proof-file"
             label="Document"
-            hint={UPLOAD_HINT}
+            hint={proofUpload.hint}
             error={attempted ? fileError : null}
           >
             <FileInput

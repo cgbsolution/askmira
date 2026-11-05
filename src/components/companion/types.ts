@@ -119,6 +119,12 @@ export interface CompanionProposal {
   notes: string[];
   confirm_label: string;
   question: string;
+  /**
+   * Held for an approval elsewhere (an order whose Won waits for a manager in
+   * Saleinx): what it waits for. It can't be confirmed until then; Ask Mira
+   * checks in the background and says when it is ready.
+   */
+  waiting?: string;
   result: { text?: string; open?: string; error?: boolean } | null;
 }
 

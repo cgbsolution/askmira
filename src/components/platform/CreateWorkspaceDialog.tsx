@@ -23,6 +23,7 @@ import { ApiError, del, patch, post } from "@/lib/api";
 import { INDIAN_STATES } from "@/lib/states";
 import type { WelcomeEmail } from "@/lib/types/admin";
 import { FileInput } from "@/components/ui/file-input";
+import { DEFAULT_UPLOAD_MB } from "@/lib/uploads";
 
 export interface Issued {
   title: string;
@@ -396,7 +397,7 @@ export function CreateWorkspaceDialog({
             <FormField label="Website" htmlFor="ws-web" optional>
               <Input id="ws-web" value={fields.website} onChange={set("website")} placeholder="company.com" />
             </FormField>
-            <FormField label="Logo" htmlFor="ws-logo" optional hint="PNG or JPEG, up to 1 MB. Shown on their sign-in page.">
+            <FormField label="Logo" htmlFor="ws-logo" optional hint={`PNG or JPEG, up to ${DEFAULT_UPLOAD_MB} MB; it is resized for you. Shown on their sign-in page.`}>
               <div className="grid gap-2">
                 {isEdit && editing?.logo_url && !removeLogo && !logo ? (
                   <div className="flex items-center gap-3">
@@ -410,6 +411,8 @@ export function CreateWorkspaceDialog({
                 <FileInput
                   id="ws-logo"
                   accept="image/png,image/jpeg"
+                  // That workspace's limit, not the platform's: a new one starts on the default.
+                  maxBytes={DEFAULT_UPLOAD_MB * 1024 * 1024}
                   onChange={(event) => setLogo(event.target.files?.[0] ?? null)}
                 />
               </div>

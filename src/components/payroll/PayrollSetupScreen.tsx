@@ -18,7 +18,7 @@ export function PayrollSetupScreen() {
   return (
     <PageShell
       title="Payroll setup"
-      description="Set up once, changed a few times a year: structures, statutory rules, accounting and the pay programmes."
+      description="Set up once, changed a few times a year: statutory rules, accounting and the pay programmes. Salary structures are in the Payroll menu."
     >
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {PAYROLL_SETUP.map((page) => (

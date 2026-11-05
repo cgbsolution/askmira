@@ -78,6 +78,13 @@ const nextConfig: NextConfig = {
   // A second dev server (a QA copy, say) must not share `.next` with the first:
   // two servers writing one build folder break each other's pages.
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  experimental: {
+    // Middleware reads at most this much of a request body; past it the rest
+    // is cut off and the request hangs. Uploads go up to 25 MB (the highest
+    // limit an admin can set, Settings → Company → Workspace) plus the form
+    // around the file. Next's own default is 10 MB.
+    middlewareClientMaxBodySize: "26mb",
+  },
   reactStrictMode: true,
   poweredByHeader: false,
   // Server-rendered pages call the API directly; a relative URL has no origin there.

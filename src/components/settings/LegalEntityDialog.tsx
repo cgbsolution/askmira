@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { HiddenFileInput } from "@/components/ui/file-input";
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 import { weeklyOffLabel } from "@/components/attendance/shared";
 import { useAuth } from "@/context/AuthContext";
 import { del, patch, post } from "@/lib/api";
@@ -58,7 +59,6 @@ export function salaryDaysLabel(entity: LegalEntity): string {
 }
 
 /** The API's limit for a logo; checked here too, so a big file is refused before upload. */
-const LOGO_MAX_BYTES = 1024 * 1024;
 const LOGO_TYPES = ["image/png", "image/jpeg"];
 
 const PAN = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
@@ -126,6 +126,7 @@ export function LegalEntityDialog({
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
   const logoInput = useRef<HTMLInputElement>(null);
+  const limit = useUploadLimit();
 
   useEffect(() => {
     if (!open) return;
@@ -169,10 +170,7 @@ export function LegalEntityDialog({
       toast.error("A logo has to be a PNG or JPEG image.");
       return;
     }
-    if (file.size > LOGO_MAX_BYTES) {
-      toast.error("That image is over 1 MB. Save a smaller PNG or JPEG and try again.");
-      return;
-    }
+    // Its size was checked as it was picked (the workspace's upload limit).
     setLogoFile(file);
     setRemoveLogo(false);
   };
@@ -307,7 +305,8 @@ export function LegalEntityDialog({
               <p className="text-sm font-medium text-foreground">Logo</p>
               <p className="text-xs text-muted-foreground">
                 This company&apos;s people see it at the top of the portal and on the app&apos;s Home
-                after they sign in. PNG or JPEG, up to 1 MB. Without one, they see the workspace logo.
+                after they sign in. PNG or JPEG, up to {limit.label}; it is resized for you. Without one,
+                they see the workspace logo.
               </p>
               {logoFile && <p className="mt-1 truncate text-xs text-foreground">{logoFile.name} — saved with the entity</p>}
               {removeLogo && !logoFile && (

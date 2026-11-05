@@ -49,6 +49,8 @@ export const HR: Audience[] = ["admin", "sub_admin"];
 export const ADMIN: Audience[] = ["admin"];
 export const MANAGERS: Audience[] = [...HR, "manager"];
 export const EVERYONE: Audience[] = [...HR, "employee"];
+/** The helpdesk's IT team, as its people sync names them (NavPage.productRoles). */
+const IT_TEAM = ["engineer", "admin"];
 /** The platform owner only. Every other role is refused. */
 export const PLATFORM: Audience[] = ["super_admin"];
 
@@ -72,6 +74,11 @@ export interface NavPage {
   reach?: Audience[];
   /** For a page outside any section, which has no section icon to borrow. */
   icon?: LucideIcon;
+  /**
+   * For a linked product's page: also listed for whoever holds one of these
+   * roles in that product (its IT team, say), whatever their role here.
+   */
+  productRoles?: string[];
   /** Workspace module this one page needs, where its section needs none (or another). */
   module?: string;
   /**
@@ -120,11 +127,7 @@ export const GROUP_LABEL: Record<NavSection["group"], string> = {
  * monthly cycle.
  */
 export const PAYROLL_SETUP: { name: string; path: string; description: string }[] = [
-  {
-    name: "Salary structures",
-    path: "/payroll/structures",
-    description: "Components, CTC templates built from them, and how any CTC resolves.",
-  },
+  // Salary structures is in the Payroll menu itself, beside the Salary master.
   {
     name: "Statutory",
     path: "/payroll/statutory",
@@ -286,6 +289,7 @@ export const NAV: NavSection[] = [
       { name: "Payroll runs", path: "/payroll", roles: HR },
       { name: "Payslips", path: "/payroll/payslips", roles: HR },
       { name: "Salary master", path: "/payroll/salaries", roles: HR },
+      { name: "Salary structures", path: "/payroll/structures", roles: HR },
       { name: "Account P&L", path: "/payroll/accounts", roles: HR },
       { name: "Adjustments", path: "/payroll/adjustments", roles: HR },
       { name: "Arrears", path: "/payroll/arrears", roles: HR },
@@ -345,7 +349,8 @@ export const NAV: NavSection[] = [
     ],
   },
   {
-    // Saleinx, the sales CRM: only while it is linked (no built-in pages).
+    // Saleinx, the sales CRM: only while it is linked (no built-in pages). On the
+    // right-hand rail with the other linked products (`QUICK_ACCESS`).
     key: "sales",
     name: "Sales",
     icon: Handshake,
@@ -360,7 +365,8 @@ export const NAV: NavSection[] = [
     ],
   },
   {
-    // ProcureFlow, procure-to-pay: only while it is linked (no built-in pages).
+    // ProcureFlow, procure-to-pay: only while it is linked (no built-in pages). On the
+    // right-hand rail (`QUICK_ACCESS`).
     key: "procurement",
     name: "Procurement",
     icon: ShoppingCart,
@@ -470,7 +476,13 @@ export const NAV: NavSection[] = [
     linkedPages: [
       { name: "My assets", path: "/linked/helpdesk/assets", roles: EVERYONE },
       // The helpdesk decides who sees its register: its engineers and admins, and HR.
-      { name: "Asset register", path: "/linked/helpdesk/register", roles: HR, reach: EVERYONE },
+      {
+        name: "Asset register",
+        path: "/linked/helpdesk/register",
+        roles: HR,
+        reach: EVERYONE,
+        productRoles: IT_TEAM,
+      },
     ],
   },
   {
@@ -490,10 +502,29 @@ export const NAV: NavSection[] = [
       // Also each ticket's own page, /linked/helpdesk/tickets/<id>.
       { name: "My tickets", path: "/linked/helpdesk/tickets", roles: EVERYONE },
       { name: "Overview", path: "/linked/helpdesk/overview", roles: EVERYONE },
-      // IT staff in the helpdesk need not be HR here: the helpdesk decides who works its queues.
-      { name: "Assigned to me", path: "/linked/helpdesk/assigned", roles: HR, reach: EVERYONE },
-      { name: "Unassigned queue", path: "/linked/helpdesk/queue", roles: HR, reach: EVERYONE },
-      { name: "All tickets", path: "/linked/helpdesk/all", roles: HR, reach: EVERYONE },
+      // IT staff in the helpdesk need not be HR here: the helpdesk decides who works its queues,
+      // and its people sync names its IT team, who see these in the menu too.
+      {
+        name: "Assigned to me",
+        path: "/linked/helpdesk/assigned",
+        roles: HR,
+        reach: EVERYONE,
+        productRoles: IT_TEAM,
+      },
+      {
+        name: "Unassigned queue",
+        path: "/linked/helpdesk/queue",
+        roles: HR,
+        reach: EVERYONE,
+        productRoles: IT_TEAM,
+      },
+      {
+        name: "All tickets",
+        path: "/linked/helpdesk/all",
+        roles: HR,
+        reach: EVERYONE,
+        productRoles: IT_TEAM,
+      },
     ],
   },
   {
@@ -515,6 +546,8 @@ export const NAV: NavSection[] = [
       { name: "Careers site", path: "/hiring/careers-site", roles: ADMIN },
     ],
     linkedPages: [
+      // AskMira keeps the requisition and its approval; once approved, its job opens in AnytimeHire.
+      { name: "Requisitions", path: "/hiring", roles: MANAGERS },
       { name: "Hiring overview", path: "/linked/interview/overview", roles: MANAGERS },
       { name: "Job openings", path: "/linked/interview/jobs", roles: MANAGERS },
       { name: "Candidates", path: "/linked/interview/candidates", roles: MANAGERS },
@@ -575,6 +608,9 @@ const STANDALONE: NavPage[] = [
   { name: "Opening", path: "/launch", roles: EVERYONE, icon: ExternalLink },
 ];
 
+/** The person's role in each linked product that says who is who there (useProductRoles). */
+export type ProductRoles = Partial<Record<ProductKey, string>>;
+
 export function roleAllows(user: AuthUser | null, roles: Audience[]): boolean {
   if (!user) return false;
   if (user.role === "super_admin" || roles.includes(user.role)) return true;
@@ -606,13 +642,24 @@ export function resolvePage(pathname: string): { page: NavPage; section?: NavSec
 }
 
 /** Our separate products: what each is called and who the portal offers it to. */
-export const PRODUCTS: Record<ProductKey, { name: string; audience: Audience[] }> = {
+export const PRODUCTS: Record<
+  ProductKey,
+  {
+    name: string;
+    audience: Audience[];
+    /**
+     * Only for people the product lists as its members (their work email, from its
+     * people sync): nobody else sees it in the menu. The API refuses them anyway.
+     */
+    membersOnly?: boolean;
+  }
+> = {
   interview: { name: "Interviews", audience: MANAGERS },
   expense: { name: "Expenses", audience: EVERYONE },
   helpdesk: { name: "Helpdesk", audience: EVERYONE },
-  // Who may use these is the product's own call (its members); the page asks it.
-  saleinx: { name: "Sales", audience: EVERYONE },
-  procurement: { name: "Procurement", audience: EVERYONE },
+  // Who may use these is the product's own call (its members, and their role there).
+  saleinx: { name: "Sales", audience: EVERYONE, membersOnly: true },
+  procurement: { name: "Procurement", audience: EVERYONE, membersOnly: true },
 };
 
 /** The linked product that has taken this section over, if any. */
@@ -659,19 +706,23 @@ export function visiblePages(
   section: NavSection,
   user: AuthUser | null,
   tenant: Tenant | null,
+  productRoles: ProductRoles = {},
 ): NavPage[] {
   const linked = linkedProduct(section, tenant);
   if (!linked && !moduleEnabled(tenant, section.module)) return [];
+  if (linked && PRODUCTS[linked].membersOnly && !productRoles[linked]) return [];
   const pages = linked ? (section.linkedPages ?? []) : section.pages;
   const hasRecord = Boolean(user?.employee_id);
   const staff = !roleAllows(user, HR);
+  const roleThere = linked ? productRoles[linked] : undefined;
   return pages
     .filter(
       (page) =>
         !page.hidden &&
         (hasRecord || !page.self) &&
         moduleEnabled(tenant, page.module) &&
-        roleAllows(user, page.roles),
+        (roleAllows(user, page.roles) ||
+          Boolean(roleThere && page.productRoles?.includes(roleThere))),
     )
     .map((page) => (staff && page.staffName ? { ...page, name: page.staffName } : page));
 }
@@ -681,7 +732,16 @@ export function visiblePages(
  * bottom: the companion, the hubs a linked product can take over, and the
  * self-service desks people reach for from any page.
  */
-export const QUICK_ACCESS = ["companion", "assistant", "expenses", "helpdesk", "hiring", "assets"];
+export const QUICK_ACCESS = [
+  "companion",
+  "assistant",
+  "expenses",
+  "helpdesk",
+  "hiring",
+  "sales",
+  "procurement",
+  "assets",
+];
 
 /** A section as a navigation rail shows it. */
 export interface RailEntry {
@@ -699,10 +759,15 @@ export function railEntry(
   section: NavSection,
   user: AuthUser | null,
   tenant: Tenant | null,
+  productRoles: ProductRoles = {},
 ): RailEntry | null {
-  const pages = visiblePages(section, user, tenant);
+  const pages = visiblePages(section, user, tenant, productRoles);
   const product = linkedProduct(section, tenant);
-  const launch = product && roleAllows(user, PRODUCTS[product].audience) ? product : undefined;
+  const offered =
+    product &&
+    roleAllows(user, PRODUCTS[product].audience) &&
+    (!PRODUCTS[product].membersOnly || Boolean(productRoles[product]));
+  const launch = offered ? product : undefined;
   return pages.length > 0 || launch ? { section, pages, launch } : null;
 }
 

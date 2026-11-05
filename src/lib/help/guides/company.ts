@@ -83,6 +83,7 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
         steps: [
           "Open the Attendance tab, click the day and choose Missed punch, Correct attendance, On duty or Work from home.",
           "Give the times or status and a reason, then Apply. It is applied at once, with no approval; a locked payroll period must be unlocked first.",
+          "Your own days work the same way only if you have no manager. With a manager, ask from Attendance → My attendance and your manager approves it.",
         ],
       },
       {

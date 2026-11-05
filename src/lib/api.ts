@@ -37,6 +37,8 @@ function apiBase(): string {
 const CSRF_COOKIE = "askmira_csrf";
 const CSRF_HEADER = "X-CSRF-Token";
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+/** How long a file upload may take before the person is told it timed out. */
+const UPLOAD_TIMEOUT = 5 * 60_000;
 
 /** Pages that must not bounce to sign-in on a 401 (they are the sign-in flow, or public). */
 const PUBLIC_PATH_PREFIXES = ["/signin", "/careers", "/candidate", "/interview", "/kiosk", "/act"];
@@ -120,9 +122,12 @@ async function rawFetch(path: string, init: RequestInit, timeout: number): Promi
 }
 
 async function send(path: string, options: ApiOptions): Promise<Response> {
-  const { timeout = 30_000, skipAuthRedirect = false, body, headers: extraHeaders, ...rest } = options;
+  const { timeout: asked, skipAuthRedirect = false, body, headers: extraHeaders, ...rest } = options;
   const headers = new Headers(extraHeaders);
   const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  // A file upload gets longer: 25 MB on a 2 Mbps mobile connection takes well
+  // over a minute, and the server compresses the file before it answers.
+  const timeout = asked ?? (isFormData ? UPLOAD_TIMEOUT : 30_000);
   if (body !== undefined && !isFormData) headers.set("Content-Type", "application/json");
   const init: RequestInit = {
     ...rest,

@@ -31,6 +31,7 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import type { AssetCategory, AssetPage, AssetStatus, AssetSummary } from "@/lib/types/assets";
 import { cn } from "@/lib/utils";
 
+import { ReceivedEquipmentPanel } from "@/components/assets/ReceivedEquipmentPanel";
 import { AssetDetailSheet } from "./AssetDetailSheet";
 import { AssetFormDialog, type LocationOption } from "./AssetFormDialog";
 import {
@@ -339,6 +340,7 @@ export function AssetRegisterScreen() {
         onClose={() => setOpenId(null)}
         onChanged={refresh}
       />
+      <ReceivedEquipmentPanel />
     </PageShell>
   );
 }

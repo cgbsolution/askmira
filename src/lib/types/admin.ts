@@ -23,6 +23,8 @@ export interface TenantSettingsUpdate {
   timezone?: string;
   fiscal_year_start_month?: number;
   week_start?: "monday" | "sunday" | "saturday";
+  /** The largest file anyone in the workspace can upload, in whole MB (1–25). */
+  max_upload_mb?: number;
 }
 
 export interface ModuleRow {

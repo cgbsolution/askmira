@@ -11,6 +11,7 @@ import {
   Fingerprint,
   House,
   List,
+  ListChecks,
   Lock,
   PencilLine,
   UserX,
@@ -52,6 +53,7 @@ import { cn, formatDay, formatDays, parseISODate, toISODate } from "@/lib/utils"
 import { KIND_LABELS } from "./AttendanceRequestDialog";
 import { AttendanceMap } from "./AttendanceMap";
 import { PunchLocation } from "./location";
+import { MarkDaysPanel } from "./MarkDaysPanel";
 import { PunchPhoto } from "./PunchPhoto";
 import {
   formatClock,
@@ -222,6 +224,10 @@ export function AttendanceCalendar({
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selected, setSelected] = useState(() => toISODate(new Date()));
+  // HR picking several days to mark at once.
+  const [picking, setPicking] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const pickedSet = useMemo(() => new Set(picked), [picked]);
   const { from, to } = monthBounds(month.getFullYear(), month.getMonth());
   const query = employeeId ? `&employee_id=${encodeURIComponent(employeeId)}` : "";
   const { data, error, isLoading, reload } = useApiQuery<MyAttendancePeriod>(
@@ -295,7 +301,7 @@ export function AttendanceCalendar({
     const info = describe(iso);
     const correction = info.row ? correctionLabel(info.row) : null;
     const style = info.tag ? DAY_TAGS[info.tag] : null;
-    const isSelected = iso === selected;
+    const isSelected = picking ? pickedSet.has(iso) : iso === selected;
     const said = style?.label ?? UNTAGGED_LABELS[info.kind] ?? STATUS_LABELS[info.kind as AttendanceStatus];
     return (
       <CalendarDayButton
@@ -363,7 +369,20 @@ export function AttendanceCalendar({
             ? `${data.shift_today.name} ${shortTime(data.shift_today.start_time)}–${shortTime(data.shift_today.end_time)}${data.shift_today_is_default ? " (company default)" : ""}. Each day is judged once it is over, from punches, shift, leave and holidays.`
             : "Each day is judged once it is over, from punches, shift, leave and holidays."}
         </CardDescription>
-        <CardAction>
+        <CardAction className="flex flex-wrap justify-end gap-2">
+          {canMark && onRequest && (
+            <Button
+              variant={picking ? "default" : "outline"}
+              size="sm"
+              aria-pressed={picking}
+              onClick={() => {
+                setPicking((current) => !current);
+                setPicked([]);
+              }}
+            >
+              <ListChecks /> {picking ? "Done selecting" : "Select several days"}
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -436,13 +455,34 @@ export function AttendanceCalendar({
             <TabsContent value="calendar">
               <CardContent className="grid gap-6 pb-6 xl:grid-cols-[minmax(0,1fr)_300px]">
                 <div className="min-w-0">
+                  {picking && (
+                    <p className="mb-3 text-sm text-muted-foreground" aria-live="polite">
+                      Click the days to mark; click again to leave one out. Days ahead of today cannot be
+                      marked.
+                    </p>
+                  )}
                   <Calendar
-                    mode="single"
-                    required
+                    {...(picking
+                      ? {
+                          mode: "multiple" as const,
+                          selected: picked.map(parseISODate),
+                          onSelect: (dates: Date[] | undefined) =>
+                            setPicked((dates ?? []).map(toISODate).sort()),
+                          disabled: (date: Date) => {
+                            const iso = toISODate(date);
+                            return (
+                              iso > today || Boolean(data.date_of_joining && iso < data.date_of_joining)
+                            );
+                          },
+                        }
+                      : {
+                          mode: "single" as const,
+                          required: true as const,
+                          selected: parseISODate(selected),
+                          onSelect: (date: Date | undefined) => date && setSelected(toISODate(date)),
+                        })}
                     month={month}
                     onMonthChange={setMonth}
-                    selected={parseISODate(selected)}
-                    onSelect={(date) => date && setSelected(toISODate(date))}
                     showOutsideDays={false}
                     weekStartsOn={0}
                     formatters={{ formatWeekdayName: (date) => weekdayNarrow.format(date) }}
@@ -491,6 +531,18 @@ export function AttendanceCalendar({
                   </ul>
                 </div>
 
+                {picking ? (
+                  <MarkDaysPanel
+                    employeeId={employeeId}
+                    picked={picked}
+                    isLocked={data.is_locked}
+                    onClear={() => setPicked([])}
+                    onMarked={() => {
+                      setPicked([]);
+                      reload();
+                    }}
+                  />
+                ) : (
                 <DayDetail
                   iso={selected}
                   info={selectedInfo}
@@ -503,6 +555,7 @@ export function AttendanceCalendar({
                   onRequest={onRequest}
                   canMark={canMark}
                 />
+                )}
               </CardContent>
             </TabsContent>
 

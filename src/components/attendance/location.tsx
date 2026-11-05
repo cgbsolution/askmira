@@ -28,11 +28,9 @@ export function punchLocationText(punch: Pick<Punch, "latitude" | "location_labe
     : `Away from ${punch.location_label}`;
 }
 
-/** OpenStreetMap at the punch's coordinates. A link only: nothing loads until clicked. */
+/** Google Maps at the punch's coordinates. A link only: nothing loads until clicked. */
 export function mapUrl(latitude: number, longitude: number): string {
-  const lat = latitude.toFixed(6);
-  const lon = longitude.toFixed(6);
-  return `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`;
+  return `https://www.google.com/maps/search/?api=1&query=${latitude.toFixed(6)},${longitude.toFixed(6)}`;
 }
 
 /** One punch's location: where, whether it was outside every work location, and a map link. */
@@ -46,23 +44,32 @@ export function PunchLocation({ punch, className }: { punch: Punch; className?: 
     );
   }
   return (
-    <span
-      className={cn(
-        "inline-flex flex-wrap items-center gap-1 text-xs",
-        punch.outside_geofence ? "text-marigold-900 dark:text-marigold-100" : "text-muted-foreground",
-        className,
-      )}
-    >
-      <MapPin className="size-3.5" />
-      {text}
-      {punch.latitude !== null && punch.longitude !== null && (
-        <Button asChild variant="link" className="h-auto p-0 text-xs">
-          <a href={mapUrl(punch.latitude, punch.longitude)} target="_blank" rel="noopener noreferrer">
-            Map <ExternalLink className="size-3" />
-          </a>
-        </Button>
-      )}
+    <span className={cn("inline-flex flex-col gap-0.5 text-xs", className)}>
+      <span
+        className={cn(
+          "inline-flex flex-wrap items-center gap-1",
+          punch.outside_geofence ? "text-marigold-900 dark:text-marigold-100" : "text-muted-foreground",
+        )}
+      >
+        <MapPin className="size-3.5" />
+        {text}
+        {punch.latitude !== null && punch.longitude !== null && (
+          <MapLink latitude={punch.latitude} longitude={punch.longitude} />
+        )}
+      </span>
+      {punch.address && <span className="pl-[18px] text-muted-foreground">{punch.address}</span>}
     </span>
+  );
+}
+
+/** "Map ↗": the point in Google Maps, in a new tab. */
+export function MapLink({ latitude, longitude }: { latitude: number; longitude: number }) {
+  return (
+    <Button asChild variant="link" className="h-auto p-0 text-xs">
+      <a href={mapUrl(latitude, longitude)} target="_blank" rel="noopener noreferrer">
+        Map <ExternalLink className="size-3" />
+      </a>
+    </Button>
   );
 }
 

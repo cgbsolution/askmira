@@ -17,8 +17,7 @@ import type { PunchImportResult, PunchImportRowError } from "@/lib/types/attenda
 import { errorDetail } from "./shared";
 import { Field } from "./ShiftsTab";
 import { FileInput } from "@/components/ui/file-input";
-
-const MAX_BYTES = 2 * 1024 * 1024;
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 
 const ERROR_COLUMNS: ColumnDef<PunchImportRowError>[] = [
   { accessorKey: "row", header: "Row", meta: { cellClassName: "tabular-nums" } },
@@ -42,14 +41,13 @@ export function ImportPunchesTab() {
   const [isUploading, setIsUploading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [result, setResult] = useState<PunchImportResult | null>(null);
+  const limit = useUploadLimit();
 
   const fileError = !file
     ? "Choose a CSV file."
     : !file.name.toLowerCase().endsWith(".csv")
       ? "The file must be a .csv."
-      : file.size > MAX_BYTES
-        ? "The file is larger than 2 MB."
-        : null;
+      : limit.check(file);
   const timezoneError = timezone.trim() ? null : "A timezone is required, e.g. Asia/Kolkata.";
 
   const upload = async () => {
@@ -97,7 +95,7 @@ export function ImportPunchesTab() {
             </p>
             <p className="mt-1">
               <code className="text-foreground">direction</code> is <code>in</code> or{" "}
-              <code>out</code>. Up to 2 MB and 5,000 rows. A timestamp without a UTC offset is read
+              <code>out</code>. Up to {limit.label} and 5,000 rows. A timestamp without a UTC offset is read
               in the timezone below.
             </p>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Loader2, Lock, Paperclip, Pencil, X } from "lucide-react";
+import { Calculator, Download, Info, Loader2, Lock, Paperclip, Pencil, X } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -17,11 +17,14 @@ import {
   periodName,
   revisionDate,
 } from "@/components/payroll/salary-master/shared";
+import { STATUTORY_CODES } from "@/components/payroll/structures/rules";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { del, downloadFile, post, put } from "@/lib/api";
+import { formatMoney } from "@/lib/utils";
 import type { EmployeeSummary } from "@/lib/types";
 import {
   DEFAULT_WAGE_GROUP,
@@ -34,13 +37,14 @@ import {
   type SalarySaveResult,
   type SalaryStructure,
   type StandardStatus,
+  type TemplateCalc,
 } from "@/lib/types/payroll";
 import { HiddenFileInput } from "@/components/ui/file-input";
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 
 /** What a revision may carry as its file: what the server's vault takes. */
 const FILE_TYPES = ["application/pdf", "image/png", "image/jpeg"];
 const FILE_EXTENSIONS = /\.(pdf|png|jpe?g)$/i;
-const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 export type EditorMode =
   /** A new revision, starting from the latest one's amounts. */
@@ -92,6 +96,7 @@ export function SalaryEditor({
   const revision = mode && mode.kind !== "new" ? mode.revision : null;
   const readOnly = mode?.kind === "view";
   const source = mode?.kind === "new" ? mode.base : revision;
+  const limit = useUploadLimit();
 
   const [effectiveFrom, setEffectiveFrom] = useState("");
   const [reason, setReason] = useState("");
@@ -110,9 +115,28 @@ export function SalaryEditor({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState<"save" | "forward" | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // The salary structure: the revision's label, and what Calculate splits the CTC by.
+  const [structureId, setStructureId] = useState("");
+  const [initialStructure, setInitialStructure] = useState("");
+  const [calculating, setCalculating] = useState(false);
+  const [confirmCalc, setConfirmCalc] = useState(false);
+  // What the last Calculate said, kept while the structure and CTC are unchanged.
+  const [calcInfo, setCalcInfo] = useState<{ key: string; calc: TemplateCalc } | null>(null);
+
+  const active = structures.filter((s) => s.active);
 
   useEffect(() => {
     if (!mode) return;
+    const startStructure =
+      (source && active.some((s) => s.id === source.structure_id)
+        ? source.structure_id
+        : source && mode.kind !== "new"
+          ? source.structure_id
+          : active[0]?.id) ?? "";
+    setStructureId(startStructure);
+    setInitialStructure(startStructure);
+    setCalcInfo(null);
+    setConfirmCalc(false);
     setEffectiveFrom(mode.kind === "new" ? "" : mode.revision.effective_from);
     setReason(mode.kind === "new" ? "" : (mode.revision.revision_reason ?? ""));
     const startCtc = source ? (source.ctc_amount ?? source.ctc_annual) : "";
@@ -140,10 +164,9 @@ export function SalaryEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
-  // The structure is only the record's label here; the amounts are all typed.
-  const active = structures.filter((s) => s.active);
-  const structureId =
-    (source && active.some((s) => s.id === source.structure_id) ? source.structure_id : active[0]?.id) ?? "";
+  // The structures to pick from: those switched on, and the revision's own even if it is off.
+  const choices = structures.filter((s) => s.active || s.id === structureId);
+  const structureName = structures.find((s) => s.id === structureId)?.name ?? revision?.structure_name ?? null;
 
   const typed = Object.entries(rows).filter(([, row]) => row.amount.trim() !== "");
   const invalid = typed.some(([, row]) => !isTypedAmount(row.amount)) || (gross.trim() !== "" && !isTypedAmount(gross));
@@ -226,11 +249,94 @@ export function SalaryEditor({
   const attachmentName = revision?.attachment_name ?? null;
   const noStructure = !readOnly && standard !== null && !standard.has_structure;
   // A rule the amounts break, said while typing; saving is refused until fixed.
-  const warning = (amounts && preview?.warnings?.[0]) || null;
+  // Not while new figures are being worked out: the old warning would be about old amounts.
+  const warning = (amounts && !previewing && preview?.warnings?.[0]) || null;
   const dirty =
     !readOnly &&
     mode !== null &&
-    formKey(effectiveFrom, reason, ctc, ctcBasis, gross, grossBasis, rows, file, removeAttachment) !== initialKey;
+    (formKey(effectiveFrom, reason, ctc, ctcBasis, gross, grossBasis, rows, file, removeAttachment) !== initialKey ||
+      structureId !== initialStructure);
+
+  // Structures load with the page; one opened before they arrived picks the first.
+  useEffect(() => {
+    if (mode && !structureId && active[0]) {
+      setStructureId(active[0].id);
+      setInitialStructure(active[0].id);
+    }
+  }, [mode, structureId, active]);
+
+  const calcKey = JSON.stringify([structureId, ctc.trim(), ctcBasis]);
+  const shownCalc = calcInfo && calcInfo.key === calcKey ? calcInfo.calc : null;
+
+  /** Calculate: split CTC TOTAL by the structure and fill the boxes, for HR to review. */
+  const calculate = async () => {
+    if (!structureId) return setError("Pick a salary structure first.");
+    if (!ctc.trim()) return setError("Type CTC TOTAL first, then press Calculate.");
+    if (!ctcValid) return setError("CTC TOTAL must be more than 0, with up to two decimals.");
+    setCalculating(true);
+    setError(null);
+    try {
+      const result = await post<TemplateCalc>(`/salary-templates/${structureId}/calculate`, {
+        ctc_amount: ctc.trim(),
+        ctc_basis: ctcBasis,
+      });
+      const byCode = new Map(result.lines.map((line) => [line.component_code, line]));
+      const next: Record<string, WageRow> = { ...rows };
+      const cleared: string[] = [];
+      const kept: string[] = [];
+      let filled = 0;
+      for (const component of components) {
+        const line = byCode.get(component.code);
+        const existing = rows[component.code];
+        if (line) {
+          const zero = /^0+(\.0+)?$/.test(line.amount);
+          // Nothing due is left empty (not paid), except on a statutory MANUAL row,
+          // where 0 means "deduct nothing" rather than "payroll works it out".
+          next[component.code] = {
+            amount: zero && !STATUTORY_CODES.has(component.code) ? "" : line.amount.replace(/\.00$/, ""),
+            basis: line.basis,
+            remarks: existing?.remarks ?? "",
+          };
+          if (!zero || STATUTORY_CODES.has(component.code)) filled += 1;
+        } else if (existing?.amount.trim()) {
+          if (component.part_of_ctc && !STATUTORY_CODES.has(component.code)) {
+            next[component.code] = { ...existing, amount: "" };
+            cleared.push(component.name);
+          } else {
+            kept.push(component.name);
+          }
+        }
+      }
+      setRows(next);
+      // MONTHLY GROSS follows the earnings again.
+      setGross("");
+      setCalcInfo({ key: calcKey, calc: result });
+      const said = [
+        cleared.length ? `Cleared (inside the CTC, not in the structure): ${cleared.join(", ")}.` : "",
+        kept.length ? `Kept as typed: ${kept.join(", ")}.` : "",
+        "Review the amounts, then SAVE.",
+      ]
+        .filter(Boolean)
+        .join(" ");
+      toast.success(`Filled ${filled} wage type${filled === 1 ? "" : "s"} from ${result.structure_name}.`, {
+        description: said,
+        duration: 9000,
+      });
+    } catch (caught) {
+      setError(apiMessage(caught, "Could not work out the amounts from this structure."));
+    } finally {
+      setCalculating(false);
+    }
+  };
+  const askCalculate = () => {
+    // Say what is missing first, before asking whether to replace anything.
+    if (!structureId) return setError("Pick a salary structure first.");
+    if (!ctc.trim()) return setError("Type CTC TOTAL first, then press Calculate.");
+    if (!ctcValid) return setError("CTC TOTAL must be more than 0, with up to two decimals.");
+    const anyTyped = Object.values(rows).some((row) => row.amount.trim() !== "") || gross.trim() !== "";
+    if (anyTyped) setConfirmCalc(true);
+    else void calculate();
+  };
 
   const requestClose = () => {
     if (saving) return;
@@ -245,8 +351,9 @@ export function SalaryEditor({
       setError(`${picked.name} is not a PDF, PNG or JPEG. Attach one of those.`);
       return;
     }
-    if (picked.size > MAX_FILE_BYTES) {
-      setError(`${picked.name} is larger than 10 MB.`);
+    const tooBig = limit.check(picked);
+    if (tooBig) {
+      setError(tooBig);
       return;
     }
     if (picked.size === 0) {
@@ -433,6 +540,40 @@ export function SalaryEditor({
                 </div>
               </>
             )}
+            {readOnly ? (
+              structureName && (
+                <Badge variant="outline" className="h-9 px-3 text-sm">
+                  Structure: {structureName}
+                </Badge>
+              )
+            ) : (
+              <div className="flex items-center gap-2">
+                <Select value={structureId} onValueChange={setStructureId} disabled={!choices.length}>
+                  <SelectTrigger aria-label="Salary structure" className="h-9 w-56">
+                    <SelectValue placeholder="Salary structure" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {choices.map((choice) => (
+                      <SelectItem key={choice.id} value={choice.id}>
+                        {choice.name}
+                        {!choice.active ? " (switched off)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-9"
+                  disabled={calculating || busy || noStructure || !structureId}
+                  onClick={askCalculate}
+                  title="Split CTC TOTAL by the salary structure and fill the boxes"
+                >
+                  {calculating ? <Loader2 className="animate-spin" /> : <Calculator />}
+                  Calculate
+                </Button>
+              </div>
+            )}
             {locked && (
               <Badge variant="muted" className="h-9 px-3 text-sm">
                 <Lock /> Locked
@@ -454,6 +595,38 @@ export function SalaryEditor({
           {(previewError || warning) && !readOnly && (
             <Alert variant="destructive">
               <AlertDescription>{previewError ?? warning}</AlertDescription>
+            </Alert>
+          )}
+          {shownCalc && !readOnly && (
+            <Alert>
+              <Info />
+              <AlertDescription>
+                <span className="block">
+                  Filled from <span className="font-medium text-foreground">{shownCalc.structure_name}</span> for CTC{" "}
+                  {formatMoney(shownCalc.ctc_monthly)} a month ({formatMoney(shownCalc.ctc_annual)} a year). Change any
+                  amount before saving.
+                </span>
+                {shownCalc.employer
+                  .filter((row) => row.applied && !/^0+(\.0+)?$/.test(row.monthly))
+                  .map((row) => (
+                    <span key={row.key} className="block">
+                      Inside the CTC: {row.name} {formatMoney(row.monthly)} a month ({row.rule_text}) — payroll works
+                      it out each month.
+                    </span>
+                  ))}
+                {shownCalc.employer
+                  .filter((row) => !row.applied && row.note)
+                  .map((row) => (
+                    <span key={row.key} className="block">
+                      {row.name}: {row.note}.
+                    </span>
+                  ))}
+                {!/^0+(\.0+)?$/.test(shownCalc.unallocated_monthly) && (
+                  <span className="block">
+                    Rounding leaves {formatMoney(shownCalc.unallocated_monthly)} a month of the CTC unallocated.
+                  </span>
+                )}
+              </AlertDescription>
             </Alert>
           )}
 
@@ -541,6 +714,18 @@ export function SalaryEditor({
         onConfirm={() => {
           setConfirmClose(false);
           onClose();
+        }}
+      />
+      <ConfirmDialog
+        open={confirmCalc}
+        onOpenChange={setConfirmCalc}
+        title="Replace the amounts?"
+        description={`Calculate fills every wage type of ${structureName ?? "the structure"} from CTC TOTAL, replacing what is typed there, and clears wage types inside the CTC that the structure does not use. Deductions and reimbursements outside the CTC are kept.`}
+        confirmLabel="Calculate"
+        cancelLabel="Keep my amounts"
+        onConfirm={async () => {
+          setConfirmCalc(false);
+          await calculate();
         }}
       />
     </Sheet>

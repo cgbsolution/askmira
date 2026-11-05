@@ -1,6 +1,18 @@
 "use client";
 
-import { CircleCheck, CircleSlash, Database, Download, Handshake, Loader2, Plus, ShieldAlert } from "lucide-react";
+import {
+  CircleCheck,
+  CircleSlash,
+  Copy,
+  Database,
+  Download,
+  Handshake,
+  Link2,
+  Loader2,
+  Plus,
+  Send,
+  ShieldAlert,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -48,16 +60,30 @@ interface SchemaDocument {
   stability: string;
 }
 
+type Destination = "postgres_role" | "object_storage" | "https_feed";
+
 interface Connection {
   connection_id: string;
   name: string;
   entity: string;
-  destination: "postgres_role" | "object_storage";
+  destination: Destination;
   destination_ref: string;
   export_role: string;
   schema_version: string;
   last_watermark: string | null;
   is_active: boolean;
+  schedule: "manual" | "daily";
+  storage: { bucket: string; region: string; prefix: string; endpoint: string } | null;
+  has_feed: boolean;
+  last_delivered_at: string | null;
+  last_delivery_error: string | null;
+}
+
+interface Delivered {
+  delivered: boolean;
+  row_count: number;
+  files: string[];
+  error: string | null;
 }
 
 interface ExportRun {
@@ -81,7 +107,17 @@ interface Posture {
   not_built: string[];
 }
 
-const DESTINATION_LABEL = { postgres_role: "Read-only Postgres role", object_storage: "Object storage bucket" };
+const DESTINATION_LABEL: Record<Destination, string> = {
+  postgres_role: "Database role (no longer offered)",
+  object_storage: "Your bucket (S3-compatible)",
+  https_feed: "Feed link for your BI tool",
+};
+
+/** The address a BI tool reads a feed link from: this site's own, forwarded to the API. */
+function feedUrl(token: string): string {
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  return `${origin}/api/v1/public/bi-feed/${token}.csv`;
+}
 const EXPORT_ROLES = [
   { value: "employee", label: "Employee — public fields only" },
   { value: "manager", label: "Manager — public fields only" },
@@ -136,6 +172,44 @@ function ConnectionsTab() {
   const posture = useApiQuery<Posture>("/bi/posture");
   const [creating, setCreating] = useState(false);
   const [exporting, setExporting] = useState<string | null>(null);
+  const [link, setLink] = useState<string | null>(null);
+
+  const deliver = async (row: Connection) => {
+    setExporting(row.connection_id);
+    try {
+      const result = await post<Delivered>(`/bi/connections/${row.connection_id}/deliver`);
+      if (result.delivered) toast.success(`Delivered ${result.row_count} rows to ${result.files.join(" and ")}.`);
+      else toast.error(result.error ?? "The bucket did not take the file.");
+      reload();
+    } catch (caught) {
+      toast.error(detail(caught, "The delivery failed."));
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const newLink = async (row: Connection) => {
+    setExporting(row.connection_id);
+    try {
+      const result = await post<{ feed_token: string }>(`/bi/connections/${row.connection_id}/feed-link`);
+      setLink(feedUrl(result.feed_token));
+      reload();
+    } catch (caught) {
+      toast.error(detail(caught, "A new link could not be made."));
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const setSchedule = async (row: Connection, schedule: "manual" | "daily") => {
+    try {
+      await put(`/bi/connections/${row.connection_id}/schedule`, { schedule, is_active: row.is_active });
+      toast.success(schedule === "daily" ? "Delivered every night at 02:00." : "Delivered when you ask.");
+      reload();
+    } catch (caught) {
+      toast.error(detail(caught, "The schedule was not changed."));
+    }
+  };
 
   const download = async (row: Connection) => {
     setExporting(row.connection_id);
@@ -152,9 +226,9 @@ function ConnectionsTab() {
   return (
     <div className="flex flex-col gap-4">
       {posture.data && posture.data.not_built.length > 0 && (
-        <Alert variant="warning">
+        <Alert>
           <CircleSlash />
-          <AlertTitle>What the connector does not do yet</AlertTitle>
+          <AlertTitle>What the connector does not do, by design</AlertTitle>
           <AlertDescription>
             <ul className="list-disc pl-5">
               {posture.data.not_built.map((line) => (
@@ -186,8 +260,8 @@ function ConnectionsTab() {
               <TableHead>Connection</TableHead>
               <TableHead>Destination</TableHead>
               <TableHead>Exports as</TableHead>
-              <TableHead>Last export up to</TableHead>
-              {isAdmin && <TableHead className="text-right">Export</TableHead>}
+              <TableHead>Delivery</TableHead>
+              {isAdmin && <TableHead className="text-right">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -208,12 +282,55 @@ function ConnectionsTab() {
                 <TableCell>
                   <Badge variant="outline">{row.export_role}</Badge>
                 </TableCell>
-                <TableCell className="text-xs text-muted-foreground">{row.last_watermark ? formatDateTime(row.last_watermark) : "Never exported"}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {row.destination === "object_storage" ? (
+                    isAdmin ? (
+                      <Select
+                        value={row.schedule}
+                        onValueChange={(next) => void setSchedule(row, next as Connection["schedule"])}
+                      >
+                        <SelectTrigger className="h-8 w-36" aria-label={`When ${row.name} is delivered`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manual">When you ask</SelectItem>
+                          <SelectItem value="daily">Every night</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : row.schedule === "daily" ? (
+                      "Every night"
+                    ) : (
+                      "When you ask"
+                    )
+                  ) : row.destination === "https_feed" ? (
+                    "Whenever your BI tool refreshes"
+                  ) : (
+                    "—"
+                  )}
+                  <div className="mt-1">
+                    {row.last_delivered_at ? `Last ${formatDateTime(row.last_delivered_at)}` : "Not delivered yet"}
+                  </div>
+                  {row.last_delivery_error && (
+                    <div className="mt-1 max-w-xs text-destructive">{row.last_delivery_error}</div>
+                  )}
+                </TableCell>
                 {isAdmin && (
                   <TableCell className="text-right">
-                    <Button size="sm" variant="outline" disabled={exporting !== null || !row.is_active} onClick={() => download(row)}>
-                      {exporting === row.connection_id ? <Loader2 className="animate-spin" /> : <Download />} Full CSV
-                    </Button>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {row.destination === "object_storage" && (
+                        <Button size="sm" disabled={exporting !== null || !row.is_active} onClick={() => void deliver(row)}>
+                          {exporting === row.connection_id ? <Loader2 className="animate-spin" /> : <Send />} Deliver now
+                        </Button>
+                      )}
+                      {row.destination === "https_feed" && (
+                        <Button size="sm" variant="outline" disabled={exporting !== null || !row.is_active} onClick={() => void newLink(row)}>
+                          <Link2 /> New feed link
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" disabled={exporting !== null || !row.is_active} onClick={() => download(row)}>
+                        <Download /> Full CSV
+                      </Button>
+                    </div>
                   </TableCell>
                 )}
               </TableRow>
@@ -235,18 +352,72 @@ function ConnectionsTab() {
         </DataPanel>
       )}
 
-      <ConnectionDialog open={creating} onOpenChange={setCreating} onCreated={reload} />
+      <ConnectionDialog
+        open={creating}
+        onOpenChange={setCreating}
+        onCreated={(token) => {
+          reload();
+          if (token) setLink(feedUrl(token));
+        }}
+      />
+      <FeedLinkDialog link={link} onClose={() => setLink(null)} />
     </div>
   );
 }
 
-function ConnectionDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (open: boolean) => void; onCreated: () => void }) {
+/** The feed link, shown once: only its hash is kept, so it cannot be shown again. */
+function FeedLinkDialog({ link, onClose }: { link: string | null; onClose: () => void }) {
+  const copy = async () => {
+    if (!link) return;
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Link copied.");
+    } catch {
+      toast.error("Copy it from the box instead.");
+    }
+  };
+  return (
+    <Dialog open={link !== null} onOpenChange={(next) => !next && onClose()}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>Your feed link</DialogTitle>
+          <DialogDescription>
+            Paste it into your BI tool: Power BI → Get data → Web, Excel → Data → From Web, or Looker Studio&apos;s CSV
+            connector. It is shown only now. Anyone with it can read this data, so keep it like a password; make a new
+            one to stop the old one.
+          </DialogDescription>
+        </DialogHeader>
+        <Input readOnly value={link ?? ""} className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} aria-label="Feed link" />
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Done
+          </Button>
+          <Button onClick={() => void copy()}>
+            <Copy /> Copy link
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ConnectionDialog({
+  open,
+  onOpenChange,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreated: (feedToken: string | null) => void;
+}) {
   const [role, setRole] = useState("sub_admin");
   const schema = useApiQuery<SchemaDocument>(open ? "/bi/schema" : null);
   const [name, setName] = useState("");
   const [entity, setEntity] = useState("");
-  const [destination, setDestination] = useState<"postgres_role" | "object_storage">("postgres_role");
-  const [destinationRef, setDestinationRef] = useState("");
+  const [destination, setDestination] = useState<"object_storage" | "https_feed">("object_storage");
+  const [bucket, setBucket] = useState({ bucket: "", region: "ap-south-1", prefix: "", access_key_id: "", endpoint: "" });
+  const [secret, setSecret] = useState("");
+  const [schedule, setScheduleChoice] = useState<"manual" | "daily">("daily");
   const [narrow, setNarrow] = useState(false);
   const [fields, setFields] = useState<string[]>([]);
   const [isBusy, setIsBusy] = useState(false);
@@ -255,8 +426,10 @@ function ConnectionDialog({ open, onOpenChange, onCreated }: { open: boolean; on
     if (!open) return;
     setName("");
     setRole("sub_admin");
-    setDestination("postgres_role");
-    setDestinationRef("");
+    setDestination("object_storage");
+    setBucket({ bucket: "", region: "ap-south-1", prefix: "", access_key_id: "", endpoint: "" });
+    setSecret("");
+    setScheduleChoice("daily");
     setNarrow(false);
     setFields([]);
   }, [open]);
@@ -270,16 +443,29 @@ function ConnectionDialog({ open, onOpenChange, onCreated }: { open: boolean; on
   const submit = async () => {
     setIsBusy(true);
     try {
-      await post("/bi/connections", {
+      const toBucket = destination === "object_storage";
+      const made = await post<{ feed_token: string | null }>("/bi/connections", {
         name: name.trim(),
         entity_name: entity,
         destination,
-        destination_ref: destinationRef.trim(),
         export_role: role,
         field_names: narrow ? fields : null,
+        storage: toBucket
+          ? {
+              bucket: bucket.bucket.trim(),
+              region: bucket.region.trim(),
+              prefix: bucket.prefix.trim(),
+              access_key_id: bucket.access_key_id.trim(),
+              endpoint: bucket.endpoint.trim(),
+            }
+          : null,
+        secret: toBucket ? secret.trim() : null,
+        schedule: toBucket ? schedule : "manual",
       });
-      toast.success("Connection created and validated.");
-      onCreated();
+      toast.success(
+        toBucket ? "Connection created. Use Deliver now to send the first file." : "Connection created.",
+      );
+      onCreated(made.feed_token ?? null);
       onOpenChange(false);
     } catch (caught) {
       toast.error(detail(caught, "The connection was refused."));
@@ -336,18 +522,50 @@ function ConnectionDialog({ open, onOpenChange, onCreated }: { open: boolean; on
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="postgres_role">{DESTINATION_LABEL.postgres_role}</SelectItem>
                 <SelectItem value="object_storage">{DESTINATION_LABEL.object_storage}</SelectItem>
+                <SelectItem value="https_feed">{DESTINATION_LABEL.https_feed}</SelectItem>
               </SelectContent>
             </Select>
           </FormField>
-          <FormField
-            htmlFor="bi-ref"
-            label={destination === "postgres_role" ? "Role name" : "Bucket URI"}
-            hint="Recorded on every export: 'to where' is half of what the audit row is for."
-          >
-            <Input id="bi-ref" value={destinationRef} onChange={(e) => setDestinationRef(e.target.value)} className="font-mono text-xs" />
-          </FormField>
+          {destination === "object_storage" ? (
+            <FormField htmlFor="bi-schedule" label="When">
+              <Select value={schedule} onValueChange={(next) => setScheduleChoice(next as typeof schedule)}>
+                <SelectTrigger id="bi-schedule" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Every night at 02:00</SelectItem>
+                  <SelectItem value="manual">Only when I press Deliver now</SelectItem>
+                </SelectContent>
+              </Select>
+            </FormField>
+          ) : (
+            <p className="self-end text-xs text-muted-foreground">
+              Your BI tool reads the link whenever it refreshes. The link is shown once, after you create it.
+            </p>
+          )}
+          {destination === "object_storage" && (
+            <>
+              <FormField htmlFor="bi-bucket" label="Bucket" hint="Lowercase letters, digits, dots and hyphens.">
+                <Input id="bi-bucket" value={bucket.bucket} onChange={(e) => setBucket({ ...bucket, bucket: e.target.value })} className="font-mono text-xs" spellCheck={false} />
+              </FormField>
+              <FormField htmlFor="bi-region" label="Region" hint="Like ap-south-1; auto for Cloudflare R2.">
+                <Input id="bi-region" value={bucket.region} onChange={(e) => setBucket({ ...bucket, region: e.target.value })} className="font-mono text-xs" spellCheck={false} />
+              </FormField>
+              <FormField htmlFor="bi-prefix" label="Folder (optional)" hint="Files go to folder/entity/date.csv and folder/entity/latest.csv.">
+                <Input id="bi-prefix" value={bucket.prefix} onChange={(e) => setBucket({ ...bucket, prefix: e.target.value })} className="font-mono text-xs" spellCheck={false} />
+              </FormField>
+              <FormField htmlFor="bi-endpoint" label="Storage address (optional)" hint="Leave blank for Amazon S3. For R2, Wasabi or MinIO, its https:// address.">
+                <Input id="bi-endpoint" value={bucket.endpoint} onChange={(e) => setBucket({ ...bucket, endpoint: e.target.value })} className="font-mono text-xs" spellCheck={false} />
+              </FormField>
+              <FormField htmlFor="bi-key" label="Access key id" hint="A key that may only write to this bucket.">
+                <Input id="bi-key" value={bucket.access_key_id} onChange={(e) => setBucket({ ...bucket, access_key_id: e.target.value })} className="font-mono text-xs" autoComplete="off" spellCheck={false} />
+              </FormField>
+              <FormField htmlFor="bi-secret" label="Secret access key" hint="Encrypted, and never shown again.">
+                <Input id="bi-secret" type="password" value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="off" />
+              </FormField>
+            </>
+          )}
           <div className="flex items-center gap-3 sm:col-span-2">
             <Switch id="bi-narrow" checked={narrow} onCheckedChange={setNarrow} />
             <Label htmlFor="bi-narrow" className="text-sm font-normal">
@@ -383,7 +601,17 @@ function ConnectionDialog({ open, onOpenChange, onCreated }: { open: boolean; on
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isBusy}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={isBusy || !name.trim() || !entity || !destinationRef.trim() || (narrow && fields.length === 0)}>
+          <Button
+            onClick={submit}
+            disabled={
+              isBusy ||
+              !name.trim() ||
+              !entity ||
+              (destination === "object_storage" &&
+                (!bucket.bucket.trim() || !bucket.access_key_id.trim() || !secret.trim())) ||
+              (narrow && fields.length === 0)
+            }
+          >
             {isBusy && <Loader2 className="animate-spin" />} Create connection
           </Button>
         </DialogFooter>

@@ -34,8 +34,8 @@ import type {
 import { formatDate, formatDay } from "@/lib/utils";
 import { DatePicker } from "@/components/common/DatePicker";
 import { FileInput } from "@/components/ui/file-input";
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 
-const MAX_BYTES = 2 * 1024 * 1024;
 const CSV_HEADER = "vendor_gstin,vendor_name,invoice_number,invoice_date,taxable_value,cgst,sgst,igst,cess";
 const NO_ENTITY = "__none__";
 
@@ -144,7 +144,8 @@ export function Gstr2bPanel() {
   const [recProblem, setRecProblem] = useState<string | null>(null);
   const [report, setReport] = useState<GstReconciliationReport | null>(null);
 
-  const fileProblem = file && file.size > MAX_BYTES ? "The file is larger than 2 MB." : null;
+  const limit = useUploadLimit();
+  const fileProblem = file ? limit.check(file) : null;
   const canUpload = Boolean(file) && !fileProblem && uploadLabel.trim().length > 0 && Boolean(importedOn);
 
   const upload = async () => {
@@ -278,7 +279,7 @@ export function Gstr2bPanel() {
           <CardTitle>Upload a GSTR-2B</CardTitle>
           <CardDescription>
             Download the GSTR-2B from the GST portal yourself and upload it as CSV — this module does not connect to
-            the portal. Up to 2 MB, with this header row:
+            the portal. Up to {limit.label}, with this header row:
             <code className="mt-1 block overflow-x-auto whitespace-nowrap rounded bg-muted px-2 py-1 text-xs text-foreground">
               {CSV_HEADER}
             </code>

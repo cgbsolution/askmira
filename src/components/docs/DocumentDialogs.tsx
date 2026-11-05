@@ -33,8 +33,8 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import type { DocumentCategory, DocumentCategoryOption, VaultDocument } from "@/lib/types/docs";
 import type { EmployeeProfile } from "@/lib/types/people";
 import { FileInput } from "@/components/ui/file-input";
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 
-const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = "application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg";
 
 function todayIso(): string {
@@ -197,6 +197,7 @@ export function UploadDocumentDialog({
   const dependants = useDependants(open && person ? `/employees/${person.id}/profile` : null);
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const limit = useUploadLimit();
 
   useEffect(() => {
     if (!open) return;
@@ -228,7 +229,7 @@ export function UploadDocumentDialog({
         : "Choose the employee first.";
     }
     if (!file) found.file = "Choose a file.";
-    else if (file.size > MAX_BYTES) found.file = "The file is larger than 10 MB.";
+    else if (limit.check(file)) found.file = limit.check(file) as string;
     setErrors(found);
     setServerError(null);
     if (Object.keys(found).length || !file || !person) return;
@@ -265,7 +266,7 @@ export function UploadDocumentDialog({
           <DialogHeader>
             <DialogTitle>{forDependant ? "Add a dependant's document" : "Upload a document"}</DialogTitle>
             <DialogDescription>
-              PDF, PNG or JPEG up to 10 MB. The type is checked from the file itself.
+              PDF, PNG or JPEG up to {limit.label}. The type is checked from the file itself.
             </DialogDescription>
           </DialogHeader>
           {serverError && (
@@ -526,6 +527,7 @@ export function SelfUploadDialog({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const limit = useUploadLimit();
 
   useEffect(() => {
     if (!open) return;
@@ -547,7 +549,7 @@ export function SelfUploadDialog({
     if (!category) found.category = "Choose what kind of document this is.";
     if (!title.trim()) found.title = "Give the document a title.";
     if (!file) found.file = "Choose a file.";
-    else if (file.size > MAX_BYTES) found.file = "The file is larger than 10 MB.";
+    else if (limit.check(file)) found.file = limit.check(file) as string;
     setErrors(found);
     setServerError(null);
     if (Object.keys(found).length || !file) return;
@@ -582,7 +584,7 @@ export function SelfUploadDialog({
           <DialogHeader>
             <DialogTitle>Add a document to your record</DialogTitle>
             <DialogDescription>
-              ID proof, certificates, relieving letters. PDF, PNG or JPEG up to 10 MB. HR verifies it
+              ID proof, certificates, relieving letters. PDF, PNG or JPEG up to {limit.label}. HR verifies it
               before it counts as on file.
             </DialogDescription>
           </DialogHeader>

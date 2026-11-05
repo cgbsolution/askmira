@@ -9,13 +9,16 @@ import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle }
 import { useAuth } from "@/context/AuthContext";
 import { ApiError, del, get, post } from "@/lib/api";
 import { HiddenFileInput } from "@/components/ui/file-input";
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 
 /**
  * Settings → Company → Workspace: the logo on this company's own sign-in page.
- * PNG or JPEG, up to 1 MB. It is public, like the logo on the company's website.
+ * PNG or JPEG within the upload limit; the server scales it to a logo's size.
+ * It is public, like the logo on the company's website.
  */
 export function CompanyLogoCard() {
   const { tenant, reloadSession } = useAuth();
+  const limit = useUploadLimit();
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
@@ -66,7 +69,7 @@ export function CompanyLogoCard() {
         <CardTitle>Company logo</CardTitle>
         <CardDescription>
           Shown on your company&apos;s sign-in page{tenant?.slug ? ` (/signin/${tenant.slug})` : ""}. PNG or JPEG,
-          up to 1 MB.
+          up to {limit.label}; it is resized for you.
         </CardDescription>
         <CardAction className="flex gap-2">
           <Button size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()}>

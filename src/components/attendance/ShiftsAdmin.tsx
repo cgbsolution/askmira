@@ -5,6 +5,7 @@ import React from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { AssignmentsTab } from "./AssignmentsTab";
+import { AttendanceRulesCard } from "./AttendanceRulesCard";
 import { ImportPunchesTab } from "./ImportPunchesTab";
 import { PeriodsTab } from "./PeriodsTab";
 import { RostersTab } from "./RostersTab";
@@ -23,6 +24,7 @@ export function ShiftsAdmin() {
           <TabsTrigger value="shifts">Shifts</TabsTrigger>
           <TabsTrigger value="rosters">Rosters</TabsTrigger>
           <TabsTrigger value="assignments">Assignments</TabsTrigger>
+          <TabsTrigger value="rules">Late marks &amp; corrections</TabsTrigger>
           <TabsTrigger value="periods">Periods &amp; payroll lock</TabsTrigger>
           <TabsTrigger value="import">Import punches</TabsTrigger>
           <TabsTrigger value="locations">Work locations</TabsTrigger>
@@ -36,6 +38,9 @@ export function ShiftsAdmin() {
       </TabsContent>
       <TabsContent value="assignments" className="mt-4">
         <AssignmentsTab />
+      </TabsContent>
+      <TabsContent value="rules" className="mt-4">
+        <AttendanceRulesCard />
       </TabsContent>
       <TabsContent value="periods" className="mt-4">
         <PeriodsTab />

@@ -1,5 +1,6 @@
 "use client";
 
+import { ReceivedEquipmentPanel } from "@/components/assets/ReceivedEquipmentPanel";
 import { ChevronLeft, ChevronRight, ExternalLink, RefreshCw, Search } from "lucide-react";
 import Link from "next/link";
 import React, { useMemo, useState } from "react";
@@ -115,21 +116,24 @@ const VIEWS: Record<Product, Record<string, ViewConfig>> = {
     },
     assigned: {
       title: "Assigned to me",
-      description: "Tickets CGB Helpdesk has assigned to you. Work them in CGB Helpdesk; reply here or there.",
+      description:
+        "Tickets CGB Helpdesk has assigned to you. Reply here, or ask Ask Mira to hold, close or reopen one.",
       statuses: TICKET_STATUSES,
       search: "Subject, category or person",
       dates: true,
     },
     queue: {
       title: "Unassigned queue",
-      description: "The company's tickets nobody has picked up yet. Pick them up in CGB Helpdesk.",
+      description:
+        "Open tickets nobody has picked up yet. Pick one up in CGB Helpdesk, or ask Ask Mira to pick it up.",
       statuses: TICKET_STATUSES,
       search: "Subject, category or person",
       dates: true,
     },
     all: {
       title: "All tickets",
-      description: "Every ticket raised by the company's people in CGB Helpdesk. For helpdesk admins.",
+      description:
+        "Every ticket from the companies you look after in CGB Helpdesk, whoever has it. For its IT team and HR.",
       statuses: TICKET_STATUSES,
       search: "Subject, category or person",
       dates: true,
@@ -362,6 +366,8 @@ export function LinkedProductView({ product, view }: { product: string; view: st
           </div>
         ) : null}
       </div>
+      {/* The helpdesk's register: equipment received in ProcureFlow, to add to it. */}
+      {product === "helpdesk" && view === "register" && <ReceivedEquipmentPanel />}
     </PageShell>
   );
 }

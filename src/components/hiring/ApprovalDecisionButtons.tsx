@@ -20,6 +20,7 @@ import { ApiError, post } from "@/lib/api";
 interface DecisionResult {
   status?: string;
   remaining_steps?: number;
+  linked_job?: { opened: boolean; ref?: string; error?: string } | null;
 }
 
 /**
@@ -62,12 +63,19 @@ export function ApprovalDecisionButtons({
         note: note.trim() || undefined,
       });
       const remaining = result?.remaining_steps;
+      // With AnytimeHire linked, the last approval opens the job there.
+      const linked = result?.linked_job;
+      const opened = linked
+        ? linked.opened
+          ? " The job is now open in AnytimeHire."
+          : ` AnytimeHire did not open it: ${linked.error ?? "try again from the requisition"}.`
+        : "";
       toast.success(approve ? `${code} approved` : `${code} ${kind === "offer" ? "sent back" : "rejected"}`, {
         description:
           approve && typeof remaining === "number"
             ? remaining > 0
               ? `${remaining} more approval step${remaining === 1 ? "" : "s"} to go.`
-              : "That was the last approval step."
+              : `That was the last approval step.${opened}`
             : undefined,
       });
       setRejectOpen(false);

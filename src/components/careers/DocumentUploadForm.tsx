@@ -112,6 +112,8 @@ export function DocumentUploadForm({
             file={file}
             ref={fileInput}
             accept=".pdf,.png,.jpg,.jpeg"
+            // The size is checked in checkFile, against the hiring company's own limit.
+            maxBytes={false}
             aria-invalid={Boolean(errors.file)}
             onChange={(event) => {
               const chosen = event.target.files?.[0] ?? null;

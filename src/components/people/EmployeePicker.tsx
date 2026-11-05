@@ -29,8 +29,12 @@ type PickerRow = Colleague & { work_email?: string };
  * Built from Popover, Input and Button — the directory is paged on the server,
  * so the list is whatever the search returns, never the whole company.
  *
- * `colleagues` is for picking anybody in the company, not only the people the
- * caller's directory shows (their manager, team and reports): someone to thank,
+ * By default the person picked is somebody to act for (own an action plan,
+ * receive a letter), so the list is whom the caller may act for: everyone for
+ * HR, themselves and their reporting line for a manager — never their manager
+ * or the colleagues beside them.
+ *
+ * `colleagues` is for picking anybody in the company instead: someone to thank,
  * nominate or swap a shift with. It searches by name from two letters and
  * gets names and titles only.
  */
@@ -72,7 +76,7 @@ export function EmployeePicker({
     }
     const timer = setTimeout(() => {
       setIsLoading(true);
-      const params = new URLSearchParams({ page: "1", page_size: "20" });
+      const params = new URLSearchParams({ page: "1", page_size: "20", reporting_line: "true" });
       if (term.trim()) params.set("search", term.trim());
       const search: Promise<PickerRow[]> = colleagues
         ? findColleagues(term)

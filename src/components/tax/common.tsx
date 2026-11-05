@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUploadLimit } from "@/hooks/useUploadLimit";
 import type { ApiError } from "@/lib/api";
 import type { DeclarationStatus, ProofStatus, TaxRegime } from "@/lib/types/tax";
 
@@ -225,21 +226,24 @@ export function compareDecimal(a: string, b: string): number {
 
 // ── Uploads ─────────────────────────────────────────────────────────────────
 
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 export const UPLOAD_ACCEPT = ".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg";
-export const UPLOAD_HINT =
-  "PDF, PNG or JPEG, up to 5 MB. The type is read from the file's contents, not its name.";
 
 /**
- * A friendlier early message for an obviously wrong file. The server reads the
- * contents and has the final say; this only saves a round trip.
+ * The hint under a proof upload and a friendlier early message for an
+ * obviously wrong file, both on the workspace's upload limit. The server reads
+ * the contents and has the final say; this only saves a round trip.
  */
-export function uploadProblem(file: File | null): string | null {
-  if (!file) return "Choose a file to upload.";
-  if (!/\.(pdf|png|jpe?g)$/i.test(file.name)) return "The file must be a PDF, PNG or JPEG.";
-  if (file.size > MAX_UPLOAD_BYTES) return "The file is larger than 5 MB.";
-  if (file.size === 0) return "The file is empty.";
-  return null;
+export function useProofUpload(): { hint: string; problem: (file: File | null) => string | null } {
+  const limit = useUploadLimit();
+  return {
+    hint: `PDF, PNG or JPEG, up to ${limit.label}. The type is read from the file's contents, not its name.`,
+    problem: (file) => {
+      if (!file) return "Choose a file to upload.";
+      if (!/\.(pdf|png|jpe?g)$/i.test(file.name)) return "The file must be a PDF, PNG or JPEG.";
+      if (file.size === 0) return "The file is empty.";
+      return limit.check(file);
+    },
+  };
 }
 
 /** A 12-character-ish window on a hash, for recognising a document. */

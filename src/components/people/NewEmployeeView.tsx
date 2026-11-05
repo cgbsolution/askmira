@@ -2,14 +2,29 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import React from "react";
+import React, { useState } from "react";
 
 import { PageShell } from "@/components/common/PageShell";
-import { JoinerWizard } from "@/components/onboarding/JoinerWizard";
+import { JoinerWizard, type JoinerValues } from "@/components/onboarding/JoinerWizard";
+import { HiredInProductPanel, type LinkedHire } from "@/components/people/HiredInProductPanel";
 import { ImportEmployeesPanel } from "@/components/people/ImportEmployeesPanel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/context/AuthContext";
+
+/** What a hire in AnytimeHire already tells the joining form. */
+function fromHire(hire: LinkedHire): Partial<JoinerValues> {
+  return {
+    first_name: hire.first_name,
+    last_name: hire.last_name,
+    work_email: hire.email,
+    phone: hire.phone ?? "",
+    designation: hire.job ?? "",
+    ...(hire.department_id ? { department_id: hire.department_id } : {}),
+    ...(hire.location_id ? { location_id: hire.location_id } : {}),
+  };
+}
 
 /**
  * Onboarding → Add employees: the one place people are added. One person goes
@@ -18,7 +33,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
  */
 export function NewEmployeeView() {
   const router = useRouter();
-  const tab = useSearchParams().get("tab") === "excel" ? "excel" : "one";
+  const asked = useSearchParams().get("tab");
+  const { tenant } = useAuth();
+  const hireLinked = Boolean(tenant?.linked_products?.interview);
+  const tab = asked === "excel" ? "excel" : asked === "hired" && hireLinked ? "hired" : "one";
+  // A hire picked from AnytimeHire: the form starts with what it knows.
+  const [picked, setPicked] = useState<LinkedHire | null>(null);
 
   return (
     <PageShell
@@ -27,20 +47,24 @@ export function NewEmployeeView() {
     >
       <Tabs
         value={tab}
-        onValueChange={(next) =>
-          router.replace(next === "excel" ? "/onboarding/new?tab=excel" : "/onboarding/new")
-        }
+        onValueChange={(next) => {
+          if (next === "one") setPicked(null);
+          router.replace(next === "one" ? "/onboarding/new" : `/onboarding/new?tab=${next}`);
+        }}
         className="gap-4"
       >
         <TabsList>
           <TabsTrigger value="one">One person</TabsTrigger>
           <TabsTrigger value="excel">Many from Excel</TabsTrigger>
+          {hireLinked && <TabsTrigger value="hired">Hired in AnytimeHire</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="one">
           <Card tier="tier1">
             <CardContent>
               <JoinerWizard
+                key={picked?.ref ?? "blank"}
+                initial={picked ? fromHire(picked) : undefined}
                 onCancel={() => router.push("/onboarding/plans")}
                 renderDoneActions={(created, addAnother) => (
                   <>
@@ -67,6 +91,17 @@ export function NewEmployeeView() {
         <TabsContent value="excel">
           <ImportEmployeesPanel />
         </TabsContent>
+
+        {hireLinked && (
+          <TabsContent value="hired">
+            <HiredInProductPanel
+              onPick={(hire) => {
+                setPicked(hire);
+                router.replace("/onboarding/new");
+              }}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </PageShell>
   );

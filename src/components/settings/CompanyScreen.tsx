@@ -12,6 +12,7 @@ import { ApprovalRulesPanel } from "./ApprovalRulesPanel";
 import { AuditTrailPanel } from "./AuditTrailPanel";
 import { CompanyLogoCard } from "./CompanyLogoCard";
 import { CustomFieldsPanel } from "./CustomFieldsPanel";
+import { FileUploadsCard } from "./FileUploadsCard";
 import { IntegrationsPanel } from "./IntegrationsPanel";
 import { CustomTablesPanel } from "@/components/people/CustomTables";
 import { PermissionsPanel } from "./PermissionsPanel";
@@ -58,6 +59,7 @@ export function CompanyScreen() {
         <TabsContent value="workspace" className="mt-4">
           <div className="grid gap-6">
             <WorkspacePanel />
+            <FileUploadsCard />
             <CompanyLogoCard />
           </div>
         </TabsContent>

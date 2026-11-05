@@ -21,6 +21,14 @@ import { cn } from "@/lib/utils";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+/**
+ * What may be typed into a time: digits, a separator (`:` `.` `h`), a space,
+ * and am/pm. Anything else is dropped as it is typed, so "dddd" never appears.
+ */
+export function keepTimeCharacters(text: string): string {
+  return text.replace(/[^0-9:.\shapmHAPM]/g, "").slice(0, 8);
+}
+
 /** Reads what a person typed as a time. Returns `"HH:MM"`, or null if it isn't one. */
 export function parseTime(text: string, step = 1): string | null {
   const raw = text.trim().toLowerCase();
@@ -172,8 +180,10 @@ function TimePicker({
   }, [open, current]);
 
   const isInvalid = invalid || typedBad || ariaInvalid === true || ariaInvalid === "true";
+  const messageId = id ? `${id}-time-error` : undefined;
 
   return (
+    <div data-slot="time-picker-field" className="grid gap-1">
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
         <div data-slot="time-picker" className={cn("relative h-11 w-full", className)}>
@@ -186,11 +196,12 @@ function TimePicker({
             inputMode="text"
             autoComplete="off"
             aria-label={ariaLabel}
-            aria-describedby={ariaDescribedBy}
+            aria-describedby={[ariaDescribedBy, typedBad ? messageId : null].filter(Boolean).join(" ") || undefined}
             aria-invalid={isInvalid || undefined}
             className="h-full pr-10 tabular-nums"
+            maxLength={8}
             onChange={(event) => {
-              setText(event.target.value);
+              setText(keepTimeCharacters(event.target.value));
               setTypedBad(false);
             }}
             onBlur={commitTyped}
@@ -264,6 +275,12 @@ function TimePicker({
         </div>
       </PopoverContent>
     </Popover>
+      {typedBad && (
+        <p id={messageId} role="alert" className="text-xs text-destructive">
+          Not a time. Type it like 09:30, 18:45 or 2:30 pm.
+        </p>
+      )}
+    </div>
   );
 }
 

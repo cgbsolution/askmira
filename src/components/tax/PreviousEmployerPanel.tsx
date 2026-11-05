@@ -25,9 +25,8 @@ import {
   pendingState,
   ProofStatusBadge,
   UPLOAD_ACCEPT,
-  UPLOAD_HINT,
-  uploadProblem,
   useHasLoaded,
+  useProofUpload,
 } from "./common";
 import { FileInput } from "@/components/ui/file-input";
 
@@ -129,7 +128,8 @@ export function PreviousEmployerPanel({
     }
   };
 
-  const fileError = uploadProblem(file);
+  const proofUpload = useProofUpload();
+  const fileError = proofUpload.problem(file);
 
   const uploadDocument = async () => {
     setFileAttempted(true);
@@ -284,7 +284,7 @@ export function PreviousEmployerPanel({
                     {isUploading ? <Loader2 className="animate-spin" /> : <Upload />}
                     Upload
                   </Button>
-                  <p className="w-full text-xs text-muted-foreground">{UPLOAD_HINT}</p>
+                  <p className="w-full text-xs text-muted-foreground">{proofUpload.hint}</p>
                   {fileAttempted && fileError && (
                     <p className="w-full text-xs text-destructive">{fileError}</p>
                   )}

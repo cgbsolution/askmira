@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CheckCircle2, ChevronRight, Clock, Loader2, X, XCircle } from "lucide-react";
+import { Check, CheckCircle2, ChevronRight, Clock, Hourglass, Loader2, X, XCircle } from "lucide-react";
 import Link from "next/link";
 import React, { useMemo } from "react";
 import {
@@ -18,6 +18,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -269,6 +270,9 @@ export function CompanionChart({ card }: { card: CompanionChartCard }) {
   );
 }
 
+/** An offer held for an approval elsewhere: not yours to confirm yet. */
+const HELD = { label: "Held for approval", icon: Hourglass, tone: "text-warning" };
+
 const STATUS: Record<CompanionProposal["status"], { label: string; icon: React.ElementType; tone: string }> = {
   proposed: { label: "Waiting for you", icon: Clock, tone: "text-muted-foreground" },
   done: { label: "Done", icon: CheckCircle2, tone: "text-success" },
@@ -290,7 +294,8 @@ export function CompanionProposalCard({
   onDecide?: (card: CompanionProposal, confirm: boolean) => void;
   busy?: boolean;
 }) {
-  const state = STATUS[card.status] ?? STATUS.proposed;
+  const held = card.status === "proposed" && Boolean(card.waiting);
+  const state = held ? HELD : (STATUS[card.status] ?? STATUS.proposed);
   const Icon = state.icon;
   const open = card.status === "proposed";
   return (
@@ -343,18 +348,30 @@ export function CompanionProposalCard({
           ))}
         </ul>
       ) : null}
+      {held ? (
+        <Alert>
+          <Hourglass />
+          <AlertDescription>{card.waiting}</AlertDescription>
+        </Alert>
+      ) : null}
       {card.result?.text && !open ? (
         <p className={cn("text-sm", card.result.error && "text-destructive")}>{card.result.text}</p>
       ) : null}
       {open && onDecide ? (
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" disabled={busy} onClick={() => onDecide(card, true)}>
-            {busy ? <Loader2 className="animate-spin" /> : <Check />} {card.confirm_label || "Confirm"}
-          </Button>
+          {held ? null : (
+            <Button size="sm" disabled={busy} onClick={() => onDecide(card, true)}>
+              {busy ? <Loader2 className="animate-spin" /> : <Check />} {card.confirm_label || "Confirm"}
+            </Button>
+          )}
           <Button size="sm" variant="outline" disabled={busy} onClick={() => onDecide(card, false)}>
             <X /> Cancel
           </Button>
-          <p className="text-xs text-muted-foreground">Or reply “yes” to {card.confirm_label.toLowerCase() || "confirm"}.</p>
+          {held ? null : (
+            <p className="text-xs text-muted-foreground">
+              Or reply “yes” to {card.confirm_label.toLowerCase() || "confirm"}.
+            </p>
+          )}
         </div>
       ) : null}
       {card.result?.open && card.status === "done" ? (
