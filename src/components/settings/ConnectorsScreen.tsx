@@ -56,6 +56,8 @@ export interface Connector {
     skipped: { email: string; reason: string }[];
   } | null;
   last_error: string | null;
+  /** After Connect: where to go back to, when Connect was pressed in an Ask Mira conversation. */
+  back?: string | null;
 }
 
 /** Where each product's records show in AskMira, for the disconnect warning. */

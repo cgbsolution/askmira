@@ -311,7 +311,7 @@ export function CompanionProposalCard({
           {card.figures.map((figure) => (
             <div key={`${figure.label}-${figure.value}`} className="grid min-w-0 gap-0.5">
               <dt className="text-xs text-muted-foreground">{figure.label}</dt>
-              <dd className="break-words text-sm font-medium tabular-nums">{figure.value}</dd>
+              <dd className="text-sm font-medium tabular-nums [overflow-wrap:anywhere]">{figure.value}</dd>
             </div>
           ))}
         </dl>

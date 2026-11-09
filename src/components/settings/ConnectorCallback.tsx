@@ -45,7 +45,12 @@ export function ConnectorCallback() {
         // The workspace now uses the product: re-read it so the menu switches over at once.
         await reloadSession();
         setResult({ ok: true, connector });
-        window.setTimeout(() => router.replace("/settings/connectors"), 1500);
+        // Connect pressed in an Ask Mira conversation goes back there, to carry on.
+        const back = connector.back?.startsWith("/ask-mira") ? connector.back : null;
+        const next = back
+          ? `${back}${back.includes("?") ? "&" : "?"}connected=${encodeURIComponent(product)}`
+          : "/settings/connectors";
+        window.setTimeout(() => router.replace(next), 1500);
       })
       .catch((caught: unknown) =>
         setResult({
@@ -71,7 +76,10 @@ export function ConnectorCallback() {
                 {result.connector.organization
                   ? `Connected to “${result.connector.organization}”. `
                   : ""}
-                Your people are being sent across. Taking you back to Connectors…
+                Your people are being sent across.{" "}
+                {result.connector.back?.startsWith("/ask-mira")
+                  ? "Taking you back to Ask Mira…"
+                  : "Taking you back to Connectors…"}
               </AlertDescription>
             </Alert>
           ) : (

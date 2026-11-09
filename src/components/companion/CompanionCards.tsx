@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
+import { AttachmentChip, ConnectCard } from "./CompanionAttachments";
 import { CompanionChart, CompanionProposalCard } from "./CompanionExtras";
 import type { CompanionCard, CompanionPick, CompanionProposal } from "./types";
 
@@ -56,6 +57,7 @@ export function CompanionCardView({
   picking = false,
   onDecide,
   deciding = false,
+  conversationId = null,
 }: {
   card: CompanionCard;
   /** Sends a choice as the person's next message; absent where choices cannot be sent. */
@@ -64,10 +66,18 @@ export function CompanionCardView({
   /** Confirms or declines an offer; absent where offers cannot be decided. */
   onDecide?: (card: CompanionProposal, confirm: boolean) => void;
   deciding?: boolean;
+  /** The open conversation: where Connect brings the admin back to. */
+  conversationId?: string | null;
 }) {
   switch (card.type) {
     case "chart":
       return <CompanionChart card={card} />;
+
+    case "connect":
+      return <ConnectCard card={card} conversationId={conversationId} />;
+
+    case "attachment":
+      return <AttachmentChip card={card} />;
 
     case "proposal":
       return <CompanionProposalCard card={card} onDecide={onDecide} busy={deciding} />;
@@ -231,7 +241,7 @@ export function CompanionCardView({
               {card.figures.map((figure) => (
                 <div key={figure.label} className="grid min-w-0 gap-0.5">
                   <dt className="text-xs text-muted-foreground">{figure.label}</dt>
-                  <dd className="break-words text-sm font-medium tabular-nums">{figure.value}</dd>
+                  <dd className="text-sm font-medium tabular-nums [overflow-wrap:anywhere]">{figure.value}</dd>
                 </div>
               ))}
             </dl>

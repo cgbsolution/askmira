@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, MessageSquarePlus, SendHorizontal, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
+import { Loader2, MessageSquarePlus, Paperclip, SendHorizontal, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -23,15 +23,25 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HiddenFileInput } from "@/components/ui/file-input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, get, post } from "@/lib/api";
 import { cn, formatDate, initials } from "@/lib/utils";
 
+import {
+  AttachmentChip,
+  DraftFileChip,
+  FILE_ACCEPT,
+  MAX_FILES,
+  PRODUCT_BRANDS,
+  useDraftFiles,
+} from "./CompanionAttachments";
 import { CompanionCardView } from "./CompanionCards";
 import { ChatText } from "./CompanionExtras";
 import type {
+  CompanionAttachmentCard,
   CompanionMessage,
   CompanionPick,
   CompanionProposal,
@@ -44,6 +54,8 @@ import type {
 
 /** How long the screen waits for a turn or a confirmation (the server stops at 75 s). */
 const TURN_TIMEOUT_MS = 150_000;
+/** Extra time when files come with the message: each picture is read first. */
+const FILE_READ_MS = 120_000;
 
 /**
  * Ask Mira — the workspace's AI companion, one conversation at a time.
@@ -125,22 +137,45 @@ function Chat({ status, onSent }: { status: CompanionStatus; onSent: () => void 
   const [messages, setMessages] = useState<CompanionMessage[]>([]);
   const [opening, setOpening] = useState(false);
   const [deleting, setDeleting] = useState<Conversation | null>(null);
+  // Said for the person once an admin is back from connecting a product here.
+  const [carryOn, setCarryOn] = useState<string | null>(null);
+  const resumed = useRef(false);
 
-  const open = useCallback(async (conversation: Conversation | null) => {
+  const open = useCallback(async (conversation: Conversation | null): Promise<boolean> => {
     setActiveId(conversation?.id ?? null);
     setMessages([]);
-    if (!conversation) return;
+    if (!conversation) return true;
     setOpening(true);
     try {
       const detail = await get<ConversationDetail>(`/companion/conversations/${conversation.id}`);
       setMessages(detail.messages);
+      return true;
     } catch (caught) {
       toast.error(caught instanceof ApiError ? caught.detail : "Could not open that conversation.");
       setActiveId(null);
+      return false;
     } finally {
       setOpening(false);
     }
   }, []);
+
+  // Back from Connect (Settings → Connectors' callback): reopen the conversation the
+  // admin pressed it in and carry on with what they asked, now the product is there.
+  useEffect(() => {
+    if (resumed.current) return;
+    resumed.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("c");
+    const product = params.get("connected");
+    if (!id && !product) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    const brand = product ? PRODUCT_BRANDS[product] : undefined;
+    if (brand) toast.success(`${brand} is connected.`);
+    if (!id || !/^[0-9a-f-]{36}$/.test(id)) return;
+    void open({ id, title: "", last_message_at: "", created_at: null }).then((ok) => {
+      if (ok && brand && status.mode === "ai") setCarryOn(`I've connected ${brand} now. Please carry on.`);
+    });
+  }, [open, status.mode]);
 
   const remove = async () => {
     const target = deleting;
@@ -214,6 +249,8 @@ function Chat({ status, onSent }: { status: CompanionStatus; onSent: () => void 
         conversationId={activeId}
         messages={messages}
         loading={opening}
+        autoSend={carryOn}
+        onAutoSent={() => setCarryOn(null)}
         onDecided={(decision) =>
           setMessages((current) => [
             ...current.map((message) => ({
@@ -281,6 +318,8 @@ function Thread({
   loading,
   onTurn,
   onDecided,
+  autoSend = null,
+  onAutoSent,
 }: {
   status: CompanionStatus;
   conversationId: string | null;
@@ -288,11 +327,20 @@ function Thread({
   loading: boolean;
   onTurn: (turn: Turn) => void;
   onDecided: (decision: OfferDecision) => void;
+  /** Words to send as the person once the conversation is open (back from Connect). */
+  autoSend?: string | null;
+  onAutoSent?: () => void;
 }) {
   const { user } = useAuth();
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [deciding, setDeciding] = useState<string | null>(null);
+  // Pictures and PDFs for the next message: picked, pasted (a screenshot) or dropped.
+  const drafts = useDraftFiles();
+  const [sendingFiles, setSendingFiles] = useState<File[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const canAttach = status.mode === "ai";
 
   // Confirm or Cancel on an offer: the module's own service runs (or not), as the person.
   const decide = async (card: CompanionProposal, confirm: boolean) => {
@@ -323,47 +371,103 @@ function Thread({
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages, pending]);
 
-  // A typed message, or a choice clicked on an earlier answer (a person from a list).
-  const send = async (picked?: CompanionPick) => {
-    const text = picked ? picked.text : draft.trim();
-    if (!text || pending) return;
-    if (!picked) setDraft("");
+  // A typed message (with any attached files), a choice clicked on an earlier answer
+  // (a person from a list), or words sent for the person (`said`, back from Connect).
+  const send = async (picked?: CompanionPick, said?: string) => {
+    const fromComposer = !picked && said === undefined;
+    const text = picked ? picked.text : (said ?? draft.trim());
+    const files = fromComposer ? drafts.files : [];
+    if ((!text && files.length === 0) || pending !== null || drafts.preparing) return;
+    if (fromComposer) {
+      setDraft("");
+      drafts.clear();
+    }
     setPending(text);
-    const ref = unanswered.current?.text === text ? unanswered.current.ref : crypto.randomUUID();
-    unanswered.current = { text, ref };
+    setSendingFiles(files);
+    const key = [text, ...files.map((file) => `${file.name}:${file.size}`)].join("|");
+    const ref = unanswered.current?.text === key ? unanswered.current.ref : crypto.randomUUID();
+    unanswered.current = { text: key, ref };
     try {
-      const turn = await post<Turn>(
-        "/companion/messages",
-        {
-          text,
-          conversation_id: conversationId,
-          // A retry of this same send gets the first answer back, never a second turn.
-          client_ref: ref,
-          ...(picked ? { pick: { tool: picked.tool, inputs: picked.inputs } } : {}),
-        },
-        // A turn may take several lookups (the server allows 75 s): wait for it.
-        { timeout: TURN_TIMEOUT_MS },
-      );
+      let turn: Turn;
+      if (files.length > 0) {
+        const form = new FormData();
+        form.append("text", text);
+        if (conversationId) form.append("conversation_id", conversationId);
+        form.append("client_ref", ref);
+        files.forEach((file) => form.append("files", file, file.name));
+        // Reading a picture comes first, then the turn itself.
+        turn = await post<Turn>("/companion/messages/files", form, { timeout: TURN_TIMEOUT_MS + FILE_READ_MS });
+      } else {
+        turn = await post<Turn>(
+          "/companion/messages",
+          {
+            text,
+            conversation_id: conversationId,
+            // A retry of this same send gets the first answer back, never a second turn.
+            client_ref: ref,
+            ...(picked ? { pick: { tool: picked.tool, inputs: picked.inputs } } : {}),
+          },
+          // A turn may take several lookups (the server allows 75 s): wait for it.
+          { timeout: TURN_TIMEOUT_MS },
+        );
+      }
       unanswered.current = null;
       onTurn(turn);
     } catch (caught) {
-      if (!picked) setDraft(text);
+      if (fromComposer) {
+        setDraft(text);
+        drafts.setFiles(files);
+      }
       toast.error(caught instanceof ApiError ? caught.detail : `${status.name} could not answer.`);
     } finally {
       setPending(null);
+      setSendingFiles([]);
     }
   };
 
+  // Back from Connect: carry on in this conversation once it is open, once.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  useEffect(() => {
+    if (!autoSend || loading || pending !== null) return;
+    onAutoSent?.();
+    void sendRef.current(undefined, autoSend);
+  }, [autoSend, loading, pending, onAutoSent]);
+
+  const attach = (incoming: File[]) => {
+    if (!canAttach || pending !== null) return;
+    void drafts.add(incoming);
+  };
+
   const left = Math.max(0, status.daily_limit - status.sent_today);
+  const waiting = pending !== null;
+  const reading = sendingFiles.map((file) => file.name).join(", ");
 
   return (
-    <Card tier="tier2" className="flex min-h-[60vh] flex-col">
+    <Card
+      tier="tier2"
+      className={cn("flex min-h-[60vh] flex-col", dragging && "ring-2 ring-ring")}
+      onDragOver={(event) => {
+        if (!canAttach || !event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false);
+      }}
+      onDrop={(event) => {
+        if (!canAttach) return;
+        event.preventDefault();
+        setDragging(false);
+        attach(Array.from(event.dataTransfer.files));
+      }}
+    >
       <CardContent className="flex flex-1 flex-col gap-3 p-0">
         <ScrollArea className="flex-1 px-4 pt-4">
           <div className="grid gap-4 pb-4">
             {loading ? (
               <Skeleton className="h-32 w-full" />
-            ) : messages.length === 0 && !pending ? (
+            ) : messages.length === 0 && !waiting ? (
               <Welcome status={status} onPick={(text) => setDraft(text)} />
             ) : (
               messages.map((message) => (
@@ -373,22 +477,28 @@ function Thread({
                   name={status.name}
                   mine={initials(user?.full_name ?? "")}
                   onPick={(picked) => void send(picked)}
-                  picking={pending !== null}
+                  picking={waiting}
                   onDecide={(card, confirm) => void decide(card, confirm)}
                   deciding={deciding}
+                  conversationId={conversationId}
                 />
               ))
             )}
-            {pending ? (
+            {waiting ? (
               <>
                 <Bubble
-                  message={{ id: "pending", role: "user", text: pending, tool: null, tool_title: null, arguments: null, cards: [], created_at: null }}
+                  message={{ id: "pending", role: "user", text: pending ?? "", tool: null, tool_title: null, arguments: null, cards: [], created_at: null }}
                   name={status.name}
                   mine={initials(user?.full_name ?? "")}
+                  sendingFiles={sendingFiles}
                 />
                 <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="polite">
                   <Loader2 className="size-4 animate-spin" />
-                  {status.mode === "ai" ? `${status.name} is looking into it…` : `${status.name} is thinking…`}
+                  {reading
+                    ? `${status.name} is reading ${reading}…`
+                    : status.mode === "ai"
+                      ? `${status.name} is looking into it…`
+                      : `${status.name} is thinking…`}
                 </div>
               </>
             ) : null}
@@ -397,14 +507,39 @@ function Thread({
         </ScrollArea>
 
         <div className="grid gap-2 border-t p-3">
+          {drafts.files.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {drafts.files.map((file, index) => (
+                <DraftFileChip
+                  key={`${file.name}-${file.size}-${index}`}
+                  file={file}
+                  onRemove={() => drafts.remove(index)}
+                  disabled={waiting}
+                />
+              ))}
+            </div>
+          ) : null}
           <Textarea
             value={draft}
             rows={2}
             maxLength={2000}
-            placeholder={`Message ${status.name}…`}
+            placeholder={
+              dragging
+                ? "Drop the picture or PDF to attach it"
+                : canAttach
+                  ? `Message ${status.name}, or paste a screenshot…`
+                  : `Message ${status.name}…`
+            }
             aria-label={`Message ${status.name}`}
-            disabled={pending !== null}
+            disabled={waiting}
             onChange={(event) => setDraft(event.target.value)}
+            onPaste={(event) => {
+              const pasted = Array.from(event.clipboardData.files);
+              if (pasted.length === 0 || !canAttach) return;
+              // A screenshot alone: attach it. Copied text and a picture together: both.
+              if (!event.clipboardData.getData("text")) event.preventDefault();
+              attach(pasted);
+            }}
             onKeyDown={(event) => {
               if (event.key === "Enter" && !event.shiftKey) {
                 event.preventDefault();
@@ -413,10 +548,45 @@ function Thread({
             }}
           />
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              Enter sends, Shift+Enter for a new line · {left} of {status.daily_limit} messages left today
-            </p>
-            <Button onClick={() => void send()} disabled={pending !== null || !draft.trim()}>
+            <div className="flex min-w-0 items-center gap-1.5">
+              {canAttach ? (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0"
+                    aria-label="Attach a picture or PDF"
+                    title={`Attach a picture or PDF (up to ${MAX_FILES}, ${drafts.limitLabel} each)`}
+                    disabled={waiting || drafts.preparing || drafts.files.length >= MAX_FILES}
+                    onClick={() => fileInput.current?.click()}
+                  >
+                    {drafts.preparing ? <Loader2 className="animate-spin" /> : <Paperclip />}
+                  </Button>
+                  <HiddenFileInput
+                    ref={fileInput}
+                    accept={FILE_ACCEPT}
+                    multiple
+                    shrink={false}
+                    maxBytes={false}
+                    aria-label="Choose a picture or PDF"
+                    onChange={(event) => {
+                      const picked = Array.from(event.target.files ?? []);
+                      event.target.value = "";
+                      attach(picked);
+                    }}
+                  />
+                </>
+              ) : null}
+              <p className="text-xs text-muted-foreground">
+                Enter sends, Shift+Enter for a new line
+                {canAttach ? " · Attach, paste or drop a picture or PDF" : ""} · {left} of {status.daily_limit}{" "}
+                messages left today
+              </p>
+            </div>
+            <Button
+              onClick={() => void send()}
+              disabled={waiting || drafts.preparing || (!draft.trim() && drafts.files.length === 0)}
+            >
               <SendHorizontal /> Send
             </Button>
           </div>
@@ -472,6 +642,14 @@ function Welcome({ status, onPick }: { status: CompanionStatus; onPick: (text: s
           </p>
         </div>
       </div>
+      {status.mode === "ai" ? (
+        <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
+          <Paperclip className="mt-0.5 size-4 shrink-0" />
+          You can attach, paste or drop a picture or PDF too: a LinkedIn profile or a visiting card to add
+          a lead, an error on screen for an IT ticket, or a document to ask about. I read it; the file
+          itself isn&apos;t kept.
+        </p>
+      ) : null}
       <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
         <ShieldCheck className="mt-0.5 size-4 shrink-0" />
         {companyWide
@@ -513,6 +691,8 @@ function Bubble({
   picking = false,
   onDecide,
   deciding = null,
+  conversationId = null,
+  sendingFiles = [],
 }: {
   message: CompanionMessage;
   name: string;
@@ -521,12 +701,30 @@ function Bubble({
   picking?: boolean;
   onDecide?: (card: CompanionProposal, confirm: boolean) => void;
   deciding?: string | null;
+  conversationId?: string | null;
+  /** Files on a message still being sent (not read yet). */
+  sendingFiles?: File[];
 }) {
   if (message.role === "user") {
+    const files = message.cards.filter((card): card is CompanionAttachmentCard => card.type === "attachment");
     return (
       <div className="flex items-start justify-end gap-3">
-        <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm leading-6 text-primary-foreground">
-          <p className="whitespace-pre-line">{message.text}</p>
+        <div className="grid max-w-[85%] justify-items-end gap-1.5">
+          {files.length > 0 || sendingFiles.length > 0 ? (
+            <div className="flex flex-wrap justify-end gap-1.5">
+              {files.map((card, index) => (
+                <AttachmentChip key={`${card.name}-${index}`} card={card} />
+              ))}
+              {sendingFiles.map((file, index) => (
+                <DraftFileChip key={`${file.name}-${index}`} file={file} />
+              ))}
+            </div>
+          ) : null}
+          {message.text ? (
+            <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-2.5 text-sm leading-6 text-primary-foreground">
+              <p className="whitespace-pre-line">{message.text}</p>
+            </div>
+          ) : null}
         </div>
         <Avatar className="size-8">
           <AvatarFallback className="text-xs">{mine || "Me"}</AvatarFallback>
@@ -562,6 +760,7 @@ function Bubble({
             picking={picking}
             onDecide={onDecide}
             deciding={card.type === "proposal" && deciding === card.action_id}
+            conversationId={conversationId}
           />
         ))}
       </div>

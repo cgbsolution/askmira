@@ -88,7 +88,39 @@ export type CompanionCard =
     }
   | { type: "launch"; product: string; name: string; href: string }
   | CompanionChartCard
-  | CompanionProposal;
+  | CompanionProposal
+  | CompanionConnectCard
+  | CompanionAttachmentCard;
+
+/**
+ * A product that is not ready for the person (not connected, switched off, not a
+ * member there): what is missing, and what they can do about it here.
+ */
+export interface CompanionConnectCard {
+  type: "connect";
+  product: string;
+  brand: string;
+  state: "ready" | "not_connected" | "switched_off" | "not_member" | "no_role" | "not_on_server" | "operator";
+  title: string;
+  text: string;
+  /** "connect": an admin can connect it from here. "sync": an admin can sync people. */
+  action: "connect" | "sync" | null;
+}
+
+/** A file the person attached to their message, as AskMira read it. The file itself is not kept. */
+export interface CompanionAttachmentCard {
+  type: "attachment";
+  name: string;
+  media: "image" | "pdf";
+  size: number;
+  pages: number;
+  /** What it was read as ("LinkedIn profile", "Visiting card"), or "Not read". */
+  label: string;
+  /** "text": a PDF's own text. "picture": read by the workspace's AI. "none": not read. */
+  read: "text" | "picture" | "none";
+  /** Why it could not be read, or what was left out. */
+  note: string | null;
+}
 
 /**
  * A figure drawn as a chart: one value per label on `x`, per series. A pie or
