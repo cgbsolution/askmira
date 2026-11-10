@@ -468,7 +468,7 @@ function Thread({
             {loading ? (
               <Skeleton className="h-32 w-full" />
             ) : messages.length === 0 && !waiting ? (
-              <Welcome status={status} onPick={(text) => setDraft(text)} />
+              <Welcome status={status} />
             ) : (
               messages.map((message) => (
                 <Bubble
@@ -596,35 +596,11 @@ function Thread({
   );
 }
 
-function Welcome({ status, onPick }: { status: CompanionStatus; onPick: (text: string) => void }) {
+function Welcome({ status }: { status: CompanionStatus }) {
   const { hasRole } = useAuth();
   // The same line the server holds: HR asks about everyone, everybody else
   // about themselves only, in AskMira and in every connected product.
   const companyWide = hasRole("admin", "sub_admin");
-  // The server's examples cover every lookup this person has; the two questions
-  // only a model answers are added when AI is planning.
-  const has = (key: string) => status.tools.some((t) => t.key === key);
-  const suggestions = [
-    has("apply_leave") ? "I want to take leave next Friday" : null,
-    has("payroll_trend") ? "Show the payroll cost trend for the last 6 months" : null,
-    has("query_data") && has("payroll_trend")
-      ? "Payroll cost by department as a pie chart"
-      : has("query_data")
-        ? "My leave days by month this year"
-        : null,
-    has("account_pnl") ? "What is the P&L of each client account this year?" : null,
-    has("expense_summary")
-      ? companyWide
-        ? "Who submitted expenses in the last 12 months?"
-        : "My expense claims this year"
-      : null,
-    has("decide_approvals") ? "What is waiting on my approval?" : null,
-    has("policy_question") ? "What is the work-from-home policy?" : null,
-    has("query_data") && has("headcount_trend") ? "Joiners and exits by quarter this year" : null,
-    ...status.examples,
-  ]
-    .filter((s): s is string => s !== null)
-    .slice(0, 8);
 
   return (
     <div className="grid gap-4 py-6">
@@ -653,31 +629,11 @@ function Welcome({ status, onPick }: { status: CompanionStatus; onPick: (text: s
       <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
         <ShieldCheck className="mt-0.5 size-4 shrink-0" />
         {companyWide
-          ? "You can ask about the whole company: AskMira and the products your workspace has connected (expenses, hiring, IT helpdesk)."
+          ? "You can ask about the whole company in AskMira, as far as your HR rights reach. Each connected product answers as far as your role there allows."
           : "I answer you about your own records only: your leave, pay, claims, tickets and requests, in AskMira and the connected products. Other people's records stay private."}
       </p>
-      {status.tools.length > 0 ? (
-        <div className="grid gap-2">
-          <p className="text-xs text-muted-foreground">I can help with</p>
-          <div className="flex flex-wrap gap-1.5">
-            {status.tools.map((tool) => (
-              <Badge key={tool.key} variant="outline">
-                {tool.title}
-              </Badge>
-            ))}
-          </div>
-        </div>
-      ) : (
+      {status.tools.length === 0 ? (
         <p className="text-sm text-muted-foreground">No tools are switched on for you yet, so I can only chat.</p>
-      )}
-      {suggestions.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {suggestions.map((text) => (
-            <Button key={text} variant="outline" size="sm" onClick={() => onPick(text)}>
-              {text}
-            </Button>
-          ))}
-        </div>
       ) : null}
     </div>
   );

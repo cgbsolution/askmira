@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { AiSettingsPanel } from "@/components/ai/AiSettingsPanel";
+import { CompanionEmailPanel } from "@/components/companion/CompanionEmailPanel";
 import { CompanionSettingsPanel } from "@/components/companion/CompanionSettingsPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { OperatorAccessPanel } from "@/components/operators/OperatorAccessPanel";
@@ -82,6 +83,7 @@ export function CompanyScreen() {
           <div className="grid gap-6">
             <AiSettingsPanel />
             <CompanionSettingsPanel />
+            <CompanionEmailPanel />
           </div>
         </TabsContent>
         <TabsContent value="operators" className="mt-4">

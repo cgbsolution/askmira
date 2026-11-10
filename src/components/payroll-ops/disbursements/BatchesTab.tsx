@@ -27,6 +27,8 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import type { DisbursementBatch, PayrollRunSummary } from "@/lib/types/payroll-ops";
 import { formatDay } from "@/lib/utils";
 
+type BatchRow = DisbursementBatch & { run_name: string };
+
 const SUPPLEMENTARY = "Supplementary: reissued failed credits";
 
 /** Every disbursement batch, optionally for one payroll run. */
@@ -60,22 +62,30 @@ export function BatchesTab({
       return run ? runLabel(run) : "Payroll run";
     };
   }, [runs]);
+  // The run name is part of each row so search and sort see it once the runs
+  // load; a value worked out inside the table is cached from before they had.
+  const rows = useMemo<BatchRow[]>(
+    () =>
+      (forbidden ? [] : (query.data ?? [])).map((batch) => ({
+        ...batch,
+        run_name: runName(batch.payroll_run_id),
+      })),
+    [forbidden, query.data, runName],
+  );
 
-  const columns: ColumnDef<DisbursementBatch>[] = [
+  const columns: ColumnDef<BatchRow>[] = [
     {
       id: "payroll_run",
       header: "Payroll run",
-      accessorFn: (row) => runName(row.payroll_run_id),
+      accessorKey: "run_name",
       meta: {
         cellClassName: "text-foreground",
         text: (row) =>
-          row.supplements_batch_id
-            ? `${runName(row.payroll_run_id)} · ${SUPPLEMENTARY}`
-            : runName(row.payroll_run_id),
+          row.supplements_batch_id ? `${row.run_name} · ${SUPPLEMENTARY}` : row.run_name,
       },
       cell: ({ row }) => (
         <>
-          {runName(row.original.payroll_run_id)}
+          {row.original.run_name}
           {row.original.supplements_batch_id && (
             <span className="block text-xs text-muted-foreground">{SUPPLEMENTARY}</span>
           )}
@@ -161,7 +171,7 @@ export function BatchesTab({
       )}
       <DataTable
         columns={columns}
-        data={forbidden ? [] : (query.data ?? [])}
+        data={rows}
         noun="salary files"
         exportName="salary-files"
         searchPlaceholder="Search salary files"

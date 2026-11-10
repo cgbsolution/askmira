@@ -16,6 +16,15 @@ import { AttachmentChip, ConnectCard } from "./CompanionAttachments";
 import { CompanionChart, CompanionProposalCard } from "./CompanionExtras";
 import type { CompanionCard, CompanionPick, CompanionProposal } from "./types";
 
+/** An amount, count or date: kept on one line. Text wraps, so the figures stay in view. */
+function isFigure(cell: unknown): boolean {
+  return typeof cell === "number" || /^[₹\d(+-]|^\d{1,2} \w{3} \d{4}$/.test(String(cell ?? "").trim());
+}
+
+function cellClass(cell: unknown): string {
+  return isFigure(cell) ? "whitespace-nowrap tabular-nums" : "min-w-32 whitespace-normal break-words";
+}
+
 const OUTCOME_LABEL = {
   answered: "Answered",
   partially_answered: "Partly answered",
@@ -115,7 +124,7 @@ export function CompanionCardView({
                 {card.rows.map((row, index) => (
                   <TableRow key={index}>
                     {row.map((cell, cellIndex) => (
-                      <TableCell key={cellIndex} className="whitespace-nowrap">
+                      <TableCell key={cellIndex} className={cellClass(cell)}>
                         {cell === null || cell === undefined || cell === "" ? "—" : String(cell)}
                       </TableCell>
                     ))}
@@ -263,10 +272,7 @@ export function CompanionCardView({
                   {card.table.rows.map((row, index) => (
                     <TableRow key={index}>
                       {row.map((cell, cellIndex) => (
-                        <TableCell
-                          key={cellIndex}
-                          className={cn("whitespace-nowrap", cellIndex > 0 && "text-right tabular-nums")}
-                        >
+                        <TableCell key={cellIndex} className={cn(cellClass(cell), cellIndex > 0 && isFigure(cell) && "text-right")}>
                           {cell === null || cell === undefined || cell === "" ? "—" : String(cell)}
                         </TableCell>
                       ))}

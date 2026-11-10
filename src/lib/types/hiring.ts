@@ -91,6 +91,8 @@ export interface RequisitionDetail extends RequisitionSummary {
   linked_job_ref?: string | null;
   linked_job_at?: string | null;
   linked_job_error?: string | null;
+  /** Whether this person can try opening it in AnytimeHire again. */
+  can_open_job?: boolean;
 }
 
 export interface RequisitionInput {
@@ -1064,6 +1066,14 @@ export interface BoardStatus {
   } | null;
   live_connection_verified: boolean;
   message: string;
+  /** False for a board that reads a feed from us: no password is stored for it. */
+  needs_secret: boolean;
+  /** What connecting this board takes, plainly. */
+  connection_note: string;
+  /** True for a board that lists jobs by reading the workspace's feed. */
+  reads_feed: boolean;
+  /** The feed's address on this portal; null until the careers page is published. */
+  feed_path: string | null;
 }
 
 export interface Posting {

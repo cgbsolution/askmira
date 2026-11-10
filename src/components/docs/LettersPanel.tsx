@@ -12,6 +12,7 @@ import {
   Plus,
   PlugZap,
   PenLine,
+  RefreshCw,
 } from "lucide-react";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -146,6 +147,17 @@ export function LettersPanel({
     }
   };
 
+  const checkSignature = async (letter: IssuedLetter) => {
+    try {
+      const result = await post<IssuedLetter>(`/letters/${letter.id}/signature-status`);
+      if (result.status === "signed") toast.success(`${letter.reference_number} is signed`);
+      else toast.info(`${letter.reference_number} is not signed yet`);
+      reload();
+    } catch (caught) {
+      toast.error(apiMessage(caught, "The signature could not be checked."));
+    }
+  };
+
   const runAction = async () => {
     if (!action) return;
     const { kind, letter } = action;
@@ -184,7 +196,10 @@ export function LettersPanel({
         <Alert variant="warning">
           <PlugZap />
           <AlertTitle>E-signature provider not connected</AlertTitle>
-          <AlertDescription>{provider.data.detail}</AlertDescription>
+          <AlertDescription>
+            {provider.data.detail} An admin connects the company&apos;s own Digio account under Settings →
+            Integrations.
+          </AlertDescription>
         </Alert>
       )}
       <DataPanel
@@ -295,7 +310,12 @@ export function LettersPanel({
                             <DropdownMenuSeparator />
                             {(letter.status === "approved" || letter.status === "sent") && (
                               <DropdownMenuItem onSelect={() => setAction({ kind: "sign", letter })}>
-                                <MailCheck /> Send for signature
+                                <MailCheck /> {letter.status === "sent" ? "Send for signature again" : "Send for signature"}
+                              </DropdownMenuItem>
+                            )}
+                            {letter.status === "sent" && (
+                              <DropdownMenuItem onSelect={() => void checkSignature(letter)}>
+                                <RefreshCw /> Check signature
                               </DropdownMenuItem>
                             )}
                             {ACKNOWLEDGEABLE.includes(letter.status) && !letter.acknowledged_at && (

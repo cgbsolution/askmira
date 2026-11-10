@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Loader2, Send, Unplug } from "lucide-react";
+import { Copy, Download, Loader2, Send, Unplug } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -39,7 +39,21 @@ interface ChatApp {
   connected_as?: string | null;
   last_checked_at?: string | null;
   last_error?: string | null;
+  /** People may message the app to ask Ask Mira. */
+  ask_mira: boolean;
+  /** Slack: its signing secret is saved (checks each event is Slack's). */
+  has_signing_secret: boolean;
+  /** Where Slack sends events, or Teams its messages, for Ask Mira here. */
+  inbound_url: string | null;
 }
+
+/** What to do in Slack or Azure so people can message Ask Mira there. */
+const ASK_STEPS: Record<Provider, string> = {
+  slack:
+    "Paste the app's Signing Secret (Basic Information → App Credentials), switch this on and save. Then download the manifest again and paste it over the app's own (Features → App Manifest): it adds direct messages and this address under Event Subscriptions.",
+  teams:
+    "Switch this on and save, then paste this address as the Azure Bot's Messaging endpoint (Azure Bot → Configuration).",
+};
 
 const STEPS: Record<Provider, string[]> = {
   slack: [
@@ -92,6 +106,8 @@ function ChatAppCard({ app, onChanged }: { app: ChatApp; onChanged: () => void }
   const [secret, setSecret] = useState("");
   const [appId, setAppId] = useState(app.app_id ?? "");
   const [directory, setDirectory] = useState(app.directory_tenant_id ?? "");
+  const [askMira, setAskMira] = useState(app.ask_mira);
+  const [signing, setSigning] = useState("");
   const [busy, setBusy] = useState<"save" | "test" | "manifest" | null>(null);
   const [removing, setRemoving] = useState(false);
   const teams = app.provider === "teams";
@@ -102,6 +118,8 @@ function ChatAppCard({ app, onChanged }: { app: ChatApp; onChanged: () => void }
     setSecret("");
     setAppId(app.app_id ?? "");
     setDirectory(app.directory_tenant_id ?? "");
+    setAskMira(app.ask_mira);
+    setSigning("");
   }, [app]);
 
   const save = async () => {
@@ -113,6 +131,8 @@ function ChatAppCard({ app, onChanged }: { app: ChatApp; onChanged: () => void }
         secret: secret.trim() ? secret.trim() : null,
         app_id: teams ? appId.trim() : null,
         directory_tenant_id: teams ? directory.trim() : null,
+        ask_mira: askMira && enabled,
+        signing_secret: !teams && signing.trim() ? signing.trim() : null,
       });
       toast.success(`${app.name} saved.`);
       onChanged();
@@ -167,6 +187,17 @@ function ChatAppCard({ app, onChanged }: { app: ChatApp; onChanged: () => void }
   const missing = teams
     ? !appId.trim() || !directory.trim() || (!secret.trim() && !app.has_secret)
     : !secret.trim() && !app.has_secret;
+  const signingMissing = !teams && askMira && !signing.trim() && !app.has_signing_secret;
+
+  const copy = async () => {
+    if (!app.inbound_url) return;
+    try {
+      await navigator.clipboard.writeText(app.inbound_url);
+      toast.success("Copied.");
+    } catch {
+      toast.error("Copy it by hand: the browser did not allow it.");
+    }
+  };
 
   return (
     <section className="space-y-4 rounded-xl border border-border p-4" aria-label={app.name}>
@@ -259,8 +290,59 @@ function ChatAppCard({ app, onChanged }: { app: ChatApp; onChanged: () => void }
         />
       </FormField>
 
+      <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+        <div className="flex items-center gap-3">
+          {/* Ask Mira replies through the same connected app, so sending must be on. */}
+          <Switch
+            id={`${app.provider}-ask`}
+            checked={askMira && enabled}
+            disabled={!enabled}
+            onCheckedChange={setAskMira}
+          />
+          <Label htmlFor={`${app.provider}-ask`} className="text-sm font-normal">
+            People can ask Ask Mira by messaging the app in {app.name}
+          </Label>
+        </div>
+        {!enabled ? (
+          <p className="text-xs text-muted-foreground">
+            Switch on sending messages through {app.name} first: Ask Mira answers through the same app.
+          </p>
+        ) : null}
+        <p className="text-xs text-muted-foreground">
+          Ask Mira answers each person as themselves, found by the same work email they sign in with, and
+          offers are confirmed by replying yes. Pay, leave and other personal records stay in AskMira: the
+          reply links to them. People your two-step rule covers are asked to use AskMira itself.{" "}
+          {ASK_STEPS[app.provider]}
+        </p>
+        {!teams && (
+          <FormField
+            htmlFor="slack-signing"
+            label="Signing secret"
+            hint={app.has_signing_secret ? "Saved. Leave blank to keep it." : "32 letters and digits."}
+          >
+            <Input
+              id="slack-signing"
+              type="password"
+              autoComplete="off"
+              value={signing}
+              onChange={(event) => setSigning(event.target.value)}
+            />
+          </FormField>
+        )}
+        {app.inbound_url && (
+          <FormField htmlFor={`${app.provider}-inbound`} label={teams ? "Messaging endpoint" : "Event Subscriptions address"}>
+            <div className="flex gap-2">
+              <Input id={`${app.provider}-inbound`} readOnly value={app.inbound_url} className="font-mono text-xs" />
+              <Button type="button" variant="outline" size="icon" aria-label="Copy the address" onClick={() => void copy()}>
+                <Copy />
+              </Button>
+            </div>
+          </FormField>
+        )}
+      </div>
+
       <div className="flex flex-wrap gap-2">
-        <Button disabled={busy !== null || (enabled && missing)} onClick={() => void save()}>
+        <Button disabled={busy !== null || (enabled && missing) || signingMissing} onClick={() => void save()}>
           {busy === "save" && <Loader2 className="animate-spin" />}
           Save
         </Button>

@@ -87,7 +87,8 @@ export function DisbursementsWorkspace() {
         voids its approval.
       </p>
 
-      <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
+      {/* min-w-0: on a phone the tab strip scrolls inside itself instead of widening the page. */}
+      <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)} className="min-w-0">
         <TabsList>
           <TabsTrigger value="batches">Salary files</TabsTrigger>
           <TabsTrigger value="profiles">Bank profiles</TabsTrigger>

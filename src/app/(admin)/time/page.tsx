@@ -7,6 +7,7 @@ import { PageShell } from "@/components/common/PageShell";
 import { ApprovalsInbox } from "@/components/time/ApprovalsInbox";
 import { BalanceCards } from "@/components/time/BalanceCards";
 import { BalancesPanel } from "@/components/time/BalancesPanel";
+import { CalendarFeedCard } from "@/components/time/CalendarFeedCard";
 import { CompOffPanel } from "@/components/time/CompOffPanel";
 import { HolidayList } from "@/components/time/HolidayList";
 import { LeaveSetup } from "@/components/time/LeaveSetup";
@@ -170,8 +171,9 @@ export default function TimePage() {
           <TabsContent value="calendar" className="mt-4">
             <WhoIsOutCalendar version={version} isHr={isHr} />
           </TabsContent>
-          <TabsContent value="holidays" className="mt-4">
+          <TabsContent value="holidays" className="mt-4 grid gap-4">
             <HolidayList version={version} isHr={isHr} hasEmployee={hasEmployee} />
+            <CalendarFeedCard />
           </TabsContent>
           {(hasEmployee || isHr) && (
             <TabsContent value="balances" className="mt-4">

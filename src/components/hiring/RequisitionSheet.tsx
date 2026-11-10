@@ -113,12 +113,15 @@ function LinkedJob({ detail, onOpened }: { detail: RequisitionDetail; onOpened: 
             ? `Not opened in AnytimeHire yet: ${detail.linked_job_error}`
             : "Not opened in AnytimeHire yet."}
         </p>
-        <RequireRole roles={MANAGERS}>
+        {/* Only someone AnytimeHire lets open jobs (its admins and recruiters) gets the retry. */}
+        {detail.can_open_job ? (
           <Button size="sm" variant="outline" disabled={busy} onClick={() => void open()}>
             {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />}
             Open in AnytimeHire
           </Button>
-        </RequireRole>
+        ) : (
+          <p className="text-xs text-muted-foreground">HR can try opening it in AnytimeHire again.</p>
+        )}
       </AlertDescription>
     </Alert>
   );

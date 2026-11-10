@@ -29,6 +29,7 @@ import type {
   SmtpSettings,
 } from "@/lib/types/notifications";
 
+import { WhatsAppTemplatesPanel } from "./WhatsAppTemplatesPanel";
 import { ChatAppsPanel } from "./ChatAppsPanel";
 import { EmailDesignPanel } from "./EmailDesignPanel";
 import { NotificationTemplatesPanel } from "./NotificationTemplatesPanel";
@@ -112,7 +113,10 @@ export function NotificationSettingsScreen() {
           <SmtpPanel onSaved={channels.reload} />
         </TabsContent>
         <TabsContent value="whatsapp" className="mt-4">
-          <WhatsAppPanel onSaved={channels.reload} />
+          <div className="grid gap-4">
+            <WhatsAppPanel onSaved={channels.reload} />
+            <WhatsAppTemplatesPanel />
+          </div>
         </TabsContent>
         <TabsContent value="chat" className="mt-4">
           <ChatAppsPanel onSaved={channels.reload} />

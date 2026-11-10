@@ -2,7 +2,7 @@
 
 import type { ColumnDef } from "@tanstack/react-table";
 import { Landmark, Loader2, Lock, Plus } from "lucide-react";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
@@ -37,6 +37,8 @@ import type {
   LegalEntity,
 } from "@/lib/types/payroll-ops";
 
+type ProfileRow = BankProfile & { entity_name: string };
+
 /** The company's debit accounts, one per bank file format. Account numbers are never shown back. */
 export function BankProfilesTab({
   query,
@@ -54,8 +56,19 @@ export function BankProfilesTab({
   const entityName = useEntityName(entities);
   // A refusal for this role reads as no access, not as a failed load.
   const forbidden = query.error?.status === 403;
+  // The entity name is part of each row, so the rows change when the entities
+  // arrive. Worked out inside the table instead, it is cached from the first
+  // render, before the entities have loaded, and reads "Unknown entity".
+  const rows = useMemo<ProfileRow[]>(
+    () =>
+      (forbidden ? [] : (query.data ?? [])).map((profile) => ({
+        ...profile,
+        entity_name: entityName(profile.legal_entity_id),
+      })),
+    [forbidden, query.data, entityName],
+  );
 
-  const columns: ColumnDef<BankProfile>[] = [
+  const columns: ColumnDef<ProfileRow>[] = [
     {
       accessorKey: "bank_name",
       header: "Bank",
@@ -76,7 +89,7 @@ export function BankProfilesTab({
     {
       id: "entity",
       header: "Entity",
-      accessorFn: (row) => entityName(row.legal_entity_id),
+      accessorKey: "entity_name",
       meta: { className: "hidden md:table-cell", cellClassName: "text-muted-foreground" },
     },
     {
@@ -104,7 +117,7 @@ export function BankProfilesTab({
           </RequireRole>
         }
         columns={columns}
-        data={forbidden ? [] : (query.data ?? [])}
+        data={rows}
         noun="bank profiles"
         exportName="bank-profiles"
         searchPlaceholder="Search bank profiles"
@@ -144,7 +157,10 @@ function AddProfileDialog({
   entities: LegalEntity[];
   onCreated: () => void;
 }) {
-  const [entityId, setEntityId] = useState(entities.length === 1 ? entities[0].id : "");
+  const [chosenEntityId, setEntityId] = useState("");
+  // With one legal entity there is nothing to choose. Read on every render, so
+  // it holds even when the entities load after this dialog first mounts.
+  const entityId = chosenEntityId || (entities.length === 1 ? entities[0].id : "");
   const [bankName, setBankName] = useState("");
   const [account, setAccount] = useState("");
   const [ifsc, setIfsc] = useState("");

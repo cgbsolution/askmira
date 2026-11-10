@@ -23,7 +23,9 @@ import { ApiError, post } from "@/lib/api";
 import type { Page } from "@/lib/types";
 import type { PostingStatus, RequisitionSummary } from "@/lib/types/hiring";
 
-type Errors = Partial<Record<"requisition" | "board" | "applyUrl" | "interval", string>>;
+type Errors = Partial<
+  Record<"requisition" | "board" | "applyUrl" | "interval", string>
+>;
 
 /**
  * Post an open requisition to a board. A board failure is not an exception:
@@ -61,23 +63,27 @@ export function PostingCreateDialog({
     if (!requisitionId) next.requisition = "Choose an open requisition.";
     if (!board) next.board = "Choose a board.";
     const url = applyUrl.trim();
-    if (url && !url.startsWith("https://")) next.applyUrl = "The apply link must start with https://.";
+    if (url && !url.startsWith("https://"))
+      next.applyUrl = "The apply link must start with https://.";
     const days = intervalDays.trim();
-    if (days && (!/^\d+$/.test(days) || Number(days) < 1 || Number(days) > 90)) {
+    if (
+      days &&
+      (!/^\d+$/.test(days) || Number(days) < 1 || Number(days) > 90)
+    ) {
       next.interval = "Use a whole number of days from 1 to 90.";
     }
     setErrors(next);
     if (Object.keys(next).length > 0) return false;
     try {
-      const result = await post<{ status: PostingStatus; reason?: string | null }>(
-        "/job-boards/postings",
-        {
-          requisition_id: requisitionId,
-          board,
-          apply_url: url || null,
-          refresh_interval_days: days ? Number(days) : null,
-        },
-      );
+      const result = await post<{
+        status: PostingStatus;
+        reason?: string | null;
+      }>("/job-boards/postings", {
+        requisition_id: requisitionId,
+        board,
+        apply_url: url || null,
+        refresh_interval_days: days ? Number(days) : null,
+      });
       const label = POSTING_STATUS[result.status]?.[0] ?? result.status;
       const message = `Posting to ${boardName(board)}: ${label}`;
       if (result.status === "live") toast.success(message);
@@ -85,7 +91,11 @@ export function PostingCreateDialog({
       onPosted();
       return true;
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.detail : "Could not post the requisition.");
+      toast.error(
+        error instanceof ApiError
+          ? error.detail
+          : "Could not post the requisition.",
+      );
       return false;
     }
   };
@@ -109,14 +119,20 @@ export function PostingCreateDialog({
         htmlFor="posting-requisition"
         label="Requisition"
         error={errors.requisition ?? requisitions.error?.detail}
-        hint={!requisitions.isLoading && list.length === 0 ? "There are no open requisitions." : undefined}
+        hint={
+          !requisitions.isLoading && list.length === 0
+            ? "There are no open requisitions."
+            : undefined
+        }
       >
         <PostingRequisitionSelect
           id="posting-requisition"
           requisitions={list}
           value={requisitionId}
           onChange={setRequisitionId}
-          placeholder={requisitions.isLoading ? "Loading…" : "Choose a requisition"}
+          placeholder={
+            requisitions.isLoading ? "Loading…" : "Choose a requisition"
+          }
           disabled={requisitions.isLoading}
         />
       </FormField>
@@ -138,7 +154,7 @@ export function PostingCreateDialog({
         htmlFor="posting-apply-url"
         label="Apply link"
         optional
-        hint="Where applicants are sent. Must start with https://."
+        hint="Where applicants are sent; must start with https://. Leave blank to send them to this job on your careers page."
         error={errors.applyUrl}
       >
         <Input

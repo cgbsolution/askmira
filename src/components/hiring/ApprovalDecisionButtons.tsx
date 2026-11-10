@@ -65,12 +65,16 @@ export function ApprovalDecisionButtons({
       const remaining = result?.remaining_steps;
       // With AnytimeHire linked, the last approval opens the job there.
       const linked = result?.linked_job;
+      // The approval stands either way; a job AnytimeHire did not open is a warning, in its words.
+      const handOffFailed = Boolean(approve && linked && !linked.opened);
+      const reason = (linked?.error ?? "Try again from the requisition.").trim();
       const opened = linked
         ? linked.opened
           ? " The job is now open in AnytimeHire."
-          : ` AnytimeHire did not open it: ${linked.error ?? "try again from the requisition"}.`
+          : ` AnytimeHire did not open the job: ${/[.!?]$/.test(reason) ? reason : `${reason}.`}`
         : "";
-      toast.success(approve ? `${code} approved` : `${code} ${kind === "offer" ? "sent back" : "rejected"}`, {
+      const notify = handOffFailed ? toast.warning : toast.success;
+      notify(approve ? `${code} approved` : `${code} ${kind === "offer" ? "sent back" : "rejected"}`, {
         description:
           approve && typeof remaining === "number"
             ? remaining > 0

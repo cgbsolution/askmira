@@ -913,6 +913,36 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     ],
   },
 
+  "/settings/integrations": {
+    summary:
+      "Every outside system AskMira exchanges data with — banks, books, statutory portals, devices, sign-in, job boards, calendars, messaging, chat, eSign, AI assistants, BI and the API — and where this workspace stands with each.",
+    tasks: [
+      {
+        title: "See how an integration works",
+        steps: [
+          "Click a row for which way the data goes, how often, how it signs in and its limits.",
+          "The This workspace column says In use, Ready, Set up needed or Platform set-up needed; Open goes to where it is set up.",
+        ],
+      },
+      {
+        title: "Connect your Digio account for Aadhaar eSign",
+        steps: [
+          "In the Digio card choose Sandbox or Production and enter the client id and secret from your Digio dashboard.",
+          "Press Check and connect: Digio is asked first, and nothing is kept if it refuses.",
+          "Optionally add the webhook secret and paste the webhook address into Digio, so letters turn Signed at once.",
+        ],
+      },
+      {
+        title: "Connect Zoho Books",
+        steps: [
+          "In the Zoho API Console add a Self Client, generate a code with the scopes shown (10 minutes).",
+          "Choose the data centre, paste the client id, secret and code, and press Connect Zoho Books.",
+          "If the login reaches several organisations, choose the one payroll posts to.",
+        ],
+      },
+    ],
+  },
+
   "/settings/devices": {
     summary: "Biometric and attendance devices, what they have sent, and punches that need a person attached.",
     tasks: [

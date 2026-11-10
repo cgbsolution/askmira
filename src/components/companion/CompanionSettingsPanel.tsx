@@ -45,6 +45,8 @@ const GROUP_LABEL: Record<string, string> = {
   actions_orders: "Book won orders (on confirm)",
   procurement_data: "Procurement (linked ProcureFlow)",
   actions_procurement: "Approve in ProcureFlow (on confirm)",
+  actions_expense: "File and decide expense claims in ExpenseGenie (on confirm)",
+  actions_hiring: "Raise hiring requisitions (on confirm)",
   budgets: "Department headcount budgets",
 };
 

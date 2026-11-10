@@ -12,14 +12,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError, post } from "@/lib/api";
 
 /** "key=value" lines to an object. Returns an error message for the first bad line. */
-function parseSettings(text: string): { value: Record<string, string> } | { error: string } {
+function parseSettings(
+  text: string,
+): { value: Record<string, string> } | { error: string } {
   const value: Record<string, string> = {};
   const lines = text.split(/\r?\n/);
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index].trim();
     if (!line) continue;
     const at = line.indexOf("=");
-    if (at <= 0) return { error: `Line ${index + 1} needs the form key=value.` };
+    if (at <= 0)
+      return { error: `Line ${index + 1} needs the form key=value.` };
     const key = line.slice(0, at).trim();
     if (!key) return { error: `Line ${index + 1} has no key.` };
     if (key in value) return { error: `"${key}" appears more than once.` };
@@ -37,18 +40,26 @@ export function BoardAccountDialog({
   board,
   boardName,
   hasAccount,
+  needsSecret = true,
+  note,
   onSaved,
 }: {
   board: string;
   boardName: string;
   hasAccount: boolean;
+  /** False for a board that reads our feed: nothing is sent to it, so no password. */
+  needsSecret?: boolean;
+  /** What connecting this board takes, from the server. */
+  note?: string;
   onSaved: () => void;
 }) {
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [secret, setSecret] = useState("");
   const [settings, setSettings] = useState("");
-  const [errors, setErrors] = useState<Partial<Record<"secret" | "settings", string>>>({});
+  const [errors, setErrors] = useState<
+    Partial<Record<"secret" | "settings", string>>
+  >({});
 
   const reset = () => {
     setDisplayName("");
@@ -60,7 +71,8 @@ export function BoardAccountDialog({
 
   const submit = async (): Promise<boolean> => {
     const next: typeof errors = {};
-    if (!secret) next.secret = "Enter the API key or password for this board.";
+    if (needsSecret && !secret.trim())
+      next.secret = "Enter the API key or password for this board.";
     const parsed = parseSettings(settings);
     if ("error" in parsed) next.settings = parsed.error;
     setErrors(next);
@@ -70,16 +82,22 @@ export function BoardAccountDialog({
         board,
         display_name: displayName.trim() || null,
         username: username.trim() || null,
-        secret,
+        secret: needsSecret ? secret : "",
         settings: parsed.value,
       });
       toast.success(`${boardName} account saved`, {
-        description: "Credentials are stored. A live connection has still not been verified.",
+        description: needsSecret
+          ? "Credentials are stored. The first post shows the board's own answer."
+          : "Post jobs to this board, then send its feed link to the board once.",
       });
       onSaved();
       return true;
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.detail : "Could not save the account.");
+      toast.error(
+        error instanceof ApiError
+          ? error.detail
+          : "Could not save the account.",
+      );
       return false;
     }
   };
@@ -92,12 +110,21 @@ export function BoardAccountDialog({
         </Button>
       }
       title={`${hasAccount ? "Replace" : "Add"} ${boardName} account`}
-      description="The secret is encrypted before it is stored and is never shown again."
+      description={
+        note ||
+        (needsSecret
+          ? "The secret is encrypted before it is stored and is never shown again."
+          : "Nothing is sent to this board, so no password is needed.")
+      }
       submitLabel="Save account"
       onSubmit={submit}
       onClosed={reset}
     >
-      <FormField htmlFor={`board-display-${board}`} label="Display name" optional>
+      <FormField
+        htmlFor={`board-display-${board}`}
+        label="Display name"
+        optional
+      >
         <Input
           id={`board-display-${board}`}
           value={displayName}
@@ -105,41 +132,53 @@ export function BoardAccountDialog({
           onChange={(event) => setDisplayName(event.target.value)}
         />
       </FormField>
-      <FormField htmlFor={`board-username-${board}`} label="Username" optional>
-        <Input
-          id={`board-username-${board}`}
-          value={username}
-          maxLength={255}
-          autoComplete="off"
-          onChange={(event) => setUsername(event.target.value)}
-        />
-      </FormField>
-      <FormField htmlFor={`board-secret-${board}`} label="Secret" error={errors.secret}>
-        <Input
-          id={`board-secret-${board}`}
-          type="password"
-          value={secret}
-          maxLength={4096}
-          autoComplete="new-password"
-          required
-          onChange={(event) => setSecret(event.target.value)}
-        />
-      </FormField>
-      <FormField
-        htmlFor={`board-settings-${board}`}
-        label="Settings"
-        optional
-        hint="One key=value per line. Values are stored as text."
-        error={errors.settings}
-      >
-        <Textarea
-          id={`board-settings-${board}`}
-          value={settings}
-          rows={4}
-          className="font-mono text-xs"
-          onChange={(event) => setSettings(event.target.value)}
-        />
-      </FormField>
+      {needsSecret && (
+        <>
+          <FormField
+            htmlFor={`board-username-${board}`}
+            label="Username"
+            optional
+          >
+            <Input
+              id={`board-username-${board}`}
+              value={username}
+              maxLength={255}
+              autoComplete="off"
+              onChange={(event) => setUsername(event.target.value)}
+            />
+          </FormField>
+          <FormField
+            htmlFor={`board-secret-${board}`}
+            label="Secret"
+            error={errors.secret}
+          >
+            <Input
+              id={`board-secret-${board}`}
+              type="password"
+              value={secret}
+              maxLength={4096}
+              autoComplete="new-password"
+              required
+              onChange={(event) => setSecret(event.target.value)}
+            />
+          </FormField>
+          <FormField
+            htmlFor={`board-settings-${board}`}
+            label="Settings"
+            optional
+            hint="One key=value per line, e.g. api_base_url=https://… Values are stored as text."
+            error={errors.settings}
+          >
+            <Textarea
+              id={`board-settings-${board}`}
+              value={settings}
+              rows={4}
+              className="font-mono text-xs"
+              onChange={(event) => setSettings(event.target.value)}
+            />
+          </FormField>
+        </>
+      )}
     </BoardFormDialog>
   );
 }
