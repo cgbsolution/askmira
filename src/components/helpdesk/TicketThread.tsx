@@ -64,7 +64,7 @@ function SystemLine({ comment }: { comment: TicketComment }) {
 function CommentMessage({ comment }: { comment: TicketComment }) {
   return (
     <Message
-      name={comment.author_name ?? "AskMira"}
+      name={comment.author_name ?? "AskMiraa"}
       at={comment.created_at}
       tone={comment.is_internal ? "internal" : comment.is_from_requester ? "requester" : "agent"}
     >

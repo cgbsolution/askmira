@@ -150,12 +150,12 @@ export async function proxyToApi(request: Request, options: ProxyOptions): Promi
       return toResponse(await send(target, method, headers, body, wait, request.signal));
     } catch (error) {
       if (!(error instanceof NotConnected)) {
-        return unreachable("The connection to AskMira broke before it answered. Please try again.");
+        return unreachable("The connection to AskMiraa broke before it answered. Please try again.");
       }
       // Refused at once (the API restarting for a deploy, say): give it a moment.
       const quick = RETRY_PAUSE_MS - (Date.now() - started);
       if (quick > 0) await new Promise((resolve) => setTimeout(resolve, quick));
     }
   }
-  return unreachable("AskMira's server could not be reached. Please try again in a minute.");
+  return unreachable("AskMiraa's server could not be reached. Please try again in a minute.");
 }

@@ -73,7 +73,7 @@ const STATUS_BADGE: Record<string, { label: string; variant: "success" | "outlin
  */
 export function MyPrivacyScreen() {
   return (
-    <PageShell title="My privacy" description="What AskMira holds about you, why, what you agreed to, and your rights over it.">
+    <PageShell title="My privacy" description="What AskMiraa holds about you, why, what you agreed to, and your rights over it.">
       <Tabs defaultValue="choices">
         <TabsList>
           <TabsTrigger value="choices">My choices</TabsTrigger>

@@ -69,7 +69,7 @@ export default function RuleSetsPage() {
     >
       <Alert variant="warning">
         <ShieldAlert />
-        <AlertTitle>Rates come from your Compliance SME, not from AskMira</AlertTitle>
+        <AlertTitle>Rates come from your Compliance SME, not from AskMiraa</AlertTitle>
         <AlertDescription>
           No statutory rate ships with the product. Each version is entered with its source and
           approved by someone other than the person who entered it.

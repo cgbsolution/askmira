@@ -33,7 +33,7 @@ const OUTCOME_LABEL = {
 } as const;
 
 /**
- * Where a row opens: in the product (through AskMira's sign-in, in a new tab),
+ * Where a row opens: in the product (through AskMiraa's sign-in, in a new tab),
  * or its own page in the portal (a helpdesk ticket), right here.
  */
 function RowLink({ href }: { href: string | null | undefined }) {
@@ -58,7 +58,7 @@ function RowLink({ href }: { href: string | null | undefined }) {
 
 /**
  * What the companion looked up, rendered under its reply. Each card is a
- * record AskMira read as the person — the source of every figure in the reply.
+ * record AskMiraa read as the person — the source of every figure in the reply.
  */
 export function CompanionCardView({
   card,

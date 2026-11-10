@@ -90,7 +90,7 @@ export interface Notice {
 export const CAPABILITY_LABEL: Record<string, string> = {
   culture_survey_invitations: "culture survey invitations",
   culture_sentiment_analysis: "AI reading your survey comments for themes",
-  ai_companion_queries: "Ask Mira answering questions about you",
+  ai_companion_queries: "Ask Miraa answering questions about you",
   ai_context_retrieval: "AI tools reading your record",
   photo_in_directory: "your photo shown to colleagues",
   birthday_announcements: "birthday announcements",

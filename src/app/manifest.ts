@@ -6,12 +6,12 @@ import type { MetadataRoute } from "next";
  * No service worker and no offline cache, on purpose: an HR portal that shows a
  * cached payslip or leave balance after it has changed is showing invented data.
  * Installed, it opens like an app and still asks the server for every number.
- * Colours are the AskMira Red and Cream tokens in globals.css.
+ * Colours are the AskMiraa Red and Cream tokens in globals.css.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "AskMira",
-    short_name: "AskMira",
+    name: "AskMiraa",
+    short_name: "AskMiraa",
     description: "Your HR: payslips, leave, attendance, approvals and recognition.",
     start_url: "/",
     scope: "/",

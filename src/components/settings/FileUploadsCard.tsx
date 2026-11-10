@@ -17,7 +17,7 @@ import { errorDetail } from "./settingsShared";
 
 /**
  * Settings → Company → Workspace: the largest file anyone can upload, anywhere
- * in AskMira, and what happens to every file before it is stored.
+ * in AskMiraa, and what happens to every file before it is stored.
  *
  * Saved with the other workspace settings (PATCH /admin/tenant, audited), then
  * the session is read again so every upload screen shows the new limit at once.
@@ -49,7 +49,7 @@ export function FileUploadsCard() {
       <CardHeader>
         <CardTitle>File uploads</CardTitle>
         <CardDescription>
-          One limit for every upload in AskMira: documents, photos, logos, receipts, bills, résumés and
+          One limit for every upload in AskMiraa: documents, photos, logos, receipts, bills, résumés and
           import sheets, on the portal and the app.
         </CardDescription>
       </CardHeader>

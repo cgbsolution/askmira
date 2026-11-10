@@ -49,7 +49,7 @@ const GROUP_ORDER: NavSection["group"][] = ["main", "admin"];
 /**
  * The nav rail from FRD 5.13: warm Ink with the person's own company logo on
  * top (their legal entity's, else the workspace's), Marigold on the active
- * item. The AskMira logo sits at the foot of the right-hand rail.
+ * item. The AskMiraa logo sits at the foot of the right-hand rail.
  *
  * One list of HR modules, the admin ones under their own heading at the foot.
  * Built from `lib/access.ts`, the same map the route guard reads. A section
@@ -120,7 +120,7 @@ export function AppSidebar() {
           <Link
             href="/"
             onClick={closeOnMobile}
-            aria-label={`${company?.name ?? tenant?.name ?? "AskMira"} home`}
+            aria-label={`${company?.name ?? tenant?.name ?? "AskMiraa"} home`}
             className="flex w-full min-w-0 items-center rounded-xl outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:w-auto"
           >
             {tenant ? (
@@ -133,7 +133,7 @@ export function AppSidebar() {
             ) : (
               <>
                 <AskMiraLogo priority className="h-10 group-data-[collapsible=icon]:hidden" />
-                <AskMiraMark label="AskMira" className="hidden h-10 group-data-[collapsible=icon]:block" />
+                <AskMiraMark label="AskMiraa" className="hidden h-10 group-data-[collapsible=icon]:block" />
               </>
             )}
           </Link>

@@ -16,7 +16,7 @@ import type { CompanionAttachmentCard, CompanionConnectCard } from "./types";
 
 /** Files on one message: the server holds the same limit. */
 export const MAX_FILES = 3;
-/** What Ask Mira reads: pictures and PDFs. */
+/** What Ask Miraa reads: pictures and PDFs. */
 export const FILE_TYPES = ["image/png", "image/jpeg", "application/pdf"];
 export const FILE_ACCEPT = FILE_TYPES.join(",");
 

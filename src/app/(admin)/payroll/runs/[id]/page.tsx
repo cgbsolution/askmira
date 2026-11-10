@@ -62,7 +62,7 @@ function LockNotice({ run }: { run: PayrollRun }) {
         <Lock className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
         <span>
           {importedAndLocked(run)}. These are the figures as paid on factoHR, read from{" "}
-          {importedFiles(run)}. AskMira never recomputes them, and the run cannot be published,
+          {importedFiles(run)}. AskMiraa never recomputes them, and the run cannot be published,
           paid or posted to the books again.
         </span>
       </p>

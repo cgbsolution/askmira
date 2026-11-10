@@ -3,7 +3,7 @@ import type { ReportResult } from "@/lib/types/reports";
 /** What the chat screen needs before it shows anything. */
 export interface CompanionStatus {
   available: boolean;
-  /** "ai": a model plans each turn. "direct": words are matched to a lookup here; nothing leaves AskMira. */
+  /** "ai": a model plans each turn. "direct": words are matched to a lookup here; nothing leaves AskMiraa. */
   mode: "ai" | "direct";
   /** Why a model is not planning, in direct mode. */
   reason: "not_configured" | "disabled" | "no_consent" | null;
@@ -27,9 +27,9 @@ export interface Citation {
 }
 
 /**
- * What AskMira looked up and showed, as the person. The model reads a trimmed
+ * What AskMiraa looked up and showed, as the person. The model reads a trimmed
  * view of a card only where the DPDP register allows it; the card itself is
- * the record behind every figure Mira states.
+ * the record behind every figure Miraa states.
  */
 export type CompanionCard =
   | { type: "notice"; tone: "info" | "warning"; text: string }
@@ -107,7 +107,7 @@ export interface CompanionConnectCard {
   action: "connect" | "sync" | null;
 }
 
-/** A file the person attached to their message, as AskMira read it. The file itself is not kept. */
+/** A file the person attached to their message, as AskMiraa read it. The file itself is not kept. */
 export interface CompanionAttachmentCard {
   type: "attachment";
   name: string;
@@ -137,7 +137,7 @@ export interface CompanionChartCard {
   series: { name: string; values: string[] }[];
 }
 
-/** Something Mira offered to do. Nothing happens until the person confirms. */
+/** Something Miraa offered to do. Nothing happens until the person confirms. */
 export interface CompanionProposal {
   type: "proposal";
   action_id: string;
@@ -153,7 +153,7 @@ export interface CompanionProposal {
   question: string;
   /**
    * Held for an approval elsewhere (an order whose Won waits for a manager in
-   * Saleinx): what it waits for. It can't be confirmed until then; Ask Mira
+   * Saleinx): what it waits for. It can't be confirmed until then; Ask Miraa
    * checks in the background and says when it is ready.
    */
   waiting?: string;
@@ -182,7 +182,7 @@ export interface CompanionMessage {
   created_at: string | null;
 }
 
-/** An offer confirmed or declined with its button: its new state, and Mira's note of it. */
+/** An offer confirmed or declined with its button: its new state, and Miraa's note of it. */
 export interface OfferDecision {
   action: CompanionProposal;
   message: CompanionMessage;
@@ -212,7 +212,7 @@ export interface CompanionConfig {
   tools: Record<string, boolean>;
   daily_messages_per_person: number;
   monthly_token_budget: number;
-  /** Whether Mira reads what its lookups find (within what the DPDP register allows). */
+  /** Whether Miraa reads what its lookups find (within what the DPDP register allows). */
   ai_reads_results: boolean;
 }
 

@@ -490,7 +490,7 @@ interface QuickLink {
   url: string;
 }
 
-/** The workspace's own links. Admins edit them here; https or a page inside AskMira only. */
+/** The workspace's own links. Admins edit them here; https or a page inside AskMiraa only. */
 export function QuickLinksCard({ canEdit }: { canEdit: boolean }) {
   const { data, reload } = useApiQuery<{ links: QuickLink[]; is_default: boolean }>("/dashboard/quick-links");
   const [editing, setEditing] = useState(false);

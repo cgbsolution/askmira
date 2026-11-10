@@ -65,7 +65,7 @@ interface Category {
 /**
  * Equipment ProcureFlow received in the last 90 days, beside the asset register.
  *
- * "Add to register" turns each accepted unit into an asset — in AskMira's
+ * "Add to register" turns each accepted unit into an asset — in AskMiraa's
  * register, or in CGB Helpdesk's when it is linked — as a spare ready to hand
  * to the person it was bought for. A unit added once is never added again.
  * Renders nothing unless ProcureFlow is linked.

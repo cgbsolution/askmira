@@ -111,7 +111,7 @@ export interface NavSection {
   pages: NavPage[];
   /**
    * The section's pages while its product is linked: the product's own records,
-   * read live as the person (claims, jobs…), plus anything AskMira still owns.
+   * read live as the person (claims, jobs…), plus anything AskMiraa still owns.
    */
   linkedPages?: NavPage[];
 }
@@ -187,10 +187,10 @@ export const NAV: NavSection[] = [
   {
     // The workspace's own AI companion: it answers as the person asking.
     key: "companion",
-    name: "Ask Mira",
+    name: "Ask Miraa",
     icon: Sparkles,
     group: "main",
-    pages: [{ name: "Ask Mira", path: "/ask-mira", roles: EVERYONE }],
+    pages: [{ name: "Ask Miraa", path: "/ask-mira", roles: EVERYONE }],
   },
   {
     key: "approvals",
@@ -546,7 +546,7 @@ export const NAV: NavSection[] = [
       { name: "Careers site", path: "/hiring/careers-site", roles: ADMIN },
     ],
     linkedPages: [
-      // AskMira keeps the requisition and its approval; once approved, its job opens in AnytimeHire.
+      // AskMiraa keeps the requisition and its approval; once approved, its job opens in AnytimeHire.
       { name: "Requisitions", path: "/hiring", roles: MANAGERS },
       { name: "Hiring overview", path: "/linked/interview/overview", roles: MANAGERS },
       { name: "Job openings", path: "/linked/interview/jobs", roles: MANAGERS },

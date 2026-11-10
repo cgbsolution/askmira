@@ -58,7 +58,7 @@ const TURN_TIMEOUT_MS = 150_000;
 const FILE_READ_MS = 120_000;
 
 /**
- * Ask Mira — the workspace's AI companion, one conversation at a time.
+ * Ask Miraa — the workspace's AI companion, one conversation at a time.
  *
  * It answers as the person signed in: every lookup runs with their own access,
  * and what it finds is shown here under its reply. It works a question out in
@@ -68,7 +68,7 @@ const FILE_READ_MS = 120_000;
  */
 export function CompanionScreen() {
   const status = useApiQuery<CompanionStatus>("/companion/status");
-  const name = status.data?.name ?? "Mira";
+  const name = status.data?.name ?? "Miraa";
 
   return (
     <PageShell
@@ -115,7 +115,7 @@ function DirectModeNote({ status }: { status: CompanionStatus }) {
       <AlertDescription>
         <p>
           {why}, so {status.name} matches your words to a lookup instead. Ask short, direct
-          questions like the ones below. Nothing you type leaves AskMira.
+          questions like the ones below. Nothing you type leaves AskMiraa.
         </p>
         {status.reason === "disabled" && status.can_configure ? (
           <Button asChild variant="link" className="h-auto p-0">
@@ -599,7 +599,7 @@ function Thread({
 function Welcome({ status }: { status: CompanionStatus }) {
   const { hasRole } = useAuth();
   // The same line the server holds: HR asks about everyone, everybody else
-  // about themselves only, in AskMira and in every connected product.
+  // about themselves only, in AskMiraa and in every connected product.
   const companyWide = hasRole("admin", "sub_admin");
 
   return (
@@ -629,8 +629,8 @@ function Welcome({ status }: { status: CompanionStatus }) {
       <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
         <ShieldCheck className="mt-0.5 size-4 shrink-0" />
         {companyWide
-          ? "You can ask about the whole company in AskMira, as far as your HR rights reach. Each connected product answers as far as your role there allows."
-          : "I answer you about your own records only: your leave, pay, claims, tickets and requests, in AskMira and the connected products. Other people's records stay private."}
+          ? "You can ask about the whole company in AskMiraa, as far as your HR rights reach. Each connected product answers as far as your role there allows."
+          : "I answer you about your own records only: your leave, pay, claims, tickets and requests, in AskMiraa and the connected products. Other people's records stay private."}
       </p>
       {status.tools.length === 0 ? (
         <p className="text-sm text-muted-foreground">No tools are switched on for you yet, so I can only chat.</p>

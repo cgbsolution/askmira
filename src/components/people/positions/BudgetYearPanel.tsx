@@ -58,13 +58,13 @@ function amount(value: string | null | undefined) {
  * Employees → Positions → Budget: each department's year so far, beside its budget.
  *
  * Every figure comes from the system that owns it — the headcount budget and
- * payroll from AskMira, expenses from Expense Genie (or AskMira), purchasing
+ * payroll from AskMiraa, expenses from Expense Genie (or AskMiraa), purchasing
  * from ProcureFlow, the pipeline from Saleinx — and they sit side by side.
  * They are different budgets, so nothing is added into one "remaining" figure.
  */
 export function BudgetYearPanel() {
   const { data, error, isLoading, reload } = useApiQuery<BudgetYear>("/positions/budget/year");
-  const expenseSource = data?.expenses.source ?? "AskMira";
+  const expenseSource = data?.expenses.source ?? "AskMiraa";
   const showPurchasing = data?.purchasing !== null && data?.purchasing !== undefined;
 
   const columns: ColumnDef<DepartmentYear>[] = [
@@ -151,7 +151,7 @@ export function BudgetYearPanel() {
     <div className="flex flex-col gap-4">
       <DataTable
         title={`This year against budget${data ? ` · ${data.financial_year}` : ""}`}
-        description={`Positions and people cost from the headcount budget, payroll paid from AskMira, expenses from ${expenseSource}${showPurchasing ? ", purchasing from ProcureFlow cost centres of the same name" : ""}. Different budgets, shown side by side, never added into one number.`}
+        description={`Positions and people cost from the headcount budget, payroll paid from AskMiraa, expenses from ${expenseSource}${showPurchasing ? ", purchasing from ProcureFlow cost centres of the same name" : ""}. Different budgets, shown side by side, never added into one number.`}
         columns={columns}
         data={data?.departments ?? []}
         getRowId={(row) => row.department_id}

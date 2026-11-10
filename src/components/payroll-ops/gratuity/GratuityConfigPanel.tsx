@@ -179,7 +179,7 @@ export function GratuityConfigPanel({
         <Scale />
         <AlertTitle>Every number here is configuration</AlertTitle>
         <AlertDescription>
-          AskMira does not assume any statutory figure. The service needed, the wage basis, the
+          AskMiraa does not assume any statutory figure. The service needed, the wage basis, the
           divisor and the ceilings are what your company enters, and the Compliance SME signs off.
         </AlertDescription>
       </Alert>

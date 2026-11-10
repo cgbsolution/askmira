@@ -64,7 +64,7 @@ export function useConnectorRail(): RailControls {
 
 /**
  * Quick access, on the right: the companion, the hubs a linked product can take
- * over, and the self-service desks (`QUICK_ACCESS`). The AskMira logo sits at
+ * over, and the self-service desks (`QUICK_ACCESS`). The AskMiraa logo sits at
  * its foot: the top of the navigation is the customer's own company.
  *
  * An icon strip until opened, and it folds back once a page is picked, so the
@@ -152,8 +152,8 @@ export function ConnectorSidebar() {
       <SidebarFooter className="items-center border-t border-sidebar-border px-3 py-3">
         <div
           role="img"
-          aria-label="Powered by AskMira"
-          title="Powered by AskMira"
+          aria-label="Powered by AskMiraa"
+          title="Powered by AskMiraa"
           className="flex flex-col items-center gap-1"
         >
           <span

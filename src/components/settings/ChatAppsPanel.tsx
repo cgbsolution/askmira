@@ -39,15 +39,15 @@ interface ChatApp {
   connected_as?: string | null;
   last_checked_at?: string | null;
   last_error?: string | null;
-  /** People may message the app to ask Ask Mira. */
+  /** People may message the app to ask Ask Miraa. */
   ask_mira: boolean;
   /** Slack: its signing secret is saved (checks each event is Slack's). */
   has_signing_secret: boolean;
-  /** Where Slack sends events, or Teams its messages, for Ask Mira here. */
+  /** Where Slack sends events, or Teams its messages, for Ask Miraa here. */
   inbound_url: string | null;
 }
 
-/** What to do in Slack or Azure so people can message Ask Mira there. */
+/** What to do in Slack or Azure so people can message Ask Miraa there. */
 const ASK_STEPS: Record<Provider, string> = {
   slack:
     "Paste the app's Signing Secret (Basic Information → App Credentials), switch this on and save. Then download the manifest again and paste it over the app's own (Features → App Manifest): it adds direct messages and this address under Event Subscriptions.",
@@ -73,7 +73,7 @@ const STEPS: Record<Provider, string[]> = {
 /**
  * Settings → Notifications → Slack & Teams.
  *
- * The workspace's own Slack app and Teams bot: AskMira messages each person
+ * The workspace's own Slack app and Teams bot: AskMiraa messages each person
  * directly, found by their work email, and approval requests carry the same
  * Approve and Reject buttons as the approval email.
  */
@@ -239,7 +239,7 @@ function ChatAppCard({ app, onChanged }: { app: ChatApp; onChanged: () => void }
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="approvals">Approval requests only</SelectItem>
-            <SelectItem value="all">Everything people are told in AskMira</SelectItem>
+            <SelectItem value="all">Everything people are told in AskMiraa</SelectItem>
           </SelectContent>
         </Select>
       </FormField>
@@ -292,7 +292,7 @@ function ChatAppCard({ app, onChanged }: { app: ChatApp; onChanged: () => void }
 
       <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
         <div className="flex items-center gap-3">
-          {/* Ask Mira replies through the same connected app, so sending must be on. */}
+          {/* Ask Miraa replies through the same connected app, so sending must be on. */}
           <Switch
             id={`${app.provider}-ask`}
             checked={askMira && enabled}
@@ -300,18 +300,18 @@ function ChatAppCard({ app, onChanged }: { app: ChatApp; onChanged: () => void }
             onCheckedChange={setAskMira}
           />
           <Label htmlFor={`${app.provider}-ask`} className="text-sm font-normal">
-            People can ask Ask Mira by messaging the app in {app.name}
+            People can ask Ask Miraa by messaging the app in {app.name}
           </Label>
         </div>
         {!enabled ? (
           <p className="text-xs text-muted-foreground">
-            Switch on sending messages through {app.name} first: Ask Mira answers through the same app.
+            Switch on sending messages through {app.name} first: Ask Miraa answers through the same app.
           </p>
         ) : null}
         <p className="text-xs text-muted-foreground">
-          Ask Mira answers each person as themselves, found by the same work email they sign in with, and
-          offers are confirmed by replying yes. Pay, leave and other personal records stay in AskMira: the
-          reply links to them. People your two-step rule covers are asked to use AskMira itself.{" "}
+          Ask Miraa answers each person as themselves, found by the same work email they sign in with, and
+          offers are confirmed by replying yes. Pay, leave and other personal records stay in AskMiraa: the
+          reply links to them. People your two-step rule covers are asked to use AskMiraa itself.{" "}
           {ASK_STEPS[app.provider]}
         </p>
         {!teams && (
@@ -373,7 +373,7 @@ function ChatAppCard({ app, onChanged }: { app: ChatApp; onChanged: () => void }
         open={removing}
         onOpenChange={setRemoving}
         title={`Disconnect ${app.name}?`}
-        description={`AskMira stops sending messages through ${app.name}, and forgets its credentials. People still get email and in-app notices.`}
+        description={`AskMiraa stops sending messages through ${app.name}, and forgets its credentials. People still get email and in-app notices.`}
         confirmLabel="Disconnect"
         destructive
         onConfirm={remove}

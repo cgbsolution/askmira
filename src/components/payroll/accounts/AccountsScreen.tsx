@@ -60,7 +60,7 @@ import { useUploadLimit } from "@/hooks/useUploadLimit";
  * Five tabs: the P&L itself; the accounts; billing and costs (typed or
  * uploaded); which people work on which account, from when; and the
  * prospective P&L that won orders are expected to make (ForecastTab). Every figure
- * on the P&L is worked out by AskMira from those three and from payroll's own
+ * on the P&L is worked out by AskMiraa from those three and from payroll's own
  * payslips — nothing here is typed as a result.
  */
 

@@ -11,7 +11,7 @@ import { ApiError, post } from "@/lib/api";
 import { SOCIAL_LABEL } from "./signinState";
 
 /**
- * "Continue with Google / Microsoft". Shown only for providers this AskMira has
+ * "Continue with Google / Microsoft". Shown only for providers this AskMiraa has
  * an OAuth app for; they sign in somebody who already has a login.
  */
 export function SocialButtons({ providers, next }: { providers: string[]; next: string | null }) {

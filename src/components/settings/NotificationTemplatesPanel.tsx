@@ -57,7 +57,7 @@ function subjectOf(item: EmailCatalogueItem): string {
 /**
  * Settings → Notifications → Emails and messages.
  *
- * Every message AskMira can send, in its built-in wording until the workspace
+ * Every message AskMiraa can send, in its built-in wording until the workspace
  * writes its own. Saving writes the next version and retires the current one,
  * so what last month's email said stays on record; "Use the built-in wording"
  * retires the workspace's version without deleting it.
@@ -160,7 +160,7 @@ export function NotificationTemplatesPanel() {
       <DataTable
         tier="tier1"
         title="Emails and messages"
-        description={`Every message AskMira sends: ${items.length} in all, ${changedCount} in your own words. Each save is a new version; nothing is overwritten.`}
+        description={`Every message AskMiraa sends: ${items.length} in all, ${changedCount} in your own words. Each save is a new version; nothing is overwritten.`}
         columns={columns}
         data={rows}
         getRowId={(item) => item.event_key}
@@ -428,7 +428,7 @@ function MessageEditor({
                     {channel === "push" ? "On the phone" : "In the bell"}
                   </p>
                   <div className="rounded-lg border border-border bg-card p-4">
-                    <p className="text-sm font-medium">{item.default_subject || "AskMira"}</p>
+                    <p className="text-sm font-medium">{item.default_subject || "AskMiraa"}</p>
                     <p className="mt-1 text-sm whitespace-pre-line text-muted-foreground">{body}</p>
                   </div>
                   <p className="text-xs text-muted-foreground">

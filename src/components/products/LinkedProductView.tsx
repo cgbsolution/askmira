@@ -117,7 +117,7 @@ const VIEWS: Record<Product, Record<string, ViewConfig>> = {
     assigned: {
       title: "Assigned to me",
       description:
-        "Tickets CGB Helpdesk has assigned to you. Reply here, or ask Ask Mira to hold, close or reopen one.",
+        "Tickets CGB Helpdesk has assigned to you. Reply here, or ask Ask Miraa to hold, close or reopen one.",
       statuses: TICKET_STATUSES,
       search: "Subject, category or person",
       dates: true,
@@ -125,7 +125,7 @@ const VIEWS: Record<Product, Record<string, ViewConfig>> = {
     queue: {
       title: "Unassigned queue",
       description:
-        "Open tickets nobody has picked up yet. Pick one up in CGB Helpdesk, or ask Ask Mira to pick it up.",
+        "Open tickets nobody has picked up yet. Pick one up in CGB Helpdesk, or ask Ask Miraa to pick it up.",
       statuses: TICKET_STATUSES,
       search: "Subject, category or person",
       dates: true,
@@ -154,7 +154,7 @@ const VIEWS: Record<Product, Record<string, ViewConfig>> = {
     deals: {
       title: "Deals",
       description:
-        "Leads and deals in Saleinx you can see there: a rep sees their own and unassigned ones, a manager the team's. Ask Mira can add leads and move deals for you.",
+        "Leads and deals in Saleinx you can see there: a rep sees their own and unassigned ones, a manager the team's. Ask Miraa can add leads and move deals for you.",
       search: "Deal or company",
     },
     pipeline: {
@@ -174,7 +174,7 @@ const VIEWS: Record<Product, Record<string, ViewConfig>> = {
     },
     approvals: {
       title: "Waiting for me",
-      description: "Requisitions, purchase orders, invoices and payment runs waiting on your approval in ProcureFlow. Ask Mira can approve or reject them for you.",
+      description: "Requisitions, purchase orders, invoices and payment runs waiting on your approval in ProcureFlow. Ask Miraa can approve or reject them for you.",
     },
     requisitions: {
       title: "Requisitions",
@@ -210,7 +210,7 @@ const ALL = "all";
  * A linked product's records as a portal page (Expenses, Hiring, Helpdesk or
  * Assets when the workspace uses ExpenseGenie, AnytimeHire or CGB Helpdesk).
  * Read live from the product as the person signed in; nothing is copied into
- * AskMira. The work itself — filing, approving, scheduling, fixing — happens in
+ * AskMiraa. The work itself — filing, approving, scheduling, fixing — happens in
  * the product; a helpdesk ticket can also be raised and answered from here.
  */
 export function LinkedProductView({ product, view }: { product: string; view: string }) {

@@ -123,7 +123,7 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       },
     ],
     tips: [
-      "Employee codes already in AskMira are skipped, so a corrected file can be imported again.",
+      "Employee codes already in AskMiraa are skipped, so a corrected file can be imported again.",
       "A value that fails a check (a mistyped PAN, say) is left out and listed; the rest of the row still comes in.",
     ],
     related: [

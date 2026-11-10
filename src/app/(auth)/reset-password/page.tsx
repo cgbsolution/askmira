@@ -63,7 +63,7 @@ function ResetPasswordForm() {
     <>
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          {isWelcome ? "Welcome to AskMira" : "Set a new password"}
+          {isWelcome ? "Welcome to AskMiraa" : "Set a new password"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {isWelcome

@@ -44,7 +44,7 @@ function SignedMoney({ value }: { value: string }) {
 
 /**
  * The prospective side of Account P&L: what each won order is expected to bill
- * and cost, month by month, booked from Ask Mira (an order win) or by hand.
+ * and cost, month by month, booked from Ask Miraa (an order win) or by hand.
  * Kept apart from the P&L tab on purpose: that one shows only what happened.
  */
 export function ForecastTab() {
@@ -57,13 +57,13 @@ export function ForecastTab() {
     {
       accessorKey: "reference",
       header: "Order",
-      meta: { text: (f) => `${f.reference} (${f.source === "order_win" ? "Ask Mira order win" : "by hand"})` },
+      meta: { text: (f) => `${f.reference} (${f.source === "order_win" ? "Ask Miraa order win" : "by hand"})` },
       cell: ({ row }) => (
         <div className="grid gap-1">
           <span>{row.original.reference}</span>
           {row.original.source === "order_win" ? (
             <Badge variant="secondary" className="w-fit">
-              Ask Mira order win
+              Ask Miraa order win
             </Badge>
           ) : null}
         </div>
@@ -128,7 +128,7 @@ export function ForecastTab() {
       <DataTable
         tier="tier1"
         title="Prospective P&L"
-        description="What each won order is expected to bill and cost, month by month, before any of it has happened. Booked from an order win in Ask Mira; withdraw one if the order falls through."
+        description="What each won order is expected to bill and cost, month by month, before any of it has happened. Booked from an order win in Ask Miraa; withdraw one if the order falls through."
         columns={columns}
         data={forecasts.data ?? []}
         noun="forecasts"
@@ -140,7 +140,7 @@ export function ForecastTab() {
           icon: LineChart,
           title: "No prospective P&L yet",
           description:
-            "When a customer signs, tell Ask Mira the PO and the team: it checks the figures, opens the positions and books the forecast here.",
+            "When a customer signs, tell Ask Miraa the PO and the team: it checks the figures, opens the positions and books the forecast here.",
         }}
       />
       <Sheet open={viewing !== null} onOpenChange={(next) => !next && setViewing(null)}>

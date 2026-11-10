@@ -145,7 +145,7 @@ export function PlatformConsole() {
   return (
     <PageShell
       title="Workspaces"
-      description="Every organisation on AskMira. Only you create them; each admin then sets up their own."
+      description="Every organisation on AskMiraa. Only you create them; each admin then sets up their own."
       icon={Building2}
       actions={
         <Button onClick={() => setCreating(true)}>
@@ -453,7 +453,7 @@ function SuspendDialog({
         <DialogHeader>
           <DialogTitle>Suspend {workspace?.name}?</DialogTitle>
           <DialogDescription>
-            Nobody in it can sign in or use AskMira until you reactivate it. Nothing is deleted.
+            Nobody in it can sign in or use AskMiraa until you reactivate it. Nothing is deleted.
           </DialogDescription>
         </DialogHeader>
         <FormField label="Reason" htmlFor="suspend-reason" required hint="Recorded in their audit trail.">
@@ -664,7 +664,7 @@ function DeleteDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Delete {workspace?.name}?</DialogTitle>
-          <DialogDescription>This cannot be undone from AskMira.</DialogDescription>
+          <DialogDescription>This cannot be undone from AskMiraa.</DialogDescription>
         </DialogHeader>
         <Alert variant="destructive">
           <AlertTriangle />

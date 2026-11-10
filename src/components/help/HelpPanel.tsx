@@ -153,7 +153,7 @@ function HelpBody({ onNavigate }: { onNavigate: () => void }) {
           {canOpen("/ask-mira") ? (
             <Button asChild variant="secondary" onClick={onNavigate}>
               <Link href="/ask-mira">
-                <Sparkles /> Ask Mira
+                <Sparkles /> Ask Miraa
               </Link>
             </Button>
           ) : null}

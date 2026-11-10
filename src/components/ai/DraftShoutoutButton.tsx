@@ -13,7 +13,7 @@ import { aiAvailable, useAiStatus } from "./aiStatus";
  * "Help me write this" in the shoutout composer (REC-04).
  *
  * Turns the notes already in the box into a draft, in place. Your colleague's
- * name is not sent; AskMira puts it in afterwards. Nothing posts until you do.
+ * name is not sent; AskMiraa puts it in afterwards. Nothing posts until you do.
  */
 export function DraftShoutoutButton({
   toEmployeeId,

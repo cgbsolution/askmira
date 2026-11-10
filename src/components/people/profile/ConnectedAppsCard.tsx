@@ -39,7 +39,7 @@ export function ConnectedAppsCard() {
         <CardTitle className="flex items-center gap-2">
           <PlugZap className="size-4" /> Connected apps
         </CardTitle>
-        <CardDescription>Assistants you allowed to read AskMira as you. They cannot change anything.</CardDescription>
+        <CardDescription>Assistants you allowed to read AskMiraa as you. They cannot change anything.</CardDescription>
       </CardHeader>
       <CardContent>
         <ul className="divide-y divide-border">

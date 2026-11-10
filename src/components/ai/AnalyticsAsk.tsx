@@ -105,7 +105,7 @@ export function AnalyticsAsk() {
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Only your question and the names of report fields leave AskMira. The report runs here, as
+            Only your question and the names of report fields leave AskMiraa. The report runs here, as
             you, and shows only what your role may see.
           </p>
         </CardContent>

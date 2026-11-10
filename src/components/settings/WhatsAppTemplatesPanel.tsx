@@ -260,7 +260,7 @@ function TestDialog({ template }: { template: MetaTemplate }) {
 
 /**
  * Settings → Notifications → WhatsApp: the Meta-approved templates this
- * workspace sends with, and which AskMira notifications go by WhatsApp.
+ * workspace sends with, and which AskMiraa notifications go by WhatsApp.
  */
 export function WhatsAppTemplatesPanel() {
   const { data, error, isLoading, reload } = useApiQuery<Overview>(

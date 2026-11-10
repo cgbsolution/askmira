@@ -111,7 +111,7 @@ export function loadGoogleMaps(): Promise<typeof google.maps> {
       const key = config?.provider === "google" ? config.google_maps_api_key?.trim() : "";
       if (!key) {
         const reason = config
-          ? "the Google Maps key is not set on the AskMira server (GOOGLE_MAPS_API_KEY)"
+          ? "the Google Maps key is not set on the AskMiraa server (GOOGLE_MAPS_API_KEY)"
           : "the map settings could not be read";
         markFailed(reason);
         throw new Error(reason);

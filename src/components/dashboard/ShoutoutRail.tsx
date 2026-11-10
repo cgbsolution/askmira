@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 /**
  * Culture rail (Tier 2) — the one saturated surface on the dashboard.
  *
- * It stays AskMira Red in both themes instead of inverting with the page. That
+ * It stays AskMiraa Red in both themes instead of inverting with the page. That
  * is what lets it sit beside the flat Tier 1 payroll and compliance cards
  * without either one looking like a mistake (FRD 5.13).
  */

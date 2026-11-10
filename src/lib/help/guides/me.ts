@@ -45,22 +45,22 @@ export const ME_GUIDES: Record<string, PageGuide> = {
 
   "/ask-mira": {
     summary:
-      "Mira is your company's AI companion. Ask in plain words; it looks things up with your own access and shows the result under its reply.",
+      "Miraa is your company's AI companion. Ask in plain words; it looks things up with your own access and shows the result under its reply.",
     tasks: [
       {
         title: "Ask a question",
         steps: [
           "Type your question in the box at the bottom, or press one of the suggestions.",
           "Press Enter or Send. Shift+Enter starts a new line.",
-          "Read Mira's reply and the cards under it: the cards are the actual records, and the small labels above the reply show what Mira looked up.",
-          "Carry on in the same conversation: Mira remembers what was said and found earlier, so “and for last year?” works.",
+          "Read Miraa's reply and the cards under it: the cards are the actual records, and the small labels above the reply show what Miraa looked up.",
+          "Carry on in the same conversation: Miraa remembers what was said and found earlier, so “and for last year?” works.",
         ],
       },
       {
         title: "Get something done (leave, attendance, approvals, HR tickets)",
         steps: [
           "Say what you want, for example “I want to take leave on 5 November”.",
-          "Mira checks it first — the leave type, your balance, holidays and who approves it — and shows an offer card with what it will send.",
+          "Miraa checks it first — the leave type, your balance, holidays and who approves it — and shows an offer card with what it will send.",
           "Nothing is sent until you press the button on the offer (Send for approval, Approve…) or reply “yes”. Press Cancel or say no to drop it.",
           "Once confirmed it goes through the normal process: a leave request still waits for your approver.",
         ],
@@ -69,7 +69,7 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         title: "Ask for a figure, a trend or a chart",
         steps: [
           "Ask in plain words, for example “payroll cost trend for the last 6 months”, “leave days by type this year as a pie chart”, “exits by quarter”, “employees in each department as a bar chart” or “P&L for <account> this year”.",
-          "Mira draws the chart that fits — a line or area for a trend, bars to compare, stacked bars for a breakdown, a pie or donut for shares — with the table under it.",
+          "Miraa draws the chart that fits — a line or area for a trend, bars to compare, stacked bars for a breakdown, a pie or donut for shares — with the table under it.",
           "Change it with a follow-up: “by department instead”, “as a pie chart”, “only Sales”, “for the last 12 months”.",
           "You see only what your role may see: an employee sees their own figures, a manager their team's, HR the company's.",
         ],
@@ -83,24 +83,24 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         ],
       },
       {
-        title: "Switch Mira on for the company",
+        title: "Switch Miraa on for the company",
         roles: ["admin"],
         steps: [
           "Go to Settings → Company and open the AI tab.",
-          "Under Who answers, pick the AI provider — Anthropic (Claude), OpenAI (ChatGPT), Google Gemini or your own Ollama server — and a model; paste your API key if AskMira's server has none for it, then press Test connection.",
-          "Turn on “AI features for this workspace” and “Ask Mira chat”, then press Save.",
-          "In the Ask Mira part of that tab, choose its name, greeting, tools and limits.",
+          "Under Who answers, pick the AI provider — Anthropic (Claude), OpenAI (ChatGPT), Google Gemini or your own Ollama server — and a model; paste your API key if AskMiraa's server has none for it, then press Test connection.",
+          "Turn on “AI features for this workspace” and “Ask Miraa chat”, then press Save.",
+          "In the Ask Miraa part of that tab, choose its name, greeting, tools and limits.",
         ],
       },
     ],
     tips: [
-      "Mira works without AI too: it then matches your words to a lookup, so ask short, direct questions like “Who is on leave this week?” or “My pending expense claims”. Nothing you type leaves AskMira.",
+      "Miraa works without AI too: it then matches your words to a lookup, so ask short, direct questions like “Who is on leave this week?” or “My pending expense claims”. Nothing you type leaves AskMiraa.",
       "For free-form questions and policy answers, AI must be on for your workspace and you must agree to “AI assistant” under My privacy in your account menu; nothing is sent to the AI provider until you do.",
-      "Mira can tell you your leave balance, latest payslip, attendance and manager; who is on leave; find colleagues; list departments and offices; and answer policy questions from what HR published.",
-      "Where your company uses the separate interview or expense tool, Mira can also show the jobs, candidates, interviews and expense claims you may see there.",
-      "Mira reads what it looks up only where your company's data-protection register lets the AI provider receive that kind of record, and never contact details, ID numbers, bank details or leave reasons. Otherwise it only knows the result is on your screen. It never states a fact it did not look up.",
-      "Totals and trends are read by the AI only for groups of five or more people. A smaller group — a two-person team's pay, one person's leave — is on your screen, but Mira cannot see it and will say so.",
-      "An offer expires after two hours; ask again and Mira checks the figures afresh.",
+      "Miraa can tell you your leave balance, latest payslip, attendance and manager; who is on leave; find colleagues; list departments and offices; and answer policy questions from what HR published.",
+      "Where your company uses the separate interview or expense tool, Miraa can also show the jobs, candidates, interviews and expense claims you may see there.",
+      "Miraa reads what it looks up only where your company's data-protection register lets the AI provider receive that kind of record, and never contact details, ID numbers, bank details or leave reasons. Otherwise it only knows the result is on your screen. It never states a fact it did not look up.",
+      "Totals and trends are read by the AI only for groups of five or more people. A smaller group — a two-person team's pay, one person's leave — is on your screen, but Miraa cannot see it and will say so.",
+      "An offer expires after two hours; ask again and Miraa checks the figures afresh.",
       "There is a daily message limit per person; the line under the box shows what is left.",
     ],
     related: [
@@ -540,7 +540,7 @@ export const ME_GUIDES: Record<string, PageGuide> = {
 
   "/linked/[product]/[view]": {
     summary:
-      "Records from a product your company uses alongside AskMira — ExpenseGenie for expenses, AnytimeHire for hiring, CGB Helpdesk for IT tickets and assets — read live, as you see them there.",
+      "Records from a product your company uses alongside AskMiraa — ExpenseGenie for expenses, AnytimeHire for hiring, CGB Helpdesk for IT tickets and assets — read live, as you see them there.",
     tasks: [
       {
         title: "Narrow the list",
@@ -560,17 +560,17 @@ export const ME_GUIDES: Record<string, PageGuide> = {
       {
         title: "Do the work in the product",
         steps: [
-          "Press Open ExpenseGenie, Open AnytimeHire or Open CGB Helpdesk at the top; you are signed in there with your AskMira login.",
+          "Press Open ExpenseGenie, Open AnytimeHire or Open CGB Helpdesk at the top; you are signed in there with your AskMiraa login.",
           "On a hiring row, press Open to go straight to that job's candidates and their résumés.",
           "On a ticket row, press View to read the ticket and reply.",
         ],
       },
     ],
     tips: [
-      "Nothing is copied into AskMira: each page asks the product as you, so you see exactly what your role there allows.",
-      "Ask Mira can answer the same questions in chat.",
+      "Nothing is copied into AskMiraa: each page asks the product as you, so you see exactly what your role there allows.",
+      "Ask Miraa can answer the same questions in chat.",
     ],
-    related: [{ label: "Ask Mira", href: "/ask-mira" }],
+    related: [{ label: "Ask Miraa", href: "/ask-mira" }],
   },
 
   "/linked/[product]/[view]/[id]": {
@@ -584,7 +584,7 @@ export const ME_GUIDES: Record<string, PageGuide> = {
       {
         title: "Add a file, reopen it or work it",
         steps: [
-          "Press Open in CGB Helpdesk; you are signed in there with your AskMira login.",
+          "Press Open in CGB Helpdesk; you are signed in there with your AskMiraa login.",
           "Attach files, reopen a closed ticket, or — for the IT team — pick it up, put it on hold or close it there.",
         ],
       },
@@ -751,7 +751,7 @@ export const ME_GUIDES: Record<string, PageGuide> = {
       },
     ],
     tips: ["The assistant answers only from published policies; when they do not cover a question, it says so."],
-    related: [{ label: "Ask Mira", href: "/ask-mira" }],
+    related: [{ label: "Ask Miraa", href: "/ask-mira" }],
   },
 
   "/learning": {

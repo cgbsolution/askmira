@@ -3,20 +3,20 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 /*
- * The AskMira brand, drawn from the vector files in public/brand (traced from
+ * The AskMiraa brand, drawn from the vector files in public/brand (traced from
  * the brand kit). One logo works on every surface: the red "Ask" bubble and
- * marigold "Mira" read on cream, white and the ink rail alike.
+ * marigold "Miraa" read on cream, white and the ink rail alike.
  *
  * Size them with a height class (`h-9`); the width follows the artwork.
  */
 
-/** The full "Ask Mira" logo: red speech bubble plus marigold wordmark. */
+/** The full "Ask Miraa" logo: red speech bubble plus marigold wordmark. */
 export function AskMiraLogo({ className, priority = false }: { className?: string; priority?: boolean }) {
   return (
     <Image
       src="/brand/askmira-logo.svg"
-      alt="AskMira"
-      width={1010}
+      alt="AskMiraa"
+      width={1150}
       height={340}
       priority={priority}
       unoptimized
@@ -27,7 +27,7 @@ export function AskMiraLogo({ className, priority = false }: { className?: strin
 
 /**
  * The icon mark: the red bubble with an "A". For tight spaces — the collapsed
- * rail, small headers, and as Ask Mira's own avatar. Decorative by default;
+ * rail, small headers, and as Ask Miraa's own avatar. Decorative by default;
  * pass `label` when it stands alone as the brand.
  */
 export function AskMiraMark({ className, label }: { className?: string; label?: string }) {

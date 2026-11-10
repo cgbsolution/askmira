@@ -79,7 +79,7 @@ export function EmailActionScreen({ token, chosen }: { token: string; chosen: "a
         ) : (
           <span className="flex items-center gap-2 font-display text-lg font-semibold text-primary">
             <Building2 className="size-5" />
-            {described?.company_name ?? "AskMira"}
+            {described?.company_name ?? "AskMiraa"}
           </span>
         )}
       </div>
@@ -107,7 +107,7 @@ export function EmailActionScreen({ token, chosen }: { token: string; chosen: "a
               comment is on the record.
             </p>
             <Button asChild variant="outline">
-              <a href={openUrl}>Open AskMira</a>
+              <a href={openUrl}>Open AskMiraa</a>
             </Button>
           </CardContent>
         ) : !described ? (
@@ -117,7 +117,7 @@ export function EmailActionScreen({ token, chosen }: { token: string; chosen: "a
               <AlertDescription>{problem}</AlertDescription>
             </Alert>
             <Button asChild variant="outline">
-              <a href={OPEN_FALLBACK}>Open Approvals in AskMira</a>
+              <a href={OPEN_FALLBACK}>Open Approvals in AskMiraa</a>
             </Button>
           </CardContent>
         ) : (
@@ -202,7 +202,7 @@ export function EmailActionScreen({ token, chosen }: { token: string; chosen: "a
               <p className="text-xs text-muted-foreground">
                 Prefer the full view?{" "}
                 <Button asChild variant="link" className="h-auto p-0 text-xs">
-                  <a href={openUrl}>Open it in AskMira</a>
+                  <a href={openUrl}>Open it in AskMiraa</a>
                 </Button>
                 .
               </p>
@@ -211,7 +211,7 @@ export function EmailActionScreen({ token, chosen }: { token: string; chosen: "a
         )}
       </Card>
       <p className="text-center text-xs text-muted-foreground">
-        Sent by {described?.company_name ?? "your company"} · Powered by AskMira
+        Sent by {described?.company_name ?? "your company"} · Powered by AskMiraa
       </p>
     </div>
   );

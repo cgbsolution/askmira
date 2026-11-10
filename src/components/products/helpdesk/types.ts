@@ -1,4 +1,4 @@
-/** CGB Helpdesk records, as AskMira reads them live for the signed-in person. */
+/** CGB Helpdesk records, as AskMiraa reads them live for the signed-in person. */
 
 export interface HelpdeskOptions {
   source: string;
@@ -53,7 +53,7 @@ export interface HelpdeskTicketPage {
   ticket: HelpdeskTicket;
   messages: HelpdeskMessage[];
   activity: { action: string; by: string | null; at: string }[];
-  /** The ticket in the helpdesk itself, through AskMira's sign-in. */
+  /** The ticket in the helpdesk itself, through AskMiraa's sign-in. */
   open: string;
 }
 

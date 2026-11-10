@@ -252,7 +252,7 @@ function ConnectionsTab() {
         error={error?.detail ?? null}
         onRetry={reload}
         isEmpty={(data ?? []).length === 0}
-        empty={{ icon: Database, title: "No connections", description: "Nothing leaves AskMira through the connector until one is set up." }}
+        empty={{ icon: Database, title: "No connections", description: "Nothing leaves AskMiraa through the connector until one is set up." }}
       >
         <Table>
           <TableHeader>

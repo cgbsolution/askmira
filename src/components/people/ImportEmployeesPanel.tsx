@@ -42,7 +42,7 @@ function form(file: File, extra: Record<string, string> = {}): FormData {
 
 /**
  * Add employees → "Many from Excel": bring people in from a spreadsheet —
- * AskMira's template, or another HR system's export as it comes (factoHR's
+ * AskMiraa's template, or another HR system's export as it comes (factoHR's
  * Employee Detail report is read directly). The file is checked first and
  * nothing is saved until Import; the check and the import read it the same
  * way on the server.
@@ -253,7 +253,7 @@ export function ImportEmployeesPanel() {
                   }
                   tone={preview.with_issues ? "warning" : "default"}
                 />
-                <StatTile label="Already in AskMira" value={preview.skipped} hint="Left as they are" />
+                <StatTile label="Already in AskMiraa" value={preview.skipped} hint="Left as they are" />
                 <StatTile
                   label="Can't be added"
                   value={preview.errors}
@@ -318,7 +318,7 @@ export function ImportEmployeesPanel() {
                         <span className="font-medium text-foreground">
                           {preview.new_custom_fields?.length} on a &quot;factoHR&quot; profile tab
                         </span>
-                        , for the columns AskMira has no field for (listed under Columns below).
+                        , for the columns AskMiraa has no field for (listed under Columns below).
                       </span>
                     )}
                   </AlertDescription>
@@ -329,7 +329,7 @@ export function ImportEmployeesPanel() {
                 <Alert>
                   <AlertTitle>
                     {aadhaarFills > 0
-                      ? `Full Aadhaar number for ${aadhaarFills} people already in AskMira`
+                      ? `Full Aadhaar number for ${aadhaarFills} people already in AskMiraa`
                       : "Aadhaar numbers that do not match"}
                   </AlertTitle>
                   <AlertDescription className="grid gap-1.5">
@@ -420,7 +420,7 @@ export function ImportEmployeesPanel() {
                   {(result.aadhaar_filled ?? 0) > 0 && (
                     <span>
                       Full Aadhaar number filled in for {result.aadhaar_filled} people already in
-                      AskMira.
+                      AskMiraa.
                     </span>
                   )}
                   {(result.aadhaar_mismatches ?? []).length > 0 && (
@@ -434,7 +434,7 @@ export function ImportEmployeesPanel() {
                   )}
                   {result.skipped > 0 && (
                     <span>
-                      {result.skipped} were already in AskMira and were left as they are
+                      {result.skipped} were already in AskMiraa and were left as they are
                       {(result.aadhaar_filled ?? 0) > 0 ? ", apart from the Aadhaar number" : ""}.
                     </span>
                   )}
@@ -576,7 +576,7 @@ const FILTERS: { value: RowFilter; label: string }[] = [
   { value: "skip", label: "Already here" },
 ];
 
-const SKIPPED_NOTE = "This Emp Code is already in AskMira; the record is left as it is.";
+const SKIPPED_NOTE = "This Emp Code is already in AskMiraa; the record is left as it is.";
 
 /** The status badge's words, for the search and the CSV. */
 function statusText(row: ImportRow): string | null {

@@ -1,7 +1,7 @@
 /** Shared API types. These mirror the Pydantic schemas in `backend/app/schemas`. */
 
 /**
- * The four login roles. `super_admin` is AskMira staff managing the tenants on
+ * The four login roles. `super_admin` is AskMiraa staff managing the tenants on
  * the platform; the other three belong to one workspace.
  */
 export type UserRole = "super_admin" | "admin" | "sub_admin" | "employee";

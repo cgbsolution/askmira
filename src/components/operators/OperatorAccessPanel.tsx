@@ -144,7 +144,7 @@ export function OperatorAccessPanel() {
           <DialogHeader>
             <DialogTitle>Grant payroll access</DialogTitle>
             <DialogDescription>
-              The operator must be an admin in their own firm&apos;s AskMira workspace. You will be asked to
+              The operator must be an admin in their own firm&apos;s AskMiraa workspace. You will be asked to
               confirm it is you.
             </DialogDescription>
           </DialogHeader>

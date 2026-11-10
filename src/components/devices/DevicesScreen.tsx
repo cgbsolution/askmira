@@ -109,7 +109,7 @@ export function DevicesScreen() {
           <AlertDescription>
             {!status.data.pull_ingestion_built && (
               <p>
-                Devices push punches to AskMira. Pulling punches from devices, by scheduled polling or
+                Devices push punches to AskMiraa. Pulling punches from devices, by scheduled polling or
                 an on-premises agent, is not built: it needs live vendor devices to build and test
                 against.
               </p>

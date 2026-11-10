@@ -11,7 +11,7 @@ function Tabs({ className, ...props }: React.ComponentProps<typeof TabsPrimitive
   );
 }
 
-/* Inactive tabs sit on a Blush bar; the active one is a solid AskMira Red
+/* Inactive tabs sit on a Blush bar; the active one is a solid AskMiraa Red
    pill — the segmented-control pattern from FRD 5.13. */
 function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimitive.List>) {
   return (

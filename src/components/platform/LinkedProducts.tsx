@@ -24,7 +24,7 @@ import { formatDate } from "@/lib/utils";
 interface LinkedProduct {
   key: ProductKey;
   name: string;
-  /** The AskMira section it takes over. */
+  /** The AskMiraa section it takes over. */
   replaces: string;
   configured: boolean;
   status: "active" | "disabled" | null;
@@ -44,7 +44,7 @@ const REPLACES: Record<string, string> = { hiring: "Hiring", expenses: "Expenses
 
 /**
  * Platform → Workspaces → View: which of our separate products this company
- * uses. Linking one makes it replace the matching AskMira module for the
+ * uses. Linking one makes it replace the matching AskMiraa module for the
  * company and pushes its people there; the nightly sync keeps them in step.
  */
 export function LinkedProducts({ workspaceId, active }: { workspaceId: string; active: boolean }) {
@@ -90,7 +90,7 @@ export function LinkedProducts({ workspaceId, active }: { workspaceId: string; a
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Replaces {REPLACES[product.replaces] ?? product.replaces} in AskMira for this
+                  Replaces {REPLACES[product.replaces] ?? product.replaces} in AskMiraa for this
                   company.
                 </p>
               </div>
@@ -169,8 +169,8 @@ export function LinkedProducts({ workspaceId, active }: { workspaceId: string; a
           <DialogHeader>
             <DialogTitle>Unlink {unlinking?.name}?</DialogTitle>
             <DialogDescription>
-              {REPLACES[unlinking?.replaces ?? ""] ?? "The module"} comes back in AskMira for this
-              company. {unlinking?.name} keeps its data, but nobody can open it from AskMira and
+              {REPLACES[unlinking?.replaces ?? ""] ?? "The module"} comes back in AskMiraa for this
+              company. {unlinking?.name} keeps its data, but nobody can open it from AskMiraa and
               people stop being synced to it.
             </DialogDescription>
           </DialogHeader>

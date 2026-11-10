@@ -33,7 +33,7 @@ const MONEY_COLUMNS: { key: MoneyKey; label: string }[] = [
 /** Shown only when a row has one, so the deduction columns still add up when someone pays VPF. */
 const ONLY_WHEN_USED: ReadonlySet<MoneyKey> = new Set(["vpf"]);
 
-const REGISTER_TEXT_HINT = "As written in the factoHR register; not matched to an AskMira project";
+const REGISTER_TEXT_HINT = "As written in the factoHR register; not matched to an AskMiraa project";
 
 /**
  * The project shown for a row. An imported payslip whose register account was

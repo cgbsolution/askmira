@@ -65,7 +65,7 @@ export function ModulesScreen() {
   return (
     <PageShell
       title="Modules"
-      description="Which parts of AskMira this workspace has switched on."
+      description="Which parts of AskMiraa this workspace has switched on."
     >
       <Alert>
         <Info />

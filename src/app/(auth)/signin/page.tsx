@@ -16,7 +16,7 @@ import { ApiError, get, post } from "@/lib/api";
 /**
  * Sign-in, step one: who are you?
  *
- * One field — a work email or a mobile number. AskMira finds the company it
+ * One field — a work email or a mobile number. AskMiraa finds the company it
  * belongs to and opens that company's own sign-in page, with its name and
  * logo, for the password or the company's single sign-on.
  */
@@ -65,7 +65,7 @@ function IdentifyForm() {
   return (
     <>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Sign in to AskMira</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Sign in to AskMiraa</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Enter your work email or mobile number. We will take you to your company&apos;s sign-in.
         </p>
@@ -109,7 +109,7 @@ function IdentifyForm() {
       ) : null}
 
       <p className="mt-8 text-center text-sm text-muted-foreground">
-        New organisation? Your AskMira account manager sets up your workspace and its first admin.
+        New organisation? Your AskMiraa account manager sets up your workspace and its first admin.
       </p>
     </>
   );

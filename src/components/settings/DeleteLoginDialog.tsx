@@ -23,7 +23,7 @@ import { errorDetail } from "./settingsShared";
 /**
  * Delete a login for good.
  *
- * One email is one login across AskMira, so a login made with the wrong
+ * One email is one login across AskMiraa, so a login made with the wrong
  * address, or in the wrong workspace, holds that address until it is deleted.
  * Disabling stops the sign-in; deleting also frees the email and unlinks the
  * employee record, so either can be given a login again.

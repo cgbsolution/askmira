@@ -139,7 +139,7 @@ export interface AccountForecast {
   account_name: string;
   title: string;
   reference: string;
-  /** "order_win" (booked from Ask Mira) or "manual". */
+  /** "order_win" (booked from Ask Miraa) or "manual". */
   source: string;
   status: "active" | "withdrawn";
   start_month: string;

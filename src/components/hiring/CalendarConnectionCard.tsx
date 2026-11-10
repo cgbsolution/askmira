@@ -49,7 +49,7 @@ export function CalendarConnectionCard() {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     // Google and Microsoft send back only code and state: the provider is read
-    // from the state AskMira signed, on the server.
+    // from the state AskMiraa signed, on the server.
     const provider = searchParams.get("provider");
     const denied = searchParams.get("error");
     if (handled.current || (!code && !state && !denied)) return;

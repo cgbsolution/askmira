@@ -586,7 +586,7 @@ export interface PersonalDetails {
 export interface Address {
   line1: string;
   line2: string | null;
-  /** Required when entered in AskMira; an address imported as the old system had it may lack one. */
+  /** Required when entered in AskMiraa; an address imported as the old system had it may lack one. */
   city: string | null;
   district: string | null;
   state_code: string | null;
@@ -605,7 +605,7 @@ export interface EmergencyContact {
   relationship: Relationship;
   /** The old system's word when it is none of ours ("Home"), recorded as Other. */
   relationship_text?: string | null;
-  /** Required when entered in AskMira; an imported contact may lack one. */
+  /** Required when entered in AskMiraa; an imported contact may lack one. */
   phone: string | null;
   alternate_phone: string | null;
   landline?: string | null;
@@ -658,7 +658,7 @@ export interface Education {
   course?: string | null;
   stream?: string | null;
   specialisation: string | null;
-  /** Required when entered in AskMira; an imported qualification may lack one. */
+  /** Required when entered in AskMiraa; an imported qualification may lack one. */
   institution: string | null;
   board_or_university: string | null;
   nature_of_course?: string | null;
@@ -816,7 +816,7 @@ export interface ImportRow {
   outcome: ImportRowOutcome;
   errors: string[];
   warnings: string[];
-  /** Imported as typed but not as AskMira would have it: for HR to correct. */
+  /** Imported as typed but not as AskMiraa would have it: for HR to correct. */
   issues?: string[];
   employee_id: string | null;
 }
@@ -836,7 +836,7 @@ export interface ImportPreview {
   continuation_rows?: number;
   /** Points about the whole file, said once. */
   notes?: string[];
-  /** Columns AskMira has no field for, kept as custom fields on the "factoHR" tab. */
+  /** Columns AskMiraa has no field for, kept as custom fields on the "factoHR" tab. */
   new_custom_fields?: string[];
   /** Columns with data that are not kept, and why. */
   columns_not_kept?: { header: string; why: string }[];

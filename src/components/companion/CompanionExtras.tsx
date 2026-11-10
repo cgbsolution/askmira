@@ -73,7 +73,7 @@ function formatValue(unit: string, value: number): string {
 type Shape = "line" | "area" | "bar" | "stacked_bar" | "horizontal_bar" | "pie" | "donut";
 
 /**
- * A figure Mira looked up, drawn the way that fits it: a line or area for a
+ * A figure Miraa looked up, drawn the way that fits it: a line or area for a
  * trend, bars to compare, stacked bars for a breakdown, a pie or donut for
  * shares of a whole. An empty value is a gap, never a zero.
  */
@@ -282,7 +282,7 @@ const STATUS: Record<CompanionProposal["status"], { label: string; icon: React.E
 };
 
 /**
- * Something Mira offered to do. Nothing has happened while it waits: Confirm
+ * Something Miraa offered to do. Nothing has happened while it waits: Confirm
  * runs the module's own check and sends it, as the person; Cancel drops it.
  */
 export function CompanionProposalCard({
@@ -404,7 +404,7 @@ function Inline({ text }: { text: string }) {
 }
 
 /**
- * Mira's reply: paragraphs, "- " lists and **bold**. Rendered as text, never
+ * Miraa's reply: paragraphs, "- " lists and **bold**. Rendered as text, never
  * as HTML, so nothing the model writes can become markup.
  */
 export function ChatText({ text }: { text: string }) {

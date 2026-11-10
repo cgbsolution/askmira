@@ -227,7 +227,7 @@ export function DigioCard({ onChanged }: { onChanged: () => void }) {
           hint={
             data?.has_webhook_secret
               ? "Stored. Leave blank to keep it."
-              : "From Digio's webhook settings. Without it, AskMira checks each letter's status with Digio every hour instead."
+              : "From Digio's webhook settings. Without it, AskMiraa checks each letter's status with Digio every hour instead."
           }
         >
           <Input

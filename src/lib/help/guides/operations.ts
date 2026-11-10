@@ -116,12 +116,12 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     tips: [
       "People cost is what payroll paid: each payslip's cost to company, all runs of the month that were not cancelled. A month whose payroll is not approved yet may still change.",
       "Months imported from factoHR count as well; the P&L opens on this financial year, so pick earlier months to see them.",
-      "Ask Mira can answer “P&L for <account> this year” from the same figures.",
+      "Ask Miraa can answer “P&L for <account> this year” from the same figures.",
     ],
     related: [
       { label: "Payroll runs", href: "/payroll" },
       { label: "Salary master", href: "/payroll/salaries" },
-      { label: "Ask Mira", href: "/ask-mira" },
+      { label: "Ask Miraa", href: "/ask-mira" },
     ],
   },
 
@@ -572,7 +572,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
   },
 
   "/compliance/privacy": {
-    summary: "What AskMira holds about you, why, what you agreed to, and your rights over it.",
+    summary: "What AskMiraa holds about you, why, what you agreed to, and your rights over it.",
     tasks: [
       {
         title: "Give or withdraw consent",
@@ -588,7 +588,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         ],
       },
     ],
-    tips: ["Ask Mira and the AI assistant need your consent to “AI assistant” here."],
+    tips: ["Ask Miraa and the AI assistant need your consent to “AI assistant” here."],
   },
 
   "/compliance": {
@@ -638,7 +638,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
   },
 
   "/compliance/ai": {
-    summary: "What Mira's agents may do on their own, what they proposed, and how they are tested.",
+    summary: "What Miraa's agents may do on their own, what they proposed, and how they are tested.",
     tasks: [
       {
         title: "Review agent proposals",
@@ -656,7 +656,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
   },
 
   "/platform": {
-    summary: "Every organisation on AskMira. Only the platform owner creates them; each admin then sets up their own.",
+    summary: "Every organisation on AskMiraa. Only the platform owner creates them; each admin then sets up their own.",
     tasks: [
       {
         title: "Create a workspace",
@@ -687,7 +687,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     ],
   },
   "/platform/demo-requests": {
-    summary: "Requests sent from the AskMira website's demo and contact forms. Only the platform team sees them.",
+    summary: "Requests sent from the AskMiraa website's demo and contact forms. Only the platform team sees them.",
     tasks: [
       {
         title: "Follow up a new request",
@@ -742,13 +742,13 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         steps: ["Open Approval rules and press New rule for a request type: the approvers and their order."],
       },
       {
-        title: "Switch AI features and Ask Mira on",
+        title: "Switch AI features and Ask Miraa on",
         steps: [
           "Open the AI tab. Under Who answers, choose the AI provider: Anthropic (Claude), OpenAI (ChatGPT), Google Gemini, or an Ollama server you run.",
           "Choose a model (or leave it empty for the provider's default) and press Save. For your own account, paste its API key and press Save key; for Ollama, give your server's public https address.",
           "Press Test connection to check it answers.",
-          "Turn on “AI features for this workspace” and the features you want, such as Ask Mira chat, and press Save.",
-          "Set up Ask Mira's name, greeting, tools and limits in the same tab.",
+          "Turn on “AI features for this workspace” and the features you want, such as Ask Miraa chat, and press Save.",
+          "Set up Ask Miraa's name, greeting, tools and limits in the same tab.",
         ],
       },
       {
@@ -824,7 +824,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       {
         title: "Free an email for another login",
         steps: [
-          "One email is one login across AskMira. If a login has the wrong email or is in the wrong workspace, press Delete and give a reason.",
+          "One email is one login across AskMiraa. If a login has the wrong email or is in the wrong workspace, press Delete and give a reason.",
           "The email can then be used for a login here or in another workspace, and the employee record can be given a new login.",
         ],
       },
@@ -836,7 +836,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
   },
 
   "/settings/modules": {
-    summary: "Which parts of AskMira this workspace has switched on.",
+    summary: "Which parts of AskMiraa this workspace has switched on.",
     tasks: [
       {
         title: "Switch a module on or off",
@@ -870,7 +870,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         title: "Connect a product",
         steps: [
           "Press Connect on the product.",
-          "Sign in to the product as an admin of your organisation there, check the request names your AskMira workspace, and press Allow. In CGB Helpdesk, also choose which company it is.",
+          "Sign in to the product as an admin of your organisation there, check the request names your AskMiraa workspace, and press Allow. In CGB Helpdesk, also choose which company it is.",
           "You come back here connected; your people are sent across at once.",
         ],
       },
@@ -891,15 +891,15 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         title: "If a product moves to a new domain",
         steps: [
           "Press Change address on the product and enter its new web address and server (API) address.",
-          "AskMira checks the server address answers as that product before saving. A connection keeps working; you do not need to connect again.",
+          "AskMiraa checks the server address answers as that product before saving. A connection keeps working; you do not need to connect again.",
           "Use the standard address puts it back on the product's usual address.",
         ],
       },
     ],
     tips: [
       "The key a product issues reaches only your organisation there, never another company's.",
-      "Once connected, Expenses, Hiring, Helpdesk and Assets show the product's records, and Ask Mira can answer from them.",
-      "AskMira never changes anyone's role in CGB Helpdesk: its IT team decides who are engineers and admins. HR see their own company's tickets and assets here, and leavers can no longer sign in there.",
+      "Once connected, Expenses, Hiring, Helpdesk and Assets show the product's records, and Ask Miraa can answer from them.",
+      "AskMiraa never changes anyone's role in CGB Helpdesk: its IT team decides who are engineers and admins. HR see their own company's tickets and assets here, and leavers can no longer sign in there.",
     ],
   },
 
@@ -915,7 +915,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
 
   "/settings/integrations": {
     summary:
-      "Every outside system AskMira exchanges data with — banks, books, statutory portals, devices, sign-in, job boards, calendars, messaging, chat, eSign, AI assistants, BI and the API — and where this workspace stands with each.",
+      "Every outside system AskMiraa exchanges data with — banks, books, statutory portals, devices, sign-in, job boards, calendars, messaging, chat, eSign, AI assistants, BI and the API — and where this workspace stands with each.",
     tasks: [
       {
         title: "See how an integration works",

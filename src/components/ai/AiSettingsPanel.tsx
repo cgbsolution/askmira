@@ -30,7 +30,7 @@ import {
 } from "./aiStatus";
 
 const FEATURE_LABEL: Record<AiFeature, string> = {
-  companion: "Ask Mira chat",
+  companion: "Ask Miraa chat",
   assistant: "Policy assistant",
   recognition_drafts: "Shoutout drafting",
   survey_topics: "Survey comment themes",
@@ -232,7 +232,7 @@ export function AiSettingsPanel() {
                 />
                 <p className="text-xs text-muted-foreground">
                   {chosen?.server_address
-                    ? "Leave empty to use the Ollama server AskMira runs on. "
+                    ? "Leave empty to use the Ollama server AskMiraa runs on. "
                     : "Your Ollama server's public https address. "}
                   Private and local addresses are refused.
                 </p>
@@ -254,7 +254,7 @@ export function AiSettingsPanel() {
                 </div>
               ) : chosen?.server_ready ? (
                 <p className="text-sm text-muted-foreground">
-                  AskMira&apos;s server already has {chosen.needs_key ? "a key" : "an address"} for{" "}
+                  AskMiraa&apos;s server already has {chosen.needs_key ? "a key" : "an address"} for{" "}
                   {chosen.label}. Add your own key to use your organisation&apos;s account instead.
                 </p>
               ) : null}
@@ -295,7 +295,7 @@ export function AiSettingsPanel() {
                   ? "Save first, then test."
                   : data.configured
                     ? `Answers come from ${data.provider_label}, model ${data.model}, with ${
-                        data.key_source === "workspace" ? "your" : "AskMira's"
+                        data.key_source === "workspace" ? "your" : "AskMiraa's"
                       } ${data.provider === "ollama" ? "server" : "key"}.`
                     : `${data.provider_label} has no key here yet.`}
               </p>

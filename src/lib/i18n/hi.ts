@@ -66,7 +66,7 @@ export const hi: Record<string, string> = {
   "Finance review": "वित्त समीक्षा",
   "Policies & rates": "नीतियाँ और दरें",
   "GST credits": "जीएसटी क्रेडिट",
-  "Ask Mira": "मीरा से पूछें",
+  "Ask Miraa": "मीरा से पूछें",
   "Ask HR": "एचआर से पूछें",
   Learning: "प्रशिक्षण",
   "My courses": "मेरे पाठ्यक्रम",
@@ -188,8 +188,8 @@ export const hi: Record<string, string> = {
     "आपके पास कंपनी के उपकरण, और आपके द्वारा माँगी गई चीज़ें।",
   "Your group insurance, who it covers, and changes after a life event.":
     "आपका समूह बीमा, इसमें कौन शामिल है, और जीवन की किसी घटना के बाद बदलाव।",
-  "What AskMira holds about you, why, what you agreed to, and your rights over it.":
-    "AskMira में आपके बारे में क्या है, क्यों है, आपने किस बात पर सहमति दी, और इस पर आपके अधिकार।",
+  "What AskMiraa holds about you, why, what you agreed to, and your rights over it.":
+    "AskMiraa में आपके बारे में क्या है, क्यों है, आपने किस बात पर सहमति दी, और इस पर आपके अधिकार।",
   "Recognition, awards and the moments people chose to share.":
     "सराहना, पुरस्कार और वे पल जो लोगों ने साझा करना चुना।",
   "Quick questions to the company, and events to answer.":

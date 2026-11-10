@@ -17,7 +17,7 @@ export function RunStatusBadge({ status }: { status: RunStatus }) {
 
 /**
  * Marks a run or payslip imported as paid on the previous payroll, so nobody
- * reads its figures as something AskMira computed.
+ * reads its figures as something AskMiraa computed.
  */
 export function ImportedBadge({
   children = "Imported · factoHR",

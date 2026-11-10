@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   AskMira design tokens — FRD 5.13.
+   AskMiraa design tokens — FRD 5.13.
 
    Maroon grounding, Marigold accent, on Cream. The maroon is the website
    hero's (#7D0712 → #34040A); the bright logo red stays in the logo only —
@@ -108,7 +108,7 @@
   --color-brand-900: #48080e;
   --color-brand-950: #34040a;
 
-  /* ── Accent ramp — Marigold #F8A01A (the "Mira" wordmark) ───────────── */
+  /* ── Accent ramp — Marigold #F8A01A (the "Miraa" wordmark) ───────────── */
   --color-marigold-25: #fffbf3;
   --color-marigold-50: #fff5e3;
   --color-marigold-100: #feebc4;

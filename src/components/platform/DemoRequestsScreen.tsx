@@ -75,7 +75,7 @@ const INTEREST_LABEL: Record<string, string> = {
   hiring: "Hiring",
   performance: "Performance",
   engagement: "Engagement",
-  ai: "Ask Mira",
+  ai: "Ask Miraa",
   expenses: "Expense Genie",
   helpdesk: "CGB Helpdesk",
   crm: "Saleinx CRM",
@@ -154,7 +154,7 @@ export function DemoRequestsScreen() {
       title="Demo requests"
       eyebrow="Platform"
       icon={Inbox}
-      description="People who asked for a demo, pricing or a conversation on the AskMira website. Follow up, then record what happened."
+      description="People who asked for a demo, pricing or a conversation on the AskMiraa website. Follow up, then record what happened."
     >
       <DataTable
         title="Requests from the website"

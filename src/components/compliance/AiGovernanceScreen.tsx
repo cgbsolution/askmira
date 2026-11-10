@@ -104,7 +104,7 @@ export function AiGovernanceScreen() {
   const notBuilt = raw === undefined ? [] : Array.isArray(raw) ? raw : [raw];
 
   return (
-    <PageShell title="AI governance" description="What Mira's agents may do on their own, what they proposed, and how they are tested.">
+    <PageShell title="AI governance" description="What Miraa's agents may do on their own, what they proposed, and how they are tested.">
       {notBuilt.length > 0 && (
         <Alert variant="warning">
           <CircleSlash />

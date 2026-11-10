@@ -20,7 +20,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { cn } from "@/lib/utils";
 
 /**
- * shadcn/ui Sidebar (new-york), themed to AskMira's tokens.
+ * shadcn/ui Sidebar (new-york), themed to AskMiraa's tokens.
  *
  * Sized to the reference shell rather than shadcn's defaults: 260px open, an
  * 84px icon rail collapsed, with 40px icon buttons centred on it.

@@ -90,7 +90,7 @@ const OUTCOME_LABEL: Record<Answer["outcome"], string> = {
  *
  * Answers come only from what HR published here, the company's leave rules and
  * holidays, each sentence linked to its source. A question about your own
- * record is answered from AskMira's own data, which never goes to the model.
+ * record is answered from AskMiraa's own data, which never goes to the model.
  */
 export function AssistantScreen() {
   const { hasRole } = useAuth();
@@ -194,7 +194,7 @@ function AskTab() {
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
               Answers cite your company&apos;s published policy. Questions about your own record are
-              answered from AskMira, not by the AI.
+              answered from AskMiraa, not by the AI.
             </p>
             <Button onClick={ask} disabled={busy || question.trim().length < 3}>
               {busy ? <Loader2 className="size-4 animate-spin" /> : null}

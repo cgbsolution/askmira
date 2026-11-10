@@ -179,7 +179,7 @@ export function ProviderDialog({
         <DialogHeader>
           <DialogTitle>{editing ? `Edit ${editing.name}` : "Add an identity provider"}</DialogTitle>
           <DialogDescription>
-            Roles are always assigned in AskMira — there is no mapping from an IdP role or group
+            Roles are always assigned in AskMiraa — there is no mapping from an IdP role or group
             claim, by design.
           </DialogDescription>
         </DialogHeader>

@@ -34,7 +34,7 @@ export function LaunchProduct({ product, to }: { product: string; to?: string })
     }
     setError(null);
     try {
-      // `to`: a page inside the product to land on (an Ask Mira row's "Open"); the API checks it.
+      // `to`: a page inside the product to land on (an Ask Miraa row's "Open"); the API checks it.
       const query = to ? `?to=${encodeURIComponent(to)}` : "";
       const { url } = await post<{ url: string }>(`/products/${product}/launch${query}`);
       window.location.replace(url);
@@ -42,7 +42,7 @@ export function LaunchProduct({ product, to }: { product: string; to?: string })
       if (caught instanceof ApiError) {
         setError({ message: caught.detail, retry: caught.status >= 500 || caught.status === 429 });
       } else {
-        setError({ message: "Could not reach AskMira. Check your connection and try again.", retry: true });
+        setError({ message: "Could not reach AskMiraa. Check your connection and try again.", retry: true });
       }
     }
   }, [product, to]);

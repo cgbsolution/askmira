@@ -144,7 +144,7 @@ export function StatutoryUpdates({ onDrafted }: { onDrafted: () => void }) {
       <DataTable
         tier="tier1"
         title="Statutory updates"
-        description="Changes to PF, ESI, Professional Tax, LWF and income tax for your locations, published by AskMira's statutory desk."
+        description="Changes to PF, ESI, Professional Tax, LWF and income tax for your locations, published by AskMiraa's statutory desk."
         columns={columns}
         data={notices.data ?? []}
         noun="notices"

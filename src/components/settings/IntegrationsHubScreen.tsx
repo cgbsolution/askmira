@@ -71,7 +71,7 @@ function Details({ row }: { row: CatalogueRow }) {
 }
 
 /**
- * Settings → Integrations: every outside system AskMira exchanges data with —
+ * Settings → Integrations: every outside system AskMiraa exchanges data with —
  * what it carries, which way, how often, how it signs in, its limits — and
  * where this workspace stands with each, read from the workspace's own
  * records. Below it, the connections a workspace makes here itself.
@@ -177,7 +177,7 @@ export function IntegrationsHubScreen() {
   return (
     <PageShell
       title="Integrations"
-      description="Every outside system AskMira exchanges data with, how it works, and where this workspace stands with each."
+      description="Every outside system AskMiraa exchanges data with, how it works, and where this workspace stands with each."
       icon={Plug}
     >
       <div className="grid gap-6">

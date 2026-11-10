@@ -51,7 +51,7 @@ const GROUP_LABEL: Record<string, string> = {
 };
 
 /**
- * Settings → Company → AI → Ask Mira.
+ * Settings → Company → AI → Ask Miraa.
  *
  * Each workspace's own companion: its name, greeting and notes, which tools
  * it may use, and how much it may be used. None of this widens what it can
@@ -71,7 +71,7 @@ export function CompanionSettingsPanel() {
     setSaving(true);
     try {
       await put("/companion/settings", draft);
-      toast.success("Ask Mira settings saved.");
+      toast.success("Ask Miraa settings saved.");
       reload();
     } catch (caught) {
       toast.error(caught instanceof ApiError ? caught.detail : "Could not save.");
@@ -85,7 +85,7 @@ export function CompanionSettingsPanel() {
 
   return (
     <DataPanel
-      title="Ask Mira"
+      title="Ask Miraa"
       description="Your workspace's own AI companion. It answers each person with their own access; these settings shape who it is and what it may do."
       isLoading={isLoading}
       error={error?.detail}
@@ -101,9 +101,9 @@ export function CompanionSettingsPanel() {
         <div className="grid gap-6 p-4 sm:p-6">
           {!data.ai_enabled ? (
             <Alert>
-              <AlertTitle>Ask Mira is off</AlertTitle>
+              <AlertTitle>Ask Miraa is off</AlertTitle>
               <AlertDescription>
-                Turn on AI features and “Ask Mira chat” above. The settings here apply once it is on.
+                Turn on AI features and “Ask Miraa chat” above. The settings here apply once it is on.
               </AlertDescription>
             </Alert>
           ) : null}
@@ -127,7 +127,7 @@ export function CompanionSettingsPanel() {
                 id="companion-greeting"
                 value={draft.greeting}
                 maxLength={300}
-                placeholder={`Hi! I'm ${draft.name || "Mira"}. Ask me anything about work.`}
+                placeholder={`Hi! I'm ${draft.name || "Miraa"}. Ask me anything about work.`}
                 onChange={(event) => set("greeting", event.target.value)}
               />
             </FormField>
@@ -155,7 +155,7 @@ export function CompanionSettingsPanel() {
               onCheckedChange={(checked) => set("ai_reads_results", checked)}
             />
             <div className="grid gap-0.5">
-              <Label htmlFor="companion-reads-results">Let {draft.name || "Mira"} read what it looks up</Label>
+              <Label htmlFor="companion-reads-results">Let {draft.name || "Miraa"} read what it looks up</Label>
               <p className="text-xs text-muted-foreground">
                 So it can compare figures, explain a trend and check a balance before it offers to act. It only ever
                 reads the kinds of record your data-protection register lets the AI provider receive (Compliance →
@@ -209,7 +209,7 @@ export function CompanionSettingsPanel() {
             <FormField
               label="Model tokens per month, whole workspace"
               htmlFor="companion-budget"
-              hint="0 means no cap. Counts Ask Mira, the policy assistant and report questions."
+              hint="0 means no cap. Counts Ask Miraa, the policy assistant and report questions."
             >
               <Input
                 id="companion-budget"

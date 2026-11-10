@@ -136,7 +136,7 @@ function ShownOnce({ label, value, onClose }: { label: string; value: string; on
 
 /** API keys for the customer API, and webhooks for change events. Admin only. */
 /**
- * Connecting an AI assistant (AI-04): AskMira is an MCP server at /api/v1/mcp.
+ * Connecting an AI assistant (AI-04): AskMiraa is an MCP server at /api/v1/mcp.
  * The key decides which tools appear; every tool reads, and every call is in
  * the audit trail as an MCP action.
  */
@@ -157,10 +157,10 @@ function McpCard() {
     <Card tier="tier1">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Bot className="size-4" /> Use AskMira from Claude or another AI assistant
+          <Bot className="size-4" /> Use AskMiraa from Claude or another AI assistant
         </CardTitle>
         <CardDescription>
-          AskMira is an MCP server. Create a key above with only the reads the assistant needs; its tools
+          AskMiraa is an MCP server. Create a key above with only the reads the assistant needs; its tools
           read the directory, departments, locations, who is on leave and attendance summaries. They never
           change anything, and never return pay, bank, tax, health or leave reasons.
         </CardDescription>
@@ -180,7 +180,7 @@ function McpCard() {
         </div>
         <p className="text-xs text-muted-foreground">
           In claude.ai or ChatGPT, add a custom connector with just the address above: each person signs in to
-          AskMira and approves, and the assistant then reads as them, within what their role may see. They can
+          AskMiraa and approves, and the assistant then reads as them, within what their role may see. They can
           disconnect it under Profile → Account and security. With Claude Code or a script, use a key as a Bearer
           token instead. Transport: Streamable HTTP. Slack and Teams apps are not built; their incoming webhooks
           work with the chat format below.
@@ -521,7 +521,7 @@ function NewWebhookDialog({ onClose, onCreated }: { onClose: () => void; onCreat
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="askmira">AskMira JSON (signed)</SelectItem>
+                <SelectItem value="askmira">AskMiraa JSON (signed)</SelectItem>
                 <SelectItem value="chat">Slack / Teams message</SelectItem>
               </SelectContent>
             </Select>

@@ -100,7 +100,7 @@ export function AppHeader() {
       {/* Below md the rail is a drawer, so the company would otherwise vanish. */}
       <Link
         href="/"
-        aria-label={`${company?.name ?? tenant?.name ?? "AskMira"} home`}
+        aria-label={`${company?.name ?? tenant?.name ?? "AskMiraa"} home`}
         className="flex min-w-0 rounded-lg md:hidden"
       >
         {tenant ? <CompanyMark company={company} fallbackName={tenant.name} /> : <AskMiraMark className="h-10" />}

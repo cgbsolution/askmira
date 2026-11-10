@@ -75,11 +75,11 @@ function AuthorizeConsent() {
           <PlugZap className="size-5" />
         </span>
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          {details ? `Connect ${details.client_name} to AskMira` : "Connect an app to AskMira"}
+          {details ? `Connect ${details.client_name} to AskMiraa` : "Connect an app to AskMiraa"}
         </h1>
         {user && (
           <p className="mt-1 text-sm text-muted-foreground">
-            It will read AskMira as {user.full_name}. It cannot change anything.
+            It will read AskMiraa as {user.full_name}. It cannot change anything.
           </p>
         )}
       </div>

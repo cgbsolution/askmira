@@ -66,7 +66,7 @@ export function OperatorConsole() {
         <EmptyState
           icon={Building2}
           title="No client has granted you access"
-          description="A client's admin grants it in their AskMira settings, naming your workspace and email."
+          description="A client's admin grants it in their AskMiraa settings, naming your workspace and email."
         />
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

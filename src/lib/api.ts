@@ -169,7 +169,7 @@ async function send(path: string, options: ApiOptions): Promise<Response> {
       typeof payload?.detail === "string"
         ? payload.detail
         : [502, 503, 504].includes(response.status)
-          ? "AskMira is restarting or briefly unavailable. Please try again in a minute."
+          ? "AskMiraa is restarting or briefly unavailable. Please try again in a minute."
           : `Request failed with status ${response.status}`;
     if (response.status === 401 && !skipAuthRedirect && !isPublicPage()) {
       window.location.href = "/signin?expired=1";

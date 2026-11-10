@@ -87,7 +87,7 @@ const COLUMNS: ColumnDef<AuditLogEntry>[] = [
         {row.original.summary ?? <span className="text-muted-foreground">No summary recorded</span>}
         {row.original.ai_context && (
           <div className="mt-1 text-xs text-muted-foreground">
-            Mira acted here — the contributing signals are on the record itself.
+            Miraa acted here — the contributing signals are on the record itself.
           </div>
         )}
       </>
@@ -96,11 +96,11 @@ const COLUMNS: ColumnDef<AuditLogEntry>[] = [
   {
     accessorKey: "actor_type",
     header: "By",
-    meta: { className: "w-32", text: (row) => (row.actor_type === "ai_companion" ? "Mira" : row.actor_type) },
+    meta: { className: "w-32", text: (row) => (row.actor_type === "ai_companion" ? "Miraa" : row.actor_type) },
     cell: ({ row }) =>
       row.original.actor_type === "ai_companion" ? (
         <Badge variant="secondary">
-          <Bot /> Mira
+          <Bot /> Miraa
         </Badge>
       ) : (
         <span className="text-xs text-muted-foreground">{row.original.actor_type}</span>

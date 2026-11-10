@@ -17,7 +17,7 @@ import type { Connector } from "./ConnectorsScreen";
 
 /**
  * Where a product sends the admin back after Allow. Hands the one-time code and
- * the state to AskMira's server, which swaps them for this workspace's key, then
+ * the state to AskMiraa's server, which swaps them for this workspace's key, then
  * returns to Connectors. The code is wiped from the address bar first.
  */
 export function ConnectorCallback() {
@@ -45,7 +45,7 @@ export function ConnectorCallback() {
         // The workspace now uses the product: re-read it so the menu switches over at once.
         await reloadSession();
         setResult({ ok: true, connector });
-        // Connect pressed in an Ask Mira conversation goes back there, to carry on.
+        // Connect pressed in an Ask Miraa conversation goes back there, to carry on.
         const back = connector.back?.startsWith("/ask-mira") ? connector.back : null;
         const next = back
           ? `${back}${back.includes("?") ? "&" : "?"}connected=${encodeURIComponent(product)}`
@@ -78,7 +78,7 @@ export function ConnectorCallback() {
                   : ""}
                 Your people are being sent across.{" "}
                 {result.connector.back?.startsWith("/ask-mira")
-                  ? "Taking you back to Ask Mira…"
+                  ? "Taking you back to Ask Miraa…"
                   : "Taking you back to Connectors…"}
               </AlertDescription>
             </Alert>

@@ -12,8 +12,8 @@ import type { StandardSetupResult, StandardStatus } from "@/lib/types/payroll";
 
 /**
  * Shown while the workspace lacks the Employee Salary Master template's wage
- * types (or still has AskMira's earlier names for them). One click adds what is
- * missing and renames AskMira's own defaults; a name the workspace chose itself
+ * types (or still has AskMiraa's earlier names for them). One click adds what is
+ * missing and renames AskMiraa's own defaults; a name the workspace chose itself
  * is never changed.
  */
 export function StandardSetupCallout({ status, onDone }: { status: StandardStatus; onDone: () => void }) {
@@ -53,7 +53,7 @@ export function StandardSetupCallout({ status, onDone }: { status: StandardStatu
         <p>
           {firstTime
             ? "Adds the Employee Salary Master's wage types, in its groups and order: CTC TOTAL and GRATUITY AMOUNT MANUAL, regular and variable earnings, reimbursements, the statutory MANUAL rows, insurance, PROF TAX CTC and the provisions."
-            : `${status.missing.length ? `${status.missing.length} wage types of the template are missing` : "Some wage types still have AskMira's earlier names"}. This adds the missing ones and renames AskMira's own defaults to the template's names. Names you chose yourself are not changed.`}
+            : `${status.missing.length ? `${status.missing.length} wage types of the template are missing` : "Some wage types still have AskMiraa's earlier names"}. This adds the missing ones and renames AskMiraa's own defaults to the template's names. Names you chose yourself are not changed.`}
         </p>
         <div>
           <Button size="sm" disabled={busy} onClick={() => void install()}>

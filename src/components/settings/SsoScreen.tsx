@@ -159,7 +159,7 @@ export function SsoScreen() {
         <TabsContent value="providers" className="mt-4">
           <DataTable
             title="Identity providers"
-            description="Roles are always assigned in AskMira. There is deliberately no mapping from an IdP role claim — that would be a path to granting yourself payroll access from outside."
+            description="Roles are always assigned in AskMiraa. There is deliberately no mapping from an IdP role claim — that would be a path to granting yourself payroll access from outside."
             actions={
               isAdmin ? (
                 <Button size="sm" className="h-9" onClick={() => setForm({ open: true, editing: null })}>

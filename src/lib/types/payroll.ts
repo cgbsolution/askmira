@@ -60,10 +60,10 @@ export interface InputNotice {
   message: string;
 }
 
-/** Whether AskMira computed a run or payslip, or it was imported as paid on another payroll. */
+/** Whether AskMiraa computed a run or payslip, or it was imported as paid on another payroll. */
 export type PayrollOrigin = "computed" | "imported";
 
-/** Where an imported run came from. Null on a run AskMira computed. */
+/** Where an imported run came from. Null on a run AskMiraa computed. */
 export interface RunImportSummary {
   system: "factoHR";
   /** The register file name(s) the month was read from. */
@@ -81,7 +81,7 @@ export interface PayslipImportSummary {
   rows: number[];
   /** The register's own STATUS text for the person, as written. */
   status: string | null;
-  /** The register's client (or project) text, as written; not matched to an AskMira project. */
+  /** The register's client (or project) text, as written; not matched to an AskMiraa project. */
   client: string | null;
 }
 
@@ -341,7 +341,7 @@ export interface RegisterRow {
   /** The project they were on when the run was computed (a client's, or Internal). */
   project_id?: string | null;
   project_name?: string | null;
-  /** Imported payslips whose register account matched no AskMira project: the register's text. */
+  /** Imported payslips whose register account matched no AskMiraa project: the register's text. */
   register_client?: string | null;
   /** Imported payslips: the register row(s) they came from, with the register's client text. */
   import_summary?: PayslipImportSummary | null;

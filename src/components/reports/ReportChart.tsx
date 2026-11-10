@@ -126,7 +126,7 @@ export function shapeForChart(result: ReportResult, chartType: ChartType): Shape
   };
 }
 
-/** A report result as a chart, in AskMira's palette, for the chart type the report keeps. */
+/** A report result as a chart, in AskMiraa's palette, for the chart type the report keeps. */
 export function ReportChart({
   result,
   chartType,

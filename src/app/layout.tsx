@@ -26,8 +26,8 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: "AskMira",
-    template: "%s · AskMira",
+    default: "AskMiraa",
+    template: "%s · AskMiraa",
   },
   description:
     "Culture-analytics-first HRMS for the Indian mid-market — statutory compliance, people analytics and a culture layer in one platform.",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
   },
-  appleWebApp: { capable: true, title: "AskMira", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "AskMiraa", statusBarStyle: "default" },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

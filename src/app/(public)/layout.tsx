@@ -19,7 +19,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
       <footer className="border-t border-border">
         <p className="mx-auto max-w-5xl px-4 py-4 text-xs text-muted-foreground">
-          Powered by AskMira
+          Powered by AskMiraa
         </p>
       </footer>
     </div>

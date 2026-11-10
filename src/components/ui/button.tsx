@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 /**
  * Button.
  *
- * `default` is AskMira Red. `accent` is the Marigold CTA from FRD 5.13 — use it
+ * `default` is AskMiraa Red. `accent` is the Marigold CTA from FRD 5.13 — use it
  * for the one primary action on a screen, not for every button, or the active
  * state stops reading as special.
  */

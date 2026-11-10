@@ -342,7 +342,7 @@ export function PayslipTrace({ payslip }: { payslip: Payslip }) {
         title="Salary and statutory lines"
         description={
           imported
-            ? "Each line as paid on factoHR, with the register row it came from. No AskMira rule worked it out."
+            ? "Each line as paid on factoHR, with the register row it came from. No AskMiraa rule worked it out."
             : "Each line says how it was worked out and which approved rule version it used."
         }
         columns={TRACE_COLUMNS}

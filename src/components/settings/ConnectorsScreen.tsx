@@ -33,11 +33,11 @@ export interface Connector {
   name: string;
   brand: string;
   description: string;
-  /** Whether Connect can be used on this AskMira server. */
+  /** Whether Connect can be used on this AskMiraa server. */
   available: boolean;
   /** Why not: where the product is unknown, or no key to store its key safely with. */
   unavailable_reason: "address" | "server_key" | null;
-  /** Where the product is for this workspace: its API (called by AskMira's server) and web app. */
+  /** Where the product is for this workspace: its API (called by AskMiraa's server) and web app. */
   api_url: string | null;
   app_url: string | null;
   /** The admin set this address; otherwise it is the product's standard one. */
@@ -56,11 +56,11 @@ export interface Connector {
     skipped: { email: string; reason: string }[];
   } | null;
   last_error: string | null;
-  /** After Connect: where to go back to, when Connect was pressed in an Ask Mira conversation. */
+  /** After Connect: where to go back to, when Connect was pressed in an Ask Miraa conversation. */
   back?: string | null;
 }
 
-/** Where each product's records show in AskMira, for the disconnect warning. */
+/** Where each product's records show in AskMiraa, for the disconnect warning. */
 const SHOWN_IN: Record<ProductKey, string> = {
   interview: "Hiring",
   expense: "Expenses",
@@ -154,7 +154,7 @@ export function ConnectorsScreen() {
         open={removing !== null}
         onOpenChange={(open) => !open && setRemoving(null)}
         title={`Disconnect ${removing?.brand ?? ""}?`}
-        description={`${removing?.brand ?? "The product"} forgets this workspace's key. Nobody can open it from AskMira, people stop being synced, and its records leave ${removing ? SHOWN_IN[removing.key] : "AskMira's pages"} and Ask Mira. Nothing is deleted on either side; you can connect again.`}
+        description={`${removing?.brand ?? "The product"} forgets this workspace's key. Nobody can open it from AskMiraa, people stop being synced, and its records leave ${removing ? SHOWN_IN[removing.key] : "AskMiraa's pages"} and Ask Miraa. Nothing is deleted on either side; you can connect again.`}
         confirmLabel="Disconnect"
         destructive
         onConfirm={disconnect}
@@ -215,7 +215,7 @@ function ConnectorCard({
             ) : null}
             {connector.via === "platform" ? (
               <p className="text-xs text-muted-foreground">
-                Linked by your AskMira provider. Disconnect and connect again to give this workspace a key of its own.
+                Linked by your AskMiraa provider. Disconnect and connect again to give this workspace a key of its own.
               </p>
             ) : null}
             {sync ? (
@@ -242,12 +242,12 @@ function ConnectorCard({
           </p>
         ) : connector.unavailable_reason === "server_key" ? (
           <p className="text-sm text-muted-foreground">
-            This AskMira server cannot store connection keys safely yet: its encryption key (SECRET_ENCRYPTION_KEY) is
-            not set. Ask your AskMira provider to set it.
+            This AskMiraa server cannot store connection keys safely yet: its encryption key (SECRET_ENCRYPTION_KEY) is
+            not set. Ask your AskMiraa provider to set it.
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
-            AskMira does not know where {connector.brand} is yet. Press Change address and enter its addresses.
+            AskMiraa does not know where {connector.brand} is yet. Press Change address and enter its addresses.
           </p>
         )}
         {connector.app_url ? (
@@ -346,7 +346,7 @@ function AddressDialog({
         <DialogHeader>
           <DialogTitle>{connector?.brand} address</DialogTitle>
           <DialogDescription>
-            Change this only if {connector?.brand} has moved to a new domain. AskMira checks the server address answers
+            Change this only if {connector?.brand} has moved to a new domain. AskMiraa checks the server address answers
             as {connector?.brand} before saving it. An existing connection keeps working.
           </DialogDescription>
         </DialogHeader>
@@ -361,7 +361,7 @@ function AddressDialog({
           <FormField
             label="Server address"
             htmlFor="connector-api-url"
-            hint="Its API, which AskMira's server calls, e.g. https://api.example.com"
+            hint="Its API, which AskMiraa's server calls, e.g. https://api.example.com"
           >
             <Input id="connector-api-url" value={apiUrl} onChange={(event) => setApiUrl(event.target.value)} />
           </FormField>

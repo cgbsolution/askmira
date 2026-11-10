@@ -51,7 +51,7 @@ function toInput(design: EmailDesign): EmailDesignInput {
  * Settings → Notifications → Email design.
  *
  * Every email the workspace sends goes out in this design: the company logo,
- * its colour, its sign-off and footer. A small "Powered by AskMira" line sits
+ * its colour, its sign-off and footer. A small "Powered by AskMiraa" line sits
  * at the very bottom of every email and is not a setting.
  */
 export function EmailDesignPanel() {
@@ -211,10 +211,10 @@ export function EmailDesignPanel() {
             </div>
 
             <Alert>
-              <AlertTitle>Powered by AskMira</AlertTitle>
+              <AlertTitle>Powered by AskMiraa</AlertTitle>
               <AlertDescription>
-                A small “Sent by {saved.data?.company_name || "your company"} · Powered by AskMira”
-                line closes every email. It is part of the AskMira service and cannot be removed.
+                A small “Sent by {saved.data?.company_name || "your company"} · Powered by AskMiraa”
+                line closes every email. It is part of the AskMiraa service and cannot be removed.
               </AlertDescription>
             </Alert>
 

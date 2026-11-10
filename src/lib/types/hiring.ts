@@ -206,7 +206,7 @@ export interface CandidateMessage {
   scheduled_for: string | null;
   sent_at: string | null;
   failure_reason: string | null;
-  /** Who wrote it; null for one AskMira sent on a hiring event. */
+  /** Who wrote it; null for one AskMiraa sent on a hiring event. */
   sent_by: string | null;
   created_at: string;
 }
