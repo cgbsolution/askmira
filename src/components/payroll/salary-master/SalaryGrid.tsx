@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText } from "lucide-react";
+import { FileText, Landmark, Wallet } from "lucide-react";
 import React from "react";
 
 import { AmountInput } from "@/components/common/AmountInput";
@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { PayBasis, SalaryGroupTotal } from "@/lib/types/payroll";
+import type { PayBasis, SalaryGroupTotal, TakeHome } from "@/lib/types/payroll";
 
 const EMPTY: WageRow = { amount: "", basis: "monthly", remarks: "" };
 
@@ -49,6 +49,8 @@ export interface CtcRow {
  * numbered groups with their sub-totals. Every amount is typed by hand; the
  * yearly figures and sub-totals come from the server, which also turns a
  * weekly, daily or hourly figure into a month's. The browser never does sums.
+ * Take home closes the grid: worked out by the payroll engine (PF, ESIC and PT
+ * from the statutory rules), with what it took off said beside it.
  */
 export function SalaryGrid({
   lines,
@@ -56,6 +58,7 @@ export function SalaryGrid({
   groupTotals,
   ctc,
   gross,
+  takeHome,
   readOnly = false,
   onChange,
 }: {
@@ -64,6 +67,8 @@ export function SalaryGrid({
   groupTotals: SalaryGroupTotal[];
   ctc: CtcRow;
   gross: GrossRow;
+  /** Undefined: nothing to work it out from yet (no CTC, or an amount to fix); null: being worked out. */
+  takeHome?: TakeHome | null;
   readOnly?: boolean;
   onChange?: (code: string, row: WageRow) => void;
 }) {
@@ -239,8 +244,110 @@ export function SalaryGrid({
               </React.Fragment>
             );
           })}
+
+          {sectionRow("Statutory Contributions")}
+          <TableRow className="hover:bg-transparent">
+            <TableCell colSpan={6} className="pt-0 pb-2 text-xs text-muted-foreground">
+              Worked out by payroll from Payroll → Statutory rules for a full month. To use another amount, type it in
+              the MANUAL row of Statutory deduction above.
+            </TableCell>
+          </TableRow>
+          {(
+            [
+              ["Employee's contribution", takeHome?.employee, takeHome?.employee_total],
+              ["Employer's contribution", takeHome?.employer, takeHome?.employer_total],
+            ] as const
+          ).map(([title, rowsOf, total]) => (
+            <React.Fragment key={title}>
+              <TableRow className="hover:bg-transparent">
+                <TableCell
+                  colSpan={6}
+                  className="pt-4 pb-1.5 text-xs font-semibold tracking-wide text-primary uppercase"
+                >
+                  {title}
+                </TableCell>
+              </TableRow>
+              {takeHome?.monthly && rowsOf ? (
+                <>
+                  {rowsOf.map((line) => (
+                    <TableRow key={line.code}>
+                      <TableCell>
+                        <span className="flex items-center gap-2 text-sm text-foreground">
+                          <Landmark aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                          {line.name.toUpperCase()}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">Monthly</TableCell>
+                      <TableCell className="text-right">
+                        <Money value={line.monthly} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Money value={line.annual ?? null} />
+                      </TableCell>
+                      <TableCell />
+                      <TableCell className="text-xs text-muted-foreground">{line.basis}</TableCell>
+                    </TableRow>
+                  ))}
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell className="font-semibold uppercase">Sub total</TableCell>
+                    <TableCell />
+                    <TableCell className="text-right font-semibold">
+                      <Money value={total ?? null} />
+                    </TableCell>
+                    <TableCell colSpan={3} />
+                  </TableRow>
+                </>
+              ) : (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={6} className="text-sm text-muted-foreground">
+                    <TakeHomeNote takeHome={takeHome} />
+                  </TableCell>
+                </TableRow>
+              )}
+            </React.Fragment>
+          ))}
+
+          {sectionRow("Take Home")}
+          <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <TableCell>
+              <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Wallet aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                TAKE HOME SALARY
+              </span>
+            </TableCell>
+            <TableCell className="text-sm text-muted-foreground">Monthly</TableCell>
+            <TableCell className="text-right font-semibold">
+              {takeHome?.monthly ? <Money value={takeHome.monthly} /> : null}
+            </TableCell>
+            <TableCell className="text-right">
+              {takeHome?.annual && takeHome.monthly ? <Money value={takeHome.annual} /> : null}
+            </TableCell>
+            <TableCell />
+            <TableCell className="text-xs text-muted-foreground">
+              <TakeHomeNote takeHome={takeHome} />
+            </TableCell>
+          </TableRow>
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+/** What take home is: the gross less what payroll takes off, each named. */
+export function TakeHomeNote({ takeHome }: { takeHome?: TakeHome | null }) {
+  if (takeHome === undefined) return <>Shows once CTC TOTAL and the amounts are filled in correctly.</>;
+  if (takeHome === null) return <>Working out…</>;
+  if (!takeHome.monthly) return <>{takeHome.note ?? "Can't be worked out yet."}</>;
+  if (!takeHome.deductions.length) return <>Gross, with nothing taken off.</>;
+  return (
+    <>
+      Gross less{" "}
+      {takeHome.deductions.map((line, index) => (
+        <React.Fragment key={line.code}>
+          {index > 0 && ", "}
+          {line.name} <Money value={line.monthly} />
+        </React.Fragment>
+      ))}
+    </>
   );
 }

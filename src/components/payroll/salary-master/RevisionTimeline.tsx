@@ -4,6 +4,7 @@ import { IndianRupee, Lock, Paperclip, Pencil, Trash2 } from "lucide-react";
 import React from "react";
 
 import { Money } from "@/components/common/Money";
+import { TakeHomeNote } from "@/components/payroll/salary-master/SalaryGrid";
 import { revisionDate } from "@/components/payroll/salary-master/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ const DOT: Record<Phase, string> = {
 
 /**
  * One person's salary revisions, newest first, as a timeline of cards: the
- * date it applies from, CTC and gross a month, basic, and the file behind it.
+ * date it applies from, CTC and gross a month, basic, PF both sides, take home, and the file behind it.
  * A revision payroll has paid on is locked and says why.
  */
 export function RevisionTimeline({
@@ -103,7 +104,7 @@ export function RevisionTimeline({
                   </div>
                 </div>
 
-                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
                   <Fact label="CTC a month">
                     <Money value={revision.ctc_monthly} />
                   </Fact>
@@ -112,6 +113,35 @@ export function RevisionTimeline({
                   </Fact>
                   <Fact label="Basic">
                     <Money value={revision.basic_monthly} />
+                  </Fact>
+                  <Fact label="PF (employee)">
+                    <StatutoryFigure revision={revision} code="PF_EMPLOYEE" side="employee" />
+                  </Fact>
+                  <Fact label="PF (employer)">
+                    <StatutoryFigure revision={revision} code="PF_EMPLOYER" side="employer" />
+                  </Fact>
+                  <Fact label="Take home">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span
+                          tabIndex={0}
+                          className={cn(
+                            "cursor-help underline decoration-dotted underline-offset-4",
+                            !revision.take_home?.monthly && "font-normal text-muted-foreground",
+                          )}
+                        >
+                          {revision.take_home?.monthly ? (
+                            <Money value={revision.take_home.monthly} />
+                          ) : (
+                            "Not worked out"
+                          )}
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-80">
+                        <TakeHomeNote takeHome={revision.take_home ?? undefined} />
+                        {revision.take_home?.monthly && ". Payroll's figure for a full month."}
+                      </TooltipContent>
+                    </Tooltip>
                   </Fact>
                   <Fact label="Attachment">
                     {revision.attachment_name ? (
@@ -141,6 +171,30 @@ export function RevisionTimeline({
         );
       })}
     </ol>
+  );
+}
+
+/** A PF figure payroll worked out for the revision, with how, on hover. */
+function StatutoryFigure({
+  revision,
+  code,
+  side,
+}: {
+  revision: SalaryRevision;
+  code: string;
+  side: "employee" | "employer";
+}) {
+  const line = revision.take_home?.monthly ? revision.take_home[side]?.find((l) => l.code === code) : undefined;
+  if (!line) return <span className="font-normal text-muted-foreground">—</span>;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span tabIndex={0} className="cursor-help underline decoration-dotted underline-offset-4">
+          <Money value={line.monthly} />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-80">{line.basis ?? line.name}</TooltipContent>
+    </Tooltip>
   );
 }
 

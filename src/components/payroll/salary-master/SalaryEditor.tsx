@@ -32,6 +32,7 @@ import {
   type SalaryAmountsInput,
   type SalaryBreakdown,
   type SalaryComponent,
+  type SalaryPreviewInput,
   type SalaryRevision,
   type SalaryRevisionInput,
   type SalarySaveResult,
@@ -185,7 +186,11 @@ export function SalaryEditor({
             basis: row.basis,
           })),
         };
-  const requestKey = amounts && structureId ? JSON.stringify([structureId, amounts]) : null;
+  // Naming the person and the date adds take-home, worked out by the payroll engine.
+  const previewBody: SalaryPreviewInput | null = amounts
+    ? { ...amounts, employee_id: employee.id, ...(effectiveFrom ? { effective_from: effectiveFrom } : {}) }
+    : null;
+  const requestKey = previewBody && structureId ? JSON.stringify([structureId, previewBody]) : null;
 
   useEffect(() => {
     if (!requestKey) {
@@ -193,7 +198,7 @@ export function SalaryEditor({
       setPreviewError(null);
       return;
     }
-    const [id, body] = JSON.parse(requestKey) as [string, SalaryAmountsInput];
+    const [id, body] = JSON.parse(requestKey) as [string, SalaryPreviewInput];
     let cancelled = false;
     setPreviewing(true);
     const timer = setTimeout(() => {
@@ -666,6 +671,9 @@ export function SalaryEditor({
                 onAmount: setGross,
                 onBasis: setGrossBasis,
               }}
+              takeHome={
+                readOnly ? revision?.take_home : amounts && !previewError ? (preview?.take_home ?? null) : undefined
+              }
               onChange={(code, row) => setRows((current) => ({ ...current, [code]: row }))}
             />
           )}

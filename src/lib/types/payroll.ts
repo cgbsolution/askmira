@@ -695,6 +695,37 @@ export interface SalaryGroupTotal {
   annual: string;
 }
 
+/** One line payroll works out or takes off: PF, ESIC, PT, insurance, a typed TDS. */
+export interface TakeHomeLine {
+  code: string;
+  name: string;
+  monthly: string;
+  annual?: string | null;
+  /** How payroll got there: "12% of PF wages ₹15,000", or that it was typed. */
+  basis?: string | null;
+}
+
+/**
+ * What a full month of a salary pays into the bank, worked out by the payroll
+ * engine (PF, ESIC, PT from the statutory rules). No figure without its
+ * reason: `monthly` is null and `note` says why when it can't be worked out.
+ */
+export interface TakeHome {
+  monthly: string | null;
+  annual: string | null;
+  /** Everything taken off the earnings to reach it. */
+  deductions: TakeHomeLine[];
+  /** The statutory lines on the employee's side (PF, ESIC, PT, LWF, TDS). */
+  employee?: TakeHomeLine[];
+  /** The company's statutory contributions (PF, ESIC, LWF). */
+  employer?: TakeHomeLine[];
+  /** Their sums a month, from the server. */
+  employee_total?: string | null;
+  employer_total?: string | null;
+  note: string | null;
+  review_flags?: string[];
+}
+
 /** What one kind of component (earnings, deductions…) adds up to. */
 export interface SalaryTypeTotal {
   component_type: ComponentType;
@@ -718,6 +749,8 @@ export interface SalaryBreakdown {
   earnings_monthly?: string | null;
   /** What would stop these amounts from saving. */
   warnings?: string[];
+  /** Take-home a month; only when the preview names the employee. */
+  take_home?: TakeHome | null;
 }
 
 export interface SalaryComponentAmount {
@@ -805,6 +838,7 @@ export interface SalaryRevision {
   components: SalaryComponentAmount[];
   totals: SalaryTypeTotal[];
   group_totals?: SalaryGroupTotal[];
+  take_home?: TakeHome | null;
   /** Payroll has used this revision, so it is history and cannot change. */
   locked: boolean;
   locked_reason: string | null;
@@ -830,6 +864,12 @@ export interface SalaryAmountsInput {
   ctc_annual?: string;
   ctc_monthly?: string;
   components: SalaryComponentAmountInput[];
+}
+
+/** A preview that also works out take-home for one person from one date. */
+export interface SalaryPreviewInput extends SalaryAmountsInput {
+  employee_id?: string;
+  effective_from?: string;
 }
 
 export interface SalaryRevisionInput extends SalaryAmountsInput {
