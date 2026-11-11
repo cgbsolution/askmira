@@ -352,14 +352,7 @@ export function LettersPanel({
         </Table>
       </DataPanel>
 
-      <LetterViewerDialog
-        letter={viewing}
-        onOpenChange={(open) => !open && setViewing(null)}
-        onAcknowledged={() => {
-          setViewing(null);
-          reload();
-        }}
-      />
+      <LetterViewerDialog letter={viewing} onOpenChange={(open) => !open && setViewing(null)} />
       {manage && (
         <IssueLetterDialog
           open={issuing}

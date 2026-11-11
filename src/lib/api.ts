@@ -41,7 +41,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const UPLOAD_TIMEOUT = 5 * 60_000;
 
 /** Pages that must not bounce to sign-in on a 401 (they are the sign-in flow, or public). */
-const PUBLIC_PATH_PREFIXES = ["/signin", "/careers", "/candidate", "/interview", "/kiosk", "/act"];
+const PUBLIC_PATH_PREFIXES = ["/signin", "/careers", "/candidate", "/interview", "/kiosk", "/act", "/letter/"];
 
 export class ApiError extends Error {
   constructor(

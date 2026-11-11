@@ -23,15 +23,16 @@ export function MyDocumentsView() {
 
   const own = hasRecord ? (
     <div className="grid gap-6">
+      {/* No letters here: each one reaches the employee as a link in its email,
+          where they read, sign and download it. */}
       <DocumentsPanel title="My documents" employee={me} />
-      <LettersPanel title="My letters" employee={me} />
     </div>
   ) : (
     <Card tier="tier1">
       <EmptyState
         icon={UserX}
         title="Your login is not linked to an employee record"
-        description="Documents and letters belong to an employee record. Ask HR to link your login."
+        description="Documents belong to an employee record. Ask HR to link your login."
       />
     </Card>
   );

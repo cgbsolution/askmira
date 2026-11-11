@@ -244,6 +244,10 @@ export interface LetterContent {
   reference_number: string;
   merged_html: string;
   intact: boolean;
+  /** Pages of the PDF shown (`/letters/{id}/pages/{n}`); 0 when none can be shown. */
+  page_count: number;
+  /** The pages are the signed copy printed when the letter was accepted. */
+  showing_signed_copy: boolean;
 }
 
 export interface LetterVerify {
