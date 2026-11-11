@@ -16,9 +16,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import type { PayBasis, SalaryGroupTotal, TakeHome } from "@/lib/types/payroll";
+import type { PayBasis, SalaryGroupTotal, TakeHome, TakeHomeLine } from "@/lib/types/payroll";
 
 const EMPTY: WageRow = { amount: "", basis: "monthly", remarks: "" };
+
+/** Each statutory line on the employee's side, and the MANUAL wage type that overrides it. */
+const STATUTORY_MANUAL: Record<string, { code: string; name: string }> = {
+  PF_EMPLOYEE: { code: "PF_MANUAL", name: "Provident Fund (employee)" },
+  ESI_EMPLOYEE: { code: "ESIC_MANUAL", name: "ESIC (employee)" },
+  PT: { code: "PT_MANUAL", name: "Professional Tax" },
+  LWF_EMPLOYEE: { code: "LWF_MANUAL", name: "Labour Welfare Fund (employee)" },
+  TDS: { code: "TDS_MANUAL", name: "TDS" },
+};
+const EMPLOYEE_ORDER = ["PF_EMPLOYEE", "VPF", "ESI_EMPLOYEE", "PT", "LWF_EMPLOYEE", "TDS"];
 
 export interface GrossRow {
   /** As typed; empty means the earnings' sum stands. */
@@ -154,6 +164,32 @@ export function SalaryGrid({
 
   const ctcInputs = lines.filter((line) => line.group === "ctc_input");
 
+  // The employee's statutory lines, each typeable through its MANUAL wage type.
+  // A line payroll took nothing for still gets a row while its MANUAL type exists,
+  // so a PT or TDS can be typed in from here too.
+  const manualOf = (code: string) => STATUTORY_MANUAL[code]?.code;
+  const editableManual = (code: string) => {
+    const manual = manualOf(code);
+    return !readOnly && manual && lines.some((line) => line.code === manual) ? manual : null;
+  };
+  const employeeRows: TakeHomeLine[] | undefined = takeHome?.employee
+    ? EMPLOYEE_ORDER.map(
+        (code) =>
+          takeHome.employee?.find((line) => line.code === code) ??
+          (editableManual(code)
+            ? {
+                code,
+                name: STATUTORY_MANUAL[code].name,
+                monthly: "0.00",
+                annual: "0.00",
+                basis: "Not deducted. Type an amount to deduct it.",
+              }
+            : null),
+      )
+        .filter((line): line is TakeHomeLine => line !== null)
+        .concat(takeHome.employee.filter((line) => !EMPLOYEE_ORDER.includes(line.code)))
+    : undefined;
+
   return (
     <div className="rounded-xl border border-border">
       {/* table-ok: the Employee Salary Master form grid, in sections with numbered group and sub-total rows spanning the table; DataTable has no section or sub-total rows */}
@@ -248,13 +284,19 @@ export function SalaryGrid({
           {sectionRow("Statutory Contributions")}
           <TableRow className="hover:bg-transparent">
             <TableCell colSpan={6} className="pt-0 pb-2 text-xs text-muted-foreground">
-              Worked out by payroll from Payroll → Statutory rules for a full month. To use another amount, type it in
-              the MANUAL row of Statutory deduction above.
+              Worked out by payroll for a full month from Payroll → Statutory rules.{" "}
+              {!readOnly && (
+                <>
+                  Type in an employee&apos;s box to deduct your own amount instead (0 deducts nothing); leave it empty
+                  and payroll works it out.{" "}
+                </>
+              )}
+              The employer&apos;s share follows the PF and ESI rules.
             </TableCell>
           </TableRow>
           {(
             [
-              ["Employee's contribution", takeHome?.employee, takeHome?.employee_total],
+              ["Employee's contribution", employeeRows, takeHome?.employee_total],
               ["Employer's contribution", takeHome?.employer, takeHome?.employer_total],
             ] as const
           ).map(([title, rowsOf, total]) => (
@@ -269,25 +311,43 @@ export function SalaryGrid({
               </TableRow>
               {takeHome?.monthly && rowsOf ? (
                 <>
-                  {rowsOf.map((line) => (
-                    <TableRow key={line.code}>
-                      <TableCell>
-                        <span className="flex items-center gap-2 text-sm text-foreground">
-                          <Landmark aria-hidden className="size-4 shrink-0 text-muted-foreground" />
-                          {line.name.toUpperCase()}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">Monthly</TableCell>
-                      <TableCell className="text-right">
-                        <Money value={line.monthly} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Money value={line.annual ?? null} />
-                      </TableCell>
-                      <TableCell />
-                      <TableCell className="text-xs text-muted-foreground">{line.basis}</TableCell>
-                    </TableRow>
-                  ))}
+                  {rowsOf.map((line) => {
+                    const manual = editableManual(line.code);
+                    const typed = manual ? rowOf(manual) : null;
+                    const setTyped = (patch: Partial<WageRow>) =>
+                      manual && typed && onChange?.(manual, { ...typed, ...patch });
+                    return (
+                      <TableRow key={line.code}>
+                        <TableCell>
+                          <span className="flex items-center gap-2 text-sm text-foreground">
+                            <Landmark aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+                            {line.name.toUpperCase()}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {typed ? (
+                            basisSelect(typed.basis, (basis) => setTyped({ basis }), line.name)
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Monthly</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {typed ? (
+                            amountBox(typed.amount, (amount) => setTyped({ amount }), line.name, line.monthly)
+                          ) : (
+                            <Money value={line.monthly} />
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Money value={line.annual ?? null} />
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {typed?.amount.trim() ? "Typed" : null}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{line.basis}</TableCell>
+                      </TableRow>
+                    );
+                  })}
                   <TableRow className="hover:bg-transparent">
                     <TableCell className="font-semibold uppercase">Sub total</TableCell>
                     <TableCell />

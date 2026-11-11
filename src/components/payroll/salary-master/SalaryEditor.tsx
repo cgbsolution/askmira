@@ -315,7 +315,16 @@ export function SalaryEditor({
       setRows(next);
       // MONTHLY GROSS follows the earnings again.
       setGross("");
-      setCalcInfo({ key: calcKey, calc: result });
+      // Month-wise, CTC TOTAL too, when the year is exactly twelve of its months
+      // (12,00,000 a year is 1,00,000 a month; 6,20,000 is not a whole paisa a month).
+      let key = calcKey;
+      if (ctcBasis !== "monthly" && paise(result.ctc_monthly) * BigInt(12) === paise(result.ctc_annual)) {
+        const monthly = result.ctc_monthly.replace(/\.00$/, "");
+        setCtc(monthly);
+        setCtcBasis("monthly");
+        key = JSON.stringify([structureId, monthly, "monthly"]);
+      }
+      setCalcInfo({ key, calc: result });
       const said = [
         cleared.length ? `Cleared (inside the CTC, not in the structure): ${cleared.join(", ")}.` : "",
         kept.length ? `Kept as typed: ${kept.join(", ")}.` : "",
@@ -738,6 +747,12 @@ export function SalaryEditor({
       />
     </Sheet>
   );
+}
+
+/** A money string ("51666.67") in whole paise, for an exact comparison. */
+function paise(amount: string): bigint {
+  const [rupees, fraction = ""] = amount.trim().split(".");
+  return BigInt(rupees || "0") * BigInt(100) + BigInt((fraction + "00").slice(0, 2));
 }
 
 /** Everything the person can change, as one comparable string. */
