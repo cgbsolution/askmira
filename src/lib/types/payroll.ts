@@ -724,6 +724,8 @@ export interface TakeHome {
   employer_total?: string | null;
   note: string | null;
   review_flags?: string[];
+  /** What would make the month unfileable; saving is refused until fixed. */
+  warnings?: string[];
 }
 
 /** What one kind of component (earnings, deductions…) adds up to. */

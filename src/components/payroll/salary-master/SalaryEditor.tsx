@@ -255,7 +255,8 @@ export function SalaryEditor({
   const noStructure = !readOnly && standard !== null && !standard.has_structure;
   // A rule the amounts break, said while typing; saving is refused until fixed.
   // Not while new figures are being worked out: the old warning would be about old amounts.
-  const warning = (amounts && !previewing && preview?.warnings?.[0]) || null;
+  const warning =
+    (amounts && !previewing && (preview?.warnings?.[0] ?? preview?.take_home?.warnings?.[0])) || null;
   const dirty =
     !readOnly &&
     mode !== null &&

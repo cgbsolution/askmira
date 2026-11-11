@@ -20,13 +20,25 @@ import type { PayBasis, SalaryGroupTotal, TakeHome, TakeHomeLine } from "@/lib/t
 
 const EMPTY: WageRow = { amount: "", basis: "monthly", remarks: "" };
 
-/** Each statutory line on the employee's side, and the MANUAL wage type that overrides it. */
+/** Each statutory line payroll works out, and the MANUAL wage type that overrides it. */
 const STATUTORY_MANUAL: Record<string, { code: string; name: string }> = {
   PF_EMPLOYEE: { code: "PF_MANUAL", name: "Provident Fund (employee)" },
+  PF_EMPLOYER: { code: "PF_ER_MANUAL", name: "Provident Fund (employer)" },
+  ESI_EMPLOYER: { code: "ESIC_ER_MANUAL", name: "ESIC (employer)" },
   ESI_EMPLOYEE: { code: "ESIC_MANUAL", name: "ESIC (employee)" },
   PT: { code: "PT_MANUAL", name: "Professional Tax" },
   LWF_EMPLOYEE: { code: "LWF_MANUAL", name: "Labour Welfare Fund (employee)" },
   TDS: { code: "TDS_MANUAL", name: "TDS" },
+};
+/** The MANUAL wage types' names, for saying which one a workspace still lacks. */
+const MISSING_NAME: Record<string, string> = {
+  PF_MANUAL: "MPF CONTRIBUTION MANUAL",
+  PF_ER_MANUAL: "PF EMPLOYER CONTRIBUTION MANUAL",
+  ESIC_ER_MANUAL: "ESIC EMPLOYER CONTRIBUTION MANUAL",
+  ESIC_MANUAL: "ESIC EMPLOYEE CONTRIBUTION MANUAL",
+  PT_MANUAL: "PROF. TAX MANUAL",
+  LWF_MANUAL: "LWF MANUAL",
+  TDS_MANUAL: "TDS MANUAL",
 };
 const EMPLOYEE_ORDER = ["PF_EMPLOYEE", "VPF", "ESI_EMPLOYEE", "PT", "LWF_EMPLOYEE", "TDS"];
 
@@ -287,11 +299,10 @@ export function SalaryGrid({
               Worked out by payroll for a full month from Payroll → Statutory rules.{" "}
               {!readOnly && (
                 <>
-                  Type in an employee&apos;s box to deduct your own amount instead (0 deducts nothing); leave it empty
-                  and payroll works it out.{" "}
+                  Type in any box to use your own amount for this person (0 means none); leave it empty and payroll
+                  works it out.
                 </>
               )}
-              The employer&apos;s share follows the PF and ESI rules.
             </TableCell>
           </TableRow>
           {(
@@ -344,7 +355,15 @@ export function SalaryGrid({
                         <TableCell className="text-xs text-muted-foreground">
                           {typed?.amount.trim() ? "Typed" : null}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{line.basis}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {line.basis}
+                          {!readOnly && !manual && manualOf(line.code) && (
+                            <span className="block">
+                              To type it, add {MISSING_NAME[manualOf(line.code) ?? ""] ?? "its MANUAL wage type"} with
+                              Update wage types at the top of Salary master.
+                            </span>
+                          )}
+                        </TableCell>
                       </TableRow>
                     );
                   })}
