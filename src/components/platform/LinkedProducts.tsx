@@ -249,17 +249,20 @@ function OrganizationRow({
 }) {
   const taken = organization.connected_to !== null;
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-2">
-      <div className="min-w-0">
-        <p className="text-sm font-medium">{organization.name}</p>
+    <li className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 rounded-md border p-3">
+      <div className="min-w-0 flex-1 basis-56">
+        <p className="break-words text-sm font-medium">{organization.name}</p>
         {organization.admins.length ? (
-          <p className="truncate text-xs text-muted-foreground">Admins: {organization.admins.join(", ")}</p>
+          <p className="break-words text-xs text-muted-foreground" title={organization.admins.join(", ")}>
+            Admins: {organization.admins.slice(0, 3).join(", ")}
+            {organization.admins.length > 3 ? ` and ${organization.admins.length - 3} more` : ""}
+          </p>
         ) : null}
         {taken ? (
           <p className="text-xs text-muted-foreground">Already connected to another AskMiraa organisation.</p>
         ) : null}
       </div>
-      <Button size="sm" variant="outline" disabled={disabled || taken} onClick={onLink}>
+      <Button size="sm" variant="outline" className="shrink-0" disabled={disabled || taken} onClick={onLink}>
         <Link2 /> Link this one
       </Button>
     </li>
@@ -288,7 +291,7 @@ function ChooseDialog({
             {choice?.message} Link the organisation they already have, so its data carries on, or create a new one.
           </DialogDescription>
         </DialogHeader>
-        <ul className="grid gap-2">
+        <ul className="grid min-w-0 grid-cols-1 gap-2">
           {(choice?.organizations ?? []).map((organization) => (
             <OrganizationRow
               key={organization.ref}
@@ -400,7 +403,7 @@ function LinkExistingDialog({
         ) : results.length === 0 ? (
           <p className="text-sm text-muted-foreground">No organisation in {tool?.brand} matches.</p>
         ) : (
-          <ul className="grid max-h-72 gap-2 overflow-y-auto">
+          <ul className="grid max-h-72 min-w-0 grid-cols-1 gap-2 overflow-y-auto">
             {results.map((organization) => (
               <OrganizationRow
                 key={organization.ref}

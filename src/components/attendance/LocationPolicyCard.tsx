@@ -79,7 +79,7 @@ const PHOTO_MODES: { value: LocationMode; label: string; detail: string }[] = [
  */
 export function LocationPolicyCard() {
   const { data, error, isLoading, reload } = useApiQuery<AttendanceSettings>("/attendance/settings");
-  const [mode, setMode] = useState<LocationMode>("optional");
+  const [mode, setMode] = useState<LocationMode>("required");
   const [photoMode, setPhotoMode] = useState<LocationMode>("off");
   const [isSaving, setIsSaving] = useState(false);
 

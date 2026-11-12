@@ -66,11 +66,15 @@ function punchTime(member: TeamMemberToday): string {
   return `${formatClock(member.last_punch_at)} ${member.last_direction === "in" ? "in" : "out"}`;
 }
 
-/** "At Pune office", "Away from Pune office" or "No location". */
+/**
+ * "At Pune office", "Away from Pune office", "Location shared" (a point but no
+ * office set up to name it) or "No location" (no point at all).
+ */
 function punchPlace(member: TeamMemberToday): string {
-  return member.last_punch_location
-    ? `${member.last_punch_outside ? "Away from" : "At"} ${member.last_punch_location}`
-    : "No location";
+  if (member.last_punch_location) {
+    return `${member.last_punch_outside ? "Away from" : "At"} ${member.last_punch_location}`;
+  }
+  return member.last_punch_latitude !== null ? "Location shared" : "No location";
 }
 
 function shiftText(member: TeamMemberToday): string {

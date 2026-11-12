@@ -207,7 +207,7 @@ export function PunchCard({
 
   useEffect(() => setSharePreference(readSharePreference()), []);
 
-  const mode = settingsQuery.data?.location_mode ?? "optional";
+  const mode = settingsQuery.data?.location_mode ?? "required";
   const photoMode = settingsQuery.data?.photo_mode ?? "off";
   const shareLocation = mode === "required" || (mode === "optional" && sharePreference);
   const places = settingsQuery.data?.work_locations ?? [];
