@@ -3,11 +3,14 @@
 import {
   ArrowRight,
   Cake,
+  CheckCircle2,
   CalendarHeart,
   CircleDollarSign,
   ExternalLink,
   Inbox,
   Link2,
+  Loader2,
+  Megaphone,
   Palmtree,
   Pencil,
   Plus,
@@ -45,13 +48,14 @@ import {
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { ApiError, put } from "@/lib/api";
+import { ApiError, post, put } from "@/lib/api";
 import { Tr } from "@/lib/i18n/Tr";
 import type { DashboardSummary, LeaveBalance, WhoIsOut } from "@/lib/types";
 import type { ApprovalInbox } from "@/lib/types/approvals";
 import type { TeamToday } from "@/lib/types/attendance";
+import type { Announcement } from "@/lib/types/culture";
 import type { Celebrations } from "@/lib/types/people";
-import { cn, formatDate, formatDay, formatDays, toISODate } from "@/lib/utils";
+import { cn, formatDate, formatDateTime, formatDay, formatDays, toISODate } from "@/lib/utils";
 
 type BadgeVariant = React.ComponentProps<typeof Badge>["variant"];
 
@@ -478,6 +482,110 @@ export function CelebrationsCard() {
                 </span>
               </li>
             ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Announcements sent to me, on Home so nobody has to go looking for them.
+ * Whatever channels HR ticked (in-app, email, push), the audience sees it here
+ * while it is live. Ones still waiting for my acknowledgement come first.
+ * Hidden when there is nothing live, so Home does not carry an empty card.
+ */
+export function AnnouncementsHomeCard() {
+  const { data, isLoading, setData } = useApiQuery<Announcement[]>("/culture/announcements");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const rows = [...(data ?? [])]
+    .sort((a, b) => {
+      const pendingA = a.requires_acknowledgement && !a.acknowledged ? 0 : 1;
+      const pendingB = b.requires_acknowledgement && !b.acknowledged ? 0 : 1;
+      return pendingA - pendingB || b.publish_at.localeCompare(a.publish_at);
+    })
+    .slice(0, 3);
+  const toAcknowledge = (data ?? []).filter((row) => row.requires_acknowledgement && !row.acknowledged).length;
+
+  const acknowledge = async (row: Announcement) => {
+    setBusy(row.id);
+    try {
+      const updated = await post<Announcement>(`/culture/announcements/${row.id}/acknowledge`, {
+        channel: "in_app",
+      });
+      setData((current) => (current ?? []).map((item) => (item.id === row.id ? updated : item)));
+      toast.success("Acknowledged.");
+    } catch (caught) {
+      toast.error(caught instanceof ApiError ? caught.detail : "Could not record your acknowledgement.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggle = (id: string) =>
+    setExpanded((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  if (!isLoading && rows.length === 0) return null;
+
+  return (
+    <Card tier="tier2">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Megaphone className="size-4 text-primary" /> <Tr text="Announcements" />
+        </CardTitle>
+        <CardDescription>From HR, for you.</CardDescription>
+        <CardAction className="flex items-center gap-2">
+          {toAcknowledge > 0 && <Badge variant="warning">{toAcknowledge} to acknowledge</Badge>}
+          <CardLink href="/culture/announcements">All</CardLink>
+        </CardAction>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-14 w-full" />
+            <Skeleton className="h-14 w-full" />
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {rows.map((row) => {
+              const pending = row.requires_acknowledgement && !row.acknowledged;
+              const open = expanded.has(row.id);
+              const long = row.body.length > 220 || row.body.split(/\r?\n/).length > 3;
+              return (
+                <li key={row.id} className="grid gap-1.5 py-3 first:pt-0 last:pb-0">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                    <p className="font-medium text-foreground">{row.title}</p>
+                    <span className="text-xs text-muted-foreground">{formatDateTime(row.publish_at)}</span>
+                  </div>
+                  <p className={cn("text-sm whitespace-pre-line text-muted-foreground", !open && "line-clamp-3")}>
+                    {row.body}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {long && (
+                      <Button variant="link" size="sm" className="h-auto px-0" onClick={() => toggle(row.id)}>
+                        {open ? "Show less" : "Read more"}
+                      </Button>
+                    )}
+                    {pending ? (
+                      <Button size="sm" disabled={busy === row.id} onClick={() => void acknowledge(row)}>
+                        {busy === row.id && <Loader2 className="animate-spin" />} I have read this
+                      </Button>
+                    ) : row.requires_acknowledgement ? (
+                      <Badge variant="success">
+                        <CheckCircle2 /> Acknowledged
+                      </Badge>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </CardContent>

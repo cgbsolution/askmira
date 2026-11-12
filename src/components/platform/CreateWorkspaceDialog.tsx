@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +29,13 @@ import type { ProductKey } from "@/lib/types";
 import { DEFAULT_UPLOAD_MB } from "@/lib/uploads";
 
 import { type PlatformTool, provision, type ToolOutcome } from "./tools";
+
+/** Why a tool cannot be ticked yet, in the order the platform checks. */
+function notReadyReason(tool: PlatformTool): string {
+  if (!tool.key_set) return "no platform key yet (Connected tools → Generate)";
+  if (!tool.api_url) return "its address is not set on the server";
+  return "the server's encryption key is not set";
+}
 
 export interface Issued {
   title: string;
@@ -621,6 +629,15 @@ export function CreateWorkspaceDialog({
                     afterwards whether to link that one.
                   </p>
                 </div>
+                {readyTools.length === 0 ? (
+                  <p className="rounded-md border border-dashed bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                    None of the tools can be ticked yet; the reason is under each one. Set each tool&apos;s key on{" "}
+                    <Link href="/platform/tools" className="font-medium text-foreground underline underline-offset-2">
+                      Connected tools
+                    </Link>
+                    , then come back. You can also connect tools to this organisation later from there.
+                  </p>
+                ) : null}
                 <div className="flex items-center gap-2">
                   <Checkbox
                     id="ws-tool-all"
@@ -647,7 +664,7 @@ export function CreateWorkspaceDialog({
                       <Label htmlFor={`ws-tool-${tool.key}`} className="grid gap-0.5 font-normal">
                         <span>{tool.brand}</span>
                         <span className="text-xs text-muted-foreground">
-                          {tool.ready ? tool.what : `${tool.what} · set its key under Connected tools first`}
+                          {tool.ready ? tool.what : `${tool.what} · ${notReadyReason(tool)}`}
                         </span>
                       </Label>
                     </div>

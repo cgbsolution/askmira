@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 
 import { PunchCard } from "@/components/attendance/PunchCard";
 import {
+  AnnouncementsHomeCard,
   ApprovalsCard,
   CelebrationsCard,
   ComplianceCard,
@@ -218,6 +219,7 @@ export default function HomePage() {
           and the culture rail on the right ─────────────────────────────── */}
       <div className="grid grid-cols-1 items-start gap-6 @4xl/main:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <div className="@container/work flex min-w-0 flex-col gap-6">
+          {hasModule("culture") && <AnnouncementsHomeCard />}
           {isEmployee && timeOn && (
             <>
               <PunchCard compact />

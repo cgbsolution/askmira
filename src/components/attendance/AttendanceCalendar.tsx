@@ -90,6 +90,16 @@ interface CellInfo {
  * only names and colours them. Literal class names: Tailwind only generates
  * what it can see.
  */
+/**
+ * What one day is called. The legend groups absent and missed-punch days under
+ * one colour, but a single day is one or the other, never both.
+ */
+function tagLabel(tag: DayTag, status: AttendanceStatus | undefined): string {
+  if (tag === "absent" && status === "needs_regularisation") return "Missed punch";
+  if (tag === "absent" && status) return "Absent";
+  return DAY_TAGS[tag].label;
+}
+
 export const DAY_TAGS: Record<DayTag, { label: string; circle: string; swatch: string }> = {
   absent: {
     label: "Absent / Missed punch",
@@ -302,7 +312,9 @@ export function AttendanceCalendar({
     const correction = info.row ? correctionLabel(info.row) : null;
     const style = info.tag ? DAY_TAGS[info.tag] : null;
     const isSelected = picking ? pickedSet.has(iso) : iso === selected;
-    const said = style?.label ?? UNTAGGED_LABELS[info.kind] ?? STATUS_LABELS[info.kind as AttendanceStatus];
+    const said = info.tag
+      ? tagLabel(info.tag, info.row?.status)
+      : (UNTAGGED_LABELS[info.kind] ?? STATUS_LABELS[info.kind as AttendanceStatus]);
     return (
       <CalendarDayButton
         {...props}
@@ -644,7 +656,7 @@ function DayDetail({
             <p className="text-2xl font-semibold tracking-tight tabular-nums">{dayHeading(iso)}</p>
             <p className="text-base text-muted-foreground">
               {info.tag
-                ? DAY_TAGS[info.tag].label
+                ? tagLabel(info.tag, info.row?.status)
                 : (UNTAGGED_LABELS[info.kind] ?? STATUS_LABELS[info.kind as AttendanceStatus])}
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
