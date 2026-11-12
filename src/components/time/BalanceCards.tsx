@@ -1,14 +1,15 @@
 "use client";
 
-import { CalendarOff, ShieldCheck } from "lucide-react";
+import { CalendarOff, Hourglass, ShieldCheck } from "lucide-react";
 import React from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { LeaveBalance } from "@/lib/types";
-import { cn, formatDays } from "@/lib/utils";
+import { cn, formatDay, formatDays } from "@/lib/utils";
 
 const ACCRUAL_LABEL: Record<string, string> = {
   monthly: "credited monthly",
@@ -72,11 +73,24 @@ export function BalanceCards({
 
   const drawn = balances.filter((balance) => !balance.is_statutory || !isZero(balance.used));
   const statutory = balances.filter((balance) => balance.is_statutory && isZero(balance.used));
+  // The same date on every type it applies to: the end of probation.
+  const probationUntil = balances.find((balance) => balance.probation_until)?.probation_until;
+  const waiting = balances.filter((balance) => balance.probation_until).map((b) => b.leave_type_name);
 
   return (
     // Columns follow the space the cards are given, not the window: the same
     // cards sit full width on the Time page and in a side sheet.
     <div className="space-y-3 @container">
+      {probationUntil && (
+        <Alert>
+          <Hourglass />
+          <AlertTitle>On probation: leave starts on {formatDay(probationUntil, true)}</AlertTitle>
+          <AlertDescription>
+            {waiting.join(", ")} build{waiting.length === 1 ? "s" : ""} up from that day. Until
+            then there is no balance to apply against, unless HR credits days.
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="grid gap-4 @lg:grid-cols-2 @4xl:grid-cols-3">
         {drawn.map((balance) => {
           // Earned includes carry-forward and HR or comp-off credits (net of

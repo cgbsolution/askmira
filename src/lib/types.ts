@@ -232,6 +232,8 @@ export interface LeaveSettings {
   comp_off_year_end: CompOffYearEnd;
   comp_off_leave_type_id: string | null;
   comp_off_leave_type_name: string | null;
+  /** Months after joining before anybody earns leave (probation). 0 = from joining. Admin only. */
+  probation_months: number;
 }
 
 export interface ApprovalStep {
@@ -335,6 +337,8 @@ export interface LeaveBalance {
   pending: string;
   available: string;
   available_after_pending: string;
+  /** Still on probation: the day this type starts building up (ISO). Null otherwise. */
+  probation_until: string | null;
 }
 
 export type ManualAdjustmentKind = "opening" | "credit" | "debit";
@@ -366,14 +370,24 @@ export interface TeamBalanceRow {
   photo_url: string | null;
   designation: string | null;
   department_name: string | null;
+  date_of_joining: string | null;
+  /** Still on probation: the day leave starts building up (ISO). Null otherwise. */
+  probation_until: string | null;
   /** Only the types a policy or a ledger row gives this person. */
   balances: TeamBalanceCell[];
 }
+
+/** The team table's probation filter. */
+export type ProbationFilter = "only" | "exclude";
 
 export interface TeamBalances {
   year: number;
   /** Every active leave type, so the columns do not move between pages. */
   leave_types: TeamBalanceColumn[];
+  /** The workspace's probation before leave builds up (0 = none). */
+  probation_months: number;
+  /** People in scope still on probation (search applied, probation filter not). */
+  on_probation: number;
   items: TeamBalanceRow[];
   total: number;
   page: number;

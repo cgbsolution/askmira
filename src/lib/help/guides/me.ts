@@ -235,6 +235,8 @@ export const ME_GUIDES: Record<string, PageGuide> = {
           "Add or edit leave types (paid or not, half days, sandwich rule). Every type, unpaid included, is applied only against a balance: give days through a policy or Adjust balance.",
           "Add policies (who gets how much, and how it accrues) and the holiday calendar.",
           "Under Leave settings, set how many days a comp-off lasts. An admin also chooses what happens to unused comp-off at year end: carry it forward to the next year (it still lapses on its own expiry date), or lapse it on 31 December.",
+          "An admin can also set Probation before leave (months): new joiners earn no leave until that many months after their joining date. All balances then shows an On probation tab, and each person's row says the day their leave starts. Statutory leave is never held back.",
+          "A policy that starts mid-year earns only from its start month: a version from 1 November credits November and December, not the months before it.",
         ],
       },
       {

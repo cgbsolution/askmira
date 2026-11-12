@@ -611,6 +611,7 @@ function SettingsCard({
   const [quota, setQuota] = useState("");
   const [expiry, setExpiry] = useState("");
   const [yearEnd, setYearEnd] = useState<CompOffYearEnd>("carry_forward");
+  const [probation, setProbation] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -618,6 +619,7 @@ function SettingsCard({
       setQuota(String(settings.optional_holiday_quota));
       setExpiry(String(settings.comp_off_expiry_days));
       setYearEnd(settings.comp_off_year_end);
+      setProbation(String(settings.probation_months));
     }
   }, [settings]);
 
@@ -626,12 +628,15 @@ function SettingsCard({
     Number(quota) <= 30 &&
     /^\d{1,3}$/.test(expiry) &&
     Number(expiry) >= 1 &&
-    Number(expiry) <= 365;
+    Number(expiry) <= 365 &&
+    /^\d{1,2}$/.test(probation) &&
+    Number(probation) <= 24;
   const dirty =
     settings !== null &&
     (quota !== String(settings.optional_holiday_quota) ||
       expiry !== String(settings.comp_off_expiry_days) ||
-      yearEnd !== settings.comp_off_year_end);
+      yearEnd !== settings.comp_off_year_end ||
+      probation !== String(settings.probation_months));
 
   const save = async () => {
     setIsSaving(true);
@@ -639,7 +644,7 @@ function SettingsCard({
       await put<LeaveSettings>("/leave/settings", {
         optional_holiday_quota: Number(quota),
         comp_off_expiry_days: Number(expiry),
-        ...(isAdmin ? { comp_off_year_end: yearEnd } : {}),
+        ...(isAdmin ? { comp_off_year_end: yearEnd, probation_months: Number(probation) } : {}),
       });
       toast.success("Leave settings saved");
       onSaved();
@@ -726,6 +731,31 @@ function SettingsCard({
               <SelectItem value="lapse">Lapse on 31 December</SelectItem>
             </SelectContent>
           </Select>
+        </FormField>
+        <FormField
+          htmlFor="setting-probation"
+          label="Probation before leave (months)"
+          hint={
+            !isAdmin
+              ? "Only an admin changes this."
+              : probation === "" || Number(probation) === 0
+                ? "0: new joiners earn leave from their joining date."
+                : Number(probation) > 24
+                  ? "At most 24 months."
+                  : `New joiners earn no leave for their first ${probation} month${
+                      Number(probation) === 1 ? "" : "s"
+                    }, counted from the date of joining. Statutory leave is never held back.`
+          }
+        >
+          <Input
+            id="setting-probation"
+            inputMode="numeric"
+            disabled={!isAdmin || settings === null}
+            className="font-mono"
+            value={probation}
+            maxLength={2}
+            onChange={(event) => setProbation(event.target.value.replace(/\D/g, "").slice(0, 2))}
+          />
         </FormField>
       </CardContent>
     </Card>

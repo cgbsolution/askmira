@@ -1,6 +1,6 @@
 "use client";
 
-import { Users } from "lucide-react";
+import { Hourglass, Users } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 
@@ -11,6 +11,7 @@ import { PredictiveSearch, valueSuggestions } from "@/components/common/Predicti
 import { DownloadButton } from "@/components/payroll-ops/shared";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { BalancesPanel } from "@/components/time/BalancesPanel";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -34,12 +35,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import type { TeamBalanceCell, TeamBalanceColumn, TeamBalanceRow, TeamBalances } from "@/lib/types";
-import { cn, formatDays } from "@/lib/utils";
+import type {
+  ProbationFilter,
+  TeamBalanceCell,
+  TeamBalanceColumn,
+  TeamBalanceRow,
+  TeamBalances,
+} from "@/lib/types";
+import { cn, formatDay, formatDays } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
 const ANY = "any";
+const EVERYONE = "everyone";
+type ProbationTab = typeof EVERYONE | ProbationFilter;
 
 const isZero = (value: string) => /^-?0(\.0+)?$/.test(value);
 
@@ -70,6 +80,9 @@ export function TeamBalancesTable({
   const [term, setTerm] = useState("");
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState(ANY);
+  const [probation, setProbation] = useState<ProbationTab>(EVERYONE);
+  // Kept across reloads so the probation tabs do not flicker while a page loads.
+  const [probationInfo, setProbationInfo] = useState({ months: 0, count: 0 });
   const [page, setPage] = useState(1);
   const [open, setOpen] = useState<TeamBalanceRow | null>(null);
   const org = useOrgReference();
@@ -85,6 +98,7 @@ export function TeamBalancesTable({
   const filters = new URLSearchParams({ year: String(year) });
   if (search) filters.set("q", search);
   if (departmentId !== ANY) filters.set("department_id", departmentId);
+  if (probation !== EVERYONE) filters.set("probation", probation);
   const listParams = new URLSearchParams(filters);
   listParams.set("page", String(page));
   listParams.set("page_size", String(PAGE_SIZE));
@@ -101,6 +115,32 @@ export function TeamBalancesTable({
   const total = data?.total ?? 0;
   const filtered = Boolean(search) || departmentId !== ANY;
 
+  useEffect(() => {
+    if (data) setProbationInfo({ months: data.probation_months, count: data.on_probation });
+  }, [data]);
+  const probationMonths = probationInfo.months;
+  const showProbation = probationMonths > 0;
+
+  const emptyCopy =
+    probation === "only"
+      ? {
+          title: filtered ? "Nobody matches" : "Nobody is on probation",
+          description: `Everybody here has finished their first ${probationMonths} months.`,
+        }
+      : probation === "exclude"
+        ? {
+            title: filtered ? "Nobody matches" : "Everybody is still on probation",
+            description: "People appear here once their probation ends.",
+          }
+        : {
+            title: filtered ? "Nobody matches" : "Nobody to show",
+            description: filtered
+              ? "Try another name, code or department."
+              : isHr
+                ? "Balances appear here once employees are added."
+                : "People who report to you appear here.",
+          };
+
   return (
     <>
       <DataPanel
@@ -111,12 +151,42 @@ export function TeamBalancesTable({
           </span>
         }
         description={
-          isHr
+          (isHr
             ? "Every current employee, one column per leave type. Open a person for the history behind it."
-            : "Everybody who reports to you, directly or through their manager."
+            : "Everybody who reports to you, directly or through their manager.") +
+          (showProbation
+            ? ` People in their first ${probationMonths} month${
+                probationMonths === 1 ? "" : "s"
+              } are on probation and earn no leave until it ends.`
+            : "")
         }
         toolbar={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex w-full min-w-0 flex-wrap items-center gap-3">
+            {showProbation && (
+              <Tabs
+                className="max-w-full min-w-0"
+                value={probation}
+                onValueChange={(value) => {
+                  setProbation(value as ProbationTab);
+                  setPage(1);
+                }}
+              >
+                {/* On a phone the three choices scroll inside the pill, not the page. */}
+                <TabsList
+                  aria-label="Probation"
+                  className="max-w-full justify-start overflow-x-auto [&>[data-slot=tabs-trigger]]:px-3"
+                >
+                  <TabsTrigger value={EVERYONE}>Everyone</TabsTrigger>
+                  <TabsTrigger value="only">
+                    On probation
+                    <Badge variant="warning" className="tabular-nums">
+                      {probationInfo.count}
+                    </Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="exclude">Past probation</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            )}
             <PredictiveSearch
               aria-label="Search people"
               placeholder="Search by name or code"
@@ -184,15 +254,7 @@ export function TeamBalancesTable({
         error={list.error?.detail}
         onRetry={list.reload}
         isEmpty={rows.length === 0}
-        empty={{
-          icon: Users,
-          title: filtered ? "Nobody matches" : "Nobody to show",
-          description: filtered
-            ? "Try another name, code or department."
-            : isHr
-              ? "Balances appear here once employees are added."
-              : "People who report to you appear here.",
-        }}
+        empty={{ icon: probation === "only" ? Hourglass : Users, ...emptyCopy }}
         footer={
           total > PAGE_SIZE ? (
             <TablePager
@@ -236,32 +298,52 @@ export function TeamBalancesTable({
                   onClick={() => setOpen(row)}
                 >
                   <TableCell className="pl-5">
-                    {/* The row is clickable; the name is the keyboard's way in. */}
-                    <Button
-                      variant="ghost"
-                      className="h-auto max-w-full justify-start p-0 text-left hover:bg-transparent"
-                      aria-label={`${row.employee_name}: balances and history`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setOpen(row);
-                      }}
-                    >
-                      <PersonCell
-                        name={row.employee_name}
-                        photoUrl={row.photo_url}
-                        size="sm"
-                        subtitle={[row.employee_code, row.department_name ?? row.designation]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      />
-                    </Button>
+                    <div className="flex flex-col items-start gap-1">
+                      {/* The row is clickable; the name is the keyboard's way in. */}
+                      <Button
+                        variant="ghost"
+                        className="h-auto max-w-full justify-start p-0 text-left hover:bg-transparent"
+                        aria-label={`${row.employee_name}: balances and history`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setOpen(row);
+                        }}
+                      >
+                        <PersonCell
+                          name={row.employee_name}
+                          photoUrl={row.photo_url}
+                          size="sm"
+                          subtitle={[row.employee_code, row.department_name ?? row.designation]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        />
+                      </Button>
+                      {row.probation_until && (
+                        <Badge
+                          variant="warning"
+                          className="ml-9"
+                          title={
+                            row.date_of_joining
+                              ? `Joined ${formatDay(row.date_of_joining, true)}`
+                              : undefined
+                          }
+                        >
+                          <Hourglass />
+                          On probation · leave from {formatDay(row.probation_until, true)}
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   {columns.map((column, index) => (
                     <TableCell
                       key={column.leave_type_id}
                       className={cn("text-right", index === columns.length - 1 && "pr-5")}
                     >
-                      <BalanceFigure column={column} cell={cells.get(column.leave_type_id)} />
+                      <BalanceFigure
+                        column={column}
+                        cell={cells.get(column.leave_type_id)}
+                        onProbation={Boolean(row.probation_until)}
+                      />
                     </TableCell>
                   ))}
                 </TableRow>
@@ -308,12 +390,25 @@ export function TeamBalancesTable({
 function BalanceFigure({
   column,
   cell,
+  onProbation,
 }: {
   column: TeamBalanceColumn;
   cell: TeamBalanceCell | undefined;
+  onProbation: boolean;
 }) {
   // No policy covers this person for the type and nothing was ever posted.
   if (!cell) return <span className="text-muted-foreground">—</span>;
+
+  // Nothing earned yet because probation holds it back. An HR credit still shows.
+  if (
+    onProbation &&
+    !countsTaken(column) &&
+    isZero(cell.entitled) &&
+    isZero(cell.used) &&
+    isZero(cell.pending)
+  ) {
+    return <span className="text-xs text-muted-foreground">On probation</span>;
+  }
 
   if (countsTaken(column)) {
     return isZero(cell.used) ? (
