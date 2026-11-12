@@ -1,17 +1,17 @@
 "use client";
 
-import { Search, UserPlus, Users } from "lucide-react";
+import { UserPlus, Users } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import React, { Suspense, useEffect, useState } from "react";
 
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { RequireRole } from "@/components/common/RequireRole";
+import { PredictiveSearch, valueSuggestions } from "@/components/common/PredictiveSearch";
 import { CandidateFormDialog } from "@/components/hiring/CandidateFormDialog";
 import { PipelineBoard } from "@/components/hiring/PipelineBoard";
 import { PipelineList } from "@/components/hiring/PipelineList";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -148,17 +148,20 @@ function CandidatesPipeline() {
                 )}
               </SelectContent>
             </Select>
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="search"
-                aria-label="Search candidates"
-                placeholder="Name, email, employer or resume words"
-                className="w-64 pl-8"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </div>
+            <PredictiveSearch
+              aria-label="Search candidates"
+              placeholder="Name, email, employer or resume words"
+              wrapperClassName="w-64"
+              value={search}
+              onValueChange={setSearch}
+              historyKey="hiring-candidates"
+              suggestions={valueSuggestions(candidates, {
+                Name: (row) => row.full_name,
+                Email: (row) => row.email,
+                Requisition: (row) => row.requisition_code,
+                Source: (row) => row.source,
+              })}
+            />
             {(tags.data ?? []).length > 0 && (
               <Select value={tag} onValueChange={setTag}>
                 <SelectTrigger className="w-44" aria-label="Tag">

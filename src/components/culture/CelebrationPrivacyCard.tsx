@@ -24,8 +24,9 @@ import { apiDetail } from "./cultureShared";
 /**
  * Whether *my* birthday and work anniversary appear on the feed.
  *
- * Both are off until the person turns them on: a date of birth is personal
- * data, and a celebration nobody asked for is not a kindness.
+ * Until the person chooses, the workspace default applies (HR sets it under
+ * Culture → Birthdays & anniversaries; out of the box, shared with everyone).
+ * Their own choice always wins over the default.
  */
 export function CelebrationPrivacyCard() {
   const { data, reload } = useApiQuery<EventPrivacy>("/culture/event-privacy");
@@ -71,7 +72,9 @@ export function CelebrationPrivacyCard() {
       <CardContent className="grid gap-3">
         {!values.configured && (
           <p className="text-xs text-muted-foreground">
-            Nothing about you is shared until you switch it on here.
+            {values.share_birthday || values.share_work_anniversary
+              ? "Your company shares these by default. Switch either off here and it stays off."
+              : "Nothing about you is shared until you switch it on here."}
           </p>
         )}
         <div className="flex items-center justify-between gap-3">

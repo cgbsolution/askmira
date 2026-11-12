@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 
+import { PredictiveSearch, peopleSuggestions } from "@/components/common/PredictiveSearch";
 import { apiMessage } from "@/components/payroll/labels";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -53,12 +53,15 @@ export function EmployeePicker({
 
   return (
     <div className="grid gap-2">
-      <Input
+      <PredictiveSearch
         id={`${id}-search`}
         placeholder="Search by name or code"
         value={search}
-        onChange={(event) => setSearch(event.target.value)}
+        onValueChange={setSearch}
         aria-label="Search employees"
+        // The people found, to pick straight from the box.
+        suggestions={() => peopleSuggestions(people.slice(0, 8), (person) => onChange(person.id, person))}
+        onPick={() => setSearch("")}
       />
       <Select
         value={value}

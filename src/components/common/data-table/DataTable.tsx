@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  type ColumnFiltersState,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
@@ -20,12 +21,13 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 import type { LucideIcon } from "lucide-react";
-import { ArrowDown, ArrowUp, ChevronsUpDown, Download, Loader2, Search, Settings2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronsUpDown, Download, Loader2, Settings2, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/common/EmptyState";
 import { ErrorState } from "@/components/common/ErrorState";
-import { IconInput } from "@/components/common/IconInput";
+import { PredictiveSearch, rankSuggestions, suggestableText, type Suggestion } from "@/components/common/PredictiveSearch";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,6 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -70,6 +73,17 @@ declare module "@tanstack/react-table" {
      * exported. `false` leaves the column out of both.
      */
     text?: ((row: TData) => string | number | null | undefined) | false;
+    /**
+     * A filter dropdown of the values this column holds. On by itself for a
+     * column named like Status, Type, Department or Project in a list with no
+     * filters of its own; `true` asks for it anywhere, `false` never.
+     */
+    filter?: boolean;
+    /**
+     * What the filter reads, where the column's text holds more than the value
+     * to narrow by ("Late · 10:32" filters as "Late"). Defaults to `text`.
+     */
+    filterBy?: (row: TData) => string | null | undefined;
   }
 }
 
@@ -148,6 +162,12 @@ export type DataTableProps<TData, TValue> = {
    * toolbar instead of wrapping onto a line of its own.
    */
   searchFirst?: boolean;
+  /**
+   * More lines for the search box's drop-down, from the server (people the
+   * API finds, say). The box always offers the matching values in the rows it
+   * has, each with its column's name.
+   */
+  searchSuggestions?: (term: string) => Promise<readonly Suggestion[]>;
   /** Row checkboxes. On for lists. */
   selectable?: boolean;
   /** Actions on the ticked rows, in the bar that appears once any are ticked. */
@@ -180,6 +200,27 @@ const SELECT_COLUMN = "__select";
  * outranked that class, so the dropdowns stood taller than the row beside them.
  */
 const TOOLBAR_SELECTS = "[&_[data-slot=select-trigger][data-size=default]]:h-9";
+
+/**
+ * Columns that get a filter dropdown by themselves (in a list with no filters
+ * of its own): the ones a person narrows a list by.
+ */
+const FILTER_COLUMN =
+  /\b(status|state|type|stage|category|department|location|project|company|entity|priority|severity|structure|mode|source|role|level|grade|kind|channel|outcome|result|frequency|scope|tier|method|basis|cycle|shift|team|month|period|year|tag)(e?s)?\b/i;
+/** A dropdown longer than this is no help: the search does that job. */
+const MAX_FILTER_VALUES = 30;
+
+/** A column's filter dropdown: its name and each value its rows hold, with a count. */
+type ColumnFilterOption = { id: string; label: string; values: { value: string; count: number }[] };
+const ANY = "__any__";
+
+/** "on_notice" reads "On notice" in a filter; real words are left alone. */
+function filterLabel(value: string): string {
+  if (!/^[a-z0-9]+(_[a-z0-9]+)*$/.test(value)) return value;
+  const words = value.replaceAll("_", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 const INTERACTIVE = "button, a, input, select, textarea, label, [role=checkbox], [role=menuitem], [role=switch], [role=combobox]";
 
 function defaultRowId<TData>(row: TData, index: number): string {
@@ -212,6 +253,16 @@ function originalText<TData>(
   if (typeof value === "string" || typeof value === "number") return value;
   if (typeof value === "boolean") return value ? "Yes" : "No";
   return undefined;
+}
+
+/** What a column filter compares: `meta.filterBy`, else the column's text. */
+function filterText<TData>(
+  original: TData,
+  index: number,
+  column: Column<TData, unknown>,
+): string | number | null | undefined {
+  const by = column.columnDef.meta?.filterBy;
+  return by ? by(original) : originalText(original, index, column);
 }
 
 /**
@@ -296,6 +347,7 @@ export function DataTable<TData, TValue>({
   search: externalSearch,
   onSearchChange,
   searchFirst = false,
+  searchSuggestions,
   selectable: selectableProp = true,
   bulkActions,
   exportName,
@@ -363,14 +415,35 @@ export function DataTable<TData, TValue>({
     setPagination((previous) => ({ ...previous, pageIndex: 0 }));
   };
 
+  // The column filters (Status: Approved…): the row's text in that column, as
+  // the search and the CSV read it, must be the value picked.
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const columnFilterFn = useMemo<FilterFn<TData>>(
+    () => (row, columnId, wanted: string) => {
+      const column = row.getAllCells().find((cell) => cell.column.id === columnId)?.column;
+      const value = column ? filterText(row.original, row.index, column as Column<TData, unknown>) : undefined;
+      return value !== null && value !== undefined && String(value).trim() === wanted;
+    },
+    [],
+  );
+  const changeColumnFilter = (columnId: string, value: string) => {
+    setColumnFilters((previous) => [
+      ...previous.filter((entry) => entry.id !== columnId),
+      ...(value === ANY ? [] : [{ id: columnId, value }]),
+    ]);
+    setPagination((previous) => ({ ...previous, pageIndex: 0 }));
+  };
+
   const table = useReactTable({
     data,
     columns: allColumns,
     getRowId,
+    defaultColumn: { filterFn: columnFilterFn },
     state: {
       sorting,
       columnVisibility,
       rowSelection,
+      columnFilters: server ? [] : columnFilters,
       globalFilter: server || onSearchChange ? undefined : globalFilter,
       pagination: server
         ? { pageIndex: Math.max(0, server.page - 1), pageSize: server.pageSize }
@@ -393,7 +466,8 @@ export function DataTable<TData, TValue>({
       (Boolean(column.accessorFn) || Boolean(column.columnDef.meta?.text)),
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: server || onSearchChange ? undefined : getFilteredRowModel(),
+    // Column filters apply even where the screen runs the search itself.
+    getFilteredRowModel: server ? undefined : getFilteredRowModel(),
     getPaginationRowModel: server || !paginate ? undefined : getPaginationRowModel(),
     manualPagination: Boolean(server) || !paginate,
     // Editing a row changes `data`; that must not throw the reader back to page one.
@@ -439,7 +513,9 @@ export function DataTable<TData, TValue>({
   const pageSize = server ? server.pageSize : pagination.pageSize;
   const visibleRows = table.getRowModel().rows;
   const leafCount = table.getVisibleLeafColumns().length;
-  const searching = onSearchChange ? Boolean(externalSearch?.trim()) : Boolean(globalFilter.trim());
+  const searching =
+    (onSearchChange ? Boolean(externalSearch?.trim()) : Boolean(globalFilter.trim())) ||
+    (!server && columnFilters.length > 0);
   const hideable = table
     .getAllLeafColumns()
     .filter((column) => column.getCanHide() && columnLabel(column as Column<TData, unknown>));
@@ -450,7 +526,14 @@ export function DataTable<TData, TValue>({
     if (onExport) {
       setExporting(true);
       try {
-        await onExport(selectedCount > 0 ? selectedOriginals : null);
+        // Nothing ticked but the column filters narrow the list: the rows they leave.
+        await onExport(
+          selectedCount > 0
+            ? selectedOriginals
+            : !server && columnFilters.length > 0
+              ? filteredRows.map((row) => row.original)
+              : null,
+        );
       } finally {
         setExporting(false);
       }
@@ -505,14 +588,127 @@ export function DataTable<TData, TValue>({
 
   const showSearch = !plain && searchPlaceholder !== false && (!server || Boolean(onSearchChange));
   const searchValue = onSearchChange ? (externalSearch ?? "") : globalFilter;
+
+  // What the search box offers as you type: each distinct value in a column
+  // the search reads, labelled with that column. Worked out once per set of
+  // rows, and only once something is typed.
+  const pathname = usePathname();
+  const candidateCache = useRef<{ data: TData[]; lines: Suggestion[] } | null>(null);
+  const searchCandidates = (): Suggestion[] => {
+    if (candidateCache.current?.data === data) return candidateCache.current.lines;
+    const searchable = table
+      .getAllLeafColumns()
+      .filter(
+        (column) =>
+          column.id !== SELECT_COLUMN &&
+          column.columnDef.meta?.text !== false &&
+          (Boolean(column.accessorFn) || Boolean(column.columnDef.meta?.text)),
+      ) as Column<TData, unknown>[];
+    const seen = new Map<string, Suggestion>();
+    for (const column of searchable) {
+      const hint = columnLabel(column) ?? undefined;
+      data.forEach((original, index) => {
+        if (seen.size >= 5000) return;
+        // Dashes, single letters and paragraphs are not things anybody types.
+        const label = suggestableText(originalText(original, index, column));
+        if (!label) return;
+        const key = label.toLowerCase();
+        if (!seen.has(key)) seen.set(key, { id: `${column.id}:${key}`, label, hint });
+      });
+    }
+    const lines = [...seen.values()];
+    candidateCache.current = { data, lines };
+    return lines;
+  };
+
+  // The column filters this list offers, each with the values its rows hold
+  // and how many hold each. Not for a server-paged list: one page's values
+  // would pretend to be the whole list's (those screens pass `filters`).
+  const filterCache = useRef<{ data: TData[]; key: string; columns: ColumnFilterOption[] } | null>(null);
+  const filterOptions = (): ColumnFilterOption[] => {
+    if (plain || server) return [];
+    const candidates = table.getAllLeafColumns().filter((column) => {
+      const meta = column.columnDef.meta;
+      if (column.id === SELECT_COLUMN || meta?.filter === false || meta?.text === false) return false;
+      if (!column.accessorFn && !meta?.text) return false;
+      if (meta?.filter === true) return true;
+      // A screen with filters of its own chose them; only a column that asks is added.
+      const label = columnLabel(column as Column<TData, unknown>);
+      return !filters && label !== null && FILTER_COLUMN.test(label);
+    }) as Column<TData, unknown>[];
+    const key = candidates.map((column) => column.id).join("|");
+    if (filterCache.current?.data === data && filterCache.current.key === key) return filterCache.current.columns;
+    const columns: ColumnFilterOption[] = [];
+    for (const column of candidates) {
+      const counts = new Map<string, number>();
+      data.forEach((original, index) => {
+        const text = filterText(original, index, column);
+        if (text === null || text === undefined) return;
+        const value = String(text).trim();
+        if (!value || value === "—" || value === "-") return;
+        counts.set(value, (counts.get(value) ?? 0) + 1);
+      });
+      // One value narrows nothing; dozens are what the search is for.
+      if (counts.size < 2 || counts.size > MAX_FILTER_VALUES) continue;
+      columns.push({
+        id: column.id,
+        label: columnLabel(column) ?? column.id,
+        values: [...counts.entries()]
+          .map(([value, count]) => ({ value, count }))
+          .sort((a, b) => a.value.localeCompare(b.value, undefined, { numeric: true })),
+      });
+    }
+    filterCache.current = { data, key, columns };
+    return columns;
+  };
+  const columnFilterOptions = filterOptions();
+  const columnFilterBox =
+    columnFilterOptions.length > 0 ? (
+      <>
+        {columnFilterOptions.map((option) => {
+          const current = columnFilters.find((entry) => entry.id === option.id)?.value as string | undefined;
+          return (
+            <Select key={option.id} value={current ?? ANY} onValueChange={(value) => changeColumnFilter(option.id, value)}>
+              <SelectTrigger aria-label={`Filter by ${option.label}`} className="h-9 w-auto min-w-36 max-w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ANY}>
+                  <Tr text={`Any ${option.label.toLowerCase()}`} />
+                </SelectItem>
+                {option.values.map(({ value, count }) => (
+                  <SelectItem key={value} value={value}>
+                    {filterLabel(value)} <span className="text-muted-foreground tabular-nums">({count})</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          );
+        })}
+        {columnFilters.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 text-muted-foreground"
+            onClick={() => {
+              setColumnFilters([]);
+              setPagination((previous) => ({ ...previous, pageIndex: 0 }));
+            }}
+          >
+            <X /> <Tr text="Clear filters" />
+          </Button>
+        )}
+      </>
+    ) : null;
+
   const searchBox = showSearch ? (
     <div className="w-full sm:w-64">
-      <IconInput
-        icon={Search}
+      <PredictiveSearch
         value={searchValue}
-        onChange={(event) =>
-          onSearchChange ? onSearchChange(event.target.value) : changeGlobalFilter(event.target.value)
-        }
+        onValueChange={(next) => (onSearchChange ? onSearchChange(next) : changeGlobalFilter(next))}
+        suggestions={(term) => rankSuggestions(searchCandidates(), term, 8)}
+        loadSuggestions={searchSuggestions}
+        historyKey={`table:${pathname}:${noun}`}
         placeholder={searchPlaceholder || undefined}
         aria-label={searchPlaceholder || "Search"}
         className="h-9"
@@ -759,7 +955,7 @@ export function DataTable<TData, TValue>({
   ) : null;
 
   if (card) {
-    const hasTools = Boolean(filters || searchBox || tools || actions);
+    const hasTools = Boolean(filters || columnFilterBox || searchBox || tools || actions);
     return (
       <Card data-slot="data-table" tier={tier} className={cn("gap-0 overflow-hidden py-0", className)}>
         {/* Title at the left, tools at the right; tools that do not fit beside the
@@ -773,6 +969,7 @@ export function DataTable<TData, TValue>({
             <div className={cn("flex max-w-full flex-wrap items-center justify-end gap-2", TOOLBAR_SELECTS)}>
               {searchFirst && searchBox}
               {filters}
+              {columnFilterBox}
               {!searchFirst && searchBox}
               {tools}
               {actions}
@@ -786,7 +983,7 @@ export function DataTable<TData, TValue>({
     );
   }
 
-  const hasToolbar = Boolean(filters || searchBox || tools || actions);
+  const hasToolbar = Boolean(filters || columnFilterBox || searchBox || tools || actions);
   return (
     <div
       data-slot="data-table"
@@ -800,6 +997,7 @@ export function DataTable<TData, TValue>({
         <div className={cn("flex flex-wrap items-center gap-2 border-b border-border py-3", TOOLBAR_SELECTS, edge)}>
           {searchFirst && searchBox}
           {filters}
+          {columnFilterBox}
           {!searchFirst && searchBox}
           <div className="ml-auto flex flex-wrap items-center gap-2">
             {tools}

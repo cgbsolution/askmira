@@ -1,11 +1,11 @@
 "use client";
 
-import { Loader2, Search } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 import { ErrorState } from "@/components/common/ErrorState";
+import { PredictiveSearch, peopleSuggestions } from "@/components/common/PredictiveSearch";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -323,20 +323,22 @@ export function EmployeePicker({
     <div className="grid gap-3 sm:grid-cols-2">
       <div className="grid gap-1.5">
         <Label htmlFor="employee-search">Search employees</Label>
-        <div className="relative">
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            id="employee-search"
-            className="pl-8"
-            value={search}
-            maxLength={100}
-            placeholder="Name or employee code"
-            onChange={(event) => setSearch(event.target.value)}
-          />
-          {isLoading && (
-            <Loader2 className="absolute top-1/2 right-2.5 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
-          )}
-        </div>
+        <PredictiveSearch
+          id="employee-search"
+          value={search}
+          maxLength={100}
+          placeholder="Name or employee code"
+          onValueChange={setSearch}
+          historyKey="attendance-employee"
+          // The people the search found, ready to pick without opening the list beside it.
+          suggestions={() => peopleSuggestions(results.slice(0, 8), onChange)}
+          onPick={() => setSearch("")}
+          trailing={
+            isLoading ? (
+              <Loader2 className="absolute top-1/2 right-2.5 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+            ) : undefined
+          }
+        />
         {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
       <div className="grid gap-1.5">

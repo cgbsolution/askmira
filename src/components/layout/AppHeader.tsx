@@ -10,17 +10,18 @@ import {
   LayoutGrid,
   LogOut,
   Moon,
-  Search,
   ShieldCheck,
   Sun,
   UserCircle2,
+  UserRound,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AskMiraMark } from "@/components/brand/AskMiraLogo";
 import { CompanyMark } from "@/components/brand/CompanyLogo";
+import { PredictiveSearch, rankSuggestions, type Suggestion } from "@/components/common/PredictiveSearch";
 import { HelpButton } from "@/components/help/HelpPanel";
 import { useConnectorRail } from "@/components/layout/ConnectorSidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -37,21 +38,25 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import { HR } from "@/lib/access";
+import { useProductRoles } from "@/hooks/useProductRoles";
+import { HR, NAV, railEntry, type RailEntry } from "@/lib/access";
+import { get } from "@/lib/api";
 import { LOCALES, useLocale, useT } from "@/lib/i18n";
+import type { EmployeeSummary, Page } from "@/lib/types";
 import { cn, humanizeRole, initials } from "@/lib/utils";
 
 /**
  * Top bar: navigation toggle, people search, help for the page, theme,
  * notifications, account.
  *
- * Search goes to the directory with the term applied — the one search the
- * product can answer truthfully today. The bell links to the inbox; the unread
- * count is shown by the notifications work, not guessed here.
+ * Search predicts as you type: the pages this person can open (by name, or
+ * by their section's) and the people the directory would show them. Picking
+ * one opens it; Enter goes to the directory with the words applied. The bell
+ * links to the inbox; the unread count is shown by the notifications work,
+ * not guessed here.
  */
 export function AppHeader() {
   const t = useT();
@@ -59,11 +64,69 @@ export function AppHeader() {
   const quickAccess = useConnectorRail();
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
-  const { tenant, company, hasRole } = useAuth();
+  const { user, tenant, company, hasRole } = useAuth();
+  const productRoles = useProductRoles();
   // Outside HR the directory is the person's own team, so that is what this searches.
   const searchesCompany = hasRole(...HR);
   const [term, setTerm] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Every page the menu would show this person, each once.
+  const pages = useMemo<Suggestion[]>(() => {
+    const seen = new Set<string>();
+    const lines: Suggestion[] = [];
+    for (const entry of NAV.map((section) => railEntry(section, user, tenant, productRoles)).filter(
+      (found): found is RailEntry => found !== null,
+    )) {
+      for (const page of entry.pages) {
+        if (seen.has(page.path)) continue;
+        seen.add(page.path);
+        const name = t(page.name);
+        const section = t(entry.section.name);
+        lines.push({
+          id: `page:${page.path}`,
+          label: name,
+          description: name === section ? undefined : section,
+          keywords: `${section} ${page.path.replaceAll("/", " ").replaceAll("-", " ")}`,
+          group: t("Pages"),
+          icon: page.icon ?? entry.section.icon,
+          onSelect: () => router.push(page.path),
+        });
+      }
+    }
+    return lines;
+  }, [user, tenant, productRoles, router, t]);
+
+  // The people the directory would show: everyone for HR, their own circle for anybody else.
+  const findPeople = useCallback(
+    async (query: string): Promise<Suggestion[]> => {
+      const params = new URLSearchParams({ search: query, page_size: "20" });
+      const found = await get<Page<EmployeeSummary>>(`/employees?${params}`);
+      const lines = found.items.map((person) => {
+        const name =
+          person.display_name || [person.first_name, person.last_name].filter(Boolean).join(" ") || person.work_email;
+        return {
+          id: `person:${person.id}`,
+          label: name,
+          description: [person.designation, person.work_email].filter(Boolean).join(" · ") || undefined,
+          hint: person.employee_code,
+          keywords: [person.employee_code, person.work_email, person.designation].filter(Boolean).join(" "),
+          group: t("People"),
+          leading: (
+            <Avatar className="size-7">
+              <AvatarFallback className="bg-brand-100 text-[11px] font-semibold text-brand-600 dark:bg-brand-800 dark:text-brand-100">
+                {initials(name) || <UserRound className="size-3.5" />}
+              </AvatarFallback>
+            </Avatar>
+          ),
+          onSelect: () => router.push(`/people/${person.id}`),
+        };
+      });
+      // The server finds the words anywhere; names that start with them come first.
+      return rankSuggestions(lines, query, 6);
+    },
+    [router, t],
+  );
   // Resolved after mount: the platform is the viewer's, and guessing it during
   // server rendering would hand the client a different string to hydrate.
   const [shortcut, setShortcut] = useState("Ctrl K");
@@ -109,30 +172,42 @@ export function AppHeader() {
       <form
         role="search"
         className="relative hidden w-full max-w-[430px] sm:block"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const query = term.trim();
-          router.push(query ? `/people?search=${encodeURIComponent(query)}` : "/people");
-          // The directory's own search box takes the words from here, where they
-          // can be refined; kept here too, the two boxes would drift apart.
-          setTerm("");
-          searchRef.current?.blur();
-        }}
+        onSubmit={(event) => event.preventDefault()}
       >
-        <Search className="pointer-events-none absolute top-1/2 left-4 size-[18px] -translate-y-1/2 text-muted-foreground" />
-        <Input
+        <PredictiveSearch
           ref={searchRef}
-          type="search"
           value={term}
+          onValueChange={setTerm}
           maxLength={100}
-          onChange={(event) => setTerm(event.target.value)}
-          placeholder={searchesCompany ? "Search people by name, code or email" : "Search your team by name or code"}
+          suggestions={(query) => rankSuggestions(pages, query, 5, { wordStart: true })}
+          loadSuggestions={findPeople}
+          historyKey="header"
+          emptyText={t("No page or person matches. Press Enter to search the directory.")}
+          submitLabel={(query) => `${t("Search the directory for")} “${query}”`}
+          onSubmit={(query) => {
+            router.push(query ? `/people?search=${encodeURIComponent(query)}` : "/people");
+            // The directory's own search box takes the words from here, where they
+            // can be refined; kept here too, the two boxes would drift apart.
+            setTerm("");
+            searchRef.current?.blur();
+          }}
+          onPick={() => {
+            setTerm("");
+            searchRef.current?.blur();
+          }}
+          placeholder={
+            searchesCompany ? "Search pages and people by name, code or email" : "Search pages and your team"
+          }
+          aria-label={t("Search pages and people")}
           className="rounded-xl pr-16 pl-12 shadow-sm"
-          aria-label={t("Search people")}
+          iconClassName="left-4"
+          listClassName="w-[max(var(--radix-popover-trigger-width),22rem)]"
+          trailing={
+            <kbd className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded-lg border border-border bg-muted px-1.5 py-1 font-sans text-xs font-medium text-muted-foreground">
+              {shortcut}
+            </kbd>
+          }
         />
-        <kbd className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 rounded-lg border border-border bg-muted px-1.5 py-1 font-sans text-xs font-medium text-muted-foreground">
-          {shortcut}
-        </kbd>
       </form>
 
       <div className="ml-auto flex items-center gap-1 sm:gap-3">

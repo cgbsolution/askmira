@@ -1,7 +1,13 @@
 "use client";
 
 import { ReceivedEquipmentPanel } from "@/components/assets/ReceivedEquipmentPanel";
-import { ChevronLeft, ChevronRight, ExternalLink, RefreshCw, Search } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  RefreshCw,
+  Search,
+} from "lucide-react";
 import Link from "next/link";
 import React, { useMemo, useState } from "react";
 
@@ -9,12 +15,12 @@ import { DatePicker } from "@/components/common/DatePicker";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
+import { PredictiveSearch, valueSuggestions } from "@/components/common/PredictiveSearch";
 import { CompanionCardView } from "@/components/companion/CompanionCards";
 import type { CompanionCard } from "@/components/companion/types";
 import { RaiseHelpdeskTicketDialog } from "@/components/products/helpdesk/RaiseHelpdeskTicketDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
@@ -328,11 +334,24 @@ export function LinkedProductView({ product, view }: { product: string; view: st
                   }}
                 >
                   <FormField label="Search" htmlFor="linked-search" className="min-w-48 flex-1">
-                    <Input
+                    <PredictiveSearch
                       id="linked-search"
                       value={search}
                       placeholder={config.search}
-                      onChange={(event) => setSearch(event.target.value)}
+                      onValueChange={setSearch}
+                      historyKey={`linked-${product}-${view}`}
+                      // Values in the rows on screen; picking one searches for it at once.
+                      suggestions={(data?.cards ?? []).flatMap((card) =>
+                        card.type === "table"
+                          ? card.columns.flatMap((column, index) =>
+                              valueSuggestions(card.rows, {
+                                [column]: (row) => (typeof row[index] === "string" ? (row[index] as string) : null),
+                              }),
+                            )
+                          : [],
+                      )}
+                      onPick={(line) => setApplied((line.value ?? line.label).trim())}
+                      onSubmit={(term) => setApplied(term)}
                     />
                   </FormField>
                   <Button type="submit" variant="outline">

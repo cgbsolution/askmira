@@ -42,11 +42,15 @@ export function LetterPages({
     (async () => {
       for (let page = 1; page <= count; page += 1) {
         try {
-          const { blob } = await fetchFile(pagePath(page), { skipAuthRedirect: publicPage });
+          const { blob } = await fetchFile(pagePath(page), {
+            skipAuthRedirect: publicPage,
+          });
           if (cancelled) return;
           const url = URL.createObjectURL(blob);
           made.push(url);
-          setUrls((current) => current.map((value, index) => (index === page - 1 ? url : value)));
+          setUrls((current) =>
+            current.map((value, index) => (index === page - 1 ? url : value)),
+          );
         } catch {
           if (!cancelled) setFailed(true);
           return;
@@ -88,12 +92,16 @@ export function LetterPages({
             className="mx-auto w-full max-w-[800px] rounded-sm bg-white shadow-sm ring-1 ring-border"
           />
         ) : (
-          <Skeleton key={`page-${index}`} className="mx-auto aspect-[1/1.414] w-full max-w-[800px]" />
+          <Skeleton
+            key={`page-${index}`}
+            className="mx-auto aspect-[1/1.414] w-full max-w-[800px]"
+          />
         ),
       )}
       {failed ? (
         <p className="text-center text-sm text-muted-foreground">
-          Some pages could not be shown. Download the PDF to read the whole letter.
+          Some pages could not be shown. Download the PDF to read the whole
+          letter.
         </p>
       ) : null}
     </div>

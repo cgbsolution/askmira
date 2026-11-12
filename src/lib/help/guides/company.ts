@@ -61,12 +61,15 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
         ],
       },
     ],
-    tips: ["What you see on a profile depends on your role; personal details are for HR and the person."],
+    tips: [
+      "What you see on a profile depends on your role; personal details are for HR and the person.",
+    ],
     related: [{ label: "Org chart", href: "/people/org-chart" }],
   },
 
   "/people/[id]": {
-    summary: "One person's record: profile, employment, compensation, documents, leave, attendance and history.",
+    summary:
+      "One person's record: profile, employment, compensation, documents, leave, attendance and history.",
     tasks: [
       {
         title: "Edit someone's record",
@@ -104,7 +107,8 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/onboarding/new": {
-    summary: "Add people: one at a time with a short form, or many at once from Excel.",
+    summary:
+      "Add people: one at a time with a short form, or many at once from Excel.",
     tasks: [
       {
         title: "Add one person",
@@ -157,13 +161,16 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       {
         title: "See positions and vacancies",
         roles: [...MANAGERS],
-        steps: ["Open Positions & vacant seats to see every approved seat, filled or empty."],
+        steps: [
+          "Open Positions & vacant seats to see every approved seat, filled or empty.",
+        ],
       },
     ],
   },
 
   "/people/positions": {
-    summary: "Approved seats, who holds them, what is vacant, and what the headcount budget allows.",
+    summary:
+      "Approved seats, who holds them, what is vacant, and what the headcount budget allows.",
     tasks: [
       {
         title: "Review vacancies and budget",
@@ -180,7 +187,9 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
         ],
       },
     ],
-    tips: ["New position adds an approved seat; each seat has actions to edit or close it."],
+    tips: [
+      "New position adds an approved seat; each seat has actions to edit or close it.",
+    ],
   },
 
   "/people/lifecycle": {
@@ -196,17 +205,22 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       },
       {
         title: "Make the same change for many people",
-        steps: ["Open Batches and press New batch, add the people and the change, then submit it."],
+        steps: [
+          "Open Batches and press New batch, add the people and the change, then submit it.",
+        ],
       },
       {
         title: "Handle probation",
-        steps: ["Open the Probation tab for reviews that are due; set the policy and Send due reminders."],
+        steps: [
+          "Open the Probation tab for reviews that are due; set the policy and Send due reminders.",
+        ],
       },
     ],
   },
 
   "/people/exits": {
-    summary: "Resignations, clearance and last working days, and why people leave.",
+    summary:
+      "Resignations, clearance and last working days, and why people leave.",
     tasks: [
       {
         title: "Start an exit",
@@ -218,12 +232,16 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       },
       {
         title: "Decide a resignation from your team",
-        steps: ["Open the exit, agree the last working day or suggest another, and approve."],
+        steps: [
+          "Open the exit, agree the last working day or suggest another, and approve.",
+        ],
       },
       {
         title: "Set up the exit checklist",
         roles: [...HR],
-        steps: ["Open Checklist setup, press Add item, choose who signs it off and whether it is mandatory."],
+        steps: [
+          "Open Checklist setup, press Add item, choose who signs it off and whether it is mandatory.",
+        ],
       },
     ],
     tips: [
@@ -247,7 +265,8 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/people/change-requests": {
-    summary: "Changes employees asked for to their IDs, bank account, address, nominees and legal name.",
+    summary:
+      "Changes employees asked for to their IDs, bank account, address, nominees and legal name.",
     tasks: [
       {
         title: "Approve or reject a change",
@@ -271,7 +290,9 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       },
       {
         title: "Share your birthday or work anniversary",
-        steps: ["Tick “Share my birthday” or “Share my work anniversary” so the company can celebrate it."],
+        steps: [
+          "Tick “Share my birthday” or “Share my work anniversary” so the company can celebrate it.",
+        ],
       },
     ],
     tips: ["React to a shoutout with an emoji to show you agree."],
@@ -279,7 +300,8 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/culture/clubs": {
-    summary: "Groups people start around what they care about outside the job description.",
+    summary:
+      "Groups people start around what they care about outside the job description.",
     tasks: [
       {
         title: "Join or start a club",
@@ -290,13 +312,16 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       },
       {
         title: "Post in a club",
-        steps: ["Open a club you belong to and post in it. Members shows who is in; Leave takes you out."],
+        steps: [
+          "Open a club you belong to and post in it. Members shows who is in; Leave takes you out.",
+        ],
       },
     ],
   },
 
   "/culture/awards": {
-    summary: "Nominate people for work that deserves more than a thank-you, and see who won.",
+    summary:
+      "Nominate people for work that deserves more than a thank-you, and see who won.",
     tasks: [
       {
         title: "Nominate someone",
@@ -321,11 +346,14 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/culture/surveys": {
-    summary: "Say how it really is. Your answers cannot be connected to you, not by your manager and not by HR.",
+    summary:
+      "Say how it really is. Your answers cannot be connected to you, not by your manager and not by HR.",
     tasks: [
       {
         title: "Answer a survey",
-        steps: ["Open My surveys and press Answer on a survey, then submit; Results shows a closed survey's results."],
+        steps: [
+          "Open My surveys and press Answer on a survey, then submit; Results shows a closed survey's results.",
+        ],
       },
       {
         title: "Create and close a survey",
@@ -339,10 +367,14 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       {
         title: "Act on results",
         roles: [...MANAGERS],
-        steps: ["Open Action plans and press New plan for a theme, with an owner and due date."],
+        steps: [
+          "Open Action plans and press New plan for a theme, with an owner and due date.",
+        ],
       },
     ],
-    tips: ["Results for any group smaller than the reporting threshold are never shown to anyone."],
+    tips: [
+      "Results for any group smaller than the reporting threshold are never shown to anyone.",
+    ],
   },
 
   "/culture/announcements": {
@@ -350,7 +382,9 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
     tasks: [
       {
         title: "Read and acknowledge",
-        steps: ["Open For me; press I have read this on announcements that ask for it."],
+        steps: [
+          "Open For me; press I have read this on announcements that ask for it.",
+        ],
       },
       {
         title: "Publish an announcement",
@@ -382,25 +416,71 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/culture/admin": {
-    summary: "Company values, whether they are lived, and whether survey feedback was acted on.",
+    summary:
+      "Company values, whether they are lived, and whether survey feedback was acted on.",
     tasks: [
       {
         title: "Define company values",
-        steps: ["Open the Values tab, add each value with a short description, and keep it Active."],
-      },
-      {
-        title: "Set up work anniversary messages",
         steps: [
-          "Open Work anniversaries and add the years to mark.",
-          "Write the message; {name}, {years} and {company} are filled in. Save.",
+          "Open the Values tab, add each value with a short description, and keep it Active.",
         ],
       },
     ],
-    tips: ["Values in practice shows how often each value is tagged in shoutouts."],
+    tips: [
+      "Values in practice shows how often each value is tagged in shoutouts.",
+      "Birthday and anniversary cards are under Culture → Birthdays & anniversaries.",
+    ],
+  },
+
+  "/culture/celebrations": {
+    summary:
+      "Every morning, everybody with a birthday or work anniversary gets a card by email and on the company feed.",
+    tasks: [
+      {
+        title: "Change the card's design",
+        steps: [
+          "On Cards, press New template under Birthday cards or Work anniversary cards.",
+          "Pick a starting design and name it, then press Add and edit.",
+          "Change the layout, pattern, colours and wording; the preview on the right is the picture that goes out.",
+          "Use the placeholder buttons to add {first_name}, {years_ordinal} and the rest to the message. Save card.",
+        ],
+      },
+      {
+        title: "Choose which card is used",
+        steps: [
+          "Under the card, press Use this card. One card per occasion is in use; it shows In use.",
+        ],
+      },
+      {
+        title: "See the email before anyone else does",
+        steps: [
+          "In the card editor, press Send me a test email. It goes to your own login email.",
+        ],
+      },
+      {
+        title: "Decide who sees birthdays and anniversaries",
+        steps: [
+          "Open Settings. Share by default is on: everyone's birthday and anniversary are shown to the whole workspace.",
+          "Choose whether birthdays go to everyone or only the person's department. Save.",
+        ],
+      },
+      {
+        title: "Add points or a special message for milestone years",
+        steps: [
+          "Open Milestone rewards, add the years (1, 5, 10…), a message and points. Save.",
+        ],
+      },
+    ],
+    tips: [
+      "Anybody can switch their own birthday or anniversary off under My celebrations on the feed; that choice beats the default.",
+      "The emailed card always shows the person's photo. On the feed it shows only if they let colleagues see their photo.",
+      "The email wording (subject and text around the card) can be edited under Settings → Notifications.",
+    ],
   },
 
   "/rewards": {
-    summary: "Your reward points: what you were given, what they are worth, and when they expire.",
+    summary:
+      "Your reward points: what you were given, what they are worth, and when they expire.",
     tasks: [
       {
         title: "Redeem points",
@@ -412,14 +492,19 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       {
         title: "Award points to someone",
         roles: [...MANAGERS],
-        steps: ["Press Award points, choose the person and the points, and say why."],
+        steps: [
+          "Press Award points, choose the person and the points, and say why.",
+        ],
       },
     ],
-    tips: ["Expiring soon shows points that will lapse if you do not use them."],
+    tips: [
+      "Expiring soon shows points that will lapse if you do not use them.",
+    ],
   },
 
   "/rewards/admin": {
-    summary: "The points liability, budgets, catalogue, redemptions, valuation, tax treatment and partner reconciliation.",
+    summary:
+      "The points liability, budgets, catalogue, redemptions, valuation, tax treatment and partner reconciliation.",
     tasks: [
       {
         title: "Set budgets and the point value",
@@ -430,7 +515,9 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       },
       {
         title: "Fulfil redemptions",
-        steps: ["Open Redemptions and mark each one fulfilled or rejected. Add catalogue items under Catalogue with Add an item."],
+        steps: [
+          "Open Redemptions and mark each one fulfilled or rejected. Add catalogue items under Catalogue with Add an item.",
+        ],
       },
     ],
     tips: ["Employee ledger shows every award and redemption per person."],
@@ -449,14 +536,17 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       },
       {
         title: "Acknowledge your review",
-        steps: ["When your manager shares the review, read it and press Acknowledge, or Send back with a note."],
+        steps: [
+          "When your manager shares the review, read it and press Acknowledge, or Send back with a note.",
+        ],
       },
     ],
     related: [{ label: "Goals", href: "/performance/goals" }],
   },
 
   "/performance/goals": {
-    summary: "Objectives with measurable key results. Their progress is the goal score in your review.",
+    summary:
+      "Objectives with measurable key results. Their progress is the goal score in your review.",
     tasks: [
       {
         title: "Add a goal",
@@ -467,60 +557,80 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       },
       {
         title: "Check in on progress",
-        steps: ["Press Check in on a goal, update the key results, and add a note. Show progress history lists earlier check-ins; Complete closes the goal."],
+        steps: [
+          "Press Check in on a goal, update the key results, and add a note. Show progress history lists earlier check-ins; Complete closes the goal.",
+        ],
       },
     ],
     tips: ["My team and Company tabs show the goals your role can see."],
   },
 
   "/performance/one-on-ones": {
-    summary: "Regular conversations between you and your manager or your reports.",
+    summary:
+      "Regular conversations between you and your manager or your reports.",
     tasks: [
       {
         title: "Schedule a 1:1",
-        steps: ["Press Schedule a 1:1, choose the person, date and agenda, and save."],
+        steps: [
+          "Press Schedule a 1:1, choose the person, date and agenda, and save.",
+        ],
       },
       {
         title: "Record a 1:1",
-        steps: ["Open it, add notes and action items, and press Mark as held. Reschedule if it moves."],
+        steps: [
+          "Open it, add notes and action items, and press Mark as held. Reschedule if it moves.",
+        ],
       },
     ],
   },
 
   "/performance/feedback": {
-    summary: "Feedback from colleagues, and private notes between you and a colleague.",
+    summary:
+      "Feedback from colleagues, and private notes between you and a colleague.",
     tasks: [
       {
         title: "Ask for feedback",
-        steps: ["Press Ask for feedback, choose the people and what you want feedback on."],
+        steps: [
+          "Press Ask for feedback, choose the people and what you want feedback on.",
+        ],
       },
       {
         title: "Give feedback",
-        steps: ["Open To give to answer requests, or press Give feedback to send some unasked."],
+        steps: [
+          "Open To give to answer requests, or press Give feedback to send some unasked.",
+        ],
       },
     ],
   },
 
   "/performance/team": {
-    summary: "Reviews in your reporting line, who is holding each, and what is late.",
+    summary:
+      "Reviews in your reporting line, who is holding each, and what is late.",
     tasks: [
       {
         title: "Complete your team's reviews",
-        steps: ["Open Reviews and press Review on each person, rate them and submit."],
+        steps: [
+          "Open Reviews and press Review on each person, rate them and submit.",
+        ],
       },
       {
         title: "Chase late reviews",
-        steps: ["Press Remind pending, or Escalate overdue for reviews past their date."],
+        steps: [
+          "Press Remind pending, or Escalate overdue for reviews past their date.",
+        ],
       },
       {
         title: "Delegate while away",
-        steps: ["Open Delegation and press Delegate my steps: who handles your review steps, and until when."],
+        steps: [
+          "Open Delegation and press Delegate my steps: who handles your review steps, and until when.",
+        ],
       },
     ],
   },
 
   "/performance/calibration": {
-    summary: "A live session to agree ratings across a group, with the distribution and the evidence behind each person.",
+    summary:
+      "A live session to agree ratings across a group, with the distribution and the evidence behind each person.",
     tasks: [
       {
         title: "Run a calibration session",
@@ -534,7 +644,8 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/performance/increments": {
-    summary: "Recommend increments within the rating's band, with the budget left and the pay-equity view in front of you.",
+    summary:
+      "Recommend increments within the rating's band, with the budget left and the pay-equity view in front of you.",
     tasks: [
       {
         title: "Recommend an increment",
@@ -547,17 +658,22 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       {
         title: "Open an increment cycle",
         roles: [...HR],
-        steps: ["Press New increment cycle, set the budget and bands, and open it. Approve recommendations, then Release letters."],
+        steps: [
+          "Press New increment cycle, set the budget and bands, and open it. Approve recommendations, then Release letters.",
+        ],
       },
     ],
   },
 
   "/performance/pips": {
-    summary: "Improvement plans with written expectations, support given and check-ins that capture both sides.",
+    summary:
+      "Improvement plans with written expectations, support given and check-ins that capture both sides.",
     tasks: [
       {
         title: "Open an improvement plan",
-        steps: ["Press Open a plan, choose the person and write the milestones and the support you will give."],
+        steps: [
+          "Press Open a plan, choose the person and write the milestones and the support you will give.",
+        ],
       },
       {
         title: "Check in and close",
@@ -570,7 +686,8 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/performance/cycles": {
-    summary: "Configure, launch, run and close review cycles, and keep probation reviews on each person's own clock.",
+    summary:
+      "Configure, launch, run and close review cycles, and keep probation reviews on each person's own clock.",
     tasks: [
       {
         title: "Launch a review cycle",
@@ -608,7 +725,8 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/hiring": {
-    summary: "Roles the organisation is hiring for. A requisition takes candidates only after its approval chain signs it off.",
+    summary:
+      "Roles the organisation is hiring for. A requisition takes candidates only after its approval chain signs it off.",
     tasks: [
       {
         title: "Raise a requisition",
@@ -619,7 +737,9 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       },
       {
         title: "Approve a requisition",
-        steps: ["Find it among what is waiting on you and press Approve, or Reject with a reason."],
+        steps: [
+          "Find it among what is waiting on you and press Approve, or Reject with a reason.",
+        ],
       },
     ],
     tips: ["Tick “Only mine” to see just your requisitions."],
@@ -631,7 +751,9 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
     tasks: [
       {
         title: "Add a candidate",
-        steps: ["Press Add candidate, choose the requisition, and enter their details and resume."],
+        steps: [
+          "Press Add candidate, choose the requisition, and enter their details and resume.",
+        ],
       },
       {
         title: "Move a candidate between stages",
@@ -645,15 +767,20 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/hiring/candidates/[id]": {
-    summary: "One candidate: applications, interviews, scores, consent, documents, messages, offers and checks.",
+    summary:
+      "One candidate: applications, interviews, scores, consent, documents, messages, offers and checks.",
     tasks: [
       {
         title: "Schedule an interview or record feedback",
-        steps: ["Open Interviews to schedule a round, or open a round to record outcomes."],
+        steps: [
+          "Open Interviews to schedule a round, or open a round to record outcomes.",
+        ],
       },
       {
         title: "Email the candidate or share their portal link",
-        steps: ["Use Email the candidate, or Candidate portal link to let them see their status."],
+        steps: [
+          "Use Email the candidate, or Candidate portal link to let them see their status.",
+        ],
       },
       {
         title: "Request a background check",
@@ -668,7 +795,9 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
     tasks: [
       {
         title: "Give interview feedback",
-        steps: ["Open My panels, open the interview and submit your scorecard."],
+        steps: [
+          "Open My panels, open the interview and submit your scorecard.",
+        ],
       },
       {
         title: "Schedule interviews",
@@ -680,7 +809,9 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
       {
         title: "Set up rounds",
         roles: [...HR],
-        steps: ["Open Rounds to define each round, whether it eliminates, and whether feedback is required."],
+        steps: [
+          "Open Rounds to define each round, whether it eliminates, and whether feedback is required.",
+        ],
       },
     ],
     tips: [
@@ -690,7 +821,8 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/hiring/offers": {
-    summary: "Draft, approve, release and close offers. Every approver sees the budget deviation first.",
+    summary:
+      "Draft, approve, release and close offers. Every approver sees the budget deviation first.",
     tasks: [
       {
         title: "Make an offer",
@@ -707,17 +839,21 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/hiring/talent-pools": {
-    summary: "Candidates worth a call when the right role opens. Only those who agreed to be kept can be added.",
+    summary:
+      "Candidates worth a call when the right role opens. Only those who agreed to be kept can be added.",
     tasks: [
       {
         title: "Create a pool and add people",
-        steps: ["Press New pool, name it, then add candidates who agreed to be kept."],
+        steps: [
+          "Press New pool, name it, then add candidates who agreed to be kept.",
+        ],
       },
     ],
   },
 
   "/hiring/referrals": {
-    summary: "Refer someone for an open role, in your name, or share a link that carries it.",
+    summary:
+      "Refer someone for an open role, in your name, or share a link that carries it.",
     tasks: [
       {
         title: "Refer a friend",
@@ -738,22 +874,28 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
   },
 
   "/hiring/analytics": {
-    summary: "Where candidates drop out, how long each step takes, and what each source and hire costs.",
+    summary:
+      "Where candidates drop out, how long each step takes, and what each source and hire costs.",
     tasks: [
       {
         title: "Record hiring costs",
         steps: ["Press Record cost and enter the amount, source and period."],
       },
     ],
-    tips: ["Every figure is worked out from the hiring records; empty sections say so."],
+    tips: [
+      "Every figure is worked out from the hiring records; empty sections say so.",
+    ],
   },
 
   "/hiring/job-boards": {
-    summary: "Post open requisitions to external job boards and see where each posting stands.",
+    summary:
+      "Post open requisitions to external job boards and see where each posting stands.",
     tasks: [
       {
         title: "Post a requisition",
-        steps: ["Press Add account to connect a board, then Post a requisition."],
+        steps: [
+          "Press Add account to connect a board, then Post a requisition.",
+        ],
       },
     ],
   },
@@ -763,9 +905,13 @@ export const COMPANY_GUIDES: Record<string, PageGuide> = {
     tasks: [
       {
         title: "Set up the careers page",
-        steps: ["Fill in the page's headline, description and branding, and press Save."],
+        steps: [
+          "Fill in the page's headline, description and branding, and press Save.",
+        ],
       },
     ],
-    tips: ["Open roles appear on the page automatically once their requisition is approved and open."],
+    tips: [
+      "Open roles appear on the page automatically once their requisition is approved and open.",
+    ],
   },
 };

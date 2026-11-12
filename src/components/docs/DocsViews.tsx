@@ -19,7 +19,9 @@ export function MyDocumentsView() {
   const { user, hasRole } = useAuth();
   const isHr = hasRole("admin", "sub_admin");
   const hasRecord = Boolean(user?.employee_id);
-  const me = user?.employee_id ? { id: user.employee_id, label: user.full_name } : null;
+  const me = user?.employee_id
+    ? { id: user.employee_id, label: user.full_name }
+    : null;
 
   const own = hasRecord ? (
     <div className="grid gap-6">
@@ -40,7 +42,11 @@ export function MyDocumentsView() {
   return (
     <PageShell
       title="Documents"
-      description="ID proofs, contracts and letters — kept with the employee record."
+      description={
+        isHr
+          ? "ID proofs, contracts and letters — kept with the employee record."
+          : "ID proofs, certificates and contracts — kept with your employee record."
+      }
     >
       {isHr ? (
         <Tabs defaultValue="company">
@@ -55,10 +61,18 @@ export function MyDocumentsView() {
             <DocumentsPanel title="Employee vault" showEmployee />
           </TabsContent>
           <TabsContent value="verify" className="mt-4">
-            <DocumentsPanel title="Uploaded by employees" showEmployee verification="pending" />
+            <DocumentsPanel
+              title="Uploaded by employees"
+              showEmployee
+              verification="pending"
+            />
           </TabsContent>
           <TabsContent value="expiring" className="mt-4">
-            <DocumentsPanel title="Expiring documents" showEmployee expiringOnly />
+            <DocumentsPanel
+              title="Expiring documents"
+              showEmployee
+              expiringOnly
+            />
           </TabsContent>
           <TabsContent value="policies" className="mt-4">
             <CompanyDocumentsPanel />

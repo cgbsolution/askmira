@@ -116,7 +116,7 @@ export function PositionsTab() {
       id: "department",
       header: "Department",
       accessorFn: (row) => org.departmentName(row.department_id),
-      meta: { cellClassName: "text-sm text-muted-foreground" },
+      meta: { cellClassName: "text-sm text-muted-foreground", filter: true },
     },
     {
       id: "budgeted_ctc",

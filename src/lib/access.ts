@@ -425,6 +425,7 @@ export const NAV: NavSection[] = [
       { name: "Polls and events", path: "/culture/polls", roles: EVERYONE, module: "culture" },
       { name: "Clubs", path: "/culture/clubs", roles: EVERYONE, module: "culture" },
       { name: "My points", path: "/rewards", roles: EVERYONE, module: "rewards", self: true },
+      { name: "Birthdays & anniversaries", path: "/culture/celebrations", roles: HR, module: "culture" },
       { name: "Culture admin", path: "/culture/admin", roles: HR, module: "culture" },
       { name: "Rewards admin", path: "/rewards/admin", roles: HR, module: "rewards" },
     ],

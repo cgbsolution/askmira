@@ -171,7 +171,7 @@ export default function PayslipsPage() {
       header: "Department",
       accessorFn: (row) => row.department ?? "",
       // On a phone the row keeps the person, the count and the buttons.
-      meta: { className: "hidden lg:table-cell", cellClassName: "text-muted-foreground" },
+      meta: { className: "hidden lg:table-cell", cellClassName: "text-muted-foreground", filter: true },
     },
     {
       id: "status",

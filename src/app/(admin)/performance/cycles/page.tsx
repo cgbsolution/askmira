@@ -71,7 +71,7 @@ export default function CyclesPage() {
     {
       accessorKey: "cycle_type",
       header: "Type",
-      meta: { text: (c) => humanize(c.cycle_type) },
+      meta: { text: (c) => humanize(c.cycle_type), filter: true },
       cell: ({ row }) => humanize(row.original.cycle_type),
     },
     {

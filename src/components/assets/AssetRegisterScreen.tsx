@@ -1,16 +1,16 @@
 "use client";
 
-import { Boxes, Plus, Search, Tags } from "lucide-react";
+import { Boxes, Plus, Tags } from "lucide-react";
 import Link from "next/link";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
+import { PredictiveSearch, valueSuggestions } from "@/components/common/PredictiveSearch";
 import { DownloadButton } from "@/components/payroll-ops/shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -145,16 +145,21 @@ export function AssetRegisterScreen() {
         }
         toolbar={
           <>
-            <div className="relative w-full max-w-xs">
-              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={term}
-                onChange={(event) => setTerm(event.target.value)}
-                placeholder="Tag, serial number or name"
-                className="pl-9"
-                aria-label="Search assets"
-              />
-            </div>
+            <PredictiveSearch
+              wrapperClassName="w-full max-w-xs"
+              value={term}
+              onValueChange={setTerm}
+              placeholder="Tag, serial number or name"
+              aria-label="Search assets"
+              historyKey="asset-register"
+              suggestions={valueSuggestions(list.data?.items, {
+                Tag: (asset) => asset.asset_tag,
+                Name: (asset) => asset.name,
+                Serial: (asset) => asset.serial_number,
+                Category: (asset) => asset.category_name,
+                Make: (asset) => [asset.make, asset.model].filter(Boolean).join(" "),
+              })}
+            />
             <Select
               value={status}
               onValueChange={(value) => {

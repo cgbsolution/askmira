@@ -95,7 +95,7 @@ export function BatchesTab({
     {
       accessorKey: "status",
       header: "Status",
-      meta: { text: (row) => BATCH_STATUS_LABEL[row.status] },
+      meta: { text: (row) => BATCH_STATUS_LABEL[row.status], filter: true },
       cell: ({ row }) => (
         <>
           <BatchStatusBadge status={row.original.status} />

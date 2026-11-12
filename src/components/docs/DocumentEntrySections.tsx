@@ -8,7 +8,6 @@ import {
   Pencil,
   Plus,
   RefreshCw,
-  Search,
   ShieldX,
   Trash2,
   Users,
@@ -18,8 +17,8 @@ import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
-import { IconInput } from "@/components/common/IconInput";
 import { TablePager, usePaged } from "@/components/common/TablePager";
+import { PredictiveSearch, valueSuggestions } from "@/components/common/PredictiveSearch";
 import { ALL_TYPES, CompanyDocumentsPanel, countBy, TypeChips } from "@/components/docs/CompanyDocuments";
 import {
   EditDocumentDialog,
@@ -164,13 +163,21 @@ function VaultSection({
         toolbar={
           all.length > 0 ? (
             <div className="flex w-full flex-col gap-3">
-              <IconInput
-                icon={Search}
+              <PredictiveSearch
                 aria-label={`Search ${copy.title.toLowerCase()}`}
                 placeholder={showEmployee ? "Search document, number or employee" : "Search document or number"}
-                className="w-full sm:w-80"
+                wrapperClassName="w-full sm:w-80"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onValueChange={setQuery}
+                historyKey={`documents-${mode}`}
+                suggestions={valueSuggestions(all, {
+                  Document: (doc) => doc.title,
+                  Number: (doc) => doc.document_number,
+                  ...(showEmployee
+                    ? { Employee: (doc: (typeof all)[number]) => doc.employee_name, Code: (doc: (typeof all)[number]) => doc.employee_code }
+                    : {}),
+                  "Family member": (doc) => doc.dependant_name,
+                })}
               />
               <TypeChips counts={counts} value={category} onChange={setCategory} total={all.length} />
             </div>

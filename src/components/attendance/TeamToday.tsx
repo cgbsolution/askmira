@@ -158,6 +158,8 @@ export function TeamToday() {
       header: "Status",
       accessorFn: (member) => STATE_LABELS[member.state],
       meta: {
+        filter: true,
+        filterBy: (member) => STATE_LABELS[member.state],
         text: (member) => [STATE_LABELS[member.state], member.detail].filter(Boolean).join(" · "),
       },
       cell: ({ row: { original: member } }) => (

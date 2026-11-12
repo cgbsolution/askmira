@@ -215,7 +215,7 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
             id: "company",
             header: "Company",
             accessorFn: (holiday: Holiday) => holiday.legal_entity_name ?? "All companies",
-            meta: { cellClassName: "text-muted-foreground" },
+            meta: { cellClassName: "text-muted-foreground", filter: true },
           } satisfies ColumnDef<Holiday>,
         ]
       : []),

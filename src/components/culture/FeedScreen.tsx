@@ -1,6 +1,18 @@
 "use client";
 
-import { Award, Cake, Loader2, Megaphone, MoreHorizontal, PartyPopper, Pin, PinOff, Send, Trash2 } from "lucide-react";
+import {
+  Award,
+  Cake,
+  Loader2,
+  Megaphone,
+  MoreHorizontal,
+  PartyPopper,
+  Pin,
+  PinOff,
+  Send,
+  Trash2,
+} from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -11,7 +23,10 @@ import { DataPanel } from "@/components/common/DataPanel";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
-import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
+import {
+  EmployeePicker,
+  type PickedEmployee,
+} from "@/components/people/EmployeePicker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,15 +94,24 @@ export function FeedScreen() {
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
-    get<Page<Shoutout>>(`/culture/shoutouts?page=${page}&page_size=${PAGE_SIZE}`)
+    get<Page<Shoutout>>(
+      `/culture/shoutouts?page=${page}&page_size=${PAGE_SIZE}`,
+    )
       .then((result) => {
         if (cancelled) return;
-        setItems((current) => (page === 1 ? result.items : [...current, ...result.items]));
+        setItems((current) =>
+          page === 1 ? result.items : [...current, ...result.items],
+        );
         setTotal(result.total);
         setError(null);
       })
       .catch((caught) => {
-        if (!cancelled) setError(caught instanceof ApiError ? caught.detail : "Could not load the feed.");
+        if (!cancelled)
+          setError(
+            caught instanceof ApiError
+              ? caught.detail
+              : "Could not load the feed.",
+          );
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -103,7 +127,9 @@ export function FeedScreen() {
   }, []);
 
   const replace = (updated: Shoutout) =>
-    setItems((current) => current.map((row) => (row.id === updated.id ? updated : row)));
+    setItems((current) =>
+      current.map((row) => (row.id === updated.id ? updated : row)),
+    );
 
   return (
     <PageShell
@@ -117,10 +143,12 @@ export function FeedScreen() {
             <Composer values={values.data ?? []} onPosted={refresh} />
           ) : (
             <Alert>
-              <AlertTitle>Your login is not linked to an employee record</AlertTitle>
+              <AlertTitle>
+                Your login is not linked to an employee record
+              </AlertTitle>
               <AlertDescription>
-                Recognition is posted from your own record, so you can read the feed but not post to
-                it until HR links your login.
+                Recognition is posted from your own record, so you can read the
+                feed but not post to it until HR links your login.
               </AlertDescription>
             </Alert>
           )}
@@ -134,12 +162,18 @@ export function FeedScreen() {
             empty={{
               icon: Award,
               title: "No recognition yet",
-              description: "The first shoutout sets the tone. Thank somebody for something specific.",
+              description:
+                "The first shoutout sets the tone. Thank somebody for something specific.",
             }}
           >
             <ul className="divide-y divide-border">
               {items.map((row) => (
-                <ShoutoutItem key={row.id} shoutout={row} onChanged={replace} onDeleted={refresh} />
+                <ShoutoutItem
+                  key={row.id}
+                  shoutout={row}
+                  onChanged={replace}
+                  onDeleted={refresh}
+                />
               ))}
             </ul>
             {items.length < total && (
@@ -166,7 +200,13 @@ export function FeedScreen() {
   );
 }
 
-function Composer({ values, onPosted }: { values: CompanyValue[]; onPosted: () => void }) {
+function Composer({
+  values,
+  onPosted,
+}: {
+  values: CompanyValue[];
+  onPosted: () => void;
+}) {
   const [to, setTo] = useState<PickedEmployee | null>(null);
   const [message, setMessage] = useState("");
   const [valueTag, setValueTag] = useState(NO_VALUE);
@@ -254,19 +294,27 @@ function Composer({ values, onPosted }: { values: CompanyValue[]; onPosted: () =
           />
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Select value={visibility} onValueChange={(next) => setVisibility(next as ShoutoutVisibility)}>
+          <Select
+            value={visibility}
+            onValueChange={(next) => setVisibility(next as ShoutoutVisibility)}
+          >
             <SelectTrigger className="w-52" aria-label="Who can see this">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(VISIBILITY_LABEL) as ShoutoutVisibility[]).map((key) => (
-                <SelectItem key={key} value={key}>
-                  {VISIBILITY_LABEL[key]}
-                </SelectItem>
-              ))}
+              {(Object.keys(VISIBILITY_LABEL) as ShoutoutVisibility[]).map(
+                (key) => (
+                  <SelectItem key={key} value={key}>
+                    {VISIBILITY_LABEL[key]}
+                  </SelectItem>
+                ),
+              )}
             </SelectContent>
           </Select>
-          <Button onClick={submit} disabled={isBusy || !to || message.trim().length === 0}>
+          <Button
+            onClick={submit}
+            disabled={isBusy || !to || message.trim().length === 0}
+          >
             {isBusy ? <Loader2 className="animate-spin" /> : <Send />} Post
           </Button>
         </div>
@@ -289,10 +337,13 @@ function ShoutoutItem({
   const react = async (emoji: string, current: ReactionSummary | undefined) => {
     const active = !current?.reacted;
     try {
-      const reactions = await put<ReactionSummary[]>(`/culture/shoutouts/${shoutout.id}/reactions`, {
-        emoji,
-        active,
-      });
+      const reactions = await put<ReactionSummary[]>(
+        `/culture/shoutouts/${shoutout.id}/reactions`,
+        {
+          emoji,
+          active,
+        },
+      );
       onChanged({ ...shoutout, reactions });
     } catch (caught) {
       toast.error(apiDetail(caught, "Could not react."));
@@ -301,9 +352,12 @@ function ShoutoutItem({
 
   const pin = async () => {
     try {
-      const updated = await put<Shoutout>(`/culture/shoutouts/${shoutout.id}/pin`, {
-        is_pinned: !shoutout.is_pinned,
-      });
+      const updated = await put<Shoutout>(
+        `/culture/shoutouts/${shoutout.id}/pin`,
+        {
+          is_pinned: !shoutout.is_pinned,
+        },
+      );
       onChanged(updated);
     } catch (caught) {
       toast.error(apiDetail(caught, "Could not pin."));
@@ -330,16 +384,27 @@ function ShoutoutItem({
           {shoutout.kind === "award" ? (
             <Award className="size-4 text-primary" aria-label="Award" />
           ) : shoutout.kind === "milestone" ? (
-            <PartyPopper className="size-4 text-primary" aria-label="Work anniversary" />
+            <PartyPopper
+              className="size-4 text-primary"
+              aria-label="Work anniversary"
+            />
+          ) : shoutout.kind === "birthday" ? (
+            <Cake className="size-4 text-primary" aria-label="Birthday" />
           ) : shoutout.sender ? (
-            <PersonCell name={shoutout.sender.name} photoUrl={shoutout.sender.photo_url} size="sm" />
+            <PersonCell
+              name={shoutout.sender.name}
+              photoUrl={shoutout.sender.photo_url}
+              size="sm"
+            />
           ) : null}
           <span className="text-muted-foreground">
             {shoutout.kind === "award"
               ? "Award to"
               : shoutout.kind === "milestone"
                 ? `${shoutout.milestone_years}-year work anniversary:`
-                : "recognised"}
+                : shoutout.kind === "birthday"
+                  ? "Happy birthday"
+                  : "recognised"}
           </span>
           <PersonCell
             name={shoutout.recipient.name}
@@ -364,11 +429,15 @@ function ShoutoutItem({
               <DropdownMenuContent align="end">
                 {shoutout.can_pin && (
                   <DropdownMenuItem onSelect={pin}>
-                    {shoutout.is_pinned ? <PinOff /> : <Pin />} {shoutout.is_pinned ? "Unpin" : "Pin to top"}
+                    {shoutout.is_pinned ? <PinOff /> : <Pin />}{" "}
+                    {shoutout.is_pinned ? "Unpin" : "Pin to top"}
                   </DropdownMenuItem>
                 )}
                 {shoutout.can_delete && (
-                  <DropdownMenuItem className="text-destructive" onSelect={() => setDeleting(true)}>
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onSelect={() => setDeleting(true)}
+                  >
                     <Trash2 /> Remove
                   </DropdownMenuItem>
                 )}
@@ -384,18 +453,45 @@ function ShoutoutItem({
           {shoutout.award.category_name && ` — ${shoutout.award.category_name}`}
         </div>
       )}
-      <p className="mt-2 text-sm whitespace-pre-line text-foreground">{shoutout.message}</p>
+      {shoutout.card_url ? (
+        <Image
+          src={shoutout.card_url}
+          alt={`${shoutout.kind === "birthday" ? "Birthday" : "Work anniversary"} card for ${shoutout.recipient.name}`}
+          width={1080}
+          height={1080}
+          unoptimized
+          className="mt-3 h-auto w-full max-w-md rounded-lg border border-border"
+        />
+      ) : (
+        <p className="mt-2 text-sm whitespace-pre-line text-foreground">
+          {shoutout.message}
+        </p>
+      )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        {shoutout.value_name && <Badge variant="outline">{shoutout.value_name}</Badge>}
-        {shoutout.points_awarded > 0 && <Badge variant="secondary">+{shoutout.points_awarded} points</Badge>}
-        {shoutout.visibility !== "company" && (
-          <Badge variant="muted">{VISIBILITY_LABEL[shoutout.visibility]}</Badge>
+        {shoutout.value_name && (
+          <Badge variant="outline">{shoutout.value_name}</Badge>
         )}
-        <span className="text-xs text-muted-foreground">{timeAgo(shoutout.created_at)}</span>
+        {shoutout.points_awarded > 0 && (
+          <Badge variant="secondary">+{shoutout.points_awarded} points</Badge>
+        )}
+        {shoutout.visibility !== "company" && (
+          <Badge variant="muted">
+            {shoutout.visibility === "private" && !shoutout.sender
+              ? "Only you"
+              : VISIBILITY_LABEL[shoutout.visibility]}
+          </Badge>
+        )}
+        <span className="text-xs text-muted-foreground">
+          {timeAgo(shoutout.created_at)}
+        </span>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5" role="group" aria-label="Reactions">
+      <div
+        className="mt-3 flex flex-wrap gap-1.5"
+        role="group"
+        aria-label="Reactions"
+      >
         {ALLOWED_REACTIONS.map((emoji) => {
           const current = byEmoji.get(emoji);
           return (
@@ -409,7 +505,9 @@ function ShoutoutItem({
               onClick={() => react(emoji, current)}
             >
               <span aria-hidden>{emoji}</span>
-              {current && current.count > 0 && <span className="text-xs tabular-nums">{current.count}</span>}
+              {current && current.count > 0 && (
+                <span className="text-xs tabular-nums">{current.count}</span>
+              )}
             </Button>
           );
         })}
@@ -429,8 +527,12 @@ function ShoutoutItem({
 }
 
 function AnnouncementsCard() {
-  const { data, isLoading } = useApiQuery<Announcement[]>("/culture/announcements");
-  const open = (data ?? []).filter((row) => row.requires_acknowledgement && !row.acknowledged);
+  const { data, isLoading } = useApiQuery<Announcement[]>(
+    "/culture/announcements",
+  );
+  const open = (data ?? []).filter(
+    (row) => row.requires_acknowledgement && !row.acknowledged,
+  );
   const latest = (data ?? []).slice(0, 3);
 
   return (
@@ -444,7 +546,9 @@ function AnnouncementsCard() {
         {isLoading ? (
           <Skeleton className="h-16 w-full" />
         ) : latest.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nothing announced right now.</p>
+          <p className="text-sm text-muted-foreground">
+            Nothing announced right now.
+          </p>
         ) : (
           <>
             {open.length > 0 && (
@@ -455,8 +559,12 @@ function AnnouncementsCard() {
             <ul className="grid gap-2">
               {latest.map((row) => (
                 <li key={row.id} className="text-sm">
-                  <span className="font-medium text-foreground">{row.title}</span>
-                  <div className="text-xs text-muted-foreground">{formatDay(row.publish_at.slice(0, 10))}</div>
+                  <span className="font-medium text-foreground">
+                    {row.title}
+                  </span>
+                  <div className="text-xs text-muted-foreground">
+                    {formatDay(row.publish_at.slice(0, 10))}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -478,7 +586,9 @@ function CelebrationsCard() {
   const { data, isLoading } = useApiQuery<CalendarResponse>(
     `/culture/calendar?from_date=${toISODate(from)}&to_date=${toISODate(to)}`,
   );
-  const events = (data?.events ?? []).filter((event) => event.kind !== "holiday").slice(0, 8);
+  const events = (data?.events ?? [])
+    .filter((event) => event.kind !== "holiday")
+    .slice(0, 8);
 
   return (
     <Card tier="tier2" className="gap-3">
@@ -492,15 +602,22 @@ function CelebrationsCard() {
           <Skeleton className="h-16 w-full" />
         ) : events.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nothing shared for the next two weeks. Birthdays and anniversaries appear only for people
-            who chose to share them.
+            Nothing shared for the next two weeks. Birthdays and anniversaries
+            appear only for people who chose to share them.
           </p>
         ) : (
           <ul className="grid gap-2">
             {events.map((event, index) => (
-              <li key={`${event.on_date}-${event.label}-${index}`} className="flex items-center justify-between gap-2 text-sm">
-                <span className="min-w-0 truncate text-foreground">{event.label}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{formatDay(event.on_date)}</span>
+              <li
+                key={`${event.on_date}-${event.label}-${index}`}
+                className="flex items-center justify-between gap-2 text-sm"
+              >
+                <span className="min-w-0 truncate text-foreground">
+                  {event.label}
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {formatDay(event.on_date)}
+                </span>
               </li>
             ))}
           </ul>

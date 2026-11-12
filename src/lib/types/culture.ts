@@ -26,9 +26,11 @@ export interface AwardPostRef {
 
 export interface Shoutout {
   id: string;
-  kind: "peer" | "award" | "milestone";
+  kind: "peer" | "award" | "milestone" | "birthday";
   /** A work anniversary the company marked: how many years. */
   milestone_years?: number | null;
+  /** The birthday or anniversary card image, served by the API. */
+  card_url?: string | null;
   from_employee_id: string | null;
   to_employee_id: string;
   sender: PersonRef | null;
@@ -130,6 +132,63 @@ export interface EventPrivacy {
   configured: boolean;
 }
 
+// ── Birthday and anniversary cards ─────────────────────────────────────────
+
+export type CelebrationKind = "birthday" | "work_anniversary";
+
+export interface CardDesign {
+  layout: "classic" | "minimal";
+  pattern: "stripes" | "confetti" | "dots" | "none";
+  font: "modern" | "elegant";
+  background_colour: string;
+  pattern_colour: string;
+  heading_colour: string;
+  text_colour: string;
+  accent_colour: string;
+  ribbon_text_colour: string;
+  heading: string;
+  subheading: string;
+  title: string;
+  message: string;
+  show_logo: boolean;
+  logo_plate: boolean;
+  show_photo: boolean;
+  name_style: "first" | "full";
+  uppercase_name: boolean;
+  uppercase_titles: boolean;
+}
+
+export interface CelebrationTemplate {
+  id: string;
+  kind: CelebrationKind;
+  name: string;
+  design: CardDesign;
+  in_use: boolean;
+  updated_at: string | null;
+}
+
+export interface CelebrationPreset {
+  key: string;
+  kind: CelebrationKind;
+  name: string;
+  design: CardDesign;
+}
+
+export interface CelebrationTemplates {
+  templates: CelebrationTemplate[];
+  presets: CelebrationPreset[];
+  placeholders: { token: string; meaning: string }[];
+}
+
+export interface CelebrationSettings {
+  birthdays: boolean;
+  work_anniversaries: boolean;
+  share_by_default: boolean;
+  default_birthday_scope: "team" | "company";
+  send_email: boolean;
+  post_to_feed: boolean;
+}
+
 // ── Awards ─────────────────────────────────────────────────────────────────
 
 export type AwardCadence = "monthly" | "quarterly" | "half_yearly" | "annual";
@@ -140,7 +199,8 @@ export type AwardCycleStatus =
   | "decided"
   | "announced"
   | "cancelled";
-export type NominationStatus = "submitted" | "withdrawn" | "shortlisted" | "won" | "not_selected";
+export type NominationStatus =
+  "submitted" | "withdrawn" | "shortlisted" | "won" | "not_selected";
 
 export interface AwardCategory {
   key: string;
@@ -271,7 +331,8 @@ export interface AwardResult {
 
 // ── Surveys ────────────────────────────────────────────────────────────────
 
-export type SurveyKind = "pulse" | "enps" | "engagement" | "wellbeing" | "inclusion" | "custom";
+export type SurveyKind =
+  "pulse" | "enps" | "engagement" | "wellbeing" | "inclusion" | "custom";
 export type SurveyStatus = "draft" | "open" | "closed";
 
 export interface InstrumentItem {
@@ -356,7 +417,11 @@ export interface SurveyResults {
     note: string;
     previous_wave_name: string;
   } | null;
-  previous_wave?: { survey_id: string; name: string; overall: EnpsResult } | null;
+  previous_wave?: {
+    survey_id: string;
+    name: string;
+    overall: EnpsResult;
+  } | null;
   note?: string;
 }
 
@@ -369,7 +434,8 @@ export interface ActionPlanItem {
   dropped_reason: string | null;
 }
 
-export type PlanStatus = "draft" | "committed" | "in_progress" | "completed" | "dropped";
+export type PlanStatus =
+  "draft" | "committed" | "in_progress" | "completed" | "dropped";
 
 export interface ActionPlan {
   id: string;
@@ -419,7 +485,11 @@ export interface ManagedAnnouncement {
   expires_at: string | null;
   requires_acknowledgement: boolean;
   channels: string[];
-  audience: { department_ids?: string[]; location_ids?: string[]; grades?: string[] };
+  audience: {
+    department_ids?: string[];
+    location_ids?: string[];
+    grades?: string[];
+  };
   audience_description: string;
   delivered_at: string | null;
   delivered_count: number;
@@ -459,3 +529,19 @@ export interface ValueAnalytics {
   };
   unlived: { code: string; name: string; [key: string]: unknown }[];
 }
+
+/** Swatches offered in the card editor: the brand, and the built-in designs' own. */
+export const CARD_COLOUR_PRESETS = [
+  "#7D0712",
+  "#F2B33D",
+  "#FEF8F4",
+  "#3A1A16",
+  "#0B4F78",
+  "#9FCBE5",
+  "#B9D8EA",
+  "#F3F8FC",
+  "#14213D",
+  "#E5B84B",
+  "#8E1F3A",
+  "#FFFFFF",
+] as const;

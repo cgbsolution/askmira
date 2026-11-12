@@ -59,7 +59,8 @@ export function LetterViewerDialog({
         <DialogHeader>
           <DialogTitle>{letter?.reference_number}</DialogTitle>
           <DialogDescription>
-            {letter?.template_name} v{letter?.template_version} · {letter?.recipient_name}
+            {letter?.template_name} v{letter?.template_version} ·{" "}
+            {letter?.recipient_name}
           </DialogDescription>
         </DialogHeader>
         {isLoading ? (
@@ -73,7 +74,8 @@ export function LetterViewerDialog({
                 <ShieldCheck />
                 <AlertTitle>Content verified</AlertTitle>
                 <AlertDescription>
-                  This text matches the hash recorded when the letter was issued.
+                  This text matches the hash recorded when the letter was
+                  issued.
                 </AlertDescription>
               </Alert>
             ) : (
@@ -81,7 +83,8 @@ export function LetterViewerDialog({
                 <ShieldAlert />
                 <AlertTitle>Content does not match its record</AlertTitle>
                 <AlertDescription>
-                  The stored text has changed since issuance. Do not distribute this letter.
+                  The stored text has changed since issuance. Do not distribute
+                  this letter.
                 </AlertDescription>
               </Alert>
             )}
@@ -91,8 +94,10 @@ export function LetterViewerDialog({
                 <AlertTitle>Signed and accepted</AlertTitle>
                 <AlertDescription>
                   Accepted {formatDateTime(letter.acknowledged_at)}
-                  {letter.acknowledged_name ? ` as “${letter.acknowledged_name}”` : ""}.
-                  {data.showing_signed_copy ? " Showing the signed copy." : ""}
+                  {letter.acknowledged_name
+                    ? ` as “${letter.acknowledged_name}”`
+                    : ""}
+                  .{data.showing_signed_copy ? " Showing the signed copy." : ""}
                 </AlertDescription>
               </Alert>
             ) : null}

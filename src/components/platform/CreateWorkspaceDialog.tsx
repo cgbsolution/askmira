@@ -23,7 +23,11 @@ import { ApiError, del, patch, post } from "@/lib/api";
 import { INDIAN_STATES } from "@/lib/states";
 import type { WelcomeEmail } from "@/lib/types/admin";
 import { FileInput } from "@/components/ui/file-input";
+import { useApiQuery } from "@/hooks/useApiQuery";
+import type { ProductKey } from "@/lib/types";
 import { DEFAULT_UPLOAD_MB } from "@/lib/uploads";
+
+import { type PlatformTool, provision, type ToolOutcome } from "./tools";
 
 export interface Issued {
   title: string;
@@ -31,6 +35,8 @@ export interface Issued {
   password: string;
   /** For a new admin: what became of their welcome email. */
   welcome?: WelcomeEmail | null;
+  /** For a new organisation: what became of each tool ticked for it. */
+  tools?: ToolOutcome[];
 }
 
 const COMPANY_TYPES: Record<string, string> = {
@@ -215,12 +221,21 @@ export function CreateWorkspaceDialog({
   const [logo, setLogo] = useState<File | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [saving, setSaving] = useState(false);
+  // The tools to set the new organisation up in, and which one is being set up now.
+  const [ticked, setTicked] = useState<Partial<Record<ProductKey, boolean>>>({});
+  const [settingUp, setSettingUp] = useState<string | null>(null);
+  const { data: toolList } = useApiQuery<PlatformTool[]>(open && !isEdit ? "/platform/tools" : null);
+  const readyTools = (toolList ?? []).filter((tool) => tool.ready);
+  const tickedTools = readyTools.filter((tool) => ticked[tool.key]);
+  const allTicked = readyTools.length > 0 && tickedTools.length === readyTools.length;
 
   // Each time the dialog opens: a blank form to create, or the company's details to edit.
   useEffect(() => {
     if (!open) return;
     setLogo(null);
     setRemoveLogo(false);
+    setTicked({});
+    setSettingUp(null);
     if (editing) {
       setFields(fieldsFrom(editing));
       setModules({ ...DEFAULT_MODULES, ...editing.details.modules });
@@ -309,6 +324,41 @@ export function CreateWorkspaceDialog({
           );
         }
       }
+      // Each ticked tool in turn: its organisation and admin there, then its people.
+      const outcomes: ToolOutcome[] = [];
+      for (const tool of tickedTools) {
+        setSettingUp(tool.brand);
+        try {
+          const done = await provision(result.workspace.id, tool.key);
+          outcomes.push(
+            done.outcome === "connected"
+              ? {
+                  key: tool.key,
+                  brand: tool.brand,
+                  status: "connected",
+                  message: `${
+                    done.created
+                      ? `New organisation “${done.tool.organization}” created.`
+                      : `Connected to “${done.tool.organization}”.`
+                  } ${done.admin_note}`,
+                }
+              : {
+                  key: tool.key,
+                  brand: tool.brand,
+                  status: "existing",
+                  message: `${done.message} Open the organisation (View → Connected tools) to link that one or create a new one.`,
+                },
+          );
+        } catch (caught) {
+          outcomes.push({
+            key: tool.key,
+            brand: tool.brand,
+            status: "failed",
+            message: `${caught instanceof ApiError ? caught.detail : "Could not be set up."} Try again from View → Connected tools.`,
+          });
+        }
+      }
+      setSettingUp(null);
       onOpenChange(false);
       setFields(EMPTY);
       setLogo(null);
@@ -317,6 +367,7 @@ export function CreateWorkspaceDialog({
         email: result.admin.email,
         password: result.admin.temporary_password,
         welcome: result.welcome_email,
+        tools: outcomes.length ? outcomes : undefined,
       });
     } catch (caught) {
       toast.error(caught instanceof ApiError ? caught.detail : "Could not create the organisation.");
@@ -557,6 +608,54 @@ export function CreateWorkspaceDialog({
               ))}
             </div>
           </section>
+
+          {!isEdit && toolList && toolList.length > 0 ? (
+            <>
+              <Separator />
+              <section className="grid gap-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Connected tools</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Tick the tools this company uses. AskMiraa creates its organisation there, with the admin above
+                    as its admin, and connects it. If the admin already has an account in a tool, you choose
+                    afterwards whether to link that one.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="ws-tool-all"
+                    disabled={readyTools.length === 0}
+                    checked={allTicked ? true : tickedTools.length > 0 ? "indeterminate" : false}
+                    onCheckedChange={(checked) =>
+                      setTicked(checked === true ? Object.fromEntries(readyTools.map((tool) => [tool.key, true])) : {})
+                    }
+                  />
+                  <Label htmlFor="ws-tool-all">All tools</Label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {toolList.map((tool) => (
+                    <div key={tool.key} className="flex items-start gap-2">
+                      <Checkbox
+                        id={`ws-tool-${tool.key}`}
+                        className="mt-0.5"
+                        disabled={!tool.ready}
+                        checked={tool.ready && Boolean(ticked[tool.key])}
+                        onCheckedChange={(checked) =>
+                          setTicked((current) => ({ ...current, [tool.key]: checked === true }))
+                        }
+                      />
+                      <Label htmlFor={`ws-tool-${tool.key}`} className="grid gap-0.5 font-normal">
+                        <span>{tool.brand}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {tool.ready ? tool.what : `${tool.what} · set its key under Connected tools first`}
+                        </span>
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </>
+          ) : null}
         </div>
 
         <DialogFooter>
@@ -565,7 +664,7 @@ export function CreateWorkspaceDialog({
           </Button>
           <Button onClick={isEdit ? save : create} disabled={saving || missing.length > 0}>
             {saving ? <Loader2 className="size-4 animate-spin" /> : null}
-            {isEdit ? "Save changes" : "Create organisation"}
+            {isEdit ? "Save changes" : settingUp ? `Setting up ${settingUp}…` : "Create organisation"}
           </Button>
         </DialogFooter>
       </DialogContent>

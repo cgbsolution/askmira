@@ -2,6 +2,7 @@
 
 import {
   ArrowLeft,
+  BookOpen,
   ChevronRight,
   CircleHelp,
   LifeBuoy,
@@ -14,10 +15,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 
+import { PredictiveSearch, rankSuggestions, type Suggestion } from "@/components/common/PredictiveSearch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -272,19 +273,48 @@ function TopicIndex({
     })).filter((group) => group.pages.length > 0);
   }, [term, canOpen]);
 
+  const lines = useMemo<Suggestion[]>(
+    () =>
+      NAV.flatMap((section) =>
+        section.pages.flatMap((page) => {
+          const guide = GUIDES[page.path];
+          if (!guide || !canOpen(page.path)) return [];
+          return [
+            {
+              id: `guide:${page.path}`,
+              label: page.name,
+              description: section.name === page.name ? undefined : section.name,
+              keywords: `${section.name} ${guide.summary}`,
+              group: "Guides",
+              icon: BookOpen,
+              onSelect: () => onPick(page.path),
+            },
+            ...guide.tasks.map((task, index) => ({
+              id: `task:${page.path}:${index}`,
+              label: task.title,
+              description: page.name,
+              keywords: `${page.name} ${section.name} ${task.steps.join(" ")}`,
+              group: "How to",
+              icon: CircleHelp,
+              onSelect: () => onPick(page.path),
+            })),
+          ];
+        }),
+      ),
+    [canOpen, onPick],
+  );
+
   return (
     <div className="grid gap-4">
-      <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={term}
-          onChange={(event) => setTerm(event.target.value)}
-          placeholder="Search help, e.g. leave, payslip, approve"
-          aria-label="Search help topics"
-          className="pl-9"
-          autoFocus
-        />
-      </div>
+      <PredictiveSearch
+        value={term}
+        onValueChange={setTerm}
+        placeholder="Search help, e.g. leave, payslip, approve"
+        aria-label="Search help topics"
+        autoFocus
+        // The guides and the tasks inside them: picking one opens its guide.
+        suggestions={(query) => rankSuggestions(lines, query, 8)}
+      />
       {groups.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nothing matches “{term}”. Try another word.</p>
       ) : null}

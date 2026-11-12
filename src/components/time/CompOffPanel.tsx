@@ -125,7 +125,7 @@ export function CompOffPanel({
     {
       accessorKey: "status",
       header: "Status",
-      meta: { text: (claim) => STATUS[claim.status].label },
+      meta: { text: (claim) => STATUS[claim.status].label, filter: true },
       cell: ({ row }) => (
         <Badge variant={STATUS[row.original.status].variant}>{STATUS[row.original.status].label}</Badge>
       ),

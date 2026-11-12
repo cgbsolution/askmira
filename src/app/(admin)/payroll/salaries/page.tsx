@@ -14,6 +14,8 @@ import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { apiMessage } from "@/components/payroll/labels";
+import { ClearFiltersButton, EmployeeFilters, useEmployeeFilters } from "@/components/people/EmployeeFilters";
+import { NONE } from "@/components/people/labels";
 import { BulkUploadDialog } from "@/components/payroll/salary-master/BulkUploadDialog";
 import { EmployeeSearch } from "@/components/payroll/salary-master/EmployeeSearch";
 import { RevisionTimeline } from "@/components/payroll/salary-master/RevisionTimeline";
@@ -23,6 +25,7 @@ import { StandardSetupCallout } from "@/components/payroll/salary-master/Standar
 import { addDays, periodName, revisionDate } from "@/components/payroll/salary-master/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useApiQuery } from "@/hooks/useApiQuery";
@@ -256,6 +259,10 @@ function EmployeeList({ onOpen }: { onOpen: (employee: EmployeeSummary) => void 
   const [debounced, setDebounced] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(PAGE_SIZE);
+  const people = useEmployeeFilters();
+  const [structureId, setStructureId] = useState(NONE);
+  const [salary, setSalary] = useState(NONE);
+  const structures = useApiQuery<SalaryStructure[]>("/salary-structures");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -265,10 +272,34 @@ function EmployeeList({ onOpen }: { onOpen: (employee: EmployeeSummary) => void 
     return () => clearTimeout(timer);
   }, [search]);
 
-  const searchQuery = debounced ? `&search=${encodeURIComponent(debounced)}` : "";
+  // The search and every filter, for the list, "select all" and the export alike.
+  const filterParams = new URLSearchParams(people.params);
+  const filterBody: Record<string, string | boolean> = { ...people.body };
+  if (debounced) {
+    filterParams.set("search", debounced);
+    filterBody.search = debounced;
+  }
+  if (structureId !== NONE) {
+    filterParams.set("structure_id", structureId);
+    filterBody.structure_id = structureId;
+  }
+  if (salary !== NONE) {
+    filterParams.set("salary", salary);
+    filterBody.salary = salary;
+  }
+  const filtered = Object.keys(filterBody).length > 0;
+  const searchQuery = filterParams.toString() ? `&${filterParams}` : "";
   const overview = useApiQuery<Page<SalaryOverview>>(`/salaries?page=${page}&page_size=${pageSize}${searchQuery}`);
+  const firstPage = () => setPage(1);
+  const clearFilters = () => {
+    people.reset();
+    setStructureId(NONE);
+    setSalary(NONE);
+    setSearch("");
+    setPage(1);
+  };
 
-  /** Everyone the list holds (with the search applied), page by page. */
+  /** Everyone the list holds (with the search and filters applied), page by page. */
   const fetchAll = async (): Promise<SalaryOverview[]> => {
     const everyone: SalaryOverview[] = [];
     for (let next = 1; ; next += 1) {
@@ -280,20 +311,21 @@ function EmployeeList({ onOpen }: { onOpen: (employee: EmployeeSummary) => void 
 
   /**
    * The present salary of the ticked people, every detail, as an Excel sheet in
-   * the bulk-upload layout. Nothing ticked: everyone the list shows.
+   * the bulk-upload layout. Nothing ticked: everyone the search and filters show.
    */
   const exportSalaries = async (selected: SalaryOverview[] | null) => {
     try {
-      const chosen = selected ?? (debounced ? await fetchAll() : null);
-      if (chosen && chosen.length === 0) {
-        toast.error("Nobody matches that search.");
+      const count = selected ? selected.length : (overview.data?.total ?? 0);
+      if (count === 0) {
+        toast.error("Nobody matches these filters.");
         return;
       }
       await downloadFile("/salaries/export", "EmployeeSalaryMaster.xlsx", {
         method: "POST",
-        body: { employee_ids: chosen ? chosen.map((row) => row.employee_id) : null },
+        body: selected
+          ? { employee_ids: selected.map((row) => row.employee_id) }
+          : { employee_ids: null, filters: filterBody },
       });
-      const count = chosen ? chosen.length : (overview.data?.total ?? 0);
       toast.success(`Exported the salary of ${count} employee${count === 1 ? "" : "s"}`);
     } catch (error) {
       toast.error(apiMessage(error, "Could not export the salaries."));
@@ -393,10 +425,54 @@ function EmployeeList({ onOpen }: { onOpen: (employee: EmployeeSummary) => void 
         title: "No employees yet",
         description: "Employees appear here once they are added to the directory.",
       }}
-      emptyMessage="Nobody matches that search."
+      emptyMessage="Nobody matches that search or these filters."
+      filtered={filtered}
       searchPlaceholder="Search by name or code"
       search={search}
       onSearchChange={setSearch}
+      searchFirst
+      filters={
+        <EmployeeFilters state={people} onChange={firstPage}>
+          {(structures.data ?? []).length > 0 && (
+            <Select
+              value={structureId}
+              onValueChange={(value) => {
+                setStructureId(value);
+                firstPage();
+              }}
+            >
+              <SelectTrigger aria-label="Salary structure" className="h-9 w-48">
+                <SelectValue placeholder="Structure" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE}>All structures</SelectItem>
+                {(structures.data ?? []).map((structure) => (
+                  <SelectItem key={structure.id} value={structure.id}>
+                    {structure.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select
+            value={salary}
+            onValueChange={(value) => {
+              setSalary(value);
+              firstPage();
+            }}
+          >
+            <SelectTrigger aria-label="Salary" className="h-9 w-44">
+              <SelectValue placeholder="Salary" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Any salary</SelectItem>
+              <SelectItem value="assigned">Salary assigned</SelectItem>
+              <SelectItem value="none">No salary yet</SelectItem>
+            </SelectContent>
+          </Select>
+          <ClearFiltersButton shown={filtered} onClear={clearFilters} />
+        </EmployeeFilters>
+      }
       onRowClick={open}
       server={{
         page,

@@ -119,6 +119,7 @@ export default async function CareersPage({
           slug={slug}
           departments={page.filters.departments}
           locations={page.filters.locations}
+          roles={page.jobs.map((job) => job.title)}
           initial={values}
         />
         {page.jobs.length === 0 ? (

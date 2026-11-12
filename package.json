@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "check:ui": "node scripts/check-ui.mjs",
+    "test:search": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test scripts/predictive.test.mjs",
     "check:help": "node scripts/check-help.mjs"
   },
   "dependencies": {

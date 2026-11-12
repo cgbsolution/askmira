@@ -1,13 +1,26 @@
 "use client";
 
-import { BadgeCheck, Building2, Download, Loader2, PenLine, ShieldAlert } from "lucide-react";
+import {
+  BadgeCheck,
+  Building2,
+  Download,
+  Loader2,
+  PenLine,
+  ShieldAlert,
+} from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 import { FormField } from "@/components/common/FormField";
 import { LetterPages } from "@/components/docs/LetterPages";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FileInput } from "@/components/ui/file-input";
 import { Input } from "@/components/ui/input";
@@ -69,7 +82,12 @@ export function LetterLinkScreen({ token }: { token: string }) {
       setDescribed(await get<Described>(base, { skipAuthRedirect: true }));
       setProblem(null);
     } catch (caught) {
-      setProblem(problemOf(caught, "This link could not be opened. Check your connection and try again."));
+      setProblem(
+        problemOf(
+          caught,
+          "This link could not be opened. Check your connection and try again.",
+        ),
+      );
     }
   }, [base]);
 
@@ -84,7 +102,9 @@ export function LetterLinkScreen({ token }: { token: string }) {
     try {
       await downloadFile(`${base}/pdf`, name, { skipAuthRedirect: true });
     } catch (caught) {
-      setProblem(problemOf(caught, "The PDF could not be downloaded. Try again."));
+      setProblem(
+        problemOf(caught, "The PDF could not be downloaded. Try again."),
+      );
     }
   };
 
@@ -96,7 +116,11 @@ export function LetterLinkScreen({ token }: { token: string }) {
         {described?.logo_url ? (
           // A company's own uploaded logo; its size is not known in advance.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={described.logo_url} alt={described.company_name} className="max-h-12 max-w-[200px] object-contain" />
+          <img
+            src={described.logo_url}
+            alt={described.company_name}
+            className="max-h-12 max-w-[200px] object-contain"
+          />
         ) : (
           <span className="flex items-center gap-2 font-display text-lg font-semibold text-primary">
             <Building2 className="size-5" />
@@ -123,10 +147,14 @@ export function LetterLinkScreen({ token }: { token: string }) {
         ) : (
           <>
             <CardHeader>
-              <CardTitle className="font-display text-xl">{described.letter_name}</CardTitle>
+              <CardTitle className="font-display text-xl">
+                {described.letter_name}
+              </CardTitle>
               <CardDescription>
                 {described.reference_number} · For {described.employee_name}
-                {described.issued_at ? ` · Issued ${formatDate(described.issued_at)}` : ""}
+                {described.issued_at
+                  ? ` · Issued ${formatDate(described.issued_at)}`
+                  : ""}
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
@@ -135,9 +163,12 @@ export function LetterLinkScreen({ token }: { token: string }) {
                   <BadgeCheck />
                   <AlertTitle>Signed and accepted</AlertTitle>
                   <AlertDescription>
-                    You accepted this letter on {formatDateTime(described.acknowledged_at)}
-                    {described.acknowledged_name ? ` as “${described.acknowledged_name}”` : ""}. HR has
-                    your signed copy; download yours below.
+                    You accepted this letter on{" "}
+                    {formatDateTime(described.acknowledged_at)}
+                    {described.acknowledged_name
+                      ? ` as “${described.acknowledged_name}”`
+                      : ""}
+                    . HR has your signed copy; download yours below.
                   </AlertDescription>
                 </Alert>
               ) : closed ? (
@@ -148,7 +179,8 @@ export function LetterLinkScreen({ token }: { token: string }) {
                 </Alert>
               ) : null}
 
-              {described.state === "waiting" || described.state === "acknowledged" ? (
+              {described.state === "waiting" ||
+              described.state === "acknowledged" ? (
                 <LetterPages
                   count={described.page_count}
                   pagePath={(page) => `${base}/pages/${page}`}
@@ -176,14 +208,19 @@ export function LetterLinkScreen({ token }: { token: string }) {
                 </Alert>
               ) : null}
 
-              {described.state === "waiting" || described.state === "acknowledged" ? (
+              {described.state === "waiting" ||
+              described.state === "acknowledged" ? (
                 <div className="flex flex-wrap gap-2">
                   <Button
-                    variant={described.state === "acknowledged" ? "default" : "outline"}
+                    variant={
+                      described.state === "acknowledged" ? "default" : "outline"
+                    }
                     onClick={() => void download()}
                   >
                     <Download />
-                    {described.state === "acknowledged" ? "Download signed copy" : "Download PDF"}
+                    {described.state === "acknowledged"
+                      ? "Download signed copy"
+                      : "Download PDF"}
                   </Button>
                 </div>
               ) : null}
@@ -192,7 +229,8 @@ export function LetterLinkScreen({ token }: { token: string }) {
         )}
       </Card>
       <p className="text-center text-xs text-muted-foreground">
-        Sent by {described?.company_name ?? "your company"} · Powered by AskMiraa
+        Sent by {described?.company_name ?? "your company"} · Powered by
+        AskMiraa
       </p>
     </div>
   );
@@ -248,29 +286,41 @@ function SignForm({
       await post(`${base}/acknowledge`, form, { skipAuthRedirect: true });
       await onSigned();
     } catch (caught) {
-      const detail = problemOf(caught, "That did not go through. Check your connection and try again.");
-      if (/signature|picture|photo|PNG|JPG/i.test(detail)) setSignatureError(detail);
+      const detail = problemOf(
+        caught,
+        "That did not go through. Check your connection and try again.",
+      );
+      if (/signature|picture|photo|PNG|JPG/i.test(detail))
+        setSignatureError(detail);
       else setError(detail);
     } finally {
       setBusy(false);
     }
   };
 
-  const ready = agreed && typed.trim().length > 0 && signature !== null && !busy;
+  const ready =
+    agreed && typed.trim().length > 0 && signature !== null && !busy;
 
   return (
     <div className="grid gap-4 rounded-lg border border-border bg-muted/40 p-4">
       <div>
         <p className="text-sm font-medium text-foreground">Sign & accept</p>
         <p className="text-xs text-muted-foreground">
-          Your signature and today&apos;s date are printed on the letter, and the signed copy is
-          kept as your letter. Your acceptance is recorded with the time and a fingerprint of this
-          exact text.
+          Your signature and today&apos;s date are printed on the letter, and
+          the signed copy is kept as your letter. Your acceptance is recorded
+          with the time and a fingerprint of this exact text.
         </p>
       </div>
       <div className="flex items-start gap-2">
-        <Checkbox id="letter-agree" checked={agreed} onCheckedChange={(value) => setAgreed(value === true)} />
-        <Label htmlFor="letter-agree" className="text-sm font-normal leading-snug">
+        <Checkbox
+          id="letter-agree"
+          checked={agreed}
+          onCheckedChange={(value) => setAgreed(value === true)}
+        />
+        <Label
+          htmlFor="letter-agree"
+          className="text-sm font-normal leading-snug"
+        >
           I have read this letter and I accept it.
         </Label>
       </div>
@@ -314,7 +364,11 @@ function SignForm({
           <div className="rounded-md border border-border bg-white px-4 py-2">
             {/* The person's own chosen file, shown before it is sent. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={preview} alt="Your signature" className="h-12 max-w-[220px] object-contain" />
+            <img
+              src={preview}
+              alt="Your signature"
+              className="h-12 max-w-[220px] object-contain"
+            />
           </div>
           <Button variant="ghost" size="sm" onClick={() => choose(null)}>
             Remove
@@ -323,7 +377,8 @@ function SignForm({
       ) : null}
       <div>
         <Button disabled={!ready} onClick={() => void sign()}>
-          {busy ? <Loader2 className="animate-spin" /> : <PenLine />} Sign & accept
+          {busy ? <Loader2 className="animate-spin" /> : <PenLine />} Sign &
+          accept
         </Button>
       </div>
     </div>

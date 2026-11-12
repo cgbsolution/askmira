@@ -1,5 +1,5 @@
-# Lint, type-check, the shadcn-only UI rule and a production build, on every
-# push and pull request.
+# Lint, type-check, the shadcn-only UI rule, the search-matching tests and a
+# production build, on every push and pull request.
 
 name: CI
 
@@ -28,4 +28,6 @@ jobs:
       - run: npm run typecheck
       - name: Every control comes from components/ui
         run: npm run check:ui
+      - name: Predictive search matching
+        run: npm run test:search
       - run: npm run build

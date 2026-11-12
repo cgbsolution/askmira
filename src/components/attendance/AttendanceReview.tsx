@@ -364,7 +364,7 @@ const EXCEPTION_COLUMNS: ColumnDef<AttendanceException>[] = [
   {
     accessorKey: "status",
     header: "Status",
-    meta: { text: (row) => (row.status ? STATUS_LABELS[row.status] : "Not computed") },
+    meta: { text: (row) => (row.status ? STATUS_LABELS[row.status] : "Not computed"), filter: true },
     cell: ({ row }) => <StatusBadge status={row.original.status} />,
   },
   {

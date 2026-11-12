@@ -1,11 +1,11 @@
 "use client";
 
-import { Download, Loader2, Search, ShieldAlert } from "lucide-react";
+import { Download, Loader2, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { FormField } from "@/components/common/FormField";
-import { IconInput } from "@/components/common/IconInput";
+import { PredictiveSearch } from "@/components/common/PredictiveSearch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -207,13 +207,20 @@ export function ExportEmployeesDialog({
                   </SelectContent>
                 </Select>
               </FormField>
-              <IconInput
-                icon={Search}
+              <PredictiveSearch
                 value={term}
-                onChange={(event) => setTerm(event.target.value)}
+                onValueChange={setTerm}
                 placeholder="Find a column"
                 aria-label="Find a column"
                 className="h-9"
+                suggestions={sections.flatMap((section) =>
+                  section.columns.map((column) => ({
+                    id: column.key,
+                    label: column.label,
+                    hint: section.label,
+                    keywords: section.label,
+                  })),
+                )}
               />
             </div>
 

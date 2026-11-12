@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Ban,
   Building2,
+  CheckCircle2,
   Copy,
   Download,
   Eye,
@@ -47,9 +48,10 @@ import { useApiQuery } from "@/hooks/useApiQuery";
 import { WelcomeEmailNotice } from "@/components/settings/WelcomeEmailNotice";
 import { ApiError, del, downloadFile, get, patch, post } from "@/lib/api";
 import type { WelcomeEmail } from "@/lib/types/admin";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 import { CreateWorkspaceDialog, type EditTarget, type Issued } from "./CreateWorkspaceDialog";
+import { PlatformToolsPanel } from "./PlatformToolsPanel";
 import { type WorkspaceDetail, WorkspaceSheet } from "./WorkspaceSheet";
 
 interface Admin {
@@ -326,6 +328,7 @@ export function PlatformConsole() {
           reload();
         }}
       />
+      <PlatformToolsPanel />
       <DeletedWorkspacesPanel key={deletedVersion} />
 
       <SuspendDialog workspace={suspending} onClose={() => setSuspending(null)} onDone={reload} />
@@ -744,6 +747,35 @@ function IssuedDialog({ issued, onClose }: { issued: Issued | null; onClose: () 
           </DialogDescription>
         </DialogHeader>
         {issued?.welcome && <WelcomeEmailNotice welcome={issued.welcome} />}
+        {issued?.tools?.length ? (
+          <div className="grid gap-2">
+            <p className="text-sm font-medium">Connected tools</p>
+            <ul className="grid gap-1.5">
+              {issued.tools.map((tool) => (
+                <li key={tool.key} className="flex items-start gap-2 text-sm">
+                  {tool.status === "connected" ? (
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
+                  ) : (
+                    <AlertTriangle
+                      className={cn(
+                        "mt-0.5 size-4 shrink-0",
+                        tool.status === "existing" ? "text-warning" : "text-destructive",
+                      )}
+                    />
+                  )}
+                  <span>
+                    <span className="font-medium">{tool.brand}:</span> {tool.message}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {issued.tools.some((tool) => tool.status === "connected") ? (
+              <p className="text-xs text-muted-foreground">
+                The admin opens each connected tool from AskMiraa, without a second password.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         <Alert>
           <KeyRound />
           <AlertTitle>Sign-in details</AlertTitle>

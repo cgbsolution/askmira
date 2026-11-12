@@ -29,17 +29,26 @@ export function FormTaskAction({
     try {
       let current = task;
       if (!current.form_letter_id) {
-        current = await post<OnboardingTask>(`/onboarding/tasks/${task.id}/form`, {});
+        current = await post<OnboardingTask>(
+          `/onboarding/tasks/${task.id}/form`,
+          {},
+        );
         onChanged(current);
       }
       if (!current.form_letter_id) {
         toast.error("The generated form could not be found. Try again.");
         return;
       }
-      const { path } = await get<{ path: string }>(`/letters/${current.form_letter_id}/sign-link`);
+      const { path } = await get<{ path: string }>(
+        `/letters/${current.form_letter_id}/sign-link`,
+      );
       window.location.assign(path);
     } catch (caught) {
-      toast.error(caught instanceof ApiError ? caught.detail : "The form could not be generated.");
+      toast.error(
+        caught instanceof ApiError
+          ? caught.detail
+          : "The form could not be generated.",
+      );
     } finally {
       setBusy(false);
     }

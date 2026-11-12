@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 
 import { FormField } from "@/components/common/FormField";
+import { PredictiveSearch, valueSuggestions } from "@/components/common/PredictiveSearch";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -24,11 +24,14 @@ export function CareersJobFilters({
   slug,
   departments,
   locations,
+  roles = [],
   initial,
 }: {
   slug: string;
   departments: Option[];
   locations: Option[];
+  /** Titles of the roles listed, offered as the keyword is typed. */
+  roles?: string[];
   initial: { department_id: string; location_id: string; search: string };
 }) {
   const router = useRouter();
@@ -38,12 +41,12 @@ export function CareersJobFilters({
 
   const base = `/careers/${encodeURIComponent(slug)}`;
 
-  function apply(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  function apply(event?: React.FormEvent<HTMLFormElement>, keyword = search) {
+    event?.preventDefault();
     const params = new URLSearchParams();
     if (department !== ALL) params.set("department_id", department);
     if (location !== ALL) params.set("location_id", location);
-    const term = search.trim();
+    const term = keyword.trim();
     if (term) params.set("search", term.slice(0, 100));
     const qs = params.toString();
     router.push(qs ? `${base}?${qs}` : base);
@@ -95,13 +98,16 @@ export function CareersJobFilters({
         </Select>
       </FormField>
       <FormField htmlFor="careers-search" label="Search">
-        <Input
+        <PredictiveSearch
           id="careers-search"
-          type="search"
           value={search}
           maxLength={100}
           placeholder="Role or keyword"
-          onChange={(event) => setSearch(event.target.value)}
+          onValueChange={setSearch}
+          suggestions={valueSuggestions(roles, { Role: (title) => title })}
+          // Picking a role searches for it at once; Enter searches what was typed.
+          onPick={(line) => apply(undefined, line.value ?? line.label)}
+          onSubmit={(term) => apply(undefined, term)}
         />
       </FormField>
       <div className="flex gap-2">

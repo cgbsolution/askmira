@@ -461,7 +461,7 @@ function AccountsTab({
     {
       accessorKey: "is_active",
       header: "Status",
-      meta: { text: (row) => (row.is_active ? "Active" : "Inactive") },
+      meta: { text: (row) => (row.is_active ? "Active" : "Inactive"), filter: true },
       cell: ({ row }) =>
         row.original.is_active ? <Badge variant="success">Active</Badge> : <Badge variant="outline">Inactive</Badge>,
     },

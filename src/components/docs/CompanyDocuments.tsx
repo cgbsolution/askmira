@@ -10,7 +10,6 @@ import {
   PenLine,
   Pencil,
   Plus,
-  Search,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -21,8 +20,8 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
 import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
-import { IconInput } from "@/components/common/IconInput";
 import { TablePager, usePaged } from "@/components/common/TablePager";
+import { PredictiveSearch, valueSuggestions } from "@/components/common/PredictiveSearch";
 import { HandbookBuilder } from "@/components/docs/HandbookBuilder";
 import { apiMessage } from "@/components/people/labels";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -424,13 +423,18 @@ export function CompanyDocumentsPanel({
         toolbar={
           all.length > 0 ? (
             <div className="flex w-full flex-col gap-3">
-              <IconInput
-                icon={Search}
+              <PredictiveSearch
                 aria-label="Search company documents"
                 placeholder="Search type, title or number"
-                className="w-full sm:w-72"
+                wrapperClassName="w-full sm:w-72"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onValueChange={setQuery}
+                historyKey="company-documents"
+                suggestions={valueSuggestions(all, {
+                  Title: (row) => row.title,
+                  Type: (row) => row.document_type,
+                  Number: (row) => row.document_number,
+                })}
               />
               <TypeChips counts={counts} value={type} onChange={setType} total={all.length} />
             </div>

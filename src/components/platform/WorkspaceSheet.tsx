@@ -215,7 +215,7 @@ export function WorkspaceSheet({
 
               <Separator />
 
-              <Block title="Linked products">
+              <Block title="Connected tools">
                 <LinkedProducts workspaceId={data.id} active={data.is_active} />
               </Block>
 

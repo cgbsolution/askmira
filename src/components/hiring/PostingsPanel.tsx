@@ -143,7 +143,7 @@ export function PostingsPanel({
     {
       accessorKey: "status",
       header: "Status",
-      meta: { text: (row) => POSTING_STATUS[row.status]?.[0] ?? row.status },
+      meta: { text: (row) => POSTING_STATUS[row.status]?.[0] ?? row.status, filter: true },
       cell: ({ row }) => (
         <>
           <StatusBadge map={POSTING_STATUS} value={row.original.status} />

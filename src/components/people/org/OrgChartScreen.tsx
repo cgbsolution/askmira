@@ -1,6 +1,6 @@
 "use client";
 
-import { Armchair, Download, Info, List, Network, Printer, Search, TriangleAlert, Users } from "lucide-react";
+import { Armchair, Download, Info, List, Network, Printer, TriangleAlert, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -9,11 +9,11 @@ import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataPanel } from "@/components/common/DataPanel";
 import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
+import { PredictiveSearch, valueSuggestions, type Suggestion } from "@/components/common/PredictiveSearch";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
@@ -324,6 +324,22 @@ function PeopleChart() {
     );
   }, [people, term, department, location, filtering]);
 
+  // As a name is typed: the people (title and code beside them), then the titles.
+  const personLines = useMemo<Suggestion[]>(
+    () => [
+      ...(people ?? []).map((person) => ({
+        id: `person:${person.id}`,
+        label: personName(person),
+        description: person.designation ?? undefined,
+        hint: person.employee_code,
+        keywords: person.employee_code,
+        icon: UserRound,
+      })),
+      ...valueSuggestions(people, { Title: (person) => person.designation }),
+    ],
+    [people],
+  );
+
   const exportCsv = () => {
     const spans = new Map<string, { direct: number; total: number }>();
     const walk = (node: PersonNode) => {
@@ -498,13 +514,13 @@ function PeopleChart() {
         toolbar={
           <>
             <div className="relative w-full max-w-sm">
-              <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-              <Input
+              <PredictiveSearch
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onValueChange={setSearch}
                 placeholder="Find a person, title or employee code"
                 aria-label="Find a person"
-                className="pl-8"
+                historyKey="org-chart-people"
+                suggestions={personLines}
               />
               {filtering && (
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -646,6 +662,20 @@ function PositionsChart() {
     return found;
   }, [roots, search]);
 
+  const seatLines = useMemo<Suggestion[]>(() => {
+    const seats: SeatNode["seat"][] = [];
+    const walk = (node: SeatNode) => {
+      seats.push(node.seat);
+      node.children.forEach(walk);
+    };
+    roots.forEach(walk);
+    return valueSuggestions(seats, {
+      Position: (seat) => seat.title,
+      Code: (seat) => seat.code,
+      Holder: (seat) => seat.holder,
+    });
+  }, [roots]);
+
   const forceOpen = useMemo(() => ancestorsOf(roots, matches), [roots, matches]);
   const focusId = useMemo(() => firstMatch(roots, matches), [roots, matches]);
 
@@ -675,13 +705,13 @@ function PositionsChart() {
         toolbar={
           <>
             <div className="relative w-full max-w-sm">
-              <Search className="pointer-events-none absolute top-2.5 left-2.5 size-4 text-muted-foreground" />
-              <Input
+              <PredictiveSearch
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onValueChange={setSearch}
                 placeholder="Find a title, position code or holder"
                 aria-label="Find a position"
-                className="pl-8"
+                historyKey="org-chart-positions"
+                suggestions={seatLines}
               />
               {search.trim().length >= 2 && (
                 <p className="mt-1 text-xs text-muted-foreground">

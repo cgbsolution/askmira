@@ -54,8 +54,8 @@ export function MilestonesPanel() {
   return (
     <DataPanel
       tier="tier2"
-      title="Work anniversaries"
-      description="Marked automatically each morning. {name}, {years} and {company} are filled in."
+      title="Milestone rewards"
+      description="Every work anniversary gets a card. For the years listed here, this message replaces the card's on the feed and in the email, and the points are added. {name}, {years} and {company} are filled in."
       actions={
         <div className="flex gap-2">
           <Button

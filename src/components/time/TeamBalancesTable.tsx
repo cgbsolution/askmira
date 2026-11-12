@@ -1,13 +1,13 @@
 "use client";
 
-import { Search, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 
 import { DataPanel } from "@/components/common/DataPanel";
-import { IconInput } from "@/components/common/IconInput";
 import { PersonCell } from "@/components/common/PersonCell";
 import { TablePager } from "@/components/common/TablePager";
+import { PredictiveSearch, valueSuggestions } from "@/components/common/PredictiveSearch";
 import { DownloadButton } from "@/components/payroll-ops/shared";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { BalancesPanel } from "@/components/time/BalancesPanel";
@@ -117,13 +117,18 @@ export function TeamBalancesTable({
         }
         toolbar={
           <div className="flex flex-wrap items-center gap-3">
-            <IconInput
-              icon={Search}
+            <PredictiveSearch
               aria-label="Search people"
               placeholder="Search by name or code"
-              className="w-full sm:w-72"
+              wrapperClassName="w-full sm:w-72"
               value={term}
-              onChange={(event) => setTerm(event.target.value)}
+              onValueChange={setTerm}
+              historyKey="leave-team-balances"
+              suggestions={valueSuggestions(rows, {
+                Name: (row) => row.employee_name,
+                Code: (row) => row.employee_code,
+                Department: (row) => row.department_name,
+              })}
             />
             {isHr && org.departments.length > 0 && (
               <Select

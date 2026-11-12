@@ -44,7 +44,7 @@ export interface Connector {
   custom_address: boolean;
   connected: boolean;
   /** "connectors": connected here. "platform": linked by the platform the older way. */
-  via: "connectors" | "platform" | null;
+  via: "connectors" | "platform" | "server" | null;
   /** The organisation in the product this workspace is connected to. */
   organization: string | null;
   last_synced_at: string | null;
@@ -196,7 +196,7 @@ function ConnectorCard({
         <CardTitle className="flex flex-wrap items-center gap-2">
           {connector.brand}
           {connector.connected ? (
-            <Badge variant="secondary">
+            <Badge variant="success">
               <CheckCircle2 /> Connected
             </Badge>
           ) : (
@@ -214,6 +214,11 @@ function ConnectorCard({
               </p>
             ) : null}
             {connector.via === "platform" ? (
+              <p className="text-xs text-muted-foreground">
+                Set up by your AskMiraa provider, with a key for this workspace alone. To use another {connector.brand}{" "}
+                account instead, disconnect and connect again.
+              </p>
+            ) : connector.via === "server" ? (
               <p className="text-xs text-muted-foreground">
                 Linked by your AskMiraa provider. Disconnect and connect again to give this workspace a key of its own.
               </p>
