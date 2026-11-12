@@ -105,7 +105,7 @@ export function ProfileView({
 } = {}) {
   const params = useParams<{ id?: string }>();
   const router = useRouter();
-  const { user, hasRole, hasModule } = useAuth();
+  const { user, hasRole, hasModule, reloadSession } = useAuth();
   const org = useOrgReference();
   const record = useApiQuery<EmployeeRecord>(recordPath ?? `/employees/${params.id}`);
   const employee = record.data;
@@ -608,7 +608,11 @@ export function ProfileView({
           onOpenChange={setEditingPhoto}
           employee={employee}
           isSelf={isSelf}
-          onSaved={(saved) => record.setData(saved)}
+          onSaved={(saved) => {
+            record.setData(saved);
+            // Their own photo also sits in the header and sidebar.
+            if (saved.id === user?.employee_id) void reloadSession();
+          }}
         />
       )}
       {details && (

@@ -8,12 +8,20 @@ import { AppHeader } from "@/components/layout/AppHeader";
 import { OperatorBanner } from "@/components/operators/OperatorBanner";
 import { PrivacySetupBanner } from "@/components/compliance/PrivacySetupBanner";
 import { AppSidebar } from "@/components/layout/AppSidebar";
+import { PlatformHeader, PlatformSidebar } from "@/components/layout/PlatformShell";
 import { ConnectorRailProvider, ConnectorSidebar } from "@/components/layout/ConnectorSidebar";
 import { SIDEBAR_COOKIE_NAME, SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
-import { decideAccess, linkedProduct, resolvePage } from "@/lib/access";
+import {
+  decideAccess,
+  isPlatformOwner,
+  isPlatformPath,
+  linkedProduct,
+  PLATFORM_HOME,
+  resolvePage,
+} from "@/lib/access";
 
 /**
  * Whether the rail was left expanded last time. Only called once the session
@@ -47,7 +55,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     else if (mustSetUpTwoStep) router.replace("/two-step-setup");
   }, [isLoading, mustChangePassword, mustSetUpTwoStep, router]);
 
-  if (isLoading || !isAuthenticated || mustChangePassword || mustSetUpTwoStep) {
+  // The super admin runs the platform, not a company: any other page — the
+  // home page after sign-in included — takes them to the platform console.
+  const platformOwner = isPlatformOwner(user);
+  const offConsole = platformOwner && !isPlatformPath(pathname);
+  useEffect(() => {
+    if (!isLoading && offConsole && !mustChangePassword && !mustSetUpTwoStep) {
+      router.replace(PLATFORM_HOME);
+    }
+  }, [isLoading, offConsole, mustChangePassword, mustSetUpTwoStep, router]);
+
+  if (isLoading || !isAuthenticated || mustChangePassword || mustSetUpTwoStep || offConsole) {
     return (
       <div className="flex min-h-screen flex-col gap-4 p-8">
         <Skeleton className="h-10 w-64" />
@@ -60,6 +78,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Presentation only: the page is not rendered, so it makes no API calls the
   // person was never going to be allowed. The API refuses them regardless.
   const decision = decideAccess(pathname, user, tenant);
+
+  if (platformOwner) {
+    // Its own shell: no HR modules, no Miraa rail, no company banners.
+    return (
+      <TooltipProvider delayDuration={200}>
+        <SidebarProvider defaultOpen={sidebarWasOpen()} className="min-w-0 flex-1">
+          <PlatformSidebar />
+          <SidebarInset className="min-w-0">
+            <PlatformHeader />
+            <div className="mx-auto w-full max-w-(--breakpoint-2xl) flex-1 p-4 md:p-6">{children}</div>
+          </SidebarInset>
+        </SidebarProvider>
+      </TooltipProvider>
+    );
+  }
 
   return (
     <TooltipProvider delayDuration={200}>

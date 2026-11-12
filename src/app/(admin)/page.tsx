@@ -20,7 +20,7 @@ import { PulseStat } from "@/components/dashboard/PulseStat";
 import { MyOpenTicketsCard } from "@/components/helpdesk/MyOpenTicketsCard";
 import { OnboardingProgressCard } from "@/components/onboarding/OnboardingProgressCard";
 import { ShoutoutRail } from "@/components/dashboard/ShoutoutRail";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { HR, MANAGERS } from "@/lib/access";
@@ -110,6 +110,7 @@ export default function HomePage() {
         <div className="relative flex flex-col gap-4 @3xl/main:flex-row @3xl/main:items-center @3xl/main:justify-between">
           <div className="flex min-w-0 items-center gap-4">
             <Avatar className="size-12 ring-4 ring-card sm:size-14">
+              {user?.photo_url && <AvatarImage src={user.photo_url} alt="" />}
               <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground sm:text-base">
                 {initials(user?.full_name ?? firstName)}
               </AvatarFallback>

@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AskMiraLogo, AskMiraMark } from "@/components/brand/AskMiraLogo";
 import { CompanyLogo } from "@/components/brand/CompanyLogo";
 import { RailSection } from "@/components/layout/RailSection";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -197,6 +197,7 @@ export function AppSidebar() {
                     className="h-auto gap-3 rounded-xl bg-white/8 p-2.5 hover:bg-white/12 data-[state=open]:bg-white/12 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0.5!"
                   >
                     <Avatar className="size-9">
+                      {user.photo_url && <AvatarImage src={user.photo_url} alt="" />}
                       <AvatarFallback className="bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground">
                         {initials(user.full_name)}
                       </AvatarFallback>

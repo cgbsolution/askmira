@@ -1,4 +1,5 @@
 import {
+  Archive,
   BarChart3,
   Bell,
   Briefcase,
@@ -16,8 +17,10 @@ import {
   LayoutDashboard,
   LifeBuoy,
   MessageCircleQuestion,
+  PlugZap,
   Receipt,
   Rocket,
+  Scale,
   Settings,
   ShieldCheck,
   ShoppingCart,
@@ -592,12 +595,31 @@ export const NAV: NavSection[] = [
     name: "Platform",
     icon: Building2,
     group: "admin",
+    // The super admin's whole console (PlatformShell): it runs the platform, not
+    // a company, so it is shown nothing else.
     pages: [
-      { name: "Workspaces", path: "/platform", roles: PLATFORM },
-      { name: "Demo requests", path: "/platform/demo-requests", roles: PLATFORM },
+      { name: "Overview", path: "/platform", roles: PLATFORM, icon: LayoutDashboard },
+      { name: "Organisations", path: "/platform/organisations", roles: PLATFORM, icon: Building2 },
+      { name: "Connected tools", path: "/platform/tools", roles: PLATFORM, icon: PlugZap },
+      { name: "Statutory desk", path: "/platform/statutory", roles: PLATFORM, icon: Scale },
+      { name: "Demo requests", path: "/platform/demo-requests", roles: PLATFORM, icon: Inbox },
+      { name: "Deleted organisations", path: "/platform/deleted", roles: PLATFORM, icon: Archive },
     ],
   },
 ];
+
+/** Where the super admin lands, and where any other page sends them. */
+export const PLATFORM_HOME = "/platform";
+
+/** The platform owner: shown the platform console, never a company's pages. */
+export function isPlatformOwner(user: AuthUser | null): boolean {
+  return user?.role === "super_admin";
+}
+
+/** Whether a path is one of the platform console's pages. */
+export function isPlatformPath(pathname: string): boolean {
+  return resolvePage(pathname)?.section?.key === "platform";
+}
 
 /** Signed-in pages that belong to no section but still need a guard. */
 const STANDALONE: NavPage[] = [
@@ -690,6 +712,8 @@ export function decideAccess(
   const resolved = resolvePage(pathname);
   if (!resolved) return "role";
   const { page, section } = resolved;
+  // The super admin runs the platform; a company's own pages are for its people.
+  if (isPlatformOwner(user)) return section?.key === "platform" ? "allowed" : "role";
   const inLinked = Boolean(section?.linkedPages?.some((p) => p.path === page.path));
   const linkedOnly = inLinked && !section?.pages.some((p) => p.path === page.path);
   if (linkedProduct(section, tenant)) {

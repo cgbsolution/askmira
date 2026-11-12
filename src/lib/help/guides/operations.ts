@@ -656,33 +656,85 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
   },
 
   "/platform": {
+    summary: "The platform at a glance: organisations, people, tool health and what needs you, all from live data.",
+    tasks: [
+      {
+        title: "Work through what needs you",
+        steps: [
+          "Needs attention lists admins who never signed in, suspended organisations, tool keys missing or refused, failed people syncs, waiting demo requests and data about to be purged.",
+          "Each line opens the place to fix it.",
+        ],
+      },
+      {
+        title: "Start a new organisation",
+        steps: ["Press New organisation; it opens Organisations with the form ready."],
+      },
+    ],
+  },
+  "/platform/organisations": {
     summary: "Every organisation on AskMiraa. Only the platform owner creates them; each admin then sets up their own.",
     tasks: [
       {
-        title: "Create a workspace",
-        steps: ["Create the organisation and its first admin's login."],
+        title: "Create an organisation",
+        steps: ["Press New organisation, fill in the company and its first admin, and tick the tools it uses."],
       },
       {
-        title: "Add an admin or suspend a workspace",
-        steps: ["Use Add an admin to give another admin a login, or Suspend to stop sign-ins."],
-      },
-      {
-        title: "Fix an admin's email",
+        title: "Add an admin, reset a password or fix an email",
         steps: [
-          "Use Change email next to the admin and give the right address.",
-          "They get a new welcome email and temporary password; links sent to the wrong address stop working.",
+          "Open the row's menu: each admin has Reset password and Change email; Add admin gives another admin a login.",
+          "A changed email gets a new welcome email and temporary password; links sent to the old address stop working.",
         ],
       },
       {
-        title: "Delete an organisation",
+        title: "Suspend or delete an organisation",
         steps: [
-          "Open the row's menu, choose Delete organisation, give a reason and type its address to confirm.",
-          "Everyone is signed out for good and it leaves the list; its records are kept as the law requires.",
+          "Suspend stops sign-ins and keeps everything; Reactivate undoes it.",
+          "Delete organisation asks for a reason and the address typed out. Its data is kept 90 days under Deleted organisations, then purged.",
+        ],
+      },
+    ],
+  },
+  "/platform/tools": {
+    summary: "The platform key for each of our tools, and which organisation is connected to which tool.",
+    tasks: [
+      {
+        title: "Set a tool's platform key",
+        steps: [
+          "Generate a key (or paste one) and set the same value on the tool as ASKMIRA_PLATFORM_SECRET.",
+          "Press Check to confirm the tool accepts it.",
         ],
       },
       {
-        title: "Link the interview or expense tool",
-        steps: ["Open the workspace's Linked products and link the product; people are synced every night."],
+        title: "Connect an organisation to a tool",
+        steps: [
+          "Click the organisation's row in the grid and press Connect next to the tool, or Link existing for an organisation the tool already has.",
+          "A failed people sync shows in red; Sync now retries it.",
+        ],
+      },
+    ],
+  },
+  "/platform/statutory": {
+    summary: "Changes in PF, ESI, Professional Tax, LWF and income tax, published to every organisation with a location in the jurisdiction.",
+    tasks: [
+      {
+        title: "Publish a change",
+        steps: [
+          "Press Publish a notice, give the jurisdiction, the date it takes effect and the notification it comes from.",
+          "Add reviewed rules only after statutory review: each organisation's admins can draft a rule set from them.",
+        ],
+      },
+      {
+        title: "Withdraw a notice",
+        steps: ["Withdraw one published in error; organisations stop seeing it. It stays here, marked Withdrawn."],
+      },
+    ],
+  },
+  "/platform/deleted": {
+    summary: "Organisations you deleted. Their data is kept 90 days so it can be handed back, then purged.",
+    tasks: [
+      {
+        title: "Hand a company its data",
+        steps: ["Press Download data before the purge date and send the file to the company."],
       },
     ],
   },
@@ -705,7 +757,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       },
       {
         title: "Turn a request into a workspace",
-        steps: ["When they sign up, create their organisation under Workspaces and set the request to Closed."],
+        steps: ["When they sign up, create their organisation under Organisations and set the request to Closed."],
       },
     ],
   },

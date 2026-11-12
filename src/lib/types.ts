@@ -31,6 +31,8 @@ export interface AuthUser {
   /** The workspace requires two-step sign-in of them and it is not set up yet. */
   two_step_required?: boolean;
   employee_id: string | null;
+  /** Their own profile photo, shown in the header and sidebar. */
+  photo_url?: string | null;
   last_login_at: string | null;
   created_at: string;
 }

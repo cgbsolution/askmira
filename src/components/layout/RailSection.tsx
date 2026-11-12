@@ -27,10 +27,10 @@ import type { ProductKey } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** A top-level row: 44px, the icon in its own chip, label beside it. */
-const ROW = "relative h-11 gap-3 rounded-xl px-1.5 font-medium text-sidebar-foreground/90";
+export const ROW = "relative h-11 gap-3 rounded-xl px-1.5 font-medium text-sidebar-foreground/90";
 
 /** The icon's chip. Marigold when its section is the one you are in. */
-function NavChip({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) {
+export function NavChip({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) {
   return (
     <span
       className={cn(
@@ -46,7 +46,7 @@ function NavChip({ icon: Icon, active }: { icon: LucideIcon; active: boolean }) 
 }
 
 /** The Marigold bar on the rail's edge beside the active row. */
-function ActiveBar() {
+export function ActiveBar() {
   return (
     <span
       aria-hidden

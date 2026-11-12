@@ -1,5 +1,6 @@
 "use client";
 
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   AlertTriangle,
   Ban,
@@ -18,10 +19,12 @@ import {
   Trash2,
   UserPlus,
 } from "lucide-react";
-import React, { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { DataPanel } from "@/components/common/DataPanel";
+import { DataTable } from "@/components/common/data-table/DataTable";
 import { FormField } from "@/components/common/FormField";
 import { PageShell } from "@/components/common/PageShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -38,12 +41,14 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { WelcomeEmailNotice } from "@/components/settings/WelcomeEmailNotice";
 import { ApiError, del, downloadFile, get, patch, post } from "@/lib/api";
@@ -51,10 +56,10 @@ import type { WelcomeEmail } from "@/lib/types/admin";
 import { cn, formatDate } from "@/lib/utils";
 
 import { CreateWorkspaceDialog, type EditTarget, type Issued } from "./CreateWorkspaceDialog";
-import { PlatformToolsPanel } from "./PlatformToolsPanel";
+import type { WorkspaceTool } from "./tools";
 import { type WorkspaceDetail, WorkspaceSheet } from "./WorkspaceSheet";
 
-interface Admin {
+export interface Admin {
   id: string;
   full_name: string;
   email: string;
@@ -63,7 +68,7 @@ interface Admin {
   last_login_at: string | null;
 }
 
-interface Workspace {
+export interface Workspace {
   id: string;
   name: string;
   workspace: string;
@@ -85,30 +90,95 @@ interface Workspace {
   admins: Admin[];
 }
 
+/** One organisation's standing in every tool (GET /platform/connections). */
+export interface Connection {
+  id: string;
+  name: string;
+  workspace: string;
+  is_active: boolean;
+  tools: WorkspaceTool[];
+}
+
+type StatusFilter = "all" | "active" | "suspended";
 
 function failure(caught: unknown, fallback: string): string {
   return caught instanceof ApiError ? caught.detail : fallback;
 }
 
+/** The organisation's logo, or a building where it has none. */
+export function OrgLogo({ url, className }: { url: string | null; className?: string }) {
+  return url ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={url} alt="" className={cn("size-9 shrink-0 rounded-md object-contain", className)} />
+  ) : (
+    <span
+      className={cn(
+        "flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground",
+        className,
+      )}
+    >
+      <Building2 className="size-4" />
+    </span>
+  );
+}
+
 /**
- * Platform → Workspaces. Super admin only.
+ * Platform → Organisations. Super admin only.
  *
  * There is no public sign-up: every organisation starts here, with its first
  * admin, who then sets up everything inside it. This page shows each
- * workspace's admins and size, and nothing from inside it.
+ * organisation's admins, size and tools, and nothing from inside it.
+ *
+ * Deep links: `?open=<id>` opens one, `?new=1` the create form, `?search=` the
+ * search box (from the header search and the overview).
  */
 export function PlatformConsole() {
+  const params = useSearchParams();
+  const router = useRouter();
   const { data, error, isLoading, reload } = useApiQuery<Workspace[]>("/platform/workspaces");
-  const [creating, setCreating] = useState(false);
+  const connections = useApiQuery<Connection[]>("/platform/connections");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [search, setSearch] = useState(params.get("search") ?? "");
+  const [creating, setCreating] = useState(params.get("new") === "1");
   const [addingTo, setAddingTo] = useState<Workspace | null>(null);
   const [suspending, setSuspending] = useState<Workspace | null>(null);
   const [deleting, setDeleting] = useState<Workspace | null>(null);
-  // Bumped after a delete so the deleted list reloads with the new entry.
-  const [deletedVersion, setDeletedVersion] = useState(0);
   const [changingEmail, setChangingEmail] = useState<{ workspace: Workspace; admin: Admin } | null>(null);
   const [issued, setIssued] = useState<Issued | null>(null);
-  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(params.get("open"));
   const [editing, setEditing] = useState<EditTarget | null>(null);
+
+  // A later deep link while the page is open (the header search) takes effect too.
+  const linkedOpen = params.get("open");
+  const linkedSearch = params.get("search");
+  const linkedNew = params.get("new");
+  useEffect(() => {
+    if (linkedOpen) setViewingId(linkedOpen);
+  }, [linkedOpen]);
+  useEffect(() => {
+    if (linkedSearch !== null) setSearch(linkedSearch);
+  }, [linkedSearch]);
+  useEffect(() => {
+    if (linkedNew === "1") setCreating(true);
+  }, [linkedNew]);
+
+  /** Drops a used deep link, so a reload does not reopen the sheet or the form. */
+  const clearLink = () => {
+    if (params.has("open") || params.has("new")) router.replace("/platform/organisations");
+  };
+
+  const reloadConnections = connections.reload;
+  const reloadAll = () => {
+    reload();
+    reloadConnections();
+  };
+
+  const toolsByOrg = useMemo(() => {
+    const map = new Map<string, WorkspaceTool[]>();
+    (connections.data ?? []).forEach((row) => map.set(row.id, row.tools));
+    return map;
+  }, [connections.data]);
+  const toolsLoading = connections.isLoading && !connections.data;
 
   const openEdit = async (workspaceId: string) => {
     try {
@@ -144,162 +214,239 @@ export function PlatformConsole() {
     }
   };
 
+  const rows = (data ?? []).filter((row) =>
+    statusFilter === "all" ? true : statusFilter === "active" ? row.is_active : !row.is_active,
+  );
+
+  const columns: ColumnDef<Workspace>[] = [
+    {
+      accessorKey: "name",
+      header: "Organisation",
+      cell: ({ row: { original: row } }) => (
+        <div className="flex min-w-56 items-start gap-3">
+          <OrgLogo url={row.logo_url} />
+          <div className="min-w-0">
+            <p className="flex flex-wrap items-center gap-1.5 font-medium text-foreground">
+              {row.name}
+              {row.is_own ? <Badge variant="outline">Yours</Badge> : null}
+              {!row.is_active ? <Badge variant="destructive">Suspended</Badge> : null}
+            </p>
+            <p className="font-mono text-xs text-muted-foreground">{row.workspace}</p>
+            {row.legal_name && row.legal_name !== row.name ? (
+              <p className="text-xs text-muted-foreground">{row.legal_name}</p>
+            ) : null}
+            {row.city || row.gstin || row.pan ? (
+              <p className="text-xs text-muted-foreground">
+                {[row.city, row.state_code].filter(Boolean).join(", ")}
+                {row.gstin ? ` · GSTIN ${row.gstin}` : row.pan ? ` · PAN ${row.pan}` : ""}
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "admins",
+      header: "Admins",
+      accessorFn: (row) => row.admins.map((a) => `${a.full_name} ${a.email}`).join(" "),
+      cell: ({ row: { original: row } }) =>
+        row.admins.length === 0 ? (
+          <Badge variant="warning">No admin</Badge>
+        ) : (
+          <div className="grid gap-1.5">
+            {row.admins.map((admin) => (
+              <div key={admin.id} className="min-w-0 text-sm">
+                <p className="flex flex-wrap items-center gap-1.5">
+                  {admin.full_name}
+                  {admin.must_change_password ? <Badge variant="warning">Not signed in yet</Badge> : null}
+                  {!admin.is_active ? <Badge variant="muted">Inactive</Badge> : null}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{admin.email}</p>
+              </div>
+            ))}
+          </div>
+        ),
+    },
+    {
+      accessorKey: "employees",
+      header: "People",
+      cell: ({ row: { original: row } }) => (
+        <div className="tabular-nums">
+          {row.employees}
+          <p className="text-xs text-muted-foreground">{row.active_logins} logins</p>
+        </div>
+      ),
+    },
+    {
+      id: "tools",
+      header: "Connected tools",
+      accessorFn: (row) =>
+        (toolsByOrg.get(row.id) ?? [])
+          .filter((tool) => tool.connected)
+          .map((tool) => tool.brand)
+          .join(", "),
+      cell: ({ row: { original: row } }) => {
+        if (toolsLoading) return <span className="text-muted-foreground">…</span>;
+        const tools = (toolsByOrg.get(row.id) ?? []).filter((tool) => tool.connected);
+        if (tools.length === 0) return <span className="text-sm text-muted-foreground">None</span>;
+        return (
+          <div className="flex max-w-56 flex-wrap gap-1">
+            {tools.map((tool) => (
+              <Badge
+                key={tool.key}
+                variant={tool.last_error ? "destructive" : "secondary"}
+                title={tool.last_error ? `People sync failed: ${tool.last_error}` : undefined}
+              >
+                {tool.last_error ? <AlertTriangle /> : null}
+                {tool.brand}
+              </Badge>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "last_sign_in",
+      header: "Last sign-in",
+      cell: ({ row: { original: row } }) => (
+        <span className="whitespace-nowrap text-sm">{row.last_sign_in ? formatDate(row.last_sign_in) : "Never"}</span>
+      ),
+    },
+    {
+      accessorKey: "created_at",
+      header: "Created",
+      cell: ({ row: { original: row } }) => (
+        <span className="whitespace-nowrap text-sm">{row.created_at ? formatDate(row.created_at) : "—"}</span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "",
+      enableHiding: false,
+      enableSorting: false,
+      meta: { text: false },
+      cell: ({ row: { original: row } }) => (
+        <div className="flex justify-end gap-2">
+          <Button size="sm" variant="outline" onClick={() => void openEdit(row.id)}>
+            <Pencil /> Edit
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="ghost" className="size-8" aria-label={`More for ${row.name}`}>
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuItem onClick={() => setViewingId(row.id)}>
+                <Eye /> View details and tools
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setAddingTo(row)}>
+                <UserPlus /> Add admin
+              </DropdownMenuItem>
+              {row.admins.map((admin) => (
+                <DropdownMenuGroup key={admin.id}>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+                    {admin.full_name}
+                  </DropdownMenuLabel>
+                  <DropdownMenuItem onClick={() => void resetPassword(row, admin)}>
+                    <KeyRound /> Reset password
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setChangingEmail({ workspace: row, admin })}>
+                    <Mail /> Change email
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              ))}
+              {row.is_own ? null : (
+                <>
+                  <DropdownMenuSeparator />
+                  {row.is_active ? (
+                    <DropdownMenuItem variant="destructive" onClick={() => setSuspending(row)}>
+                      <Ban /> Suspend
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => void reactivate(row)}>
+                      <RotateCcw /> Reactivate
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem variant="destructive" onClick={() => setDeleting(row)}>
+                    <Trash2 /> Delete organisation
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      ),
+    },
+  ];
+
+  const total = data?.length ?? 0;
+  const suspendedCount = (data ?? []).filter((row) => !row.is_active).length;
+
   return (
     <PageShell
-      title="Workspaces"
+      title="Organisations"
+      eyebrow="Platform console"
       description="Every organisation on AskMiraa. Only you create them; each admin then sets up their own."
-      icon={Building2}
       actions={
         <Button onClick={() => setCreating(true)}>
           <Plus /> New organisation
         </Button>
       }
     >
-      <DataPanel
-        title="Organisations"
+      <DataTable
+        title="All organisations"
+        description={
+          data
+            ? `${total} ${total === 1 ? "organisation" : "organisations"}${
+                suspendedCount ? `, ${suspendedCount} suspended` : ""
+              }. Click a row for its details and tools.`
+            : undefined
+        }
+        columns={columns}
+        data={rows}
+        getRowId={(row) => row.id}
+        noun="organisations"
         isLoading={isLoading}
-        error={error?.detail}
-        onRetry={reload}
-        isEmpty={(data ?? []).length === 0}
-        empty={{ icon: Building2, title: "No organisations yet" }}
-      >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Organisation</TableHead>
-              <TableHead>Admins</TableHead>
-              <TableHead className="text-right">People</TableHead>
-              <TableHead>Last sign-in</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(data ?? []).map((row) => (
-              <TableRow key={row.id} className={row.is_active ? undefined : "opacity-60"}>
-                <TableCell className="align-top">
-                  <div className="flex items-start gap-3">
-                  {row.logo_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={row.logo_url} alt="" className="size-9 rounded object-contain" />
-                  ) : (
-                    <span className="flex size-9 items-center justify-center rounded bg-muted text-muted-foreground">
-                      <Building2 className="size-4" />
-                    </span>
-                  )}
-                  <div>
-                  <p className="font-medium">
-                    {row.name}
-                    {row.is_own ? (
-                      <Badge variant="outline" className="ml-2">
-                        Yours
-                      </Badge>
-                    ) : null}
-                    {!row.is_active ? (
-                      <Badge variant="destructive" className="ml-2">
-                        Suspended
-                      </Badge>
-                    ) : null}
-                  </p>
-                  <p className="font-mono text-xs text-muted-foreground">{row.workspace}</p>
-                  {row.legal_name && row.legal_name !== row.name ? (
-                    <p className="text-xs text-muted-foreground">{row.legal_name}</p>
-                  ) : null}
-                  <p className="text-xs text-muted-foreground">
-                    {[row.city, row.state_code].filter(Boolean).join(", ")}
-                    {row.gstin ? ` · GSTIN ${row.gstin}` : row.pan ? ` · PAN ${row.pan}` : ""}
-                  </p>
-                  {row.created_at ? (
-                    <p className="text-xs text-muted-foreground">Created {formatDate(row.created_at)}</p>
-                  ) : null}
-                  </div>
-                  </div>
-                </TableCell>
-                <TableCell className="align-top">
-                  <div className="grid gap-1">
-                    {row.admins.map((admin) => (
-                      <div key={admin.id} className="flex flex-wrap items-center gap-2 text-sm">
-                        <span>{admin.full_name}</span>
-                        <span className="text-xs text-muted-foreground">{admin.email}</span>
-                        {admin.must_change_password ? <Badge variant="outline">Not signed in yet</Badge> : null}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2"
-                          onClick={() => void resetPassword(row, admin)}
-                        >
-                          <KeyRound className="size-3.5" /> Reset password
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2"
-                          onClick={() => setChangingEmail({ workspace: row, admin })}
-                        >
-                          <Mail className="size-3.5" /> Change email
-                        </Button>
-                      </div>
-                    ))}
-                    {row.admins.length === 0 ? <span className="text-sm text-muted-foreground">No admin</span> : null}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right align-top tabular-nums">
-                  {row.employees}
-                  <p className="text-xs text-muted-foreground">{row.active_logins} logins</p>
-                </TableCell>
-                <TableCell className="align-top text-sm">
-                  {row.last_sign_in ? formatDate(row.last_sign_in) : "Never"}
-                </TableCell>
-                <TableCell className="text-right align-top">
-                  <div className="flex justify-end gap-2">
-                    <Button size="sm" variant="outline" onClick={() => setViewingId(row.id)}>
-                      <Eye /> View
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => void openEdit(row.id)}>
-                      <Pencil /> Edit
-                    </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="size-8" aria-label={`More for ${row.name}`}>
-                          <MoreHorizontal />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setAddingTo(row)}>
-                          <UserPlus /> Add admin
-                        </DropdownMenuItem>
-                        {row.is_own ? null : row.is_active ? (
-                          <DropdownMenuItem variant="destructive" onClick={() => setSuspending(row)}>
-                            <Ban /> Suspend
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem onClick={() => void reactivate(row)}>
-                            <RotateCcw /> Reactivate
-                          </DropdownMenuItem>
-                        )}
-                        {row.is_own ? null : (
-                          <>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem variant="destructive" onClick={() => setDeleting(row)}>
-                              <Trash2 /> Delete organisation
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </DataPanel>
+        error={error?.detail ?? null}
+        onRetry={reloadAll}
+        selectable={false}
+        exportName="organisations"
+        searchPlaceholder="Search name, address, admin or GSTIN"
+        search={search}
+        onSearchChange={setSearch}
+        onRowClick={(row) => setViewingId(row.id)}
+        rowClassName={(row) => (row.is_active ? undefined : "opacity-60")}
+        filtered={statusFilter !== "all"}
+        filters={
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+            <SelectTrigger className="w-40" aria-label="Status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="suspended">Suspended</SelectItem>
+            </SelectContent>
+          </Select>
+        }
+        empty={{
+          icon: Building2,
+          title: statusFilter === "suspended" ? "No suspended organisations" : "No organisations yet",
+          description: statusFilter === "all" ? "Create the first one with New organisation." : undefined,
+        }}
+      />
 
       <CreateWorkspaceDialog
         open={creating}
-        onOpenChange={setCreating}
+        onOpenChange={(next) => {
+          setCreating(next);
+          if (!next) clearLink();
+        }}
         onCreated={(result) => {
           setIssued(result);
-          reload();
+          reloadAll();
         }}
       />
       <CreateWorkspaceDialog
@@ -309,12 +456,17 @@ export function PlatformConsole() {
         onSaved={() => {
           setEditing(null);
           setViewingId(null);
-          reload();
+          reloadAll();
         }}
       />
       <WorkspaceSheet
         workspaceId={viewingId}
-        onClose={() => setViewingId(null)}
+        onClose={() => {
+          setViewingId(null);
+          clearLink();
+          // Tools may have been connected, synced or disconnected from the sheet.
+          reloadConnections();
+        }}
         onEdit={(detail) => {
           setViewingId(null);
           setEditing(detail);
@@ -328,18 +480,9 @@ export function PlatformConsole() {
           reload();
         }}
       />
-      <PlatformToolsPanel />
-      <DeletedWorkspacesPanel key={deletedVersion} />
 
       <SuspendDialog workspace={suspending} onClose={() => setSuspending(null)} onDone={reload} />
-      <DeleteDialog
-        workspace={deleting}
-        onClose={() => setDeleting(null)}
-        onDone={() => {
-          reload();
-          setDeletedVersion((value) => value + 1);
-        }}
-      />
+      <DeleteDialog workspace={deleting} onClose={() => setDeleting(null)} onDone={reloadAll} />
       <ChangeEmailDialog
         target={changingEmail}
         onClose={() => setChangingEmail(null)}
@@ -571,7 +714,7 @@ interface DeletedWorkspace {
  * Deleted organisations, each with the day its data is purged (DPDP s.8(7)(b)).
  * Until then the data can be downloaded to hand back to the company.
  */
-function DeletedWorkspacesPanel() {
+export function DeletedWorkspacesPanel() {
   const { data, error, isLoading, reload } = useApiQuery<DeletedWorkspace[]>("/platform/workspaces/deleted");
   const [downloading, setDownloading] = useState<string | null>(null);
 

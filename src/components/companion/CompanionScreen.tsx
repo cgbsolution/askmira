@@ -9,7 +9,7 @@ import { ErrorState } from "@/components/common/ErrorState";
 import { PageShell } from "@/components/common/PageShell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AskMiraMark } from "@/components/brand/AskMiraLogo";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -661,6 +661,7 @@ function Bubble({
   /** Files on a message still being sent (not read yet). */
   sendingFiles?: File[];
 }) {
+  const { user } = useAuth();
   if (message.role === "user") {
     const files = message.cards.filter((card): card is CompanionAttachmentCard => card.type === "attachment");
     return (
@@ -683,6 +684,7 @@ function Bubble({
           ) : null}
         </div>
         <Avatar className="size-8">
+          {user?.photo_url && <AvatarImage src={user.photo_url} alt="" />}
           <AvatarFallback className="text-xs">{mine || "Me"}</AvatarFallback>
         </Avatar>
       </div>

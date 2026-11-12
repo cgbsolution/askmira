@@ -198,7 +198,7 @@ export function StatutoryUpdates({ onDrafted }: { onDrafted: () => void }) {
   );
 }
 
-function PublishDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+export function PublishDialog({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [ruleType, setRuleType] = useState("professional_tax");
   const [jurisdiction, setJurisdiction] = useState("");
   const [from, setFrom] = useState("");

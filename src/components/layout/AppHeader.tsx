@@ -24,7 +24,7 @@ import { CompanyMark } from "@/components/brand/CompanyLogo";
 import { PredictiveSearch, rankSuggestions, type Suggestion } from "@/components/common/PredictiveSearch";
 import { HelpButton } from "@/components/help/HelpPanel";
 import { useConnectorRail } from "@/components/layout/ConnectorSidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -114,6 +114,7 @@ export function AppHeader() {
           group: t("People"),
           leading: (
             <Avatar className="size-7">
+              {person.photo_url && <AvatarImage src={person.photo_url} alt="" />}
               <AvatarFallback className="bg-brand-100 text-[11px] font-semibold text-brand-600 dark:bg-brand-800 dark:text-brand-100">
                 {initials(name) || <UserRound className="size-3.5" />}
               </AvatarFallback>
@@ -261,6 +262,7 @@ function UserMenu() {
           className="group h-11 gap-3 rounded-full px-0 hover:bg-transparent has-[>svg]:px-0 sm:pr-1 sm:has-[>svg]:px-3"
         >
           <Avatar className="size-11">
+            {user.photo_url && <AvatarImage src={user.photo_url} alt="" />}
             <AvatarFallback className="bg-brand-100 text-sm font-semibold text-brand-600 dark:bg-brand-800 dark:text-brand-100">
               {initials(user.full_name)}
             </AvatarFallback>

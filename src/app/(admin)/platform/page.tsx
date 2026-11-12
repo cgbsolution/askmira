@@ -1,7 +1,7 @@
-import { PlatformConsole } from "@/components/platform/PlatformConsole";
+import { PlatformOverview } from "@/components/platform/PlatformOverview";
 
-export const metadata = { title: "Workspaces" };
+export const metadata = { title: "Platform overview" };
 
 export default function Page() {
-  return <PlatformConsole />;
+  return <PlatformOverview />;
 }
