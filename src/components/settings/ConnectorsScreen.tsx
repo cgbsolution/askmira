@@ -67,6 +67,7 @@ const SHOWN_IN: Record<ProductKey, string> = {
   helpdesk: "Helpdesk and Assets",
   saleinx: "Sales",
   procurement: "Procurement",
+  finance: "Finance",
 };
 
 /**

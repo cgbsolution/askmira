@@ -27,6 +27,7 @@ export const PRODUCT_BRANDS: Record<string, string> = {
   helpdesk: "CGB Helpdesk",
   saleinx: "Saleinx",
   procurement: "ProcureFlow",
+  finance: "Finance",
 };
 
 function typeOf(file: File): string {

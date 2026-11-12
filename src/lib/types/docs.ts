@@ -12,6 +12,7 @@ export type DocumentCategory =
   | "tax"
   | "medical"
   | "bank"
+  | "all_documents"
   | "other";
 
 export interface DocumentCategoryOption {

@@ -67,7 +67,7 @@ export interface CompanyBrand {
 }
 
 /** The separate products a workspace can be linked to. */
-export type ProductKey = "interview" | "expense" | "helpdesk" | "saleinx" | "procurement";
+export type ProductKey = "interview" | "expense" | "helpdesk" | "saleinx" | "procurement" | "finance";
 
 export interface AuthResponse {
   access_token: string;

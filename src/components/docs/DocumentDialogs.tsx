@@ -36,6 +36,14 @@ import { FileInput } from "@/components/ui/file-input";
 import { useUploadLimit } from "@/hooks/useUploadLimit";
 
 const ACCEPT = "application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg";
+/** HR may also attach one ZIP of a person's papers; the server checks every file in it. */
+const HR_ACCEPT = `${ACCEPT},application/zip,application/x-zip-compressed,.zip`;
+/** The largest ZIP, or the workspace's own limit when that is lower (as the server). */
+const ZIP_MB = 5;
+
+function isZip(file: File): boolean {
+  return /\.zip$/i.test(file.name) || file.type === "application/zip" || file.type === "application/x-zip-compressed";
+}
 
 function todayIso(): string {
   const now = new Date();
@@ -198,6 +206,17 @@ export function UploadDocumentDialog({
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const limit = useUploadLimit();
+  const zipLimit = useUploadLimit(Math.min(ZIP_MB, limit.mb));
+  const zipChosen = file !== null && isZip(file);
+
+  // A ZIP is usually "everything for this person": say so, unless HR already chose.
+  const pickFile = (picked: File | null) => {
+    setFile(picked);
+    if (picked && isZip(picked)) {
+      setCategory((current) => current || "all_documents");
+      setTitle((current) => (current.trim() ? current : "All documents"));
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -229,7 +248,9 @@ export function UploadDocumentDialog({
         : "Choose the employee first.";
     }
     if (!file) found.file = "Choose a file.";
-    else if (limit.check(file)) found.file = limit.check(file) as string;
+    else if ((isZip(file) ? zipLimit : limit).check(file)) {
+      found.file = (isZip(file) ? zipLimit : limit).check(file) as string;
+    }
     setErrors(found);
     setServerError(null);
     if (Object.keys(found).length || !file || !person) return;
@@ -266,12 +287,13 @@ export function UploadDocumentDialog({
           <DialogHeader>
             <DialogTitle>{forDependant ? "Add a dependant's document" : "Upload a document"}</DialogTitle>
             <DialogDescription>
-              PDF, PNG or JPEG up to {limit.label}. The type is checked from the file itself.
+              PDF, PNG or JPEG up to {limit.label}, or a ZIP of them up to {zipLimit.label}. Every file is
+              checked from its contents.
             </DialogDescription>
           </DialogHeader>
           {serverError && (
             <Alert variant="destructive">
-              <AlertDescription>{serverError}</AlertDescription>
+              <AlertDescription className="whitespace-pre-line">{serverError}</AlertDescription>
             </Alert>
           )}
           {!employee && (
@@ -321,11 +343,20 @@ export function UploadDocumentDialog({
               />
             </FormField>
           </div>
-          <FormField htmlFor="doc-file" label="File" error={errors.file}>
+          <FormField
+            htmlFor="doc-file"
+            label="File"
+            error={errors.file}
+            hint={
+              zipChosen
+                ? "Every file in the ZIP is opened and checked first. Only PDF, PNG and JPEG files; if one fails, nothing is stored."
+                : undefined
+            }
+          >
             <FileInput
               id="doc-file"
-              accept={ACCEPT}
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              accept={HR_ACCEPT}
+              onChange={(event) => pickFile(event.target.files?.[0] ?? null)}
             />
           </FormField>
           <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">

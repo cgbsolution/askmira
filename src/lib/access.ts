@@ -386,6 +386,17 @@ export const NAV: NavSection[] = [
     ],
   },
   {
+    // The finance app (accounting and GST): only while it is linked, and only for
+    // its users. No pages here yet: the row opens the app (`QUICK_ACCESS`).
+    key: "finance",
+    name: "Finance",
+    icon: Scale,
+    group: "main",
+    product: "finance",
+    pages: [],
+    linkedPages: [],
+  },
+  {
     key: "performance",
     name: "Performance",
     icon: Target,
@@ -684,6 +695,7 @@ export const PRODUCTS: Record<
   // Who may use these is the product's own call (its members, and their role there).
   saleinx: { name: "Sales", audience: EVERYONE, membersOnly: true },
   procurement: { name: "Procurement", audience: EVERYONE, membersOnly: true },
+  finance: { name: "Finance", audience: EVERYONE, membersOnly: true },
 };
 
 /** The linked product that has taken this section over, if any. */
@@ -766,6 +778,7 @@ export const QUICK_ACCESS = [
   "hiring",
   "sales",
   "procurement",
+  "finance",
   "assets",
 ];
 
