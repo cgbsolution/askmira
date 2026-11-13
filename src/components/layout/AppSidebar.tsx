@@ -1,10 +1,11 @@
 "use client";
 
-import { LogOut, MoreVertical, ShieldCheck, UserCircle2 } from "lucide-react";
+import { MoreVertical, ShieldCheck, UserCircle2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { AccountSwitchItems, SignOutItems, useSavedAccounts } from "@/components/auth/AccountSwitcher";
 import { AskMiraLogo, AskMiraMark } from "@/components/brand/AskMiraLogo";
 import { CompanyLogo } from "@/components/brand/CompanyLogo";
 import { RailSection } from "@/components/layout/RailSection";
@@ -62,7 +63,9 @@ const GROUP_ORDER: NavSection["group"][] = ["main", "admin"];
  */
 export function AppSidebar() {
   const t = useT();
-  const { user, tenant, company, logout } = useAuth();
+  const { user, tenant, company } = useAuth();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const savedAccounts = useSavedAccounts(accountOpen);
   const productRoles = useProductRoles();
   // Whether the company's logo is drawn on top; without it the name is drawn
   // there instead, and the box below must not repeat it.
@@ -189,7 +192,7 @@ export function AppSidebar() {
         <SidebarFooter className="border-t border-sidebar-border p-3">
           <SidebarMenu>
             <SidebarMenuItem>
-              <DropdownMenu>
+              <DropdownMenu open={accountOpen} onOpenChange={setAccountOpen}>
                 <DropdownMenuTrigger asChild>
                   <SidebarMenuButton
                     size="lg"
@@ -216,12 +219,15 @@ export function AppSidebar() {
                   side={isMobile ? "top" : "right"}
                   align="end"
                   sideOffset={8}
-                  className="w-56"
+                  className="w-72"
                 >
                   <DropdownMenuLabel className="font-normal">
                     <p className="truncate text-sm font-semibold">{user.full_name}</p>
                     <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                    {tenant ? <p className="truncate text-xs text-muted-foreground">{tenant.name}</p> : null}
                   </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <AccountSwitchItems accounts={savedAccounts} onNavigate={closeOnMobile} />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <Link href="/profile" onClick={closeOnMobile}>
@@ -233,10 +239,7 @@ export function AppSidebar() {
                       <ShieldCheck /> {t("My privacy")}
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem variant="destructive" onClick={() => void logout()}>
-                    <LogOut /> {t("Sign out")}
-                  </DropdownMenuItem>
+                  <SignOutItems accounts={savedAccounts} />
                 </DropdownMenuContent>
               </DropdownMenu>
             </SidebarMenuItem>

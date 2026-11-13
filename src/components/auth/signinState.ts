@@ -21,6 +21,29 @@ export function recalledLogin(): string {
   }
 }
 
+interface PasswordCredentialConstructor {
+  new (data: { id: string; password: string; name?: string }): Credential;
+}
+
+/**
+ * Asks the browser to offer "Save password?" for a password that was just
+ * accepted. Sign-in posts with `fetch`, so a browser cannot always tell that a
+ * sign-in happened; the Credential Management API tells it outright (Chrome,
+ * Edge). Elsewhere the form's `autocomplete` attributes still let it offer.
+ * The browser keeps one entry per email, so each workspace's login is saved
+ * and filled in separately.
+ */
+export function offerToSavePassword(login: string, password: string, name?: string): void {
+  try {
+    const Credential = (window as unknown as { PasswordCredential?: PasswordCredentialConstructor })
+      .PasswordCredential;
+    if (!Credential || !navigator.credentials?.store || !login || !password) return;
+    void navigator.credentials.store(new Credential({ id: login, password, name })).catch(() => undefined);
+  } catch {
+    // A browser without it, or one that refuses: nothing to do.
+  }
+}
+
 export interface WorkspaceBranding {
   name: string;
   workspace: string;

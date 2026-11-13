@@ -58,6 +58,35 @@ const TURN_TIMEOUT_MS = 150_000;
 const FILE_READ_MS = 120_000;
 
 /**
+ * Where the chat sends to. The portal's own Ask Miraa by default; a showcase
+ * link (an exhibition QR code) sends to its public routes instead.
+ */
+export type ChatTransport = {
+  send: (body: Record<string, unknown>) => Promise<Turn>;
+  sendFiles: (form: FormData) => Promise<Turn>;
+  decide: (actionId: string, confirm: boolean) => Promise<OfferDecision>;
+  /** Handles a failure itself (the showcase closing); true means no toast. */
+  onError?: (caught: unknown) => boolean;
+};
+
+const PORTAL: ChatTransport = {
+  // A turn may take several lookups (the server allows 75 s): wait for it.
+  send: (body) => post<Turn>("/companion/messages", body, { timeout: TURN_TIMEOUT_MS }),
+  // Reading a picture comes first, then the turn itself.
+  sendFiles: (form) =>
+    post<Turn>("/companion/messages/files", form, { timeout: TURN_TIMEOUT_MS + FILE_READ_MS }),
+  decide: (actionId, confirm) =>
+    post<OfferDecision>(
+      `/companion/actions/${actionId}/${confirm ? "confirm" : "cancel"}`,
+      undefined,
+      // An order win opens several positions and writes the P&L: give it time.
+      { timeout: TURN_TIMEOUT_MS },
+    ),
+};
+
+export const CHAT_TIMEOUTS = { turn: TURN_TIMEOUT_MS, files: TURN_TIMEOUT_MS + FILE_READ_MS };
+
+/**
  * Ask Miraa — the workspace's AI companion, one conversation at a time.
  *
  * It answers as the person signed in: every lookup runs with their own access,
@@ -311,7 +340,7 @@ function Chat({ status, onSent }: { status: CompanionStatus; onSent: () => void 
   );
 }
 
-function Thread({
+export function Thread({
   status,
   conversationId,
   messages,
@@ -320,6 +349,10 @@ function Thread({
   onDecided,
   autoSend = null,
   onAutoSent,
+  transport = PORTAL,
+  me,
+  welcome,
+  className,
 }: {
   status: CompanionStatus;
   conversationId: string | null;
@@ -330,8 +363,20 @@ function Thread({
   /** Words to send as the person once the conversation is open (back from Connect). */
   autoSend?: string | null;
   onAutoSent?: () => void;
+  transport?: ChatTransport;
+  /** Who is typing, when not the signed-in person (a showcase visitor). */
+  me?: { name: string; photo?: string | null };
+  /** Shown before the first message, in place of the portal's own greeting. */
+  welcome?: React.ReactNode;
+  className?: string;
 }) {
   const { user } = useAuth();
+  const myName = me ? me.name : (user?.full_name ?? "");
+  const myPhoto = me ? (me.photo ?? null) : (user?.photo_url ?? null);
+  const fail = (caught: unknown, fallback: string) => {
+    if (transport.onError?.(caught)) return;
+    toast.error(caught instanceof ApiError ? caught.detail : fallback);
+  };
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [deciding, setDeciding] = useState<string | null>(null);
@@ -347,17 +392,12 @@ function Thread({
     if (deciding || pending) return;
     setDeciding(card.action_id);
     try {
-      const decision = await post<OfferDecision>(
-        `/companion/actions/${card.action_id}/${confirm ? "confirm" : "cancel"}`,
-        undefined,
-        // An order win opens several positions and writes the P&L: give it time.
-        { timeout: TURN_TIMEOUT_MS },
-      );
+      const decision = await transport.decide(card.action_id, confirm);
       onDecided(decision);
       if (decision.action.status === "done") toast.success(decision.message.text || "Done.");
       else if (decision.action.status === "failed") toast.error(decision.message.text);
     } catch (caught) {
-      toast.error(caught instanceof ApiError ? caught.detail : "That could not be done.");
+      fail(caught, "That could not be done.");
     } finally {
       setDeciding(null);
     }
@@ -395,21 +435,15 @@ function Thread({
         if (conversationId) form.append("conversation_id", conversationId);
         form.append("client_ref", ref);
         files.forEach((file) => form.append("files", file, file.name));
-        // Reading a picture comes first, then the turn itself.
-        turn = await post<Turn>("/companion/messages/files", form, { timeout: TURN_TIMEOUT_MS + FILE_READ_MS });
+        turn = await transport.sendFiles(form);
       } else {
-        turn = await post<Turn>(
-          "/companion/messages",
-          {
-            text,
-            conversation_id: conversationId,
-            // A retry of this same send gets the first answer back, never a second turn.
-            client_ref: ref,
-            ...(picked ? { pick: { tool: picked.tool, inputs: picked.inputs } } : {}),
-          },
-          // A turn may take several lookups (the server allows 75 s): wait for it.
-          { timeout: TURN_TIMEOUT_MS },
-        );
+        turn = await transport.send({
+          text,
+          conversation_id: conversationId,
+          // A retry of this same send gets the first answer back, never a second turn.
+          client_ref: ref,
+          ...(picked ? { pick: { tool: picked.tool, inputs: picked.inputs } } : {}),
+        });
       }
       unanswered.current = null;
       onTurn(turn);
@@ -418,7 +452,7 @@ function Thread({
         setDraft(text);
         drafts.setFiles(files);
       }
-      toast.error(caught instanceof ApiError ? caught.detail : `${status.name} could not answer.`);
+      fail(caught, `${status.name} could not answer.`);
     } finally {
       setPending(null);
       setSendingFiles([]);
@@ -446,7 +480,7 @@ function Thread({
   return (
     <Card
       tier="tier2"
-      className={cn("flex min-h-[60vh] flex-col", dragging && "ring-2 ring-ring")}
+      className={cn("flex min-h-[60vh] flex-col", className, dragging && "ring-2 ring-ring")}
       onDragOver={(event) => {
         if (!canAttach || !event.dataTransfer.types.includes("Files")) return;
         event.preventDefault();
@@ -462,20 +496,21 @@ function Thread({
         attach(Array.from(event.dataTransfer.files));
       }}
     >
-      <CardContent className="flex flex-1 flex-col gap-3 p-0">
-        <ScrollArea className="flex-1 px-4 pt-4">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 p-0">
+        <ScrollArea className="min-h-0 flex-1 px-4 pt-4">
           <div className="grid gap-4 pb-4">
             {loading ? (
               <Skeleton className="h-32 w-full" />
             ) : messages.length === 0 && !waiting ? (
-              <Welcome status={status} />
+              (welcome ?? <Welcome status={status} />)
             ) : (
               messages.map((message) => (
                 <Bubble
                   key={message.id}
                   message={message}
                   name={status.name}
-                  mine={initials(user?.full_name ?? "")}
+                  mine={initials(myName)}
+                  photo={myPhoto}
                   onPick={(picked) => void send(picked)}
                   picking={waiting}
                   onDecide={(card, confirm) => void decide(card, confirm)}
@@ -489,7 +524,8 @@ function Thread({
                 <Bubble
                   message={{ id: "pending", role: "user", text: pending ?? "", tool: null, tool_title: null, arguments: null, cards: [], created_at: null }}
                   name={status.name}
-                  mine={initials(user?.full_name ?? "")}
+                  mine={initials(myName)}
+                  photo={myPhoto}
                   sendingFiles={sendingFiles}
                 />
                 <div className="flex items-center gap-2 text-sm text-muted-foreground" role="status" aria-live="polite">
@@ -643,6 +679,7 @@ function Bubble({
   message,
   name,
   mine,
+  photo = null,
   onPick,
   picking = false,
   onDecide,
@@ -653,6 +690,7 @@ function Bubble({
   message: CompanionMessage;
   name: string;
   mine: string;
+  photo?: string | null;
   onPick?: (pick: CompanionPick) => void;
   picking?: boolean;
   onDecide?: (card: CompanionProposal, confirm: boolean) => void;
@@ -661,7 +699,6 @@ function Bubble({
   /** Files on a message still being sent (not read yet). */
   sendingFiles?: File[];
 }) {
-  const { user } = useAuth();
   if (message.role === "user") {
     const files = message.cards.filter((card): card is CompanionAttachmentCard => card.type === "attachment");
     return (
@@ -684,7 +721,7 @@ function Bubble({
           ) : null}
         </div>
         <Avatar className="size-8">
-          {user?.photo_url && <AvatarImage src={user.photo_url} alt="" />}
+          {photo && <AvatarImage src={photo} alt="" />}
           <AvatarFallback className="text-xs">{mine || "Me"}</AvatarFallback>
         </Avatar>
       </div>

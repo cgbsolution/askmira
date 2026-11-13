@@ -79,6 +79,21 @@ export interface AuthResponse {
   company?: CompanyBrand | null;
 }
 
+/** An account signed in on this browser, for the account switcher (`GET /auth/accounts`). */
+export interface SavedAccount {
+  user_id: string;
+  full_name: string;
+  email: string;
+  role: UserRole;
+  photo_url: string | null;
+  /** The workspace's sign-in slug: `/signin/{workspace}`. */
+  workspace: string;
+  workspace_name: string;
+  logo_url: string | null;
+  /** The account this browser is using now. */
+  current: boolean;
+}
+
 export interface Page<T> {
   items: T[];
   total: number;

@@ -6,7 +6,12 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import React, { Suspense, useEffect, useState } from "react";
 
 import { MfaStep } from "@/components/auth/MfaStep";
-import { recalledLogin, rememberLogin, type WorkspaceBranding } from "@/components/auth/signinState";
+import {
+  offerToSavePassword,
+  recalledLogin,
+  rememberLogin,
+  type WorkspaceBranding,
+} from "@/components/auth/signinState";
 import { ErrorState } from "@/components/common/ErrorState";
 import { FormField } from "@/components/common/FormField";
 import { IconInput, PasswordInput } from "@/components/common/IconInput";
@@ -57,6 +62,8 @@ function CompanySignIn() {
     try {
       rememberLogin(identifier.trim());
       const challenge = await login(identifier.trim(), password, next, workspace);
+      // The password was right either way; the code step comes after.
+      offerToSavePassword(identifier.trim(), password, brand?.name);
       if (challenge) {
         setMfaToken(challenge.mfaToken);
         setIsSubmitting(false);

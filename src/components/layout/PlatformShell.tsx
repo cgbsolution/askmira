@@ -5,7 +5,6 @@ import {
   Building2,
   ChevronDown,
   KeyRound,
-  LogOut,
   Moon,
   MoreVertical,
   Sun,
@@ -14,6 +13,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
+import { AccountSwitchItems, SignOutItems, useSavedAccounts } from "@/components/auth/AccountSwitcher";
 import { AskMiraLogo, AskMiraMark } from "@/components/brand/AskMiraLogo";
 import { PredictiveSearch, rankSuggestions, type Suggestion } from "@/components/common/PredictiveSearch";
 import { HelpButton } from "@/components/help/HelpPanel";
@@ -77,7 +77,7 @@ interface OrganisationHit {
  * top instead of a company's.
  */
 export function PlatformSidebar() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { isMobile, setOpenMobile } = useSidebar();
   const pathname = usePathname();
   const active = resolvePage(pathname)?.page.path;
@@ -184,7 +184,7 @@ export function PlatformSidebar() {
                   </SidebarMenuButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side={isMobile ? "top" : "right"} align="end" sideOffset={8} className="w-56">
-                  <AccountItems email={user.email} name={user.full_name} onSignOut={() => void logout()} />
+                  <AccountItems email={user.email} name={user.full_name} />
                 </DropdownMenuContent>
               </DropdownMenu>
             </SidebarMenuItem>
@@ -201,13 +201,13 @@ function AccountItems({
   name,
   email,
   role,
-  onSignOut,
 }: {
   name: string;
   email: string;
   role?: string;
-  onSignOut: () => void;
 }) {
+  // Mounted only while the menu is open, so this reads the list on each opening.
+  const accounts = useSavedAccounts(true);
   return (
     <>
       <DropdownMenuLabel className="font-normal">
@@ -220,15 +220,14 @@ function AccountItems({
         )}
       </DropdownMenuLabel>
       <DropdownMenuSeparator />
+      <AccountSwitchItems accounts={accounts} />
+      <DropdownMenuSeparator />
       <DropdownMenuItem asChild>
         <Link href="/change-password">
           <KeyRound /> Change password
         </Link>
       </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem variant="destructive" onClick={onSignOut}>
-        <LogOut /> Sign out
-      </DropdownMenuItem>
+      <SignOutItems accounts={accounts} />
     </>
   );
 }
@@ -241,7 +240,7 @@ function AccountItems({
 export function PlatformHeader() {
   const { toggleSidebar } = useSidebar();
   const { theme, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [term, setTerm] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
@@ -382,7 +381,6 @@ export function PlatformHeader() {
                 email={user.email}
                 name={user.full_name}
                 role={humanizeRole(user.role)}
-                onSignOut={() => void logout()}
               />
             </DropdownMenuContent>
           </DropdownMenu>

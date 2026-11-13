@@ -763,13 +763,13 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
   },
   "/platform/showcase": {
     summary:
-      "QR codes for exhibitions. A scan opens the order-to-day-one story with Ask Miraa in a sandbox: no sign-in, and no workspace's data is read or changed.",
+      "One QR code per workspace, for good: print it once. A scan opens the workspace's Ask Miraa chat, answering as the admin you pick, over its real records. Answers, tables and charts appear in the chat.",
     tasks: [
       {
         title: "Make a link for an event",
         steps: [
-          "Press New showcase link. Name the event, pick the workspace whose name and logo the story shows, and set the order the story runs: client, role, team size, months, order value and team budget.",
-          "The margin floor is worked out from the order value and the team budget as you type.",
+          "Press New showcase link. Name the event, pick the workspace, and pick the admin the chat answers as: visitors see what that admin sees.",
+          "Give it a stand PIN so only your team can open the chat on a visitor's phone, and set how many messages a day it may answer.",
           "Set when the link starts and ends, then press Create link.",
         ],
       },
@@ -777,19 +777,30 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         title: "Print the QR code",
         steps: [
           "Press QR on the link's row. Download SVG for print (it stays sharp at any size) or PNG for slides.",
-          "Scan it with a phone before you print to check it opens the story.",
+          "Scan it with a phone before you print to check it opens the chat.",
         ],
       },
       {
         title: "Switch a link off",
         steps: [
-          "Turn off the switch on the link's row. Pages already open stop at their next step and say the link is switched off.",
+          "Turn off the switch on the link's row. Pages already open stop at their next message and say the link is switched off.",
           "Turn it on again to reopen it, or change the end time to stretch the window. Every change is recorded in the audit log.",
         ],
       },
       {
-        title: "Run it on a booth screen",
-        steps: ["Open the link on the booth laptop and press Autoplay: the story plays by itself and starts again when it ends."],
+        title: "Keep the same QR code",
+        steps: [
+          "Each workspace has one QR code, and its code never changes. Change the event, admin, PIN, daily cap or dates on the same link: the printed QR keeps working.",
+          "Delete a link and its QR shows that it is switched off. Make a link for the same workspace again and the same printed QR works again.",
+        ],
+      },
+      {
+        title: "What a visitor can do",
+        steps: [
+          "Ask anything Ask Miraa answers for that admin: people, payroll, hiring, sales, purchases, expenses and IT, across the connected products.",
+          "Anything it offers to do (book an order, open a job, raise a ticket) happens for real only when the visitor presses Confirm, and is recorded as that admin.",
+          "Each visitor has a chat of their own; the conversations also appear in that admin's Ask Miraa history.",
+        ],
       },
     ],
   },

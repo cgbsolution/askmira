@@ -1,11 +1,10 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Copy, Download, ExternalLink, Loader2, Plus, QrCode, Trash2 } from "lucide-react";
+import { Copy, Download, ExternalLink, Eye, EyeOff, Loader2, Plus, QrCode, Trash2 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { AmountInput } from "@/components/common/AmountInput";
 import { ConfirmDialog } from "@/components/common/ConfirmDialog";
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { DateTimePicker } from "@/components/common/DateTimePicker";
@@ -38,13 +37,14 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, downloadFile, fetchFile, patch, post } from "@/lib/api";
-import { formatDateTime, formatINR } from "@/lib/utils";
+import { formatDateTime } from "@/lib/utils";
 
 interface Workspace {
   id: string;
   name: string;
   workspace: string;
   is_active: boolean;
+  admins: { id: string; full_name: string; email: string; is_active: boolean }[];
 }
 
 const STATUS = {
@@ -54,21 +54,14 @@ const STATUS = {
   off: { label: "Off", variant: "muted" },
 } as const;
 
-const NO_BRAND = "none";
-
 // ── Form ────────────────────────────────────────────────────────────────────
 
 interface FormState {
   label: string;
-  brand: string;
-  client: string;
-  role: string;
-  headcount: string;
-  months: string;
-  order: string;
-  budget: string;
-  laptop: string;
-  paymentDays: string;
+  workspace: string;
+  acting: string;
+  pin: string;
+  daily: string;
   startsAt: string;
   endsAt: string;
   active: boolean;
@@ -96,15 +89,10 @@ function blankForm(): FormState {
   end.setHours(19, 0, 0, 0);
   return {
     label: "",
-    brand: NO_BRAND,
-    client: "Acme Technologies",
-    role: "Java Developer",
-    headcount: "6",
-    months: "12",
-    order: "5000000",
-    budget: "3000000",
-    laptop: "55000",
-    paymentDays: "30",
+    workspace: "",
+    acting: "",
+    pin: "",
+    daily: "300",
     startsAt: toLocal(start),
     endsAt: toLocal(end),
     active: true,
@@ -112,63 +100,26 @@ function blankForm(): FormState {
 }
 
 function fromLink(link: ShowcaseLink): FormState {
-  const plain = (amount: string) => amount.replace(/\.00$/, "");
   return {
     label: link.label,
-    brand: link.brand_tenant_id ?? NO_BRAND,
-    client: link.client_name,
-    role: link.role_title,
-    headcount: String(link.headcount),
-    months: String(link.months),
-    order: plain(link.order_value),
-    budget: plain(link.team_budget),
-    laptop: plain(link.laptop_price),
-    paymentDays: String(link.payment_days),
+    workspace: link.workspace_id,
+    acting: link.acting_user_id,
+    pin: link.pin ?? "",
+    daily: String(link.daily_messages),
     startsAt: toLocal(new Date(link.starts_at)),
     endsAt: toLocal(new Date(link.ends_at)),
     active: link.is_active,
   };
 }
 
-/** Rupees as whole paise, so the margin is worked out without a float. */
-function paise(amount: string): bigint | null {
-  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(amount.trim());
-  if (!match) return null;
-  return BigInt(match[1]) * BigInt(100) + BigInt((match[2] ?? "").padEnd(2, "0") || "0");
-}
-
-/** (order − budget) ÷ order to one decimal place, or null when it is not a margin. */
-function marginFloor(order: string, budget: string): string | null {
-  const o = paise(order);
-  const b = paise(budget);
-  if (o === null || b === null || o <= BigInt(0) || b <= BigInt(0) || b >= o) return null;
-  const tenths = ((o - b) * BigInt(2000) + o) / (BigInt(2) * o); // rounded half up, in tenths of a percent
-  return `${tenths / BigInt(10)}.${tenths % BigInt(10)}`;
-}
-
-function whole(value: string, min: number, max: number, what: string): string | undefined {
-  if (!/^\d+$/.test(value)) return `Enter ${what}.`;
-  const number = Number.parseInt(value, 10);
-  if (number < min || number > max) return `Between ${min} and ${max}.`;
-  return undefined;
-}
-
 function validate(form: FormState, creating: boolean): Errors {
   const errors: Errors = {};
   if (form.label.trim().length < 3) errors.label = "Name the event (at least 3 characters).";
-  if (form.client.trim().length < 2) errors.client = "Enter the client's name.";
-  if (form.role.trim().length < 2) errors.role = "Enter the role being hired.";
-  errors.headcount = whole(form.headcount, 1, 10, "the team size");
-  errors.months = whole(form.months, 3, 36, "the months");
-  errors.paymentDays = whole(form.paymentDays, 0, 90, "the days");
-  const order = paise(form.order);
-  const budget = paise(form.budget);
-  const laptop = paise(form.laptop);
-  if (order === null || order <= BigInt(0)) errors.order = "Enter the order value.";
-  if (budget === null || budget <= BigInt(0)) errors.budget = "Enter the team budget.";
-  else if (order !== null && budget >= order) errors.budget = "Must be less than the order value, or there is no margin.";
-  if (laptop === null || laptop < BigInt(100_000) || laptop > BigInt(50_000_000))
-    errors.laptop = "Between ₹1,000 and ₹5,00,000.";
+  if (!form.workspace) errors.workspace = "Pick the workspace whose Ask Miraa opens.";
+  if (!form.acting) errors.acting = "Pick the admin the chat answers as.";
+  if (form.pin && !/^\d{4,8}$/.test(form.pin)) errors.pin = "4 to 8 digits, or leave it empty.";
+  if (!/^\d+$/.test(form.daily)) errors.daily = "Enter how many messages a day.";
+  else if (Number(form.daily) < 10 || Number(form.daily) > 5000) errors.daily = "Between 10 and 5,000.";
   const starts = form.startsAt ? new Date(form.startsAt) : null;
   const ends = form.endsAt ? new Date(form.endsAt) : null;
   if (!starts) errors.startsAt = "Pick when the link starts.";
@@ -176,21 +127,17 @@ function validate(form: FormState, creating: boolean): Errors {
   else if (starts && ends <= starts) errors.endsAt = "Must be after the start.";
   else if (creating && ends <= new Date()) errors.endsAt = "Must be in the future.";
   else if (starts && ends.getTime() - starts.getTime() > 366 * 86_400_000) errors.endsAt = "A year at most.";
-  for (const key of Object.keys(errors) as (keyof FormState)[]) if (!errors[key]) delete errors[key];
   return errors;
 }
 
-function payload(form: FormState) {
+function payload(form: FormState, creating: boolean) {
   return {
     label: form.label.trim(),
-    client_name: form.client.trim(),
-    role_title: form.role.trim(),
-    headcount: Number.parseInt(form.headcount, 10),
-    months: Number.parseInt(form.months, 10),
-    order_value: form.order,
-    team_budget: form.budget,
-    laptop_price: form.laptop,
-    payment_days: Number.parseInt(form.paymentDays, 10),
+    // The QR belongs to its workspace for good: only a new link names one.
+    ...(creating ? { workspace_id: form.workspace } : {}),
+    acting_user_id: form.acting,
+    ...(form.pin ? { pin: form.pin } : creating ? {} : { clear_pin: true }),
+    daily_messages: Number.parseInt(form.daily, 10),
     is_active: form.active,
     starts_at: new Date(form.startsAt).toISOString(),
     ends_at: new Date(form.endsAt).toISOString(),
@@ -200,9 +147,10 @@ function payload(form: FormState) {
 // ── Screen ──────────────────────────────────────────────────────────────────
 
 /**
- * The super admin's exhibition QR codes. Each opens the order-to-day-one story
- * with Ask Miraa, in a sandbox: no sign-in and no workspace's data. A link
- * works only inside its window and while it is switched on.
+ * The super admin's exhibition QR codes. Each opens a workspace's Ask Miraa,
+ * answering as one of its admins over its real records, with no portal sign-in.
+ * A link works only inside its window, while it is switched on, and (when it
+ * has one) after the stand PIN.
  */
 export function ShowcaseLinksScreen() {
   const { data, error, isLoading, reload, setData } = useApiQuery<ShowcaseLink[]>("/platform/showcase-links");
@@ -248,28 +196,22 @@ export function ShowcaseLinksScreen() {
         cell: ({ row }) => (
           <div className="min-w-48">
             <p className="font-medium text-foreground">{row.original.label}</p>
-            <p className="text-xs text-muted-foreground">Shown as {row.original.company}</p>
+            <p className="text-xs text-muted-foreground">{row.original.company}</p>
           </div>
         ),
       },
       {
-        id: "story",
-        header: "The story",
-        accessorFn: (row) => `${row.client_name} ${row.role_title}`,
-        cell: ({ row }) => {
-          const link = row.original;
-          return (
-            <div className="min-w-56">
-              <p className="text-foreground">
-                {link.client_name}: {link.headcount} × {link.role_title}
-              </p>
-              <p className="text-xs tabular-nums text-muted-foreground">
-                {formatINR(link.order_value)} for {link.months} months · team {formatINR(link.team_budget)} · margin{" "}
-                {link.margin_floor}%
-              </p>
-            </div>
-          );
-        },
+        id: "acting",
+        header: "Answers as",
+        accessorFn: (row) => `${row.acting_name} ${row.acting_email}`,
+        cell: ({ row }) => (
+          <div className="min-w-48">
+            <p className="text-foreground">{row.original.acting_name}</p>
+            <p className="text-xs text-muted-foreground">
+              {row.original.pin ? "Stand PIN on" : "No PIN: the scan opens it"}
+            </p>
+          </div>
+        ),
       },
       {
         id: "window",
@@ -292,12 +234,12 @@ export function ShowcaseLinksScreen() {
       },
       {
         accessorKey: "visits",
-        header: "Stories",
+        header: "Chats",
         cell: ({ row }) => (
           <div className="whitespace-nowrap tabular-nums">
             <p>{row.original.visits}</p>
             <p className="text-xs text-muted-foreground">
-              {row.original.last_visit_at ? `last ${formatDateTime(row.original.last_visit_at)}` : "none yet"}
+              {row.original.messages_today} of {row.original.daily_messages} messages today
             </p>
           </div>
         ),
@@ -333,7 +275,7 @@ export function ShowcaseLinksScreen() {
             <Button size="icon" variant="ghost" aria-label={`Copy the link for ${row.original.label}`} onClick={() => void copy(row.original)}>
               <Copy />
             </Button>
-            <Button asChild size="icon" variant="ghost" aria-label={`Open the story for ${row.original.label}`}>
+            <Button asChild size="icon" variant="ghost" aria-label={`Open the chat for ${row.original.label}`}>
               <a href={`/showcase/${row.original.code}`} target="_blank" rel="noopener">
                 <ExternalLink />
               </a>
@@ -353,7 +295,7 @@ export function ShowcaseLinksScreen() {
       title="Showcase links"
       eyebrow="Platform"
       icon={QrCode}
-      description="QR codes for exhibitions. A scan opens the order-to-day-one story with Ask Miraa in a sandbox: no sign-in, and no workspace's data is read or changed. Switch a link off and open pages stop at their next step."
+      description="One QR code per workspace, for good: print it once. A scan opens the workspace's Ask Miraa, answering as the admin you pick, over its real records. Edit the event, PIN or dates any time and the code stays the same; switch it off to stop open pages at their next message."
       actions={
         <Button onClick={() => setEditing("new")}>
           <Plus /> New showcase link
@@ -372,7 +314,7 @@ export function ShowcaseLinksScreen() {
         onRetry={reload}
         selectable={false}
         exportName={false}
-        searchPlaceholder="Search event or client"
+        searchPlaceholder="Search event, workspace or admin"
         onRowClick={setEditing}
         empty={{
           icon: QrCode,
@@ -387,6 +329,7 @@ export function ShowcaseLinksScreen() {
       />
       <LinkSheet
         link={editing}
+        taken={(data ?? []).map((row) => row.workspace_id)}
         onClose={() => setEditing(null)}
         onSaved={(saved, created) => {
           replace(saved);
@@ -407,11 +350,14 @@ export function ShowcaseLinksScreen() {
 
 function LinkSheet({
   link,
+  taken,
   onClose,
   onSaved,
   onDeleted,
 }: {
   link: ShowcaseLink | "new" | null;
+  /** Workspaces that already have their QR: a new link can't be made for them. */
+  taken: string[];
   onClose: () => void;
   onSaved: (saved: ShowcaseLink, created: boolean) => void;
   onDeleted: (id: string) => void;
@@ -443,13 +389,13 @@ function LinkSheet({
   const errors = validate(form, creating);
   const shown = submitted ? errors : {};
   const dirty = link !== null && JSON.stringify(form) !== initial;
-  const floor = marginFloor(form.order, form.budget);
+  const [showPin, setShowPin] = useState(false);
 
   function set<K extends keyof FormState>(field: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
-  function digits(field: "headcount" | "months" | "paymentDays", max: number) {
+  function digits(field: "pin" | "daily", max: number) {
     return (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value.replace(/\s/g, "");
       if (value === "" || (/^\d+$/.test(value) && value.length <= max)) set(field, value);
@@ -471,17 +417,12 @@ function LinkSheet({
     savingRef.current = true;
     setSaving(true);
     try {
-      const body = { ...payload(form), brand_tenant_id: form.brand === NO_BRAND ? null : form.brand };
       let saved: ShowcaseLink;
       if (link === "new") {
-        saved = await post<ShowcaseLink>("/platform/showcase-links", body);
+        saved = await post<ShowcaseLink>("/platform/showcase-links", payload(form, true));
         toast.success(`${saved.label}: link created`);
       } else {
-        const { brand_tenant_id: brand, ...rest } = body;
-        saved = await patch<ShowcaseLink>(`/platform/showcase-links/${link.id}`, {
-          ...rest,
-          ...(brand ? { brand_tenant_id: brand } : { clear_tenant: true }),
-        });
+        saved = await patch<ShowcaseLink>(`/platform/showcase-links/${link.id}`, payload(form, false));
         toast.success(`${saved.label}: saved`);
       }
       onSaved(saved, link === "new");
@@ -505,7 +446,15 @@ function LinkSheet({
     }
   }
 
-  const brands = (workspaces.data ?? []).filter((w) => w.is_active);
+  const choices = (workspaces.data ?? []).filter((w) => w.is_active || w.id === form.workspace);
+  const chosen = choices.find((w) => w.id === form.workspace);
+  const admins = (chosen?.admins ?? []).filter((a) => a.is_active || a.id === form.acting);
+
+  function pickWorkspace(id: string) {
+    const next = choices.find((w) => w.id === id);
+    const first = next?.admins.find((a) => a.is_active);
+    setForm((current) => ({ ...current, workspace: id, acting: first?.id ?? "" }));
+  }
 
   return (
     <>
@@ -514,8 +463,8 @@ function LinkSheet({
           <SheetHeader>
             <SheetTitle>{creating ? "New showcase link" : "Edit showcase link"}</SheetTitle>
             <SheetDescription>
-              The story is a sandbox with sample candidates, vendors and claims. Only the brand comes from the workspace
-              you pick.
+              A scan opens this workspace&apos;s Ask Miraa chat, answering as the admin you pick: real records, and
+              anything it does happens for real once the visitor presses Confirm.
             </SheetDescription>
           </SheetHeader>
           <form
@@ -536,107 +485,108 @@ function LinkSheet({
                 onChange={(event) => set("label", event.target.value)}
               />
             </FormField>
-            <FormField htmlFor="sc-brand" label="Shown as" hint="Whose name and logo the story wears. Nothing else is read.">
-              <Select value={form.brand} onValueChange={(value) => set("brand", value)}>
-                <SelectTrigger id="sc-brand" className="w-full">
-                  <SelectValue />
+            <FormField
+              htmlFor="sc-workspace"
+              label="Workspace"
+              required
+              hint={
+                creating
+                  ? "One QR per workspace. Deleted this workspace's link before? Making it again brings back the same printed QR."
+                  : "The QR belongs to this workspace, and its code never changes."
+              }
+              error={shown.workspace}
+            >
+              <Select value={form.workspace} onValueChange={pickWorkspace} disabled={!creating}>
+                <SelectTrigger id="sc-workspace" className="w-full" aria-invalid={Boolean(shown.workspace)}>
+                  <SelectValue placeholder={workspaces.isLoading ? "Loading…" : "Pick a workspace"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NO_BRAND}>AskMiraa</SelectItem>
-                  {brands.map((w) => (
-                    <SelectItem key={w.id} value={w.id}>
+                  {choices.map((w) => (
+                    <SelectItem
+                      key={w.id}
+                      value={w.id}
+                      disabled={creating && taken.includes(w.id)}
+                    >
                       {w.name}
+                      {creating && taken.includes(w.id) ? " (has its QR: edit it in the list)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </FormField>
+            <FormField
+              htmlFor="sc-acting"
+              label="Answers as"
+              required
+              hint="Visitors see what this admin sees. A login kept for events keeps the chats out of a person's own history."
+              error={shown.acting}
+            >
+              <Select value={form.acting} onValueChange={(value) => set("acting", value)} disabled={!chosen}>
+                <SelectTrigger id="sc-acting" className="w-full" aria-invalid={Boolean(shown.acting)}>
+                  <SelectValue placeholder={chosen ? "Pick an admin" : "Pick the workspace first"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {admins.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.full_name} · {a.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            {chosen && admins.length === 0 ? (
+              <Alert>
+                <AlertDescription>{chosen.name} has no active admin. Add one under Organisations first.</AlertDescription>
+              </Alert>
+            ) : null}
 
             <Separator />
-            <p className="text-sm font-medium">The order the story runs</p>
+            <p className="text-sm font-medium">Who can open it</p>
             <div className="grid gap-4 sm:grid-cols-2">
-              <FormField htmlFor="sc-client" label="Client" required error={shown.client}>
-                <Input
-                  id="sc-client"
-                  value={form.client}
-                  maxLength={80}
-                  aria-invalid={Boolean(shown.client)}
-                  onChange={(event) => set("client", event.target.value)}
-                />
-              </FormField>
-              <FormField htmlFor="sc-role" label="Role hired" required error={shown.role}>
-                <Input
-                  id="sc-role"
-                  value={form.role}
-                  maxLength={60}
-                  aria-invalid={Boolean(shown.role)}
-                  onChange={(event) => set("role", event.target.value)}
-                />
-              </FormField>
-              <FormField htmlFor="sc-headcount" label="Team size" required hint="1 to 10 people" error={shown.headcount}>
-                <Input
-                  id="sc-headcount"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={form.headcount}
-                  aria-invalid={Boolean(shown.headcount)}
-                  onChange={digits("headcount", 2)}
-                />
-              </FormField>
-              <FormField htmlFor="sc-months" label="Months" required hint="3 to 36" error={shown.months}>
-                <Input
-                  id="sc-months"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={form.months}
-                  aria-invalid={Boolean(shown.months)}
-                  onChange={digits("months", 2)}
-                />
-              </FormField>
-              <FormField htmlFor="sc-order" label="Order value (₹)" required error={shown.order}>
-                <AmountInput
-                  id="sc-order"
-                  value={form.order}
-                  aria-invalid={Boolean(shown.order)}
-                  onValueChange={(value) => set("order", value)}
-                />
+              <FormField
+                htmlFor="sc-pin"
+                label="Stand PIN"
+                hint="4 to 8 digits your team types on the visitor's phone. Empty: the scan alone opens the chat."
+                error={shown.pin}
+              >
+                <div className="relative">
+                  <Input
+                    id="sc-pin"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    type={showPin ? "text" : "password"}
+                    value={form.pin}
+                    placeholder="None"
+                    className="pr-10"
+                    aria-invalid={Boolean(shown.pin)}
+                    onChange={digits("pin", 8)}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-0 right-0 size-9"
+                    aria-label={showPin ? "Hide the PIN" : "Show the PIN"}
+                    onClick={() => setShowPin((on) => !on)}
+                  >
+                    {showPin ? <EyeOff /> : <Eye />}
+                  </Button>
+                </div>
               </FormField>
               <FormField
-                htmlFor="sc-budget"
-                label="Team budget (₹)"
+                htmlFor="sc-daily"
+                label="Messages a day"
                 required
-                hint={floor ? `Margin floor ${floor}%` : "What the team may cost over the contract"}
-                error={shown.budget}
-              >
-                <AmountInput
-                  id="sc-budget"
-                  value={form.budget}
-                  aria-invalid={Boolean(shown.budget)}
-                  onValueChange={(value) => set("budget", value)}
-                />
-              </FormField>
-              <FormField htmlFor="sc-laptop" label="Laptop price (₹)" required hint="The lowest quote, each" error={shown.laptop}>
-                <AmountInput
-                  id="sc-laptop"
-                  value={form.laptop}
-                  aria-invalid={Boolean(shown.laptop)}
-                  onValueChange={(value) => set("laptop", value)}
-                />
-              </FormField>
-              <FormField
-                htmlFor="sc-payment"
-                label="Client pays after (days)"
-                required
-                hint="Why cash dips at the start"
-                error={shown.paymentDays}
+                hint="For all visitors together. Each chat takes up to 60."
+                error={shown.daily}
               >
                 <Input
-                  id="sc-payment"
+                  id="sc-daily"
                   inputMode="numeric"
                   autoComplete="off"
-                  value={form.paymentDays}
-                  aria-invalid={Boolean(shown.paymentDays)}
-                  onChange={digits("paymentDays", 2)}
+                  value={form.daily}
+                  aria-invalid={Boolean(shown.daily)}
+                  onChange={digits("daily", 4)}
                 />
               </FormField>
             </div>
@@ -710,7 +660,7 @@ function LinkSheet({
         open={confirmDelete}
         onOpenChange={setConfirmDelete}
         title="Delete this link?"
-        description="Its QR code stops working at once, and the stories visitors started from it are deleted. Printed codes cannot be reused."
+        description="Its QR code shows “switched off” at once and open chats end; the conversations stay in the admin's Ask Miraa history. The code is kept: make a link for this workspace again and the same printed QR works again."
         confirmLabel="Delete link"
         destructive
         onConfirm={remove}

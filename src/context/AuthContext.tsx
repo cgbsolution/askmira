@@ -2,11 +2,11 @@
 
 import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { ApiError, get, post } from "@/lib/api";
 import { roleAllows } from "@/lib/access";
-import type { Audience, AuthResponse, AuthUser, CompanyBrand, Tenant } from "@/lib/types";
+import type { Audience, AuthResponse, AuthUser, CompanyBrand, SavedAccount, Tenant } from "@/lib/types";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -29,7 +29,16 @@ interface AuthContextValue {
   completeMfa: (mfaToken: string, code: string, next?: string | null) => Promise<void>;
   /** Take a session another provider completed (SSO, Google, Microsoft) and open the portal. */
   completeExternal: (response: AuthResponse, next?: string | null) => void;
-  logout: () => Promise<void>;
+  /** Sign out of this account here; `everyAccount` also signs out every other account saved on this browser. */
+  logout: (options?: { everyAccount?: boolean }) => Promise<void>;
+  /** The accounts signed in on this browser, for the account switcher. */
+  savedAccounts: () => Promise<SavedAccount[]>;
+  /**
+   * Make another account signed in on this browser the active one, then open
+   * `next` (home by default) with a full page load, so nothing from the
+   * previous workspace stays on screen. Rejects with the server's reason.
+   */
+  switchAccount: (userId: string, next?: string | null) => Promise<void>;
   /** Re-read the signed-in user and workspace from the server. */
   reloadSession: () => Promise<void>;
   /**
@@ -59,12 +68,39 @@ export function safeNextPath(next: string | null | undefined): string {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+/**
+ * Every tab shares the browser's session cookies, so when one tab switches
+ * account, signs in or signs out, the others are suddenly someone else. They
+ * are told here and reload — a page left showing one workspace's data while
+ * its requests go to another would be the worst kind of confusing.
+ */
+const SESSION_CHANNEL = "askmira-session";
+
+interface SessionMessage {
+  /** Who is signed in now; null after a sign-out. */
+  userId: string | null;
+}
+
+function announceSession(userId: string | null): void {
+  try {
+    const channel = new BroadcastChannel(SESSION_CHANNEL);
+    channel.postMessage({ userId } satisfies SessionMessage);
+    channel.close();
+  } catch {
+    // No BroadcastChannel (very old browser): other tabs find out on their next request.
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [company, setCompany] = useState<CompanyBrand | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const userIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    userIdRef.current = user?.id ?? null;
+  }, [user]);
 
   const reloadSession = useCallback(async () => {
     try {
@@ -96,10 +132,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void reloadSession().finally(() => setIsLoading(false));
   }, [reloadSession]);
 
+  // Another tab changed who is signed in: follow it, from home, not this page.
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const channel = new BroadcastChannel(SESSION_CHANNEL);
+    channel.onmessage = (event: MessageEvent<SessionMessage>) => {
+      const signedInHere = userIdRef.current;
+      if (signedInHere === null || event.data?.userId === signedInHere) return;
+      window.location.assign(event.data?.userId ? "/" : "/signin");
+    };
+    return () => channel.close();
+  }, []);
+
   const accept = useCallback((response: AuthResponse) => {
     setUser(response.user);
     setTenant(response.tenant);
     setCompany(response.company ?? null);
+    announceSession(response.user.id);
   }, []);
 
   const login = useCallback(
@@ -140,14 +189,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [accept, router],
   );
 
-  const logout = useCallback(async () => {
-    // The server clears the httpOnly cookies; the page cannot do that itself.
-    await post("/auth/logout", undefined, { skipAuthRedirect: true }).catch(() => undefined);
-    setUser(null);
-    setTenant(null);
-    setCompany(null);
-    router.push("/signin");
-  }, [router]);
+  const logout = useCallback(
+    async (options?: { everyAccount?: boolean }) => {
+      // The server clears the httpOnly cookies; the page cannot do that itself.
+      const query = options?.everyAccount ? "?every_account=true" : "";
+      await post(`/auth/logout${query}`, undefined, { skipAuthRedirect: true }).catch(() => undefined);
+      setUser(null);
+      setTenant(null);
+      setCompany(null);
+      announceSession(null);
+      // Accounts still signed in here are offered on the sign-in page.
+      router.push("/signin");
+    },
+    [router],
+  );
+
+  const savedAccounts = useCallback(async () => {
+    const result = await get<{ accounts: SavedAccount[] }>("/auth/accounts", { skipAuthRedirect: true });
+    return result.accounts;
+  }, []);
+
+  const switchAccount = useCallback(async (userId: string, next?: string | null) => {
+    const response = await post<AuthResponse>(
+      "/auth/accounts/switch",
+      { user_id: userId },
+      { skipAuthRedirect: true },
+    );
+    announceSession(response.user.id);
+    // A full load: every list, cache and open form belonged to the other account.
+    window.location.assign(safeNextPath(next));
+  }, []);
 
   const hasRole = useCallback((...roles: Audience[]) => roleAllows(user, roles), [user]);
 
@@ -167,6 +238,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       completeMfa,
       completeExternal,
       logout,
+      savedAccounts,
+      switchAccount,
       reloadSession,
       hasRole,
       hasModule,
@@ -180,6 +253,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       completeMfa,
       completeExternal,
       logout,
+      savedAccounts,
+      switchAccount,
       reloadSession,
       hasRole,
       hasModule,

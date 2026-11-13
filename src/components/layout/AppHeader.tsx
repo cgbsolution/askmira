@@ -8,7 +8,6 @@ import {
   ChevronDown,
   Languages,
   LayoutGrid,
-  LogOut,
   Moon,
   ShieldCheck,
   Sun,
@@ -19,6 +18,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { AccountSwitchItems, SignOutItems, useSavedAccounts } from "@/components/auth/AccountSwitcher";
 import { AskMiraMark } from "@/components/brand/AskMiraLogo";
 import { CompanyMark } from "@/components/brand/CompanyLogo";
 import { PredictiveSearch, rankSuggestions, type Suggestion } from "@/components/common/PredictiveSearch";
@@ -249,12 +249,14 @@ export function AppHeader() {
 
 /** Avatar, first name and the account menu, at the right of the bar. */
 function UserMenu() {
-  const { user, logout, hasRole } = useAuth();
+  const { user, tenant, hasRole } = useAuth();
   const { locale, setLocale, t } = useLocale();
+  const [open, setOpen] = useState(false);
+  const accounts = useSavedAccounts(open);
   if (!user) return null;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
@@ -274,14 +276,22 @@ function UserMenu() {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" sideOffset={12} className="w-[260px] rounded-2xl p-3">
+      <DropdownMenuContent align="end" sideOffset={12} className="w-[288px] rounded-2xl p-3">
         <DropdownMenuLabel className="px-1 pt-0 font-normal">
           <p className="truncate text-sm font-semibold text-foreground">{user.full_name}</p>
           <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</p>
+          {tenant ? (
+            <p className="mt-0.5 flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+              <Building2 className="size-3 shrink-0" />
+              <span className="truncate">{tenant.name}</span>
+            </p>
+          ) : null}
           <Badge variant="muted" className="mt-2 uppercase tracking-wider">
             {humanizeRole(user.role)}
           </Badge>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator className="my-2" />
+        <AccountSwitchItems accounts={accounts} />
         <DropdownMenuSeparator className="my-2" />
         <DropdownMenuItem asChild className="gap-3 rounded-lg px-3 py-2 font-medium">
           <Link href="/profile">
@@ -314,14 +324,7 @@ function UserMenu() {
             ))}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-        <DropdownMenuSeparator className="my-2" />
-        <DropdownMenuItem
-          variant="destructive"
-          className="gap-3 rounded-lg px-3 py-2 font-medium"
-          onClick={() => void logout()}
-        >
-          <LogOut /> {t("Sign out")}
-        </DropdownMenuItem>
+        <SignOutItems accounts={accounts} />
       </DropdownMenuContent>
     </DropdownMenu>
   );

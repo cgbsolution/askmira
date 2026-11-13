@@ -1,7 +1,7 @@
 import { ShowcaseScreen } from "@/components/showcase/ShowcaseScreen";
 
 export const metadata = {
-  title: "Ask Miraa: one order, signature to day one",
+  title: "Ask Miraa",
   robots: { index: false, follow: false },
 };
 
