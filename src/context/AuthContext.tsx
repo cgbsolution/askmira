@@ -87,6 +87,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // The session is whatever the server says it is — never a copy the page kept.
   useEffect(() => {
     LEGACY_COOKIES.forEach((name) => Cookies.remove(name));
+    // A scanned showcase QR code is a public sandbox: no session to look for,
+    // and asking would only put a 401 in every visitor's console.
+    if (window.location.pathname.startsWith("/showcase/")) {
+      setIsLoading(false);
+      return;
+    }
     void reloadSession().finally(() => setIsLoading(false));
   }, [reloadSession]);
 

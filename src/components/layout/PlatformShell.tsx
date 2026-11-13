@@ -53,7 +53,10 @@ import { humanizeRole, initials } from "@/lib/utils";
 /** The console's two groups: running the platform, then the desks around it. */
 const GROUPS: { label: string; paths: string[] }[] = [
   { label: "Console", paths: ["/platform", "/platform/organisations", "/platform/tools"] },
-  { label: "Desks", paths: ["/platform/statutory", "/platform/demo-requests", "/platform/deleted"] },
+  {
+    label: "Desks",
+    paths: ["/platform/statutory", "/platform/demo-requests", "/platform/showcase", "/platform/deleted"],
+  },
 ];
 
 function platformPages(): NavPage[] {

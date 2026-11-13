@@ -37,6 +37,14 @@ const FORMATS = [
   { key: "csv", label: "Generic journal CSV", file: "payroll-journal.csv" },
 ];
 
+interface FinancePosting {
+  linked: boolean;
+  posted: boolean;
+  journal_number?: string | null;
+  journal_id?: string;
+  created_accounts?: string[];
+}
+
 interface ZohoPosting {
   connected: boolean;
   posted: boolean;
@@ -51,10 +59,15 @@ export function JournalExportMenu({ run }: { run: PayrollRun }) {
   const [byDepartment, setByDepartment] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmPost, setConfirmPost] = useState(false);
+  const [confirmFinance, setConfirmFinance] = useState(false);
   const postable =
     (run.status === "approved" || run.status === "paid") && !isImported(run);
   const zoho = useApiQuery<ZohoPosting>(
     postable ? `/payroll/runs/${run.id}/journal/zoho-books` : null,
+  );
+
+  const finance = useApiQuery<FinancePosting>(
+    postable ? `/payroll/runs/${run.id}/journal/finance` : null,
   );
 
   if (!postable) return null;
@@ -92,6 +105,28 @@ export function JournalExportMenu({ run }: { run: PayrollRun }) {
     }
   };
 
+  const postToFinance = async () => {
+    setBusy("finance");
+    try {
+      const result = await post<FinancePosting>(
+        `/payroll/runs/${run.id}/journal/finance?by_department=${byDepartment}`,
+      );
+      const added = result.created_accounts?.length
+        ? ` Added there: ${result.created_accounts.join(", ")}.`
+        : "";
+      toast.success(
+        `Posted to Finance as journal ${result.journal_number ?? result.journal_id}.${added}`,
+      );
+      finance.reload();
+    } catch (caught) {
+      toast.error(apiMessage(caught, "Could not post to Finance."));
+      finance.reload();
+      throw caught;
+    } finally {
+      setBusy(null);
+    }
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -112,6 +147,22 @@ export function JournalExportMenu({ run }: { run: PayrollRun }) {
               {format.label}
             </DropdownMenuItem>
           ))}
+          {finance.data?.linked && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Post into Finance</DropdownMenuLabel>
+              {finance.data.posted ? (
+                <DropdownMenuItem disabled>
+                  <CheckCircle2 /> In Finance as{" "}
+                  {finance.data.journal_number ?? finance.data.journal_id}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onSelect={() => setConfirmFinance(true)}>
+                  <Send /> Post to Finance
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
           {zoho.data?.connected && (
             <>
               <DropdownMenuSeparator />
@@ -152,6 +203,16 @@ export function JournalExportMenu({ run }: { run: PayrollRun }) {
         }${byDepartment ? ", split by department" : ""}. A run is posted only once.`}
         confirmLabel="Post journal"
         onConfirm={postToZoho}
+      />
+      <ConfirmDialog
+        open={confirmFinance}
+        onOpenChange={setConfirmFinance}
+        title="Post this run to Finance?"
+        description={`The journal for ${String(run.period_month).padStart(2, "0")}/${run.period_year} is booked in Finance as a published journal${
+          byDepartment ? ", split by department" : ""
+        }. A ledger Finance does not have is added there. A run is posted only once.`}
+        confirmLabel="Post journal"
+        onConfirm={postToFinance}
       />
     </>
   );

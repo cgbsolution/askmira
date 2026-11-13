@@ -761,6 +761,38 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       },
     ],
   },
+  "/platform/showcase": {
+    summary:
+      "QR codes for exhibitions. A scan opens the order-to-day-one story with Ask Miraa in a sandbox: no sign-in, and no workspace's data is read or changed.",
+    tasks: [
+      {
+        title: "Make a link for an event",
+        steps: [
+          "Press New showcase link. Name the event, pick the workspace whose name and logo the story shows, and set the order the story runs: client, role, team size, months, order value and team budget.",
+          "The margin floor is worked out from the order value and the team budget as you type.",
+          "Set when the link starts and ends, then press Create link.",
+        ],
+      },
+      {
+        title: "Print the QR code",
+        steps: [
+          "Press QR on the link's row. Download SVG for print (it stays sharp at any size) or PNG for slides.",
+          "Scan it with a phone before you print to check it opens the story.",
+        ],
+      },
+      {
+        title: "Switch a link off",
+        steps: [
+          "Turn off the switch on the link's row. Pages already open stop at their next step and say the link is switched off.",
+          "Turn it on again to reopen it, or change the end time to stretch the window. Every change is recorded in the audit log.",
+        ],
+      },
+      {
+        title: "Run it on a booth screen",
+        steps: ["Open the link on the booth laptop and press Autoplay: the story plays by itself and starts again when it ends."],
+      },
+    ],
+  },
 
   "/operator": {
     summary: "Clients who granted you access to run their payroll, and what each is waiting on this month.",
