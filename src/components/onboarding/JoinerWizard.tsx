@@ -8,6 +8,14 @@ import { toast } from "sonner";
 import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
 import { pluralCount } from "@/components/onboarding/shared";
+import {
+  type BillingValues,
+  ConsultantBillingFields,
+  EMPTY_BILLING,
+  billingErrors,
+  billingPayload,
+  isConsultant,
+} from "@/components/people/ConsultantBillingFields";
 import { InlineProblem } from "@/components/payroll-ops/shared";
 import { CustomFieldInputs, useCustomFields } from "@/components/people/CustomFields";
 import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
@@ -138,6 +146,7 @@ export function JoinerWizard({
   const [values, setValues] = useState<Values>({ ...EMPTY, ...initial });
   const [manager, setManager] = useState<PickedEmployee | null>(null);
   const [custom, setCustom] = useState<Record<string, unknown>>({});
+  const [billing, setBilling] = useState<BillingValues>(EMPTY_BILLING);
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [buddy, setBuddy] = useState<PickedEmployee | null>(null);
   const [createLogin, setCreateLogin] = useState(true);
@@ -192,6 +201,7 @@ export function JoinerWizard({
       if (!values.date_of_joining) found.date_of_joining = "Choose the day they join.";
       // With several companies, one has to be chosen: no payroll run pays a
       // person who belongs to none.
+      Object.assign(found, billingErrors(billing, values.employment_type));
       if (org.entities.length > 1 && values.legal_entity_id === NONE) {
         found.legal_entity_id = "Choose the company that employs and pays them.";
       }
@@ -219,6 +229,7 @@ export function JoinerWizard({
     setValues({ ...EMPTY, legal_entity_id: onlyEntity ?? NONE });
     setManager(null);
     setCustom({});
+    setBilling(EMPTY_BILLING);
     setTemplateId(null);
     setBuddy(null);
     setCreateLogin(true);
@@ -268,6 +279,7 @@ export function JoinerWizard({
         employment_type: values.employment_type,
         date_of_joining: values.date_of_joining,
         probation_end_date: probationEnd,
+        ...billingPayload(billing, values.employment_type),
         custom_fields: filled,
       },
       template_id: chosen?.id ?? null,
@@ -410,6 +422,14 @@ export function JoinerWizard({
                 </SelectContent>
               </Select>
             </FormField>
+            {isConsultant(values.employment_type) && (
+              <ConsultantBillingFields
+                idPrefix="joiner"
+                values={billing}
+                errors={errors}
+                onChange={setBilling}
+              />
+            )}
             {textField("designation", "Designation", { optional: true })}
             <FormField
               htmlFor="joiner-project"

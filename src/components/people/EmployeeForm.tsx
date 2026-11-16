@@ -4,6 +4,14 @@ import { Loader2 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 import { FormField } from "@/components/common/FormField";
+import {
+  type BillingValues,
+  ConsultantBillingFields,
+  billingErrors,
+  billingFromRecord,
+  billingPayload,
+  isConsultant,
+} from "@/components/people/ConsultantBillingFields";
 import { CustomFieldInputs, useCustomFields } from "@/components/people/CustomFields";
 import { EmployeePicker, type PickedEmployee } from "@/components/people/EmployeePicker";
 import {
@@ -55,6 +63,7 @@ type Values = {
   probation_end_date: string;
   date_of_exit: string;
   notice_period_days: string;
+  billing: BillingValues;
 };
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -85,6 +94,7 @@ function toValues(record?: EmployeeRecord): Values {
       record?.notice_period_days !== null && record?.notice_period_days !== undefined
         ? String(record.notice_period_days)
         : "",
+    billing: billingFromRecord(record),
   };
 }
 
@@ -114,6 +124,7 @@ function toPayload(values: Values, managerId: string | null, dottedId: string | 
     probation_end_date: text(values.probation_end_date),
     date_of_exit: text(values.date_of_exit),
     notice_period_days: values.notice_period_days === "" ? null : Number(values.notice_period_days),
+    ...billingPayload(values.billing, values.employment_type),
   };
 }
 
@@ -143,6 +154,7 @@ function validate(values: Values, isCreate: boolean): Record<string, string> {
   if (values.date_of_joining && values.date_of_exit && values.date_of_exit < values.date_of_joining) {
     errors.date_of_exit = "Exit cannot be before joining.";
   }
+  Object.assign(errors, billingErrors(values.billing, values.employment_type));
   return errors;
 }
 
@@ -247,7 +259,7 @@ export function EmployeeForm({
   };
 
   const textField = (
-    key: keyof Values,
+    key: Exclude<keyof Values, "billing">,
     label: string,
     options: { type?: string; optional?: boolean; hint?: string; disabled?: boolean } = {},
   ) => (
@@ -506,6 +518,14 @@ export function EmployeeForm({
               </SelectContent>
             </Select>
           </FormField>
+          {isConsultant(values.employment_type) && (
+            <ConsultantBillingFields
+              idPrefix="emp"
+              values={values.billing}
+              errors={errors}
+              onChange={(billing) => set("billing", billing)}
+            />
+          )}
           {textField("date_of_joining", "Date of joining", { type: "date", optional: true })}
           {textField("probation_end_date", "Probation ends", { type: "date", optional: true })}
           {!isCreate && textField("date_of_exit", "Date of exit", { type: "date", optional: true })}

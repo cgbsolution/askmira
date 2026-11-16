@@ -56,6 +56,11 @@ export interface EmployeeRecord {
   date_of_exit: string | null;
   probation_end_date: string | null;
   notice_period_days: number | null;
+  /** Consultant billing: GST paid on top of the fee, TDS instead of salary tax. */
+  gst_applicable?: boolean;
+  /** Rupees as a decimal string, e.g. "1800.00". */
+  gst_amount?: string | null;
+  fixed_tds_amount?: string | null;
   photo_url: string | null;
   custom_fields: Record<string, unknown>;
   is_active: boolean;
@@ -89,6 +94,9 @@ export type EmployeeInput = Partial<
     | "date_of_exit"
     | "probation_end_date"
     | "notice_period_days"
+    | "gst_applicable"
+    | "gst_amount"
+    | "fixed_tds_amount"
     | "custom_fields"
   >
 > & { employee_code?: string };

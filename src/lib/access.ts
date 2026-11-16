@@ -27,6 +27,7 @@ import {
   ShoppingCart,
   Sparkles,
   Target,
+  TrendingUp,
   UserCircle2,
   Users,
   Wallet,
@@ -294,7 +295,6 @@ export const NAV: NavSection[] = [
       { name: "Payslips", path: "/payroll/payslips", roles: HR },
       { name: "Salary master", path: "/payroll/salaries", roles: HR },
       { name: "Salary structures", path: "/payroll/structures", roles: HR },
-      { name: "Account P&L", path: "/payroll/accounts", roles: HR },
       { name: "Adjustments", path: "/payroll/adjustments", roles: HR },
       { name: "Arrears", path: "/payroll/arrears", roles: HR },
       { name: "Loans", path: "/payroll/loans", roles: HR },
@@ -312,6 +312,15 @@ export const NAV: NavSection[] = [
         parent: "/payroll/setup",
       })),
     ],
+  },
+  {
+    // Billing and cost per client account: its own menu item, not a Payroll page.
+    key: "accounts",
+    name: "Account P&L",
+    icon: TrendingUp,
+    group: "main",
+    module: "payroll",
+    pages: [{ name: "Account P&L", path: "/payroll/accounts", roles: HR }],
   },
   {
     key: "pay",
