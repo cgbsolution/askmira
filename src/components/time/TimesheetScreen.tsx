@@ -50,13 +50,27 @@ interface Entry {
   description: string | null;
 }
 
-interface Week {
+export interface Week {
   id: string | null;
+  employee_id?: string;
   week_start: string;
   status: "draft" | "submitted" | "approved" | "rejected";
   decision_note: string | null;
   total_hours: string;
   entries: Entry[];
+  /** A consultant's week: paid by the hour, approved by their customer or an internal approver. */
+  consultant?: boolean;
+  approval_route?: "customer" | "internal" | null;
+  /** What the week pays; only HR and the consultant's internal approver are sent it. Null: no rate for some day. */
+  amount?: string | null;
+}
+
+/** The word for a week's state; consultant weeks say who they are waiting on. */
+export function weekStatusLabel(week: Pick<Week, "status" | "consultant" | "approval_route">): string {
+  if (week.consultant && week.status === "submitted") {
+    return week.approval_route === "customer" ? "Sent to customer" : "Waiting for approval";
+  }
+  return week.status;
 }
 
 const NO_PROJECT = "__none";
@@ -76,10 +90,25 @@ function failure(caught: unknown, fallback: string): string {
 
 /** Your hours for a week, against projects; saved as a draft, then submitted for approval. */
 export function TimesheetScreen() {
+  const hasRecord = useHasEmployeeRecord();
+  const description = "Hours against projects, a week at a time. Your manager approves the week.";
+  return (
+    <PageShell title="Timesheet" description={description}>
+      {hasRecord ? <WeekEditor /> : <NoEmployeeRecord what="Timesheets" />}
+    </PageShell>
+  );
+}
+
+/**
+ * One week of hours, as a card: yours, or (with `employeeId`) a consultant's that HR or
+ * their internal approver fills in for them.
+ */
+export function WeekEditor({ employeeId }: { employeeId?: string }) {
   const [monday, setMonday] = useState(() => mondayOf(new Date()));
   const weekOf = toISODate(monday);
-  const hasRecord = useHasEmployeeRecord();
-  const { data, error, isLoading, reload } = useApiQuery<Week>(hasRecord ? `/timesheets/me?week_of=${weekOf}` : null);
+  const weekPath = employeeId ? `/timesheets/people/${employeeId}/weeks/${weekOf}` : `/timesheets/me?week_of=${weekOf}`;
+  const submitPath = employeeId ? `${weekPath}/submit` : `/timesheets/me/submit?week_of=${weekOf}`;
+  const { data, error, isLoading, reload } = useApiQuery<Week>(weekPath);
   const projects = useApiQuery<ProjectRow[]>("/timesheets/projects");
   const [entries, setEntries] = useState<Entry[]>([]);
   const [busy, setBusy] = useState(false);
@@ -93,6 +122,7 @@ export function TimesheetScreen() {
     [monday],
   );
   const editable = !data || data.status === "draft" || data.status === "rejected";
+  const customerRoute = data?.consultant === true && data.approval_route === "customer";
   const total = entries.reduce((sum, e) => sum + (Number(e.hours) || 0), 0);
 
   const move = (weeks: number) => setMonday((m) => new Date(m.getTime() + weeks * 7 * 86_400_000));
@@ -101,7 +131,7 @@ export function TimesheetScreen() {
   const save = async (andSubmit: boolean) => {
     setBusy(true);
     try {
-      await put(`/timesheets/me?week_of=${weekOf}`, {
+      await put(weekPath, {
         entries: entries
           .filter((e) => Number(e.hours) > 0)
           .map((e) => ({
@@ -113,14 +143,29 @@ export function TimesheetScreen() {
           })),
       });
       if (andSubmit) {
-        await post(`/timesheets/me/submit?week_of=${weekOf}`);
-        toast.success("Week submitted for approval.");
+        await post(submitPath);
+        toast.success(customerRoute ? "Week sent to the customer." : "Week submitted for approval.");
       } else {
         toast.success("Draft saved.");
       }
       reload();
     } catch (caught) {
       toast.error(failure(caught, "The week could not be saved."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+
+  const reopen = async () => {
+    if (!data?.id) return;
+    setBusy(true);
+    try {
+      await post(`/timesheets/${data.id}/reopen`);
+      toast.success("Week reopened.");
+      reload();
+    } catch (caught) {
+      toast.error(failure(caught, "The week could not be reopened."));
     } finally {
       setBusy(false);
     }
@@ -230,79 +275,81 @@ export function TimesheetScreen() {
     },
   ];
 
-  if (!hasRecord) {
-    return (
-      <PageShell title="Timesheet" description="Hours against projects, a week at a time. Your manager approves the week.">
-        <NoEmployeeRecord what="Timesheets" />
-      </PageShell>
-    );
-  }
-
   return (
-    <PageShell title="Timesheet" description="Hours against projects, a week at a time. Your manager approves the week.">
-      <Card tier="tier1">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ClipboardList className="size-4 text-primary" /> Week of {dayName.format(monday)}
-            {data && (
-              <Badge variant={data.status === "approved" ? "success" : data.status === "submitted" ? "warning" : data.status === "rejected" ? "muted" : "outline"}>
-                {data.status}
-              </Badge>
-            )}
-          </CardTitle>
-          <CardDescription>{total.toFixed(2)} hours this week.</CardDescription>
-          <CardAction className="flex gap-1">
-            <Button size="icon" variant="ghost" aria-label="Previous week" onClick={() => move(-1)}>
-              <ChevronLeft />
-            </Button>
-            <Button size="icon" variant="ghost" aria-label="Next week" onClick={() => move(1)}>
-              <ChevronRight />
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error.detail}</AlertDescription>
-            </Alert>
+    <Card tier="tier1">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ClipboardList className="size-4 text-primary" /> Week of {dayName.format(monday)}
+          {data && (
+            <Badge variant={data.status === "approved" ? "success" : data.status === "submitted" ? "warning" : data.status === "rejected" ? "muted" : "outline"}>
+              {weekStatusLabel(data)}
+            </Badge>
           )}
-          {data?.status === "rejected" && data.decision_note && (
-            <Alert variant="warning">
-              <AlertDescription>Sent back: {data.decision_note}</AlertDescription>
-            </Alert>
-          )}
-          {/* Skeleton rows until the first week arrives. */}
-          <DataTable
-            variant="plain"
-            columns={columns}
-            data={isLoading && !data ? [] : entries}
-            getRowId={(_, index) => String(index)}
-            isLoading={isLoading && !data}
-            emptyMessage="No hours entered for this week."
-          />
-          {editable && (
-            <div className="flex flex-wrap justify-between gap-2">
-              <Button
-                variant="outline"
-                onClick={() =>
-                  setEntries((c) => [...c, { work_date: days[0], project_id: null, task_id: null, hours: "", description: null }])
-                }
-              >
-                <Plus /> Add a line
+          {data?.consultant && <Badge variant="outline">Consultant</Badge>}
+        </CardTitle>
+        <CardDescription>
+          {total.toFixed(2)} hours this week.
+          {data?.amount != null && ` Pays ₹${data.amount}.`}
+          {data?.consultant && data.amount === null && " Pay can't be worked out yet: a day in this week has no hourly rate."}
+        </CardDescription>
+        <CardAction className="flex gap-1">
+          <Button size="icon" variant="ghost" aria-label="Previous week" onClick={() => move(-1)}>
+            <ChevronLeft />
+          </Button>
+          <Button size="icon" variant="ghost" aria-label="Next week" onClick={() => move(1)}>
+            <ChevronRight />
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error.detail}</AlertDescription>
+          </Alert>
+        )}
+        {data?.status === "rejected" && data.decision_note && (
+          <Alert variant="warning">
+            <AlertDescription>Sent back: {data.decision_note}</AlertDescription>
+          </Alert>
+        )}
+        {/* Skeleton rows until the first week arrives. */}
+        <DataTable
+          variant="plain"
+          columns={columns}
+          data={isLoading && !data ? [] : entries}
+          getRowId={(_, index) => String(index)}
+          isLoading={isLoading && !data}
+          emptyMessage="No hours entered for this week."
+        />
+        {employeeId && data?.consultant && data.status === "approved" && (
+          <div className="flex justify-end">
+            <Button variant="outline" disabled={busy} onClick={() => void reopen()}>
+              Reopen this week
+            </Button>
+          </div>
+        )}
+        {editable && (
+          <div className="flex flex-wrap justify-between gap-2">
+            <Button
+              variant="outline"
+              onClick={() =>
+                setEntries((c) => [...c, { work_date: days[0], project_id: null, task_id: null, hours: "", description: null }])
+              }
+            >
+              <Plus /> Add a line
+            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" disabled={busy} onClick={() => void save(false)}>
+                Save draft
               </Button>
-              <div className="flex gap-2">
-                <Button variant="outline" disabled={busy} onClick={() => void save(false)}>
-                  Save draft
-                </Button>
-                <Button disabled={busy || total <= 0} onClick={() => void save(true)}>
-                  {busy ? <Loader2 className="animate-spin" /> : <Send />} Submit week
-                </Button>
-              </div>
+              <Button disabled={busy || total <= 0} onClick={() => void save(true)}>
+                {busy ? <Loader2 className="animate-spin" /> : <Send />} {customerRoute ? "Send to customer" : "Submit week"}
+              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </PageShell>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

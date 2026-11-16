@@ -273,6 +273,13 @@ export const NAV: NavSection[] = [
       { name: "Overtime", path: "/time/overtime", roles: EVERYONE, self: true },
       { name: "Timesheet", path: "/time/timesheets", roles: EVERYONE, self: true },
       { name: "Timesheet approvals", path: "/time/timesheets/approvals", roles: MANAGERS, reach: EVERYONE },
+      {
+        name: "Consultant timesheet",
+        path: "/time/timesheets/people",
+        roles: MANAGERS,
+        hidden: true,
+        parent: "/time/timesheets/approvals",
+      },
       { name: "Shifts & rosters", path: "/time/shifts", roles: HR },
     ],
   },

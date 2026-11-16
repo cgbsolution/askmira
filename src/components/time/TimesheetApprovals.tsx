@@ -1,6 +1,7 @@
 "use client";
 
 import { BarChart3, ClipboardCheck, FolderKanban, Loader2, Plus } from "lucide-react";
+import Link from "next/link";
 import React, { useState } from "react";
 import { toast } from "sonner";
 
@@ -31,7 +32,7 @@ import { ApiError, patch, post } from "@/lib/api";
 import type { ApprovalStep } from "@/lib/types";
 import { formatDay, toISODate } from "@/lib/utils";
 
-import type { ProjectRow } from "./TimesheetScreen";
+import { weekStatusLabel, type ProjectRow } from "./TimesheetScreen";
 import { DatePicker } from "@/components/common/DatePicker";
 
 interface PendingWeek {
@@ -42,6 +43,11 @@ interface PendingWeek {
   total_hours: string;
   entries: { work_date: string; project: string | null; task: string | null; hours: string; description: string | null }[];
   approval_chain: ApprovalStep[];
+  status: "draft" | "submitted" | "approved" | "rejected";
+  consultant?: boolean;
+  approval_route?: "customer" | "internal" | null;
+  /** Only HR and the consultant's internal approver are sent it. */
+  amount?: string | null;
 }
 
 interface HoursReport {
@@ -92,7 +98,11 @@ export function TimesheetApprovals() {
 }
 
 function Pending() {
-  const { data, error, isLoading, reload } = useApiQuery<PendingWeek[]>("/timesheets/pending");
+  const [consultantOnly, setConsultantOnly] = useState(false);
+  const { data, error, isLoading, reload } = useApiQuery<PendingWeek[]>(
+    consultantOnly ? "/timesheets/pending?consultant_only=true" : "/timesheets/pending",
+  );
+  const [deciding, setDeciding] = useState<PendingWeek | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -110,9 +120,23 @@ function Pending() {
   };
 
   return (
+    <>
     <DataPanel
       tier="tier1"
       title="Submitted weeks"
+      toolbar={
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Switch id="consultant-only" checked={consultantOnly} onCheckedChange={setConsultantOnly} />
+            <Label htmlFor="consultant-only" className="font-normal">
+              Consultant weeks only
+            </Label>
+          </div>
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/time/timesheets/people">Fill in a consultant&apos;s week</Link>
+          </Button>
+        </div>
+      }
       isLoading={isLoading && !data}
       error={error?.detail ?? null}
       onRetry={reload}
@@ -133,8 +157,11 @@ function Pending() {
           {(data ?? []).map((week) => (
             <TableRow key={week.id}>
               <TableCell>
-                <p className="font-medium">{week.employee_name}</p>
+                <p className="font-medium">
+                  {week.employee_name} {week.consultant && <Badge variant="outline">Consultant</Badge>}
+                </p>
                 <p className="text-xs text-muted-foreground">{week.employee_code}</p>
+                {week.consultant && <p className="text-xs text-muted-foreground">{weekStatusLabel(week)}</p>}
                 {chainSummary(week.approval_chain) && (
                   <p className="text-xs text-muted-foreground">{chainSummary(week.approval_chain)}</p>
                 )}
@@ -142,10 +169,21 @@ function Pending() {
               <TableCell>{formatDay(week.week_start, true)}</TableCell>
               <TableCell>
                 <p className="tabular-nums">{week.total_hours}</p>
+                {week.amount != null && <p className="text-xs text-muted-foreground">pays ₹{week.amount}</p>}
                 <p className="text-xs text-muted-foreground">
                   {[...new Set(week.entries.map((e) => (e.project ? (e.task ? `${e.project} · ${e.task}` : e.project) : "No project")))].join(", ")}
                 </p>
               </TableCell>
+              {week.consultant ? (
+                <TableCell colSpan={2}>
+                  <div className="flex justify-end">
+                    <Button size="sm" onClick={() => setDeciding(week)}>
+                      {week.approval_route === "customer" ? "Decide for the customer" : "Decide"}
+                    </Button>
+                  </div>
+                </TableCell>
+              ) : (
+                <>
               <TableCell className="min-w-48">
                 <Input aria-label="Note" placeholder="Needed to send back" value={notes[week.id] ?? ""} onChange={(e) => setNotes((c) => ({ ...c, [week.id]: e.target.value }))} />
               </TableCell>
@@ -159,11 +197,98 @@ function Pending() {
                   </Button>
                 </div>
               </TableCell>
+                </>
+              )}
             </TableRow>
           ))}
         </TableBody>
       </Table>
     </DataPanel>
+    {deciding && (
+      <ManualDecisionDialog
+        week={deciding}
+        onClose={() => setDeciding(null)}
+        onDecided={() => {
+          setDeciding(null);
+          reload();
+        }}
+      />
+    )}
+    </>
+  );
+}
+
+/** Approve or send back a consultant's week, with the customer's approval attached if there is one. */
+function ManualDecisionDialog({ week, onClose, onDecided }: { week: PendingWeek; onClose: () => void; onDecided: () => void }) {
+  const [approve, setApprove] = useState(true);
+  const [note, setNote] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append("approve", String(approve));
+      if (note.trim()) form.append("note", note.trim());
+      if (file) form.append("file", file);
+      await post(`/timesheets/${week.id}/decide/manual`, form);
+      toast.success(approve ? "Week approved." : "Week sent back.");
+      onDecided();
+    } catch (caught) {
+      toast.error(failure(caught, "The decision could not be saved."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Decide {week.employee_name}&apos;s week</DialogTitle>
+          <DialogDescription>
+            Week of {formatDay(week.week_start, true)}, {week.total_hours} hours.
+            {week.approval_route === "customer" && " Use this when the customer approved by email, phone or in writing."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="flex gap-2">
+            <Button type="button" variant={approve ? "default" : "outline"} onClick={() => setApprove(true)}>
+              Approve
+            </Button>
+            <Button type="button" variant={approve ? "outline" : "default"} onClick={() => setApprove(false)}>
+              Send back
+            </Button>
+          </div>
+          <FormField htmlFor="decision-note" label="Note" optional={approve}>
+            <Input
+              id="decision-note"
+              maxLength={1000}
+              placeholder={approve ? "Anything worth keeping with the approval" : "What needs changing"}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </FormField>
+          <FormField htmlFor="decision-file" label="Customer's approval" optional>
+            <Input
+              id="decision-file"
+              type="file"
+              accept="application/pdf,image/png,image/jpeg"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </FormField>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button disabled={busy || (!approve && !note.trim())} onClick={() => void save()}>
+            {busy && <Loader2 className="animate-spin" />} {approve ? "Approve" : "Send back"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

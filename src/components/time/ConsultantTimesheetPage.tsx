@@ -1,0 +1,58 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import React, { useState } from "react";
+
+import { EmployeePicker } from "@/components/common/EmployeePicker";
+import { FormField } from "@/components/common/FormField";
+import { PageShell } from "@/components/common/PageShell";
+import { Card, CardContent } from "@/components/ui/card";
+import { useApiQuery } from "@/hooks/useApiQuery";
+import type { EmployeeSummary } from "@/lib/types";
+
+import { WeekEditor } from "./TimesheetScreen";
+
+/**
+ * A consultant's timesheet, filled in by HR or their internal approver. Pick the person,
+ * then the same week editor as everyone's own timesheet works on their behalf.
+ */
+export function ConsultantTimesheetPage({
+  employeeId,
+}: {
+  employeeId?: string;
+}) {
+  const router = useRouter();
+  const person = useApiQuery<EmployeeSummary>(
+    employeeId ? `/employees/${employeeId}` : null,
+  );
+  const [picked, setPicked] = useState<EmployeeSummary | null>(null);
+  const chosen = employeeId ? (person.data ?? picked) : null;
+
+  return (
+    <PageShell
+      title="Consultant timesheet"
+      description="Fill in a consultant's week for them. Send it to their customer, or approve it here if it is approved in house."
+    >
+      <Card tier="tier2">
+        <CardContent className="grid gap-4">
+          <FormField htmlFor="consultant-picker" label="Consultant">
+            <EmployeePicker
+              id="consultant-picker"
+              value={chosen}
+              excludeId={null}
+              onChange={(employee) => {
+                setPicked(employee);
+                router.push(
+                  employee
+                    ? `/time/timesheets/people/${employee.id}`
+                    : "/time/timesheets/people",
+                );
+              }}
+            />
+          </FormField>
+        </CardContent>
+      </Card>
+      {employeeId && <WeekEditor key={employeeId} employeeId={employeeId} />}
+    </PageShell>
+  );
+}
