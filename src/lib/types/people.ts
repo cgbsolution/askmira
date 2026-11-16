@@ -61,8 +61,6 @@ export interface EmployeeRecord {
   notice_period_days: number | null;
   /** Consultant payouts: GST on top of the fee, how they are taxed, who approves their time. */
   gst_applicable?: boolean;
-  /** The older monthly GST figure: read-only, never sent. */
-  gst_amount?: string | null;
   tds_section?: TdsSection | null;
   payee_kind?: PayeeKind | null;
   /** A percentage as a decimal string, e.g. "18.00". */

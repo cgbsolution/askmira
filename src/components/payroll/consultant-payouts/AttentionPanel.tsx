@@ -257,13 +257,6 @@ export function AttentionPanel({
                     {person.name} ({person.code})
                   </Link>
                   <span>{person.reasons.join(" · ")}</span>
-                  {person.old_gst_amount && (
-                    <span>
-                      Earlier GST on file:{" "}
-                      <Money value={person.old_gst_amount} />. Use it as a guide
-                      when you set their GST rate.
-                    </span>
-                  )}
                   {person.reasons.includes(HAS_SALARY) && (
                     <Button
                       size="sm"
