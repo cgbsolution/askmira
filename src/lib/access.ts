@@ -277,6 +277,7 @@ export const NAV: NavSection[] = [
         name: "Consultant timesheet",
         path: "/time/timesheets/people",
         roles: MANAGERS,
+        reach: EVERYONE,
         hidden: true,
         parent: "/time/timesheets/approvals",
       },

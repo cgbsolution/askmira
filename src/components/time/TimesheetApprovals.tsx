@@ -121,99 +121,99 @@ function Pending() {
 
   return (
     <>
-    <DataPanel
-      tier="tier1"
-      title="Submitted weeks"
-      toolbar={
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Switch id="consultant-only" checked={consultantOnly} onCheckedChange={setConsultantOnly} />
-            <Label htmlFor="consultant-only" className="font-normal">
-              Consultant weeks only
-            </Label>
+      <DataPanel
+        tier="tier1"
+        title="Submitted weeks"
+        toolbar={
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Switch id="consultant-only" checked={consultantOnly} onCheckedChange={setConsultantOnly} />
+              <Label htmlFor="consultant-only" className="font-normal">
+                Consultant weeks only
+              </Label>
+            </div>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/time/timesheets/people">Fill in a consultant&apos;s week</Link>
+            </Button>
           </div>
-          <Button size="sm" variant="outline" asChild>
-            <Link href="/time/timesheets/people">Fill in a consultant&apos;s week</Link>
-          </Button>
-        </div>
-      }
-      isLoading={isLoading && !data}
-      error={error?.detail ?? null}
-      onRetry={reload}
-      isEmpty={(data ?? []).length === 0}
-      empty={{ icon: ClipboardCheck, title: "Nothing to approve" }}
-    >
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Person</TableHead>
-            <TableHead>Week</TableHead>
-            <TableHead>Hours</TableHead>
-            <TableHead>Note</TableHead>
-            <TableHead />
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {(data ?? []).map((week) => (
-            <TableRow key={week.id}>
-              <TableCell>
-                <p className="font-medium">
-                  {week.employee_name} {week.consultant && <Badge variant="outline">Consultant</Badge>}
-                </p>
-                <p className="text-xs text-muted-foreground">{week.employee_code}</p>
-                {week.consultant && <p className="text-xs text-muted-foreground">{weekStatusLabel(week)}</p>}
-                {chainSummary(week.approval_chain) && (
-                  <p className="text-xs text-muted-foreground">{chainSummary(week.approval_chain)}</p>
-                )}
-              </TableCell>
-              <TableCell>{formatDay(week.week_start, true)}</TableCell>
-              <TableCell>
-                <p className="tabular-nums">{week.total_hours}</p>
-                {week.amount != null && <p className="text-xs text-muted-foreground">pays ₹{week.amount}</p>}
-                <p className="text-xs text-muted-foreground">
-                  {[...new Set(week.entries.map((e) => (e.project ? (e.task ? `${e.project} · ${e.task}` : e.project) : "No project")))].join(", ")}
-                </p>
-              </TableCell>
-              {week.consultant ? (
-                <TableCell colSpan={2}>
-                  <div className="flex justify-end">
-                    <Button size="sm" onClick={() => setDeciding(week)}>
-                      {week.approval_route === "customer" ? "Decide for the customer" : "Decide"}
-                    </Button>
-                  </div>
-                </TableCell>
-              ) : (
-                <>
-              <TableCell className="min-w-48">
-                <Input aria-label="Note" placeholder="Needed to send back" value={notes[week.id] ?? ""} onChange={(e) => setNotes((c) => ({ ...c, [week.id]: e.target.value }))} />
-              </TableCell>
-              <TableCell>
-                <div className="flex justify-end gap-2">
-                  <Button size="sm" disabled={busy === week.id} onClick={() => void decide(week, true)}>
-                    Approve
-                  </Button>
-                  <Button size="sm" variant="outline" disabled={busy === week.id || !notes[week.id]?.trim()} onClick={() => void decide(week, false)}>
-                    Send back
-                  </Button>
-                </div>
-              </TableCell>
-                </>
-              )}
+        }
+        isLoading={isLoading && !data}
+        error={error?.detail ?? null}
+        onRetry={reload}
+        isEmpty={(data ?? []).length === 0}
+        empty={{ icon: ClipboardCheck, title: "Nothing to approve" }}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Person</TableHead>
+              <TableHead>Week</TableHead>
+              <TableHead>Hours</TableHead>
+              <TableHead>Note</TableHead>
+              <TableHead />
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </DataPanel>
-    {deciding && (
-      <ManualDecisionDialog
-        week={deciding}
-        onClose={() => setDeciding(null)}
-        onDecided={() => {
-          setDeciding(null);
-          reload();
-        }}
-      />
-    )}
+          </TableHeader>
+          <TableBody>
+            {(data ?? []).map((week) => (
+              <TableRow key={week.id}>
+                <TableCell>
+                  <p className="font-medium">
+                    {week.employee_name} {week.consultant && <Badge variant="outline">Consultant</Badge>}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{week.employee_code}</p>
+                  {week.consultant && <p className="text-xs text-muted-foreground">{weekStatusLabel(week)}</p>}
+                  {chainSummary(week.approval_chain) && (
+                    <p className="text-xs text-muted-foreground">{chainSummary(week.approval_chain)}</p>
+                  )}
+                </TableCell>
+                <TableCell>{formatDay(week.week_start, true)}</TableCell>
+                <TableCell>
+                  <p className="tabular-nums">{week.total_hours}</p>
+                  {week.amount != null && <p className="text-xs text-muted-foreground">pays ₹{week.amount}</p>}
+                  <p className="text-xs text-muted-foreground">
+                    {[...new Set(week.entries.map((e) => (e.project ? (e.task ? `${e.project} · ${e.task}` : e.project) : "No project")))].join(", ")}
+                  </p>
+                </TableCell>
+                {week.consultant ? (
+                  <TableCell colSpan={2}>
+                    <div className="flex justify-end">
+                      <Button size="sm" onClick={() => setDeciding(week)}>
+                        {week.approval_route === "customer" ? "Decide for the customer" : "Decide"}
+                      </Button>
+                    </div>
+                  </TableCell>
+                ) : (
+                  <>
+                  <TableCell className="min-w-48">
+                    <Input aria-label="Note" placeholder="Needed to send back" value={notes[week.id] ?? ""} onChange={(e) => setNotes((c) => ({ ...c, [week.id]: e.target.value }))} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-end gap-2">
+                      <Button size="sm" disabled={busy === week.id} onClick={() => void decide(week, true)}>
+                        Approve
+                      </Button>
+                      <Button size="sm" variant="outline" disabled={busy === week.id || !notes[week.id]?.trim()} onClick={() => void decide(week, false)}>
+                        Send back
+                      </Button>
+                    </div>
+                  </TableCell>
+                  </>
+                )}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </DataPanel>
+      {deciding && (
+        <ManualDecisionDialog
+          week={deciding}
+          onClose={() => setDeciding(null)}
+          onDecided={() => {
+            setDeciding(null);
+            reload();
+          }}
+        />
+      )}
     </>
   );
 }

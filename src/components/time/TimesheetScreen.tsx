@@ -52,7 +52,6 @@ interface Entry {
 
 export interface Week {
   id: string | null;
-  employee_id?: string;
   week_start: string;
   status: "draft" | "submitted" | "approved" | "rejected";
   decision_note: string | null;
@@ -155,7 +154,6 @@ export function WeekEditor({ employeeId }: { employeeId?: string }) {
       setBusy(false);
     }
   };
-
 
   const reopen = async () => {
     if (!data?.id) return;
