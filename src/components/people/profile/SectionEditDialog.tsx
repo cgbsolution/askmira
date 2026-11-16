@@ -181,7 +181,12 @@ export function SectionEditDialog({
 
   if (!section || !draft) return null;
   const list = LIST_SECTIONS[section];
-  const specs = OBJECT_SECTIONS[section];
+  const allSpecs = OBJECT_SECTIONS[section];
+  // A consultant has no PF, UAN or ESI to record.
+  const specs =
+    section === "statutory" && employee.employment_type === "consultant"
+      ? allSpecs?.filter((spec) => !["uan", "pf_number", "esi_number"].includes(spec.key))
+      : allSpecs;
   const isRequest = mode === "self-request";
 
   const build = (): { write: SectionWrite | null; found: Record<string, string> } => {

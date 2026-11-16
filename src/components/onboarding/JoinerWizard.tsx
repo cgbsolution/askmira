@@ -36,7 +36,7 @@ import {
 import { Stepper } from "@/components/ui/stepper";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import { post } from "@/lib/api";
+import { ApiError, post } from "@/lib/api";
 import type {
   JoinerCreated,
   JoinerCreateInput,
@@ -155,6 +155,8 @@ export function JoinerWizard({
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [created, setCreated] = useState<JoinerCreated | null>(null);
+  // Set when the person was added but their first hourly rate was not saved.
+  const [rateProblem, setRateProblem] = useState<string | null>(null);
 
   // A workspace with one company: every record belongs to it.
   const onlyEntity = org.entities.length === 1 ? org.entities[0].id : null;
@@ -201,7 +203,7 @@ export function JoinerWizard({
       if (!values.date_of_joining) found.date_of_joining = "Choose the day they join.";
       // With several companies, one has to be chosen: no payroll run pays a
       // person who belongs to none.
-      Object.assign(found, billingErrors(billing, values.employment_type));
+      Object.assign(found, billingErrors(billing, values.employment_type, { requireRate: true }));
       if (org.entities.length > 1 && values.legal_entity_id === NONE) {
         found.legal_entity_id = "Choose the company that employs and pays them.";
       }
@@ -237,6 +239,7 @@ export function JoinerWizard({
     setErrors({});
     setServerError(null);
     setCreated(null);
+    setRateProblem(null);
   };
 
   const submit = async () => {
@@ -291,6 +294,22 @@ export function JoinerWizard({
     setServerError(null);
     try {
       const result = await post<JoinerCreated>("/onboarding/joiners", input);
+      // The person exists now, so a failed rate is reported, never swallowed.
+      if (isConsultant(values.employment_type)) {
+        try {
+          await post("/timesheets/rates", {
+            employee_id: result.employee_id,
+            project_id: null,
+            rate: billing.hourly_rate.trim(),
+            effective_from: billing.rate_from,
+          });
+        } catch (caught) {
+          const reason = caught instanceof ApiError ? ` (${caught.detail})` : "";
+          setRateProblem(
+            `${result.employee_name} was added, but their hourly rate was not saved${reason}. Add it on their profile under Compensation → Hourly pay before their first timesheet is approved.`,
+          );
+        }
+      }
       setCreated(result);
       onAdded?.(result);
     } catch (caught) {
@@ -311,7 +330,13 @@ export function JoinerWizard({
   };
 
   if (created) {
-    return <JoinerDone created={created} actions={renderDoneActions(created, reset)} />;
+    return (
+      <JoinerDone
+        created={created}
+        rateProblem={rateProblem}
+        actions={renderDoneActions(created, reset)}
+      />
+    );
   }
 
   const textField = (
@@ -428,6 +453,7 @@ export function JoinerWizard({
                 values={billing}
                 errors={errors}
                 onChange={setBilling}
+                showRate
               />
             )}
             {textField("designation", "Designation", { optional: true })}
@@ -724,7 +750,15 @@ export function JoinerWizard({
 }
 
 /** What was done, said plainly — and the one-time password when no email went. */
-function JoinerDone({ created, actions }: { created: JoinerCreated; actions: React.ReactNode }) {
+function JoinerDone({
+  created,
+  actions,
+  rateProblem,
+}: {
+  created: JoinerCreated;
+  actions: React.ReactNode;
+  rateProblem: string | null;
+}) {
   const login = created.login;
   const emailed = login?.welcome_email?.status === "sent" || login?.welcome_email?.status === "queued";
 
@@ -767,6 +801,8 @@ function JoinerDone({ created, actions }: { created: JoinerCreated; actions: Rea
           </ul>
         </div>
       </div>
+
+      {rateProblem && <InlineProblem>{rateProblem}</InlineProblem>}
 
       {login && !emailed && (
         <Alert>

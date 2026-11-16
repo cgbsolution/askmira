@@ -422,7 +422,12 @@ export function ProfileView({
           <TabsContent value="statutory" className="mt-4">
             {withProfile((data) => (
               <>
-                <StatutoryCard profile={data} isSelf={isSelf} onEdit={onEdit} />
+                <StatutoryCard
+                  profile={data}
+                  isSelf={isSelf}
+                  onEdit={onEdit}
+                  consultant={employee.employment_type === "consultant"}
+                />
                 <BankCard profile={data} isSelf={isSelf} onEdit={onEdit} />
               </>
             ))}
@@ -470,8 +475,12 @@ export function ProfileView({
 
         {seesPay && (
           <TabsContent value="compensation" className="mt-4 grid gap-6">
-            <TotalRewardsCard employeeId={employee.id} isSelf={isSelf} />
-            <CompensationPanel employeeId={employee.id} isSelf={isSelf} />
+            {employee.employment_type !== "consultant" && (
+              <>
+                <TotalRewardsCard employeeId={employee.id} isSelf={isSelf} />
+                <CompensationPanel employeeId={employee.id} isSelf={isSelf} />
+              </>
+            )}
             {isHr && !isSelf && <HourlyRatesCard employeeId={employee.id} />}
             {isHr && !isSelf && hasModule("leave") && <KioskBadgesCard employeeId={employee.id} />}
           </TabsContent>

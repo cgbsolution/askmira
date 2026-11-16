@@ -3,6 +3,9 @@
 import type { EmploymentStatus } from "@/lib/types";
 
 export type EmploymentType = "full_time" | "part_time" | "contract" | "intern" | "consultant";
+export type TdsSection = "194J_professional" | "194J_technical" | "194C";
+export type PayeeKind = "individual" | "huf" | "firm" | "company";
+export type ApproverRoute = "customer" | "internal";
 export type Gender = "female" | "male" | "non_binary" | "undisclosed";
 
 export interface DirectoryEmployee {
@@ -56,11 +59,20 @@ export interface EmployeeRecord {
   date_of_exit: string | null;
   probation_end_date: string | null;
   notice_period_days: number | null;
-  /** Consultant billing: GST paid on top of the fee, TDS instead of salary tax. */
+  /** Consultant payouts: GST on top of the fee, how they are taxed, who approves their time. */
   gst_applicable?: boolean;
-  /** Rupees as a decimal string, e.g. "1800.00". */
+  /** The older monthly GST figure: read-only, never sent. */
   gst_amount?: string | null;
-  fixed_tds_amount?: string | null;
+  tds_section?: TdsSection | null;
+  payee_kind?: PayeeKind | null;
+  /** A percentage as a decimal string, e.g. "18.00". */
+  gst_rate?: string | null;
+  gstin?: string | null;
+  contract_end_date?: string | null;
+  timesheet_approver_route?: ApproverRoute | null;
+  customer_contact_name?: string | null;
+  customer_contact_email?: string | null;
+  internal_approver_user_id?: string | null;
   photo_url: string | null;
   custom_fields: Record<string, unknown>;
   is_active: boolean;
@@ -95,8 +107,15 @@ export type EmployeeInput = Partial<
     | "probation_end_date"
     | "notice_period_days"
     | "gst_applicable"
-    | "gst_amount"
-    | "fixed_tds_amount"
+    | "tds_section"
+    | "payee_kind"
+    | "gst_rate"
+    | "gstin"
+    | "contract_end_date"
+    | "timesheet_approver_route"
+    | "customer_contact_name"
+    | "customer_contact_email"
+    | "internal_approver_user_id"
     | "custom_fields"
   >
 > & { employee_code?: string };

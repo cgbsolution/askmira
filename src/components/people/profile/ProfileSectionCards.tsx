@@ -566,10 +566,13 @@ export function StatutoryCard({
   profile,
   isSelf,
   onEdit,
+  consultant = false,
 }: {
   profile: EmployeeProfile;
   isSelf: boolean;
   onEdit: OnEdit;
+  /** A consultant has no PF, UAN or ESI. */
+  consultant?: boolean;
 }) {
   const s = profile.statutory;
   return (
@@ -601,9 +604,13 @@ export function StatutoryCard({
             )
           ) : null}
         </DetailItem>
-        <DetailItem label="UAN">{s.uan ? <span className="font-mono">{s.uan}</span> : null}</DetailItem>
-        <DetailItem label="PF member id">{s.pf_number ? <span className="font-mono">{s.pf_number}</span> : null}</DetailItem>
-        <DetailItem label="ESI number">{s.esi_number ? <span className="font-mono">{s.esi_number}</span> : null}</DetailItem>
+        {!consultant && (
+          <>
+            <DetailItem label="UAN">{s.uan ? <span className="font-mono">{s.uan}</span> : null}</DetailItem>
+            <DetailItem label="PF member id">{s.pf_number ? <span className="font-mono">{s.pf_number}</span> : null}</DetailItem>
+            <DetailItem label="ESI number">{s.esi_number ? <span className="font-mono">{s.esi_number}</span> : null}</DetailItem>
+          </>
+        )}
       </div>
     </SectionCard>
   );
