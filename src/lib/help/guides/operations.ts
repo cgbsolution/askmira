@@ -77,6 +77,62 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     ],
   },
 
+  "/payroll/consultant-payouts": {
+    summary:
+      "Pay consultants for their approved timesheet weeks, outside payroll, with GST and TDS worked out for each. Each run is drafted, approved and locked, then paid by bank file.",
+    tasks: [
+      {
+        title: "Start a run",
+        steps: [
+          "Press New payout run. Pick the company, a cut-off date and the pay date.",
+          "The run takes every approved consultant week, not yet paid, that ends on or before the cut-off. Tax is worked out as on the pay date.",
+          "A consultant still shows as needing attention if they have a salary, no hourly rate or no timesheet approver. End their salary from the banner and add the rest on their record.",
+        ],
+      },
+      {
+        title: "Fix held lines",
+        steps: [
+          "A held line is not paid until fixed. It says why: no rate for a day worked, no bank account, or a GST number missing where GST applies.",
+          "Fix it on the person's record, then press Recalculate.",
+          "Or press Leave out and say why. Their weeks are freed for a later run.",
+          "To add an older approved week the run did not pick up, press Add an older week.",
+        ],
+      },
+      {
+        title: "Approve the run",
+        steps: [
+          "Check each line: hours, fees, GST, tax deducted and what the consultant receives.",
+          "Press Approve & lock and confirm it is you. Someone other than whoever drafted the run approves it.",
+          "If the figures went stale, it asks you to Recalculate first.",
+        ],
+      },
+      {
+        title: "Make the bank file",
+        steps: [
+          "On an approved run, press Prepare bank file. Choose the bank profile and the value date.",
+          "Someone other than you approves the file on Bank files, then it can be downloaded for the bank.",
+        ],
+      },
+      {
+        title: "Mark the run paid",
+        steps: [
+          "After the money has moved, press Mark paid with the date and the bank reference.",
+          "A paid run can no longer have a bank file made, so nobody is paid twice.",
+        ],
+      },
+    ],
+    tips: [
+      "Opening this year records what a consultant was already paid, and taxed, earlier in the financial year, so the tax threshold and catch-up come out right.",
+      "If tax is more than what is payable, only the payable amount is deducted and the rest is carried to the consultant's next payout.",
+      "Each consultant sees their own payout statement under My pay, then Payouts.",
+    ],
+    related: [
+      { label: "Bank files", href: "/payroll/disbursements" },
+      { label: "Contractors", href: "/payroll/contractors" },
+      { label: "Ask Miraa", href: "/ask-mira" },
+    ],
+  },
+
   "/payroll/accounts": {
     summary:
       "Each client account's P&L: what you billed it against the payroll cost of the people working on it and its other direct costs, month by month.",

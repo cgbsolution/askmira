@@ -161,7 +161,7 @@ export const PAYROLL_SETUP: { name: string; path: string; description: string }[
   {
     name: "Contractors",
     path: "/payroll/contractors",
-    description: "Consultants paid against invoices, with TDS under 194C and 194J.",
+    description: "Outside firms paid against their own invoices, with TDS under 194C and 194J.",
   },
   {
     name: "Earned wage access",
@@ -308,6 +308,7 @@ export const NAV: NavSection[] = [
       { name: "Loans", path: "/payroll/loans", roles: HR },
       { name: "Tax proofs", path: "/payroll/tax-proofs", roles: HR },
       { name: "Return filings", path: "/payroll/filings", roles: HR },
+      { name: "Consultant payouts", path: "/payroll/consultant-payouts", roles: HR },
       { name: "Bank files", path: "/payroll/disbursements", roles: HR },
       { name: "Full & final", path: "/payroll/settlements", roles: HR },
       { name: "Payroll setup", path: "/payroll/setup", roles: HR },
@@ -338,6 +339,7 @@ export const NAV: NavSection[] = [
     module: "payroll",
     pages: [
       { name: "Payslips", path: "/pay", roles: EVERYONE, self: true },
+      { name: "Payouts", path: "/pay/payouts", roles: EVERYONE, self: true },
       { name: "Tax declarations", path: "/pay/tax", roles: EVERYONE, self: true },
       { name: "Loans & encashment", path: "/pay/loans", roles: EVERYONE, self: true },
       { name: "Benefits", path: "/pay/benefits", roles: EVERYONE, self: true },
