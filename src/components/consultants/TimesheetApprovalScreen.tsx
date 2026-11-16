@@ -22,6 +22,8 @@ type Described = {
 
 type Choice = "approve" | "reject";
 
+const NEUTRAL = "This link can no longer be used.";
+
 const CLOSED: Record<string, string> = {
   decided: "This timesheet has already been answered. Thank you.",
   changed: "This timesheet was changed after the link was sent, so this link no longer applies.",
@@ -48,6 +50,7 @@ export function TimesheetApprovalScreen({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<Choice | null>(null);
+  const [gone, setGone] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,8 +89,15 @@ export function TimesheetApprovalScreen({
       setDone(choice);
     } catch (caught) {
       if (caught instanceof ApiError && (caught.status === 409 || caught.status === 410)) {
-        const state = caught.status === 410 ? "expired" : "decided";
-        setDescribed((current) => (current ? { ...current, state } : current));
+        try {
+          const fresh = await get<Described>(base, { skipAuthRedirect: true });
+          if (fresh.state === "waiting") setGone(NEUTRAL);
+          else setDescribed(fresh);
+        } catch {
+          setGone(NEUTRAL);
+        }
+      } else if (caught instanceof ApiError && caught.status === 404) {
+        setGone("This link isn't valid.");
       } else {
         setError(
           caught instanceof ApiError && caught.status === 422
@@ -120,6 +130,8 @@ export function TimesheetApprovalScreen({
           </CardContent>
         ) : !described ? (
           <CardContent className="py-6 text-sm text-foreground">{problem}</CardContent>
+        ) : gone ? (
+          <CardContent className="py-6 text-sm text-foreground">{gone}</CardContent>
         ) : done ? (
           <CardContent className="flex items-center gap-2 py-6 text-sm text-foreground">
             <CheckCircle2 className="size-5 shrink-0 text-primary" />
