@@ -103,11 +103,13 @@ export const isConsultant = (type: EmploymentType) => type === "consultant";
  * Problems keyed by field, for a consultant only: nobody else carries these.
  * Mirrors the server's rules, so a problem shows here before a save is refused.
  * `requireRate` is set at onboarding, where the first hourly rate is entered.
+ * `checkGst: false` skips the GST checks: a consultant saved before GST rate and
+ * GSTIN existed has neither, and is asked only when GST itself is edited.
  */
 export function billingErrors(
   values: BillingValues,
   type: EmploymentType,
-  options: { requireRate?: boolean } = {},
+  options: { requireRate?: boolean; checkGst?: boolean } = {},
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!isConsultant(type)) return errors;
@@ -117,7 +119,7 @@ export function billingErrors(
     else if (!RATE.test(rate) || Number(rate) <= 0) errors.hourly_rate = "An amount in rupees, like 1500.";
     if (!values.rate_from) errors.rate_from = "Choose the day this rate starts.";
   }
-  if (values.gst_applicable === "yes") {
+  if (values.gst_applicable === "yes" && options.checkGst !== false) {
     const rate = values.gst_rate.trim();
     if (!rate) errors.gst_rate = "Enter the GST rate, or set GST applicable to No.";
     else if (!PERCENT.test(rate) || Number(rate) > 100) errors.gst_rate = "A percentage from 0 to 100, like 18.";
@@ -401,6 +403,12 @@ export function ConsultantBillingFields({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={NONE}>No one in particular</SelectItem>
+            {values.internal_approver_user_id !== NONE &&
+              !logins.some((p) => p.user_id === values.internal_approver_user_id) && (
+                <SelectItem value={values.internal_approver_user_id}>
+                  Current approver (no longer active)
+                </SelectItem>
+              )}
             {logins.map((person) => (
               <SelectItem key={person.user_id} value={person.user_id as string}>
                 {person.name}

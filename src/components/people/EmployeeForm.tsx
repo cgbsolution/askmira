@@ -128,7 +128,7 @@ function toPayload(values: Values, managerId: string | null, dottedId: string | 
   };
 }
 
-function validate(values: Values, isCreate: boolean): Record<string, string> {
+function validate(values: Values, isCreate: boolean, record?: EmployeeRecord): Record<string, string> {
   const errors: Record<string, string> = {};
   if (isCreate && !/^[A-Za-z0-9_\-/]+$/.test(values.employee_code.trim())) {
     errors.employee_code = "Letters, digits, - _ and / only.";
@@ -154,7 +154,19 @@ function validate(values: Values, isCreate: boolean): Record<string, string> {
   if (values.date_of_joining && values.date_of_exit && values.date_of_exit < values.date_of_joining) {
     errors.date_of_exit = "Exit cannot be before joining.";
   }
-  Object.assign(errors, billingErrors(values.billing, values.employment_type));
+  // As the server does: an existing consultant's GST fields are checked only
+  // when GST is being edited, or when the person becomes a consultant.
+  const now = billingPayload(values.billing, values.employment_type);
+  const was = billingPayload(billingFromRecord(record), record?.employment_type ?? values.employment_type);
+  const becomesConsultant = isConsultant(values.employment_type) && !(record && isConsultant(record.employment_type));
+  const gstEdited =
+    now.gst_applicable !== was.gst_applicable || now.gst_rate !== was.gst_rate || now.gstin !== was.gstin;
+  Object.assign(
+    errors,
+    billingErrors(values.billing, values.employment_type, {
+      checkGst: isCreate || becomesConsultant || gstEdited,
+    }),
+  );
   return errors;
 }
 
@@ -209,7 +221,7 @@ export function EmployeeForm({
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const found = validate(values, isCreate);
+    const found = validate(values, isCreate, record);
     for (const field of definitions) {
       const value = custom[field.key];
       if (field.is_required && (value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0))) {
