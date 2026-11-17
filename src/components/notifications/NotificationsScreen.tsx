@@ -1,6 +1,7 @@
 "use client";
 
-import { Bell, BellOff, CheckCheck, CircleSlash, Loader2, MessageCircle } from "lucide-react";
+import { ArrowRight, Bell, BellOff, CheckCheck, CircleSlash, Loader2, MessageCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -63,6 +64,17 @@ function eventLabel(key: string): string {
 }
 
 /**
+ * Where a notification points, if anywhere: a page inside AskMiraa ("/assets",
+ * "/payroll/consultant-hours"). Anything else — an outside address, "//host" —
+ * is ignored, so a notification can never send someone off-site.
+ */
+function linkOf(row: NotificationItem): string | null {
+  const link = row.payload?.link;
+  if (typeof link !== "string" || !link.startsWith("/") || link.startsWith("//")) return null;
+  return link;
+}
+
+/**
  * My notifications: what has been sent to me, and how I want to be told.
  *
  * Preferences are shown beside whether each channel actually delivers, so a
@@ -95,6 +107,7 @@ function InboxTab() {
     `/notifications?limit=100${unreadOnly ? "&unread=true" : ""}`,
   );
   const [markingAll, setMarkingAll] = useState(false);
+  const router = useRouter();
 
   const rows = data ?? [];
   const unread = (data ?? []).filter((row) => row.read_at === null).length;
@@ -106,6 +119,18 @@ function InboxTab() {
     } catch (caught) {
       toast.error(detail(caught, "Could not mark it read."));
     }
+  };
+
+  /** Go where the notification points, marking it read on the way. */
+  const open = async (row: NotificationItem, link: string) => {
+    if (row.read_at === null) {
+      try {
+        await post(`/notifications/${row.id}/read`);
+      } catch {
+        // Opening matters more than the read mark; it stays unread if this fails.
+      }
+    }
+    router.push(link);
   };
 
   const markAll = async () => {
@@ -174,11 +199,21 @@ function InboxTab() {
               <p className="mt-1 text-sm whitespace-pre-line text-muted-foreground">{row.rendered_body}</p>
               <div className="mt-1 text-xs text-muted-foreground">{formatDateTime(row.created_at)}</div>
             </div>
-            {row.read_at === null && (
-              <Button size="sm" variant="ghost" onClick={() => markRead(row)}>
-                Mark read
-              </Button>
-            )}
+            <div className="flex shrink-0 items-center gap-1">
+              {(() => {
+                const link = linkOf(row);
+                return link ? (
+                  <Button size="sm" variant="outline" onClick={() => void open(row, link)}>
+                    Open <ArrowRight />
+                  </Button>
+                ) : null;
+              })()}
+              {row.read_at === null && (
+                <Button size="sm" variant="ghost" onClick={() => markRead(row)}>
+                  Mark read
+                </Button>
+              )}
+            </div>
           </li>
         ))}
       </ul>
