@@ -49,10 +49,15 @@ function rateText(breakdown: PayoutBreakdownRow[]): string {
   return rates.map((rate) => `${rate}/h`).join(", ");
 }
 
-/** A fixed-monthly entry's pricing, each month part as "Fixed monthly ₹X × N/M days". */
+/**
+ * A fixed-monthly entry's pricing, each month part as "Fixed monthly ₹X × N/M days",
+ * or "No monthly fee for N days" when the entry is held for days without one.
+ */
 function feeText(breakdown: PayoutBreakdownRow[]): string | null {
   const parts = breakdown.filter(isFixedMonthlyRow);
   if (parts.length === 0) return null;
+  const missing = parts.reduce((sum, part) => sum + (part.missing_days ?? 0), 0);
+  if (missing > 0) return `No monthly fee for ${missing} day${missing === 1 ? "" : "s"}`;
   const text = parts.flatMap((part) =>
     part.fees.map(
       (at) =>
@@ -67,38 +72,41 @@ function LineEntries({ line }: { line: PayoutLine }) {
   if (line.entries.length === 0) return null;
   return (
     <ul className="mt-2 grid gap-1.5 text-xs text-muted-foreground">
-      {line.entries.map((entry) => (
-        <li key={entry.id}>
-          <span className="text-foreground">
-            {formatDate(entry.period_start)} – {formatDate(entry.period_end)}
-          </span>
-          :{" "}
-          {feeText(entry.breakdown) !== null
-            ? `${entry.hours} h recorded, ${feeText(entry.breakdown)}`
-            : `${entry.hours} h at ${rateText(entry.breakdown)}`}
-          ,{" "}
-          <Money value={entry.gross} />
-          {entry.attachments.map((file) => (
-            <button
-              key={file.id}
-              type="button"
-              className="ml-2 inline-flex items-center gap-1 underline underline-offset-2 hover:text-foreground"
-              onClick={() =>
-                downloadFile(
-                  `/consultant-hours/${entry.entry_id}/attachments/${file.id}`,
-                  file.file_name,
-                ).catch((caught) =>
-                  toast.error(
-                    apiMessage(caught, "The file could not be downloaded."),
-                  ),
-                )
-              }
-            >
-              <Paperclip className="size-3" /> {file.file_name}
-            </button>
-          ))}
-        </li>
-      ))}
+      {line.entries.map((entry) => {
+        const fee = feeText(entry.breakdown);
+        return (
+          <li key={entry.id}>
+            <span className="text-foreground">
+              {formatDate(entry.period_start)} – {formatDate(entry.period_end)}
+            </span>
+            :{" "}
+            {fee !== null
+              ? `${entry.hours} h recorded, ${fee}`
+              : `${entry.hours} h at ${rateText(entry.breakdown)}`}
+            ,{" "}
+            <Money value={entry.gross} />
+            {entry.attachments.map((file) => (
+              <button
+                key={file.id}
+                type="button"
+                className="ml-2 inline-flex items-center gap-1 underline underline-offset-2 hover:text-foreground"
+                onClick={() =>
+                  downloadFile(
+                    `/consultant-hours/${entry.entry_id}/attachments/${file.id}`,
+                    file.file_name,
+                  ).catch((caught) =>
+                    toast.error(
+                      apiMessage(caught, "The file could not be downloaded."),
+                    ),
+                  )
+                }
+              >
+                <Paperclip className="size-3" /> {file.file_name}
+              </button>
+            ))}
+          </li>
+        );
+      })}
     </ul>
   );
 }

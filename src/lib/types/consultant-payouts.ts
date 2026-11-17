@@ -53,7 +53,10 @@ export interface FixedMonthlyBreakdownRow {
   days: number;
   days_in_month: number;
   fee: string | null;
+  /** Empty when the entry is held for a day with no fee. */
   fees: { fee: string; days: number }[];
+  /** Days in this month part with no fee in force (the entry is then held). */
+  missing_days: number;
   amount: string;
 }
 
