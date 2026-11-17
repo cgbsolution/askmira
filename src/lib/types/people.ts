@@ -5,6 +5,8 @@ import type { EmploymentStatus } from "@/lib/types";
 export type EmploymentType = "full_time" | "part_time" | "contract" | "intern" | "consultant";
 export type TdsSection = "194J_professional" | "194J_technical" | "194C";
 export type PayeeKind = "individual" | "huf" | "firm" | "company";
+/** How a consultant is paid: by the hour, or a fixed monthly fee prorated by calendar days. */
+export type ConsultantPayBasis = "hourly" | "fixed_monthly";
 export type ApproverRoute = "customer" | "internal";
 export type Gender = "female" | "male" | "non_binary" | "undisclosed";
 
@@ -73,6 +75,8 @@ export interface EmployeeRecord {
   customer_contact_name?: string | null;
   customer_contact_email?: string | null;
   internal_approver_user_id?: string | null;
+  /** Unset on older records: hourly. */
+  pay_basis?: ConsultantPayBasis | null;
   photo_url: string | null;
   custom_fields: Record<string, unknown>;
   is_active: boolean;
@@ -116,6 +120,7 @@ export type EmployeeInput = Partial<
     | "customer_contact_name"
     | "customer_contact_email"
     | "internal_approver_user_id"
+    | "pay_basis"
     | "custom_fields"
   >
 > & { employee_code?: string };

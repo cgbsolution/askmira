@@ -155,7 +155,7 @@ export function JoinerWizard({
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [created, setCreated] = useState<JoinerCreated | null>(null);
-  // Set when the person was added but their first hourly rate was not saved.
+  // Set when the person was added but their first hourly rate or monthly fee was not saved.
   const [rateProblem, setRateProblem] = useState<string | null>(null);
 
   // A workspace with one company: every record belongs to it.
@@ -294,8 +294,21 @@ export function JoinerWizard({
     setServerError(null);
     try {
       const result = await post<JoinerCreated>("/onboarding/joiners", input);
-      // The person exists now, so a failed rate is reported, never swallowed.
-      if (isConsultant(values.employment_type)) {
+      // The person exists now, so a failed rate or fee is reported, never swallowed.
+      if (isConsultant(values.employment_type) && billing.pay_basis === "fixed_monthly") {
+        try {
+          await post("/consultant-fees", {
+            employee_id: result.employee_id,
+            amount: billing.monthly_fee.trim(),
+            effective_from: billing.fee_from,
+          });
+        } catch (caught) {
+          const reason = caught instanceof ApiError ? ` (${caught.detail})` : "";
+          setRateProblem(
+            `${result.employee_name} was added, but their monthly fee was not saved${reason}. Add it on their profile under Compensation → Monthly fee before their hours are paid.`,
+          );
+        }
+      } else if (isConsultant(values.employment_type)) {
         try {
           await post("/timesheets/rates", {
             employee_id: result.employee_id,
@@ -306,7 +319,7 @@ export function JoinerWizard({
         } catch (caught) {
           const reason = caught instanceof ApiError ? ` (${caught.detail})` : "";
           setRateProblem(
-            `${result.employee_name} was added, but their hourly rate was not saved${reason}. Add it on their profile under Compensation → Hourly pay before their first timesheet is approved.`,
+            `${result.employee_name} was added, but their hourly rate was not saved${reason}. Add it on their profile under Compensation → Hourly pay before their hours are paid.`,
           );
         }
       }

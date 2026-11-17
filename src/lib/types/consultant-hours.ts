@@ -1,5 +1,7 @@
 /** Shapes returned by /consultant-hours. Hours are strings with two decimals. */
 
+import type { ConsultantPayBasis } from "@/lib/types/people";
+
 export type HoursStatus = "draft" | "submitted" | "approved" | "rejected";
 
 export type DayStatus = "present" | "holiday" | "week_off" | "leave" | "half_day";
@@ -64,4 +66,6 @@ export interface ConsultantOption {
   name: string;
   /** Their current project's name, if they have one. */
   project: string | null;
+  /** Fixed monthly: paid a monthly fee, the hours are a record only. */
+  pay_basis: ConsultantPayBasis;
 }

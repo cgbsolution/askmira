@@ -32,8 +32,8 @@ export interface PayoutRunSummary {
   totals: PayoutTotals;
 }
 
-/** One priced piece of an entry: a worked day, or the whole period when only a total was given. */
-export interface PayoutBreakdownRow {
+/** One priced piece of an hourly entry: a worked day, or the whole period when only a total was given. */
+export interface HourlyBreakdownRow {
   date?: string;
   period_start?: string;
   period_end?: string;
@@ -41,6 +41,26 @@ export interface PayoutBreakdownRow {
   rate: string | null;
   amount: string;
 }
+
+/**
+ * One month of a fixed-monthly entry: the days of the period in that month at the
+ * fee in force each day, over the days in the month. `fee` is null when the fee
+ * changed during the month (see `fees`) or a day had none.
+ */
+export interface FixedMonthlyBreakdownRow {
+  /** "YYYY-MM". */
+  month: string;
+  days: number;
+  days_in_month: number;
+  fee: string | null;
+  fees: { fee: string; days: number }[];
+  amount: string;
+}
+
+export type PayoutBreakdownRow = HourlyBreakdownRow | FixedMonthlyBreakdownRow;
+
+export const isFixedMonthlyRow = (row: PayoutBreakdownRow): row is FixedMonthlyBreakdownRow =>
+  "month" in row;
 
 export interface PayoutEntryFile {
   id: string;

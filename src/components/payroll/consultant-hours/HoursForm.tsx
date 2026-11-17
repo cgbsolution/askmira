@@ -100,6 +100,8 @@ export function HoursForm({
   const shownTotal = mode === "days" ? gridTotal : Number(total) || 0;
   const attachmentCount = (saved?.attachments.length ?? 0) + staged.length;
   const employeeId = saved?.employee_id ?? personId;
+  // A fixed monthly fee is paid whatever the hours: they are a record only.
+  const fixedMonthly = consultants.find((c) => c.employee_id === employeeId)?.pay_basis === "fixed_monthly";
 
   const problems: Record<string, string> = {};
   if (!employeeId) problems.person = "Choose the consultant.";
@@ -236,7 +238,17 @@ export function HoursForm({
             </Alert>
           )}
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField htmlFor="hours-person" label="Consultant" required error={fieldError("person")}>
+            <FormField
+              htmlFor="hours-person"
+              label="Consultant"
+              required
+              hint={
+                fixedMonthly
+                  ? "Paid as a fixed monthly fee; hours are recorded for the customer's timesheet."
+                  : undefined
+              }
+              error={fieldError("person")}
+            >
               {saved ? (
                 <p className="text-sm font-medium">
                   {saved.employee_name}

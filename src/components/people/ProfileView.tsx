@@ -48,6 +48,7 @@ import { type EditMode, SectionEditDialog } from "@/components/people/profile/Se
 import { DetailItem, EmploymentStatusBadge } from "@/components/people/StatusBadges";
 import { HourlyRatesCard } from "@/components/people/HourlyRatesCard";
 import { KioskBadgesCard } from "@/components/people/KioskBadgesCard";
+import { MonthlyFeeCard } from "@/components/people/MonthlyFeeCard";
 import { TotalRewardsCard } from "@/components/people/TotalRewardsCard";
 import { useOrgReference } from "@/components/people/useOrgReference";
 import { Badge } from "@/components/ui/badge";
@@ -481,7 +482,14 @@ export function ProfileView({
                 <CompensationPanel employeeId={employee.id} isSelf={isSelf} />
               </>
             )}
-            {isHr && !isSelf && <HourlyRatesCard employeeId={employee.id} />}
+            {/* A consultant is paid by the hour or a fixed monthly fee: the card for theirs. */}
+            {isHr &&
+              !isSelf &&
+              (employee.employment_type === "consultant" && employee.pay_basis === "fixed_monthly" ? (
+                <MonthlyFeeCard employeeId={employee.id} />
+              ) : (
+                <HourlyRatesCard employeeId={employee.id} />
+              ))}
             {isHr && !isSelf && hasModule("leave") && <KioskBadgesCard employeeId={employee.id} />}
           </TabsContent>
         )}

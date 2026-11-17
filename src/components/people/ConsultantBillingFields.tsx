@@ -15,6 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type {
+  ConsultantPayBasis,
   EmployeeRecord,
   EmploymentType,
   PayeeKind,
@@ -23,9 +24,13 @@ import type {
 
 /** A consultant's pay, tax and approver details, as the form holds them. */
 export type BillingValues = {
+  pay_basis: ConsultantPayBasis;
   /** First hourly rate and its start date: asked at onboarding only. */
   hourly_rate: string;
   rate_from: string;
+  /** First monthly fee and its start date, for fixed monthly pay: asked at onboarding only. */
+  monthly_fee: string;
+  fee_from: string;
   tds_section: TdsSection;
   payee_kind: PayeeKind;
   gst_applicable: "yes" | "no";
@@ -39,8 +44,11 @@ export type BillingValues = {
 export const DEFAULT_GST_RATE = "18";
 
 export const EMPTY_BILLING: BillingValues = {
+  pay_basis: "hourly",
   hourly_rate: "",
   rate_from: "",
+  monthly_fee: "",
+  fee_from: "",
   tds_section: "194J_professional",
   payee_kind: "individual",
   gst_applicable: "no",
@@ -56,6 +64,11 @@ export const TDS_SECTION: Record<TdsSection, string> = {
   "194C": "194C: contract work",
 };
 
+export const PAY_BASIS: Record<ConsultantPayBasis, string> = {
+  hourly: "Hourly",
+  fixed_monthly: "Fixed monthly",
+};
+
 export const PAYEE_KIND: Record<PayeeKind, string> = {
   individual: "Individual",
   huf: "HUF",
@@ -64,12 +77,14 @@ export const PAYEE_KIND: Record<PayeeKind, string> = {
 };
 
 const RATE = /^\d{1,8}(\.\d{1,2})?$/;
+const FEE = /^\d{1,12}(\.\d{1,2})?$/;
 const PERCENT = /^\d{1,3}(\.\d{1,2})?$/;
 
 export function billingFromRecord(record?: EmployeeRecord): BillingValues {
   if (!record) return EMPTY_BILLING;
   return {
     ...EMPTY_BILLING,
+    pay_basis: record.pay_basis ?? EMPTY_BILLING.pay_basis,
     tds_section: record.tds_section ?? EMPTY_BILLING.tds_section,
     payee_kind: record.payee_kind ?? EMPTY_BILLING.payee_kind,
     gst_applicable: record.gst_applicable ? "yes" : "no",
@@ -85,7 +100,8 @@ export const isConsultant = (type: EmploymentType) => type === "consultant";
 /**
  * Problems keyed by field, for a consultant only: nobody else carries these.
  * Mirrors the server's rules, so a problem shows here before a save is refused.
- * `requireRate` is set at onboarding, where the first hourly rate is entered.
+ * `requireRate` is set at onboarding, where the first hourly rate (or, for fixed
+ * monthly pay, the first monthly fee) is entered.
  * `checkGst: false` skips the GST checks: a consultant saved before GST rate and
  * GSTIN existed has neither, and is asked only when GST itself is edited.
  */
@@ -96,7 +112,12 @@ export function billingErrors(
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   if (!isConsultant(type)) return errors;
-  if (options.requireRate) {
+  if (options.requireRate && values.pay_basis === "fixed_monthly") {
+    const fee = values.monthly_fee.trim();
+    if (!fee) errors.monthly_fee = "Enter their monthly fee.";
+    else if (!FEE.test(fee) || Number(fee) <= 0) errors.monthly_fee = "An amount in rupees, like 100000.";
+    if (!values.fee_from) errors.fee_from = "Choose the day this fee starts.";
+  } else if (options.requireRate) {
     const rate = values.hourly_rate.trim();
     if (!rate) errors.hourly_rate = "Enter their rate for an hour.";
     else if (!RATE.test(rate) || Number(rate) <= 0) errors.hourly_rate = "An amount in rupees, like 1500.";
@@ -127,6 +148,7 @@ export function billingPayload(values: BillingValues, type: EmploymentType) {
       customer_contact_name: null,
       customer_contact_email: null,
       internal_approver_user_id: null,
+      pay_basis: null,
     };
   }
   const gstOn = values.gst_applicable === "yes";
@@ -141,11 +163,13 @@ export function billingPayload(values: BillingValues, type: EmploymentType) {
     // Hours are approved inside the company now; the customer route is retired.
     timesheet_approver_route: "internal" as const,
     internal_approver_user_id: values.internal_approver_user_id === NONE ? null : values.internal_approver_user_id,
+    pay_basis: values.pay_basis,
   };
 }
 
 /**
- * A consultant's hourly rate (at onboarding), TDS section, payee kind, GST,
+ * A consultant's pay basis, their first hourly rate or monthly fee (at
+ * onboarding), TDS section, payee kind, GST,
  * contract end and finance approver. Laid out as cells of the
  * surrounding two-column grid.
  */
@@ -160,7 +184,7 @@ export function ConsultantBillingFields({
   values: BillingValues;
   errors: Record<string, string>;
   onChange: (values: BillingValues) => void;
-  /** Ask for the first hourly rate and its start date (onboarding). */
+  /** Ask for the first hourly rate or monthly fee and its start date (onboarding). */
   showRate?: boolean;
 }) {
   const people = usePeople();
@@ -170,7 +194,63 @@ export function ConsultantBillingFields({
 
   return (
     <>
-      {showRate && (
+      <FormField
+        htmlFor={`${idPrefix}-pay-basis`}
+        label="Pay basis"
+        hint={
+          values.pay_basis === "fixed_monthly"
+            ? "A fee each month, prorated by calendar days for a part month. Hours are recorded, not paid."
+            : "Each approved hour is paid at their hourly rate."
+        }
+      >
+        <Select value={values.pay_basis} onValueChange={(v) => set("pay_basis", v as ConsultantPayBasis)}>
+          <SelectTrigger id={`${idPrefix}-pay-basis`} className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(PAY_BASIS) as ConsultantPayBasis[]).map((key) => (
+              <SelectItem key={key} value={key}>
+                {PAY_BASIS[key]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FormField>
+      {showRate && values.pay_basis === "fixed_monthly" && (
+        <>
+          <FormField
+            htmlFor={`${idPrefix}-monthly-fee`}
+            label="Monthly fee (₹)"
+            required
+            hint="A full month pays this; a part month by calendar days."
+            error={errors.monthly_fee}
+          >
+            <Input
+              id={`${idPrefix}-monthly-fee`}
+              inputMode="decimal"
+              placeholder="e.g. 100000"
+              value={values.monthly_fee}
+              aria-invalid={Boolean(errors.monthly_fee)}
+              onChange={(event) => set("monthly_fee", event.target.value)}
+            />
+          </FormField>
+          <FormField
+            htmlFor={`${idPrefix}-fee-from`}
+            label="Fee applies from"
+            required
+            hint="Usually the day they start."
+            error={errors.fee_from}
+          >
+            <DatePicker
+              id={`${idPrefix}-fee-from`}
+              value={values.fee_from}
+              onChange={(v) => set("fee_from", v)}
+              invalid={Boolean(errors.fee_from)}
+            />
+          </FormField>
+        </>
+      )}
+      {showRate && values.pay_basis === "hourly" && (
         <>
           <FormField
             htmlFor={`${idPrefix}-hourly-rate`}

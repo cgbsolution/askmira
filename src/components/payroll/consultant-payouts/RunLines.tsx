@@ -28,22 +28,38 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { downloadFile, post } from "@/lib/api";
-import type {
-  PayoutBreakdownRow,
-  PayoutLine,
-  PayoutRun,
+import {
+  isFixedMonthlyRow,
+  type PayoutBreakdownRow,
+  type PayoutLine,
+  type PayoutRun,
 } from "@/lib/types/consultant-payouts";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatMoney } from "@/lib/utils";
 
 /** The rate(s) an entry was priced at: one, or a range when the days differ. */
 function rateText(breakdown: PayoutBreakdownRow[]): string {
   const rates = [
     ...new Set(
-      breakdown.map((row) => row.rate).filter((rate) => rate !== null),
+      breakdown.flatMap((row) =>
+        !isFixedMonthlyRow(row) && row.rate !== null ? [row.rate] : [],
+      ),
     ),
   ];
   if (rates.length === 0) return "no rate";
   return rates.map((rate) => `${rate}/h`).join(", ");
+}
+
+/** A fixed-monthly entry's pricing, each month part as "Fixed monthly ₹X × N/M days". */
+function feeText(breakdown: PayoutBreakdownRow[]): string | null {
+  const parts = breakdown.filter(isFixedMonthlyRow);
+  if (parts.length === 0) return null;
+  const text = parts.flatMap((part) =>
+    part.fees.map(
+      (at) =>
+        `Fixed monthly ${formatMoney(at.fee)} × ${at.days}/${part.days_in_month} days`,
+    ),
+  );
+  return text.length ? text.join("; ") : "no monthly fee";
 }
 
 /** The hours entries a line pays: period, hours, rate, amount and the files behind each. */
@@ -56,7 +72,11 @@ function LineEntries({ line }: { line: PayoutLine }) {
           <span className="text-foreground">
             {formatDate(entry.period_start)} – {formatDate(entry.period_end)}
           </span>
-          : {entry.hours} h at {rateText(entry.breakdown)},{" "}
+          :{" "}
+          {feeText(entry.breakdown) !== null
+            ? `${entry.hours} h recorded, ${feeText(entry.breakdown)}`
+            : `${entry.hours} h at ${rateText(entry.breakdown)}`}
+          ,{" "}
           <Money value={entry.gross} />
           {entry.attachments.map((file) => (
             <button
