@@ -308,14 +308,15 @@ export function AttentionPanel({
               ))}
             </ul>
             <p className="mt-2">
-              Cancel these under{" "}
+              Payroll will pay these once. To pay a week as a consultant payout
+              instead, cancel it under{" "}
               <Link
                 href="/payroll/adjustments"
                 className="font-medium underline underline-offset-2"
               >
-                Adjustments
-              </Link>{" "}
-              or let them through once, so nobody is paid twice.
+                Payroll → Adjustments
+              </Link>
+              ; the week can then go into a consultant payout.
             </p>
           </AlertDescription>
         </Alert>
