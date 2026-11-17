@@ -213,7 +213,11 @@ export function AttentionPanel({
   const [lastDay, setLastDay] = useState(todayISO());
   const [openingOpen, setOpeningOpen] = useState(false);
 
-  const { consultants, pending_adjustments: adjustments } = attention;
+  const {
+    consultants,
+    pending_adjustments: adjustments,
+    includable_weeks: olderWeeks,
+  } = attention;
   const salaried = consultants.filter((person) =>
     person.reasons.includes(HAS_SALARY),
   );
@@ -318,6 +322,21 @@ export function AttentionPanel({
               </Link>
               ; the week can then go into a consultant payout.
             </p>
+          </AlertDescription>
+        </Alert>
+      )}
+      {olderWeeks > 0 && (
+        <Alert variant="warning">
+          <AlertTriangle />
+          <AlertTitle>
+            {olderWeeks === 1
+              ? "1 older approved week is not in any payout"
+              : `${olderWeeks} older approved weeks are not in any payout`}
+          </AlertTitle>
+          <AlertDescription>
+            These were approved before consultant payouts began, so a run does
+            not take them by itself. Open a draft run and use Add an older week
+            to pay each one.
           </AlertDescription>
         </Alert>
       )}

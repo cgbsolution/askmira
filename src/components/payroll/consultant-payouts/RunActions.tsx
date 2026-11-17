@@ -37,9 +37,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ApiError, del, get, post } from "@/lib/api";
-import type { PayoutRun } from "@/lib/types/consultant-payouts";
+import type {
+  IncludableWeek,
+  PayoutRun,
+} from "@/lib/types/consultant-payouts";
 import type { BankProfile, DisbursementBatch } from "@/lib/types/payroll-ops";
-import { toISODate, todayISO } from "@/lib/utils";
+import { formatDate, toISODate, todayISO } from "@/lib/utils";
 
 type Dialogs = "approve" | "paid" | "delete" | "week" | "bank" | null;
 
@@ -217,7 +220,22 @@ export function RunActions({
   const [paidOn, setPaidOn] = useState(todayISO());
   const [reference, setReference] = useState("");
   const [timesheetId, setTimesheetId] = useState("");
+  const [olderWeeks, setOlderWeeks] = useState<IncludableWeek[] | null>(null);
   const draft = run.status === "draft";
+
+  const openOlderWeeks = () => {
+    setTimesheetId("");
+    setOlderWeeks(null);
+    setDialog("week");
+    const query = new URLSearchParams({ cut_off: run.cut_off });
+    if (run.legal_entity_id) query.set("legal_entity_id", run.legal_entity_id);
+    get<IncludableWeek[]>(`/consultant-payouts/includable-weeks?${query}`)
+      .then(setOlderWeeks)
+      .catch((caught) => {
+        setOlderWeeks([]);
+        toast.error(apiMessage(caught, "The older weeks could not be loaded."));
+      });
+  };
 
   const call = async (path: string, body: unknown, success: string) => {
     try {
@@ -258,10 +276,7 @@ export function RunActions({
           </Button>
           <Button
             variant="outline"
-            onClick={() => {
-              setTimesheetId("");
-              setDialog("week");
-            }}
+            onClick={openOlderWeeks}
           >
             <CalendarPlus /> Add an older week
           </Button>
@@ -346,27 +361,35 @@ export function RunActions({
         description="Adds an approved, unpaid consultant week that this run did not pick up by itself, for example one approved before payouts began. It must end by the cut-off."
         confirmLabel="Add week"
         onConfirm={async () => {
-          if (!timesheetId.trim()) {
-            toast.error("Enter the week's reference.");
+          if (!timesheetId) {
+            toast.error("Choose the week to add.");
             throw new Error("missing");
           }
-          await call(
-            "weeks",
-            { timesheet_id: timesheetId.trim() },
-            "Week added.",
-          );
+          await call("weeks", { timesheet_id: timesheetId }, "Week added.");
         }}
       >
-        <FormField
-          htmlFor="payout-week"
-          label="Week reference"
-          hint="The timesheet's reference, shown on the approved week."
-        >
-          <Input
-            id="payout-week"
-            value={timesheetId}
-            onChange={(event) => setTimesheetId(event.target.value)}
-          />
+        <FormField htmlFor="payout-week" label="Week">
+          {olderWeeks === null ? (
+            <p className="text-sm text-muted-foreground">Loading weeks…</p>
+          ) : olderWeeks.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No older approved weeks are waiting to be paid.
+            </p>
+          ) : (
+            <Select value={timesheetId} onValueChange={setTimesheetId}>
+              <SelectTrigger id="payout-week">
+                <SelectValue placeholder="Choose a week" />
+              </SelectTrigger>
+              <SelectContent>
+                {olderWeeks.map((week) => (
+                  <SelectItem key={week.timesheet_id} value={week.timesheet_id}>
+                    {week.name} ({week.employee_code}), week of{" "}
+                    {formatDate(week.week_start)}, {week.total_hours} hours
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </FormField>
       </ConfirmDialog>
       <ConfirmDialog

@@ -92,6 +92,18 @@ export interface PendingAdjustment {
 export interface PayoutAttention {
   consultants: AttentionConsultant[];
   pending_adjustments: PendingAdjustment[];
+  /** Approved, unpaid weeks from before payouts began, to add to a draft run. */
+  includable_weeks: number;
+}
+
+/** An older approved week a run did not take by itself (approved before payouts began). */
+export interface IncludableWeek {
+  timesheet_id: string;
+  employee_id: string;
+  employee_code: string;
+  name: string;
+  week_start: string;
+  total_hours: string;
 }
 
 export interface MyPayout {
