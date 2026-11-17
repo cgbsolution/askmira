@@ -146,7 +146,8 @@ export function RunLines({
     return (
       <p className="rounded-md border border-border p-4 text-sm text-muted-foreground">
         No consultant has approved, unpaid hours ending by the cut-off. Hours
-        entered under Consultant hours appear here after Recalculate.
+        approved after this draft was made aren&apos;t in it. Delete this draft
+        and start a new one to include them, or pay them in a later run.
       </p>
     );
   }
