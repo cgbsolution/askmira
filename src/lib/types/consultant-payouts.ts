@@ -79,6 +79,7 @@ export interface AttentionConsultant {
   code: string;
   name: string;
   reasons: string[];
+  old_gst_amount: string | null;
 }
 
 export interface PendingAdjustment {
