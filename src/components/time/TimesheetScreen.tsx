@@ -57,18 +57,15 @@ export interface Week {
   decision_note: string | null;
   total_hours: string;
   entries: Entry[];
-  /** A consultant's week: paid by the hour, approved by their customer or an internal approver. */
+  /** A consultant's week: paid by the hour, approved by a finance approver. */
   consultant?: boolean;
-  approval_route?: "customer" | "internal" | null;
   /** What the week pays; only HR and the consultant's internal approver are sent it. Null: no rate for some day. */
   amount?: string | null;
 }
 
 /** The word for a week's state; consultant weeks say who they are waiting on. */
-export function weekStatusLabel(week: Pick<Week, "status" | "consultant" | "approval_route">): string {
-  if (week.consultant && week.status === "submitted") {
-    return week.approval_route === "customer" ? "Sent to customer" : "Waiting for approval";
-  }
+export function weekStatusLabel(week: Pick<Week, "status" | "consultant">): string {
+  if (week.consultant && week.status === "submitted") return "Waiting for approval";
   return week.status;
 }
 
@@ -121,7 +118,6 @@ export function WeekEditor({ employeeId }: { employeeId?: string }) {
     [monday],
   );
   const editable = !data || data.status === "draft" || data.status === "rejected";
-  const customerRoute = data?.consultant === true && data.approval_route === "customer";
   const total = entries.reduce((sum, e) => sum + (Number(e.hours) || 0), 0);
 
   const move = (weeks: number) => setMonday((m) => new Date(m.getTime() + weeks * 7 * 86_400_000));
@@ -143,7 +139,7 @@ export function WeekEditor({ employeeId }: { employeeId?: string }) {
       });
       if (andSubmit) {
         await post(submitPath);
-        toast.success(customerRoute ? "Week sent to the customer." : "Week submitted for approval.");
+        toast.success("Week submitted for approval.");
       } else {
         toast.success("Draft saved.");
       }
@@ -341,7 +337,7 @@ export function WeekEditor({ employeeId }: { employeeId?: string }) {
                 Save draft
               </Button>
               <Button disabled={busy || total <= 0} onClick={() => void save(true)}>
-                {busy ? <Loader2 className="animate-spin" /> : <Send />} {customerRoute ? "Send to customer" : "Submit week"}
+                {busy ? <Loader2 className="animate-spin" /> : <Send />} Submit week
               </Button>
             </div>
           </div>

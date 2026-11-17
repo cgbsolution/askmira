@@ -140,6 +140,7 @@ export const hi: Record<string, string> = {
   Statutory: "वैधानिक",
   "Rule sets": "नियम सेट",
   "Return filings": "रिटर्न फ़ाइलिंग",
+  "Consultant hours": "सलाहकार के घंटे",
   "Consultant payouts": "सलाहकार भुगतान",
   "Bank files": "बैंक फ़ाइलें",
   Accounting: "लेखांकन",

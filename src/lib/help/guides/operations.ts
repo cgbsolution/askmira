@@ -77,6 +77,43 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
     ],
   },
 
+  "/payroll/consultant-hours": {
+    summary:
+      "Enter the billable hours a consultant worked for a period, from the customer's timesheet. A second person approves them before they can be paid.",
+    tasks: [
+      {
+        title: "Enter hours",
+        steps: [
+          "Press Enter hours. Pick the consultant and the period, usually last month.",
+          "Type the billable total, or switch to Day by day and fill the grid. The total adds up as you type.",
+          "Attach the customer's timesheet (Excel, CSV, PDF or an image). Press Save draft, or Submit once a file is attached.",
+        ],
+      },
+      {
+        title: "Approve or reject",
+        steps: [
+          "Turn on Waiting for my approval, open an entry and check it against the attached timesheet.",
+          "Press Approve, or Reject and say what needs changing. The person who entered or edited the hours cannot approve them.",
+          "A rejected entry goes back to draft. Fix it and submit again.",
+        ],
+      },
+      {
+        title: "Change approved hours",
+        steps: [
+          "HR can press Reopen on approved or rejected hours that are not yet in a payout run. They go back to draft and need a fresh approval.",
+        ],
+      },
+    ],
+    tips: [
+      "If it says Needs another person to approve, set a finance approver for the consultant on their record.",
+      "A period already paid through payroll, or overlapping other hours for the same consultant, is refused.",
+    ],
+    related: [
+      { label: "Consultant payouts", href: "/payroll/consultant-payouts" },
+      { label: "Ask Miraa", href: "/ask-mira" },
+    ],
+  },
+
   "/payroll/consultant-payouts": {
     summary:
       "Pay consultants for their approved timesheet weeks, outside payroll, with GST and TDS worked out for each. Each run is drafted, approved and locked, then paid by bank file.",

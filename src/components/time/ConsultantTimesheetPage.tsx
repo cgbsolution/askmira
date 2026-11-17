@@ -32,7 +32,7 @@ export function ConsultantTimesheetPage({
   return (
     <PageShell
       title="Consultant timesheet"
-      description="Fill in a consultant's week for them. Send it to their customer, or approve it here if it is approved in house."
+      description="Fill in a consultant's week for them and submit it for approval."
     >
       <Card tier="tier2">
         <CardContent className="grid gap-4">

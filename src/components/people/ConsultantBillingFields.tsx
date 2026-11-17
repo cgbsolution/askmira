@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type {
-  ApproverRoute,
   EmployeeRecord,
   EmploymentType,
   PayeeKind,
@@ -33,10 +32,6 @@ export type BillingValues = {
   gst_rate: string;
   gstin: string;
   contract_end_date: string;
-  /** Empty when the record has none yet. */
-  approver_route: ApproverRoute | "";
-  customer_contact_name: string;
-  customer_contact_email: string;
   /** A user id, or NONE. */
   internal_approver_user_id: string;
 };
@@ -52,9 +47,6 @@ export const EMPTY_BILLING: BillingValues = {
   gst_rate: "",
   gstin: "",
   contract_end_date: "",
-  approver_route: "customer",
-  customer_contact_name: "",
-  customer_contact_email: "",
   internal_approver_user_id: NONE,
 };
 
@@ -71,14 +63,8 @@ export const PAYEE_KIND: Record<PayeeKind, string> = {
   company: "Company",
 };
 
-export const APPROVER_ROUTE: Record<ApproverRoute, string> = {
-  customer: "Customer contact, by email",
-  internal: "Someone inside the company",
-};
-
 const RATE = /^\d{1,8}(\.\d{1,2})?$/;
 const PERCENT = /^\d{1,3}(\.\d{1,2})?$/;
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function billingFromRecord(record?: EmployeeRecord): BillingValues {
   if (!record) return EMPTY_BILLING;
@@ -90,9 +76,6 @@ export function billingFromRecord(record?: EmployeeRecord): BillingValues {
     gst_rate: record.gst_rate ?? "",
     gstin: record.gstin ?? "",
     contract_end_date: record.contract_end_date ?? "",
-    approver_route: record.timesheet_approver_route ?? "",
-    customer_contact_name: record.customer_contact_name ?? "",
-    customer_contact_email: record.customer_contact_email ?? "",
     internal_approver_user_id: record.internal_approver_user_id ?? NONE,
   };
 }
@@ -127,17 +110,6 @@ export function billingErrors(
     if (!gstin) errors.gstin = "Enter the consultant's GSTIN, or set GST applicable to No.";
     else if (gstin.length > 15) errors.gstin = "A GSTIN is 15 characters.";
   }
-  if (values.approver_route === "customer") {
-    if (!values.customer_contact_name.trim()) {
-      errors.customer_contact_name = "Enter the customer contact's name: they approve the timesheets.";
-    }
-    const email = values.customer_contact_email.trim();
-    if (!email) {
-      errors.customer_contact_email = "Enter the customer contact's email: they approve the timesheets.";
-    } else if (!EMAIL.test(email)) {
-      errors.customer_contact_email = "Enter a valid email.";
-    }
-  }
   return errors;
 }
 
@@ -158,7 +130,6 @@ export function billingPayload(values: BillingValues, type: EmploymentType) {
     };
   }
   const gstOn = values.gst_applicable === "yes";
-  const customer = values.approver_route === "customer";
   const text = (value: string) => value.trim() || null;
   return {
     gst_applicable: gstOn,
@@ -167,16 +138,15 @@ export function billingPayload(values: BillingValues, type: EmploymentType) {
     tds_section: values.tds_section,
     payee_kind: values.payee_kind,
     contract_end_date: text(values.contract_end_date),
-    timesheet_approver_route: values.approver_route || null,
-    customer_contact_name: customer ? text(values.customer_contact_name) : null,
-    customer_contact_email: customer ? text(values.customer_contact_email) : null,
+    // Hours are approved inside the company now; the customer route is retired.
+    timesheet_approver_route: "internal" as const,
     internal_approver_user_id: values.internal_approver_user_id === NONE ? null : values.internal_approver_user_id,
   };
 }
 
 /**
  * A consultant's hourly rate (at onboarding), TDS section, payee kind, GST,
- * contract end and who approves their timesheets. Laid out as cells of the
+ * contract end and finance approver. Laid out as cells of the
  * surrounding two-column grid.
  */
 export function ConsultantBillingFields({
@@ -206,7 +176,7 @@ export function ConsultantBillingFields({
             htmlFor={`${idPrefix}-hourly-rate`}
             label="Rate an hour (₹)"
             required
-            hint="Each approved week is paid at this rate times the hours worked."
+            hint="Each approved hour is paid at this rate."
             error={errors.hourly_rate}
           >
             <Input
@@ -332,67 +302,10 @@ export function ConsultantBillingFields({
         />
       </FormField>
       <FormField
-        htmlFor={`${idPrefix}-approver-route`}
-        label="Who approves their timesheets"
-      >
-        <Select
-          value={values.approver_route}
-          onValueChange={(v) => set("approver_route", v as ApproverRoute)}
-        >
-          <SelectTrigger id={`${idPrefix}-approver-route`} className="w-full">
-            <SelectValue placeholder="Choose who approves" />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(APPROVER_ROUTE) as ApproverRoute[]).map((key) => (
-              <SelectItem key={key} value={key}>
-                {APPROVER_ROUTE[key]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </FormField>
-      {values.approver_route === "customer" && (
-        <>
-          <FormField
-            htmlFor={`${idPrefix}-customer-name`}
-            label="Customer contact's name"
-            required
-            error={errors.customer_contact_name}
-          >
-            <Input
-              id={`${idPrefix}-customer-name`}
-              maxLength={200}
-              value={values.customer_contact_name}
-              aria-invalid={Boolean(errors.customer_contact_name)}
-              onChange={(event) => set("customer_contact_name", event.target.value)}
-            />
-          </FormField>
-          <FormField
-            htmlFor={`${idPrefix}-customer-email`}
-            label="Customer contact's email"
-            required
-            hint="Each week is emailed here with Approve and Reject buttons. They see hours, never pay."
-            error={errors.customer_contact_email}
-          >
-            <Input
-              id={`${idPrefix}-customer-email`}
-              type="email"
-              value={values.customer_contact_email}
-              aria-invalid={Boolean(errors.customer_contact_email)}
-              onChange={(event) => set("customer_contact_email", event.target.value)}
-            />
-          </FormField>
-        </>
-      )}
-      <FormField
         htmlFor={`${idPrefix}-internal-approver`}
-        label="Internal approver"
+        label="Finance approver"
         optional
-        hint={
-          values.approver_route === "internal"
-            ? "Approves their weeks. Without one, HR admins do."
-            : "Can also approve or reject a week by hand. Without one, HR admins can."
-        }
+        hint="Enters and approves their billable hours. Without one, HR admins do."
       >
         <Select
           value={values.internal_approver_user_id}

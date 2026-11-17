@@ -45,7 +45,6 @@ interface PendingWeek {
   approval_chain: ApprovalStep[];
   status: "draft" | "submitted" | "approved" | "rejected";
   consultant?: boolean;
-  approval_route?: "customer" | "internal" | null;
   /** Only HR and the consultant's internal approver are sent it. */
   amount?: string | null;
 }
@@ -178,7 +177,7 @@ function Pending() {
                   <TableCell colSpan={2}>
                     <div className="flex justify-end">
                       <Button size="sm" onClick={() => setDeciding(week)}>
-                        {week.approval_route === "customer" ? "Decide for the customer" : "Decide"}
+                        Decide
                       </Button>
                     </div>
                   </TableCell>
@@ -218,7 +217,7 @@ function Pending() {
   );
 }
 
-/** Approve or send back a consultant's week, with the customer's approval attached if there is one. */
+/** Approve or send back a consultant's week, with a supporting file if there is one. */
 function ManualDecisionDialog({ week, onClose, onDecided }: { week: PendingWeek; onClose: () => void; onDecided: () => void }) {
   const [approve, setApprove] = useState(true);
   const [note, setNote] = useState("");
@@ -249,7 +248,6 @@ function ManualDecisionDialog({ week, onClose, onDecided }: { week: PendingWeek;
           <DialogTitle>Decide {week.employee_name}&apos;s week</DialogTitle>
           <DialogDescription>
             Week of {formatDay(week.week_start, true)}, {week.total_hours} hours.
-            {week.approval_route === "customer" && " Use this when the customer approved by email, phone or in writing."}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
@@ -270,7 +268,7 @@ function ManualDecisionDialog({ week, onClose, onDecided }: { week: PendingWeek;
               onChange={(e) => setNote(e.target.value)}
             />
           </FormField>
-          <FormField htmlFor="decision-file" label="Customer's approval" optional>
+          <FormField htmlFor="decision-file" label="Supporting file" optional>
             <Input
               id="decision-file"
               type="file"
