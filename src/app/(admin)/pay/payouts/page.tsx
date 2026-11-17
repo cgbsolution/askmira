@@ -103,7 +103,7 @@ export default function MyPayoutsPage() {
   return (
     <PageShell
       title="Payouts"
-      description="What you were paid for your approved timesheet weeks."
+      description="What you were paid for your approved hours."
     >
       <DataTable
         title="Payouts"
@@ -121,7 +121,7 @@ export default function MyPayoutsPage() {
             ? "No payouts yet"
             : "Your login is not linked to an employee record",
           description: linked
-            ? "A payout appears here once HR approves the run that pays your weeks."
+            ? "A payout appears here once HR approves the run that pays your hours."
             : "Ask your admin to link your login to your employee record.",
         }}
       />

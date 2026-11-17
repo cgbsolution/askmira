@@ -116,13 +116,13 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
 
   "/payroll/consultant-payouts": {
     summary:
-      "Pay consultants for their approved timesheet weeks, outside payroll, with GST and TDS worked out for each. Each run is drafted, approved and locked, then paid by bank file.",
+      "Pay consultants for their approved hours, outside payroll, with GST and TDS worked out for each. Each run is drafted, approved and locked, then paid by bank file.",
     tasks: [
       {
         title: "Start a run",
         steps: [
           "Press New payout run. Pick the company, a cut-off date and the pay date.",
-          "The run takes every approved consultant week, not yet paid, that ends on or before the cut-off. Tax is worked out as on the pay date.",
+          "The run takes every approved hours entry, not yet paid, that ends on or before the cut-off. Tax is worked out as on the pay date.",
           "A consultant still shows as needing attention if they have a salary, no hourly rate or no timesheet approver. End their salary from the banner and add the rest on their record.",
         ],
       },
@@ -131,8 +131,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         steps: [
           "A held line is not paid until fixed. It says why: no rate for a day worked, no bank account, or a GST number missing where GST applies.",
           "Fix it on the person's record, then press Recalculate.",
-          "Or press Leave out and say why. Their weeks are freed for a later run.",
-          "To add an older approved week the run did not pick up, press Add an older week.",
+          "Or press Leave out and say why. Their hours are freed for a later run.",
         ],
       },
       {

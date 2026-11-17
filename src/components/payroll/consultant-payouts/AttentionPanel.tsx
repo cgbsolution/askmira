@@ -41,6 +41,8 @@ import { todayISO } from "@/lib/utils";
 
 const HAS_SALARY = "Has a current salary";
 
+const isNoHours = (reason: string) => reason.startsWith("No hours entered");
+
 /** The 1 April that starts the financial year containing today. */
 function currentFyStart(): string {
   const now = new Date();
@@ -213,11 +215,7 @@ export function AttentionPanel({
   const [lastDay, setLastDay] = useState(todayISO());
   const [openingOpen, setOpeningOpen] = useState(false);
 
-  const {
-    consultants,
-    pending_adjustments: adjustments,
-    includable_weeks: olderWeeks,
-  } = attention;
+  const { consultants, pending_adjustments: adjustments } = attention;
   const salaried = consultants.filter((person) =>
     person.reasons.includes(HAS_SALARY),
   );
@@ -261,6 +259,14 @@ export function AttentionPanel({
                     {person.name} ({person.code})
                   </Link>
                   <span>{person.reasons.join(" · ")}</span>
+                  {person.reasons.some(isNoHours) && (
+                    <Link
+                      href="/payroll/consultant-hours"
+                      className="font-medium underline underline-offset-2"
+                    >
+                      Enter hours
+                    </Link>
+                  )}
                   {person.old_gst_amount && (
                     <span>
                       Earlier GST on file:{" "}
@@ -291,7 +297,8 @@ export function AttentionPanel({
             )}
             <p className="mt-2">
               A consultant is paid through payouts, not a salary. Add their
-              hourly rate and timesheet approver on their record.
+              hourly rate and timesheet approver on their record, and enter
+              their hours under Consultant hours.
             </p>
           </AlertDescription>
         </Alert>
@@ -312,7 +319,7 @@ export function AttentionPanel({
               ))}
             </ul>
             <p className="mt-2">
-              Payroll will pay these once. To pay a week as a consultant payout
+              Payroll will pay these once. To pay this as a consultant payout
               instead, cancel it under{" "}
               <Link
                 href="/payroll/adjustments"
@@ -320,23 +327,8 @@ export function AttentionPanel({
               >
                 Payroll → Adjustments
               </Link>
-              ; the week can then go into a consultant payout.
+              ; the hours can then go into a consultant payout.
             </p>
-          </AlertDescription>
-        </Alert>
-      )}
-      {olderWeeks > 0 && (
-        <Alert variant="warning">
-          <AlertTriangle />
-          <AlertTitle>
-            {olderWeeks === 1
-              ? "1 older approved week is not in any payout"
-              : `${olderWeeks} older approved weeks are not in any payout`}
-          </AlertTitle>
-          <AlertDescription>
-            These were approved before consultant payouts began, so a run does
-            not take them by itself. Open a draft run and use Add an older week
-            to pay each one.
           </AlertDescription>
         </Alert>
       )}

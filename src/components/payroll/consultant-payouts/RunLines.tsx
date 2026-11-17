@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban } from "lucide-react";
+import { Ban, Paperclip } from "lucide-react";
 import Link from "next/link";
 import React, { useState } from "react";
 import { toast } from "sonner";
@@ -27,9 +27,61 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { post } from "@/lib/api";
-import type { PayoutLine, PayoutRun } from "@/lib/types/consultant-payouts";
-import { formatDay } from "@/lib/utils";
+import { downloadFile, post } from "@/lib/api";
+import type {
+  PayoutBreakdownRow,
+  PayoutLine,
+  PayoutRun,
+} from "@/lib/types/consultant-payouts";
+import { formatDate } from "@/lib/utils";
+
+/** The rate(s) an entry was priced at: one, or a range when the days differ. */
+function rateText(breakdown: PayoutBreakdownRow[]): string {
+  const rates = [
+    ...new Set(
+      breakdown.map((row) => row.rate).filter((rate) => rate !== null),
+    ),
+  ];
+  if (rates.length === 0) return "no rate";
+  return rates.map((rate) => `${rate}/h`).join(", ");
+}
+
+/** The hours entries a line pays: period, hours, rate, amount and the files behind each. */
+function LineEntries({ line }: { line: PayoutLine }) {
+  if (line.entries.length === 0) return null;
+  return (
+    <ul className="mt-2 grid gap-1.5 text-xs text-muted-foreground">
+      {line.entries.map((entry) => (
+        <li key={entry.id}>
+          <span className="text-foreground">
+            {formatDate(entry.period_start)} – {formatDate(entry.period_end)}
+          </span>
+          : {entry.hours} h at {rateText(entry.breakdown)},{" "}
+          <Money value={entry.gross} />
+          {entry.attachments.map((file) => (
+            <button
+              key={file.id}
+              type="button"
+              className="ml-2 inline-flex items-center gap-1 underline underline-offset-2 hover:text-foreground"
+              onClick={() =>
+                downloadFile(
+                  `/consultant-hours/${entry.entry_id}/attachments/${file.id}`,
+                  file.file_name,
+                ).catch((caught) =>
+                  toast.error(
+                    apiMessage(caught, "The file could not be downloaded."),
+                  ),
+                )
+              }
+            >
+              <Paperclip className="size-3" /> {file.file_name}
+            </button>
+          ))}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /** What to say about a line besides its figures: why it is held or out, how tax came out. */
 function LineNotes({ line }: { line: PayoutLine }) {
@@ -52,12 +104,6 @@ function LineNotes({ line }: { line: PayoutLine }) {
       ))}
       {line.tds_note && (
         <p className="text-muted-foreground">{line.tds_note}</p>
-      )}
-      {line.weeks.length > 0 && (
-        <p className="text-muted-foreground">
-          Weeks of{" "}
-          {line.weeks.map((week) => formatDay(week.week_start)).join(", ")}
-        </p>
       )}
     </div>
   );
@@ -87,7 +133,7 @@ export function RunLines({
         { reason: reason.trim() },
       );
       toast.success(
-        "Left out of this run. Their weeks are free for a later one.",
+        "Left out of this run. Their hours entries are free for a later one.",
       );
       onChanged(updated);
     } catch (caught) {
@@ -99,9 +145,8 @@ export function RunLines({
   if (run.lines.length === 0) {
     return (
       <p className="rounded-md border border-border p-4 text-sm text-muted-foreground">
-        No consultant has an approved, unpaid week ending by the cut-off.
-        Approved weeks appear here after Recalculate; an older week can be added
-        with Add an older week.
+        No consultant has approved, unpaid hours ending by the cut-off. Hours
+        entered under Consultant hours appear here after Recalculate.
       </p>
     );
   }
@@ -140,6 +185,7 @@ export function RunLines({
                 <p className="text-xs text-muted-foreground">
                   {line.employee_code}
                 </p>
+                <LineEntries line={line} />
               </TableCell>
               <TableCell className="text-right tabular-nums align-top">
                 {line.hours}
@@ -204,7 +250,7 @@ export function RunLines({
         open={excluding !== null}
         onOpenChange={(open) => !open && setExcluding(null)}
         title={`Leave ${excluding?.employee_name ?? "this consultant"} out of this run?`}
-        description="Their weeks are freed and can go in a later run."
+        description="Their hours entries are freed and can go in a later run."
         confirmLabel="Leave out"
         onConfirm={exclude}
       >

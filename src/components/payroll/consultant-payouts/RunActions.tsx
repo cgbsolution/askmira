@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  CalendarPlus,
   FileText,
   IndianRupee,
   Loader2,
@@ -37,14 +36,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ApiError, del, get, post } from "@/lib/api";
-import type {
-  IncludableWeek,
-  PayoutRun,
-} from "@/lib/types/consultant-payouts";
+import type { PayoutRun } from "@/lib/types/consultant-payouts";
 import type { BankProfile, DisbursementBatch } from "@/lib/types/payroll-ops";
-import { formatDate, toISODate, todayISO } from "@/lib/utils";
+import { toISODate, todayISO } from "@/lib/utils";
 
-type Dialogs = "approve" | "paid" | "delete" | "week" | "bank" | null;
+type Dialogs = "approve" | "paid" | "delete" | "bank" | null;
 
 /** Pay the run through a bank file: only an approved run, and one file per run. */
 function BankFileDialog({
@@ -219,23 +215,7 @@ export function RunActions({
   const [dialog, setDialog] = useState<Dialogs>(null);
   const [paidOn, setPaidOn] = useState(todayISO());
   const [reference, setReference] = useState("");
-  const [timesheetId, setTimesheetId] = useState("");
-  const [olderWeeks, setOlderWeeks] = useState<IncludableWeek[] | null>(null);
   const draft = run.status === "draft";
-
-  const openOlderWeeks = () => {
-    setTimesheetId("");
-    setOlderWeeks(null);
-    setDialog("week");
-    const query = new URLSearchParams({ cut_off: run.cut_off });
-    if (run.legal_entity_id) query.set("legal_entity_id", run.legal_entity_id);
-    get<IncludableWeek[]>(`/consultant-payouts/includable-weeks?${query}`)
-      .then(setOlderWeeks)
-      .catch((caught) => {
-        setOlderWeeks([]);
-        toast.error(apiMessage(caught, "The older weeks could not be loaded."));
-      });
-  };
 
   const call = async (path: string, body: unknown, success: string) => {
     try {
@@ -273,12 +253,6 @@ export function RunActions({
           >
             {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />}
             Recalculate
-          </Button>
-          <Button
-            variant="outline"
-            onClick={openOlderWeeks}
-          >
-            <CalendarPlus /> Add an older week
           </Button>
           <Button onClick={() => setDialog("approve")}>
             <Lock /> Approve &amp; lock
@@ -355,48 +329,10 @@ export function RunActions({
         </FormField>
       </ConfirmDialog>
       <ConfirmDialog
-        open={dialog === "week"}
-        onOpenChange={(open) => !open && setDialog(null)}
-        title="Add an older week"
-        description="Adds an approved, unpaid consultant week that this run did not pick up by itself, for example one approved before payouts began. It must end by the cut-off."
-        confirmLabel="Add week"
-        onConfirm={async () => {
-          if (!timesheetId) {
-            toast.error("Choose the week to add.");
-            throw new Error("missing");
-          }
-          await call("weeks", { timesheet_id: timesheetId }, "Week added.");
-        }}
-      >
-        <FormField htmlFor="payout-week" label="Week">
-          {olderWeeks === null ? (
-            <p className="text-sm text-muted-foreground">Loading weeks…</p>
-          ) : olderWeeks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No older approved weeks are waiting to be paid.
-            </p>
-          ) : (
-            <Select value={timesheetId} onValueChange={setTimesheetId}>
-              <SelectTrigger id="payout-week">
-                <SelectValue placeholder="Choose a week" />
-              </SelectTrigger>
-              <SelectContent>
-                {olderWeeks.map((week) => (
-                  <SelectItem key={week.timesheet_id} value={week.timesheet_id}>
-                    {week.name} ({week.employee_code}), week of{" "}
-                    {formatDate(week.week_start)}, {week.total_hours} hours
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-        </FormField>
-      </ConfirmDialog>
-      <ConfirmDialog
         open={dialog === "delete"}
         onOpenChange={(open) => !open && setDialog(null)}
         title="Delete this payout run?"
-        description="Nothing on it has been paid. Its weeks are free for a later run. The audit log keeps a record."
+        description="Nothing on it has been paid. Its hours entries are free for a later run. The audit log keeps a record."
         confirmLabel="Delete run"
         cancelLabel="Keep run"
         destructive

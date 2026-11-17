@@ -98,7 +98,7 @@ export default function ConsultantPayoutRunPage() {
   return (
     <PageShell
       title={`Payout run, ${formatDay(run.pay_date, true)}`}
-      description={`Weeks ending by ${formatDay(run.cut_off, true)}.`}
+      description={`Hours for periods ending by ${formatDay(run.cut_off, true)}.`}
       actions={back}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">

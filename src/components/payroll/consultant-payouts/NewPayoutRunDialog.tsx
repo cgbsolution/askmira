@@ -30,7 +30,7 @@ import type { EntityOption } from "@/lib/types/payroll";
 
 const ALL_COMPANIES = "all";
 
-/** Draft a payout run: every approved consultant week ending by the cut-off. */
+/** Draft a payout run: every approved hours entry ending by the cut-off. */
 export function NewPayoutRunDialog({
   onCreated,
 }: {
@@ -91,7 +91,7 @@ export function NewPayoutRunDialog({
           <DialogHeader>
             <DialogTitle>New payout run</DialogTitle>
             <DialogDescription>
-              Takes every approved consultant week, not yet paid, that ends on
+              Takes every approved hours entry, not yet paid, that ends on
               or before the cut-off date. Tax is worked out as on the pay date.
             </DialogDescription>
           </DialogHeader>
@@ -114,7 +114,7 @@ export function NewPayoutRunDialog({
             <FormField
               htmlFor="payout-cut-off"
               label="Cut-off date"
-              hint="Weeks ending by this day."
+              hint="Entries ending by this day."
             >
               <DatePicker
                 id="payout-cut-off"

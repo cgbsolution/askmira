@@ -71,7 +71,7 @@ const columns = (
   },
 ];
 
-/** Consultant payouts: approved timesheet weeks paid outside payroll, with GST and TDS. */
+/** Consultant payouts: approved hours paid outside payroll, with GST and TDS. */
 export default function ConsultantPayoutsPage() {
   const router = useRouter();
   const runs = useApiQuery<PayoutRunSummary[]>("/consultant-payouts");
@@ -93,7 +93,7 @@ export default function ConsultantPayoutsPage() {
   return (
     <PageShell
       title="Consultant payouts"
-      description="Pay consultants for their approved timesheet weeks, with GST and TDS worked out. Nothing is locked without a second person's sign-off."
+      description="Pay consultants for their approved hours, with GST and TDS worked out. Nothing is locked without a second person's sign-off."
       actions={
         <NewPayoutRunDialog
           onCreated={(run) =>
@@ -124,7 +124,7 @@ export default function ConsultantPayoutsPage() {
           icon: HandCoins,
           title: "No payout runs yet",
           description:
-            "Start a run with a cut-off date and a pay date. It takes every approved consultant week that ends by then and has not been paid.",
+            "Start a run with a cut-off date and a pay date. It takes every approved hours entry that ends by then and has not been paid.",
         }}
       />
     </PageShell>

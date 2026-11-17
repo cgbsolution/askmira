@@ -32,19 +32,32 @@ export interface PayoutRunSummary {
   totals: PayoutTotals;
 }
 
-export interface PayoutWeek {
+/** One priced piece of an entry: a worked day, or the whole period when only a total was given. */
+export interface PayoutBreakdownRow {
+  date?: string;
+  period_start?: string;
+  period_end?: string;
+  hours: string;
+  rate: string | null;
+  amount: string;
+}
+
+export interface PayoutEntryFile {
   id: string;
-  timesheet_id: string;
-  week_start: string;
+  file_name: string;
+}
+
+/** A finance-entered, approved hours entry paid on a line. */
+export interface PayoutEntry {
+  id: string;
+  entry_id: string;
+  period_start: string;
+  period_end: string;
+  project_id: string | null;
   hours: string;
   gross: string;
-  breakdown: {
-    work_date: string;
-    project_id: string | null;
-    hours: string;
-    rate: string | null;
-    amount: string;
-  }[];
+  breakdown: PayoutBreakdownRow[];
+  attachments: PayoutEntryFile[];
 }
 
 export interface PayoutLine {
@@ -67,7 +80,7 @@ export interface PayoutLine {
   problems: string[];
   excluded: boolean;
   excluded_reason: string | null;
-  weeks: PayoutWeek[];
+  entries: PayoutEntry[];
 }
 
 export interface PayoutRun extends PayoutRunSummary {
@@ -92,18 +105,6 @@ export interface PendingAdjustment {
 export interface PayoutAttention {
   consultants: AttentionConsultant[];
   pending_adjustments: PendingAdjustment[];
-  /** Approved, unpaid weeks from before payouts began, to add to a draft run. */
-  includable_weeks: number;
-}
-
-/** An older approved week a run did not take by itself (approved before payouts began). */
-export interface IncludableWeek {
-  timesheet_id: string;
-  employee_id: string;
-  employee_code: string;
-  name: string;
-  week_start: string;
-  total_hours: string;
 }
 
 export interface MyPayout {
