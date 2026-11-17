@@ -43,7 +43,7 @@ export function daysBetween(start: string, end: string): string[] {
     if (iso > end) return out;
     out.push(iso);
   }
-  return [];
+  return out[out.length - 1] === end ? out : [];
 }
 
 export function dayName(iso: string): string {
