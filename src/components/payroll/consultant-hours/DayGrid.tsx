@@ -1,6 +1,6 @@
 import React from "react";
 
-import { DAY_STATUS, dayName } from "@/components/payroll/consultant-hours/labels";
+import { DAY_STATUS, HOURS, dayName } from "@/components/payroll/consultant-hours/labels";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -21,11 +21,11 @@ export function cellHours(cell: DayCell): number {
   return Number.isFinite(value) ? value : 0;
 }
 
-/** Whether a cell's hours are acceptable: blank, or a number from 0 to 24. */
+/** Whether a cell's hours are acceptable: blank, or a number from 0 to 24 with at most two decimals. */
 export function cellValid(cell: DayCell): boolean {
-  if (cell.hours.trim() === "") return true;
-  const value = Number(cell.hours);
-  return Number.isFinite(value) && value >= 0 && value <= 24;
+  const text = cell.hours.trim();
+  if (text === "") return true;
+  return HOURS.test(text) && Number(text) <= 24;
 }
 
 function Block({

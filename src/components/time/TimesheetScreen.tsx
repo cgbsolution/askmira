@@ -57,10 +57,8 @@ export interface Week {
   decision_note: string | null;
   total_hours: string;
   entries: Entry[];
-  /** A consultant's week: paid by the hour, approved by a finance approver. */
+  /** A consultant's week: for project tracking only; consultants are paid from Consultant hours. */
   consultant?: boolean;
-  /** What the week pays; only HR and the consultant's internal approver are sent it. Null: no rate for some day. */
-  amount?: string | null;
 }
 
 /** The word for a week's state; consultant weeks say who they are waiting on. */
@@ -283,8 +281,6 @@ export function WeekEditor({ employeeId }: { employeeId?: string }) {
         </CardTitle>
         <CardDescription>
           {total.toFixed(2)} hours this week.
-          {data?.amount != null && ` Pays ₹${data.amount}.`}
-          {data?.consultant && data.amount === null && " Pay can't be worked out yet: a day in this week has no hourly rate."}
         </CardDescription>
         <CardAction className="flex gap-1">
           <Button size="icon" variant="ghost" aria-label="Previous week" onClick={() => move(-1)}>

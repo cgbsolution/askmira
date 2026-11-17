@@ -201,7 +201,7 @@ function OpeningDialog({
 
 /**
  * What to sort out before payouts start: consultants still on a salary, with no
- * rate or no approver, and payroll adjustments still pending for them. The
+ * rate or no finance approver, and payroll adjustments still pending for them. The
  * "Opening this year" editor is always offered.
  */
 export function AttentionPanel({
@@ -297,7 +297,7 @@ export function AttentionPanel({
             )}
             <p className="mt-2">
               A consultant is paid through payouts, not a salary. Add their
-              hourly rate and timesheet approver on their record, and enter
+              hourly rate and finance approver on their record, and enter
               their hours under Consultant hours.
             </p>
           </AlertDescription>

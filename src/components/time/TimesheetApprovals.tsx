@@ -45,8 +45,6 @@ interface PendingWeek {
   approval_chain: ApprovalStep[];
   status: "draft" | "submitted" | "approved" | "rejected";
   consultant?: boolean;
-  /** Only HR and the consultant's internal approver are sent it. */
-  amount?: string | null;
 }
 
 interface HoursReport {
@@ -168,7 +166,6 @@ function Pending() {
                 <TableCell>{formatDay(week.week_start, true)}</TableCell>
                 <TableCell>
                   <p className="tabular-nums">{week.total_hours}</p>
-                  {week.amount != null && <p className="text-xs text-muted-foreground">pays ₹{week.amount}</p>}
                   <p className="text-xs text-muted-foreground">
                     {[...new Set(week.entries.map((e) => (e.project ? (e.task ? `${e.project} · ${e.task}` : e.project) : "No project")))].join(", ")}
                   </p>
@@ -217,11 +214,10 @@ function Pending() {
   );
 }
 
-/** Approve or send back a consultant's week, with a supporting file if there is one. */
+/** Approve or send back a consultant's week. It is for project tracking only and never pays. */
 function ManualDecisionDialog({ week, onClose, onDecided }: { week: PendingWeek; onClose: () => void; onDecided: () => void }) {
   const [approve, setApprove] = useState(true);
   const [note, setNote] = useState("");
-  const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
@@ -230,7 +226,6 @@ function ManualDecisionDialog({ week, onClose, onDecided }: { week: PendingWeek;
       const form = new FormData();
       form.append("approve", String(approve));
       if (note.trim()) form.append("note", note.trim());
-      if (file) form.append("file", file);
       await post(`/timesheets/${week.id}/decide/manual`, form);
       toast.success(approve ? "Week approved." : "Week sent back.");
       onDecided();
@@ -266,14 +261,6 @@ function ManualDecisionDialog({ week, onClose, onDecided }: { week: PendingWeek;
               placeholder={approve ? "Anything worth keeping with the approval" : "What needs changing"}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-            />
-          </FormField>
-          <FormField htmlFor="decision-file" label="Supporting file" optional>
-            <Input
-              id="decision-file"
-              type="file"
-              accept="application/pdf,image/png,image/jpeg"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             />
           </FormField>
         </div>

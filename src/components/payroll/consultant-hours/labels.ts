@@ -19,6 +19,9 @@ export const DAY_STATUS: Record<DayStatus, string> = {
   half_day: "Half-day",
 };
 
+/** Hours as typed: a number from 0 up, at most two decimals, as the server takes them. */
+export const HOURS = /^\d{1,5}(\.\d{1,2})?$/;
+
 export const ACCEPT = ".xlsx,.xls,.csv,.pdf,.png,.jpg,.jpeg";
 
 /** "1 Oct 2026 to 31 Oct 2026". */

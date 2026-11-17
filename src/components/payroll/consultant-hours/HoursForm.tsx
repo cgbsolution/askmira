@@ -15,6 +15,7 @@ import {
 } from "@/components/payroll/consultant-hours/DayGrid";
 import {
   ACCEPT,
+  HOURS,
   daysBetween,
   isWeekend,
   previousMonth,
@@ -47,9 +48,6 @@ import type { ConsultantOption, HoursEntry, HoursPayload } from "@/lib/types/con
 
 const DEFAULT_PROJECT = "__default";
 
-/** Hours as typed: a number from 0 up, at most two decimals. */
-const HOURS = /^\d{1,5}(\.\d{1,2})?$/;
-
 /**
  * Enter or fix a consultant's hours: a total or day by day, with the customer's
  * timesheet attached. Saving a draft keeps it; Submit sends it for approval.
@@ -77,8 +75,11 @@ export function HoursForm({
   const [start, setStart] = useState(entry?.period_start ?? initial.start);
   const [end, setEnd] = useState(entry?.period_end ?? initial.end);
   const [projectId, setProjectId] = useState(entry?.project_id ?? DEFAULT_PROJECT);
-  const [mode, setMode] = useState<"total" | "days">(entry?.days?.length ? "days" : "total");
-  const [total, setTotal] = useState(entry && !entry.days?.length ? entry.total_billable_hours : "");
+  // Day statuses with no hours (Week-offs marked, the total typed) are a total-only entry.
+  const statusesOnly = Boolean(entry?.days?.length && entry.days.every((d) => Number(d.hours) === 0));
+  const byDay = Boolean(entry?.days?.length) && !statusesOnly;
+  const [mode, setMode] = useState<"total" | "days">(byDay ? "days" : "total");
+  const [total, setTotal] = useState(entry && !byDay ? entry.total_billable_hours : "");
   const [cellMap, setCellMap] = useState<Record<string, DayCell>>(() =>
     Object.fromEntries(
       (entry?.days ?? []).map((d) => [d.date, { status: d.status, hours: String(d.hours) }]),
@@ -127,7 +128,13 @@ export function HoursForm({
       project_id: projectId === DEFAULT_PROJECT ? null : projectId,
       ...(mode === "total" ? { total_billable_hours: Number(total) } : {}),
       non_billable_hours: String(nonBillable).trim() === "" ? null : Number(nonBillable),
-      days: mode === "days" ? gridDays : null,
+      // A total-only entry keeps its day statuses while its period is unchanged.
+      days:
+        mode === "days"
+          ? gridDays
+          : statusesOnly && entry && start === entry.period_start && end === entry.period_end
+            ? entry.days
+            : null,
       customer_reference: reference.trim() || null,
     };
   };
