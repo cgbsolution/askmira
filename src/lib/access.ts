@@ -308,8 +308,9 @@ export const NAV: NavSection[] = [
       { name: "Loans", path: "/payroll/loans", roles: HR },
       { name: "Tax proofs", path: "/payroll/tax-proofs", roles: HR },
       { name: "Return filings", path: "/payroll/filings", roles: HR },
-      // reach lets a finance approver who is not HR open it; the API decides what they see.
-      { name: "Consultant hours", path: "/payroll/consultant-hours", roles: HR, reach: EVERYONE },
+      // Listed for everyone so a finance approver who is not HR finds it; the API decides
+      // what they see, and anybody approving for no consultant is told there is nothing here.
+      { name: "Consultant hours", path: "/payroll/consultant-hours", roles: EVERYONE },
       { name: "Consultant payouts", path: "/payroll/consultant-payouts", roles: HR },
       { name: "Bank files", path: "/payroll/disbursements", roles: HR },
       { name: "Full & final", path: "/payroll/settlements", roles: HR },

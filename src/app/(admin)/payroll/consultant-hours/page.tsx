@@ -1,10 +1,11 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Clock, Plus } from "lucide-react";
+import { Clock, Plus, UserX } from "lucide-react";
 import React, { useMemo, useState } from "react";
 
 import { DataTable } from "@/components/common/data-table/DataTable";
+import { EmptyState } from "@/components/common/EmptyState";
 import { MonthPicker } from "@/components/common/MonthPicker";
 import { PageShell } from "@/components/common/PageShell";
 import { HoursDetail } from "@/components/payroll/consultant-hours/HoursDetail";
@@ -20,8 +21,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
-import type { HoursEntry, HoursStatus } from "@/lib/types/consultant-hours";
+import type { ConsultantOption, HoursEntry, HoursStatus } from "@/lib/types/consultant-hours";
 
 const ANY = "__any";
 
@@ -73,6 +75,9 @@ const columns = (open: (entry: HoursEntry) => void): ColumnDef<HoursEntry>[] => 
 
 /** Consultant hours: finance enters them from the customer's timesheet, a second person approves. */
 export default function ConsultantHoursPage() {
+  const { hasRole } = useAuth();
+  const isHr = hasRole("admin", "sub_admin");
+  const consultants = useApiQuery<ConsultantOption[]>("/consultant-hours/consultants");
   const [month, setMonth] = useState("");
   const [status, setStatus] = useState<string>(ANY);
   const [waiting, setWaiting] = useState(false);
@@ -96,6 +101,19 @@ export default function ConsultantHoursPage() {
   };
   const cols = useMemo(() => columns(setViewing), []);
   const filtered = month !== "" || status !== ANY || waiting;
+
+  // The menu lists this page for everyone; outside HR it is only for a consultant's finance approver.
+  if (!isHr && consultants.data && consultants.data.length === 0) {
+    return (
+      <PageShell title="Consultant hours">
+        <EmptyState
+          icon={UserX}
+          title="Nothing here for you"
+          description="This page is for HR and for consultants' finance approvers. You are not the finance approver for any consultant."
+        />
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell
@@ -166,6 +184,7 @@ export default function ConsultantHoursPage() {
         <HoursForm
           key={formKey}
           entry={editing}
+          consultants={consultants.data ?? []}
           open
           onOpenChange={setFormOpen}
           onSaved={() => entries.reload()}

@@ -56,3 +56,12 @@ export interface HoursPayload {
   days: HoursDay[] | null;
   customer_reference: string | null;
 }
+
+/** A consultant the caller may enter or approve hours for, from /consultant-hours/consultants. */
+export interface ConsultantOption {
+  employee_id: string;
+  code: string;
+  name: string;
+  /** Their current project's name, if they have one. */
+  project: string | null;
+}

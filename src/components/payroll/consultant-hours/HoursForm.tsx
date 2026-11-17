@@ -5,7 +5,6 @@ import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { DatePicker } from "@/components/common/DatePicker";
-import { EmployeePicker } from "@/components/common/EmployeePicker";
 import { FormField } from "@/components/common/FormField";
 import { AttachmentList } from "@/components/payroll/consultant-hours/AttachmentList";
 import {
@@ -44,8 +43,7 @@ import {
 } from "@/components/ui/select";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { del, post, put } from "@/lib/api";
-import type { EmployeeSummary } from "@/lib/types";
-import type { HoursEntry, HoursPayload } from "@/lib/types/consultant-hours";
+import type { ConsultantOption, HoursEntry, HoursPayload } from "@/lib/types/consultant-hours";
 
 const DEFAULT_PROJECT = "__default";
 
@@ -59,11 +57,14 @@ const HOURS = /^\d{1,5}(\.\d{1,2})?$/;
  */
 export function HoursForm({
   entry,
+  consultants,
   open,
   onOpenChange,
   onSaved,
 }: {
   entry: HoursEntry | null;
+  /** The consultants the caller may enter hours for. */
+  consultants: ConsultantOption[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Called with the entry as the server now holds it. */
@@ -72,7 +73,7 @@ export function HoursForm({
   const projects = useApiQuery<ProjectRow[]>("/timesheets/projects");
   const initial = useMemo(() => previousMonth(), []);
   const [saved, setSaved] = useState<HoursEntry | null>(entry);
-  const [person, setPerson] = useState<EmployeeSummary | null>(null);
+  const [personId, setPersonId] = useState("");
   const [start, setStart] = useState(entry?.period_start ?? initial.start);
   const [end, setEnd] = useState(entry?.period_end ?? initial.end);
   const [projectId, setProjectId] = useState(entry?.project_id ?? DEFAULT_PROJECT);
@@ -97,7 +98,7 @@ export function HoursForm({
   const gridTotal = days.reduce((sum, date) => sum + cellHours(cellFor(date)), 0);
   const shownTotal = mode === "days" ? gridTotal : Number(total) || 0;
   const attachmentCount = (saved?.attachments.length ?? 0) + staged.length;
-  const employeeId = saved?.employee_id ?? person?.id ?? "";
+  const employeeId = saved?.employee_id ?? personId;
 
   const problems: Record<string, string> = {};
   if (!employeeId) problems.person = "Choose the consultant.";
@@ -228,20 +229,26 @@ export function HoursForm({
             </Alert>
           )}
           <div className="grid gap-4 md:grid-cols-2">
-            <FormField htmlFor="hours-person-search" label="Consultant" required error={fieldError("person")}>
+            <FormField htmlFor="hours-person" label="Consultant" required error={fieldError("person")}>
               {saved ? (
                 <p className="text-sm font-medium">
                   {saved.employee_name}
                   {saved.employee_code && <span className="text-muted-foreground"> · {saved.employee_code}</span>}
                 </p>
               ) : (
-                <EmployeePicker
-                  id="hours-person"
-                  value={person}
-                  onChange={setPerson}
-                  excludeId={null}
-                  invalid={Boolean(fieldError("person"))}
-                />
+                <Select value={personId} onValueChange={setPersonId}>
+                  <SelectTrigger id="hours-person" className="w-full" aria-invalid={Boolean(fieldError("person"))}>
+                    <SelectValue placeholder="Choose a consultant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {consultants.map((c) => (
+                      <SelectItem key={c.employee_id} value={c.employee_id}>
+                        {c.name} · {c.code}
+                        {c.project && <span className="text-muted-foreground"> · {c.project}</span>}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
             </FormField>
             <FormField htmlFor="hours-project" label="Project" optional hint="Without one, their current project.">
