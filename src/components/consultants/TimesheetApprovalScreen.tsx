@@ -11,14 +11,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError, get, post } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 
-type Described = {
-  state: "waiting" | "decided" | "changed" | "expired";
-  company: string;
-  consultant_name: string;
-  week_start: string;
-  days: { date: string; project: string | null; task: string | null; hours: string }[];
-  total_hours: string;
-};
+/** A link no longer waiting says only its state, the company and the week. */
+type Described =
+  | { state: "decided" | "changed" | "expired"; company: string; week_start: string }
+  | {
+      state: "waiting";
+      company: string;
+      week_start: string;
+      consultant_name: string;
+      days: { date: string; project: string | null; task: string | null; hours: string }[];
+      total_hours: string;
+    };
 
 type Choice = "approve" | "reject";
 
@@ -110,8 +113,6 @@ export function TimesheetApprovalScreen({
     }
   };
 
-  const closed = described ? CLOSED[described.state] : undefined;
-
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4">
       <div className="flex justify-center">
@@ -139,8 +140,10 @@ export function TimesheetApprovalScreen({
               ? "Thank you. You approved this timesheet."
               : "Thank you. You rejected this timesheet and your reason has been sent."}
           </CardContent>
-        ) : closed ? (
-          <CardContent className="py-6 text-sm text-foreground">{closed}</CardContent>
+        ) : described.state !== "waiting" ? (
+          <CardContent className="py-6 text-sm text-foreground">
+            {CLOSED[described.state] ?? NEUTRAL}
+          </CardContent>
         ) : (
           <>
             <CardHeader>
