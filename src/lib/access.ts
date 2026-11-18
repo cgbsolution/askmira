@@ -269,6 +269,7 @@ export const NAV: NavSection[] = [
     pages: [
       { name: "My attendance", path: "/time/attendance", roles: EVERYONE, self: true },
       { name: "Attendance review", path: "/time/attendance-review", roles: MANAGERS, reach: EVERYONE },
+      { name: "Attendance reports", path: "/time/attendance-reports", roles: MANAGERS, reach: EVERYONE },
       { name: "Overtime", path: "/time/overtime", roles: EVERYONE, self: true },
       { name: "Timesheet", path: "/time/timesheets", roles: EVERYONE, self: true },
       { name: "Timesheet approvals", path: "/time/timesheets/approvals", roles: MANAGERS, reach: EVERYONE },

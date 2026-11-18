@@ -323,6 +323,34 @@ export const ME_GUIDES: Record<string, PageGuide> = {
     tips: ["Coverage shows whether each location and team has the people its shifts need."],
   },
 
+  "/time/attendance-reports": {
+    summary:
+      "For managers and HR: every attendance download in one place — daily, summary and periodic reports, including the classic In Out Activities, Monthly Summary and YTD layouts for cross-checking.",
+    tasks: [
+      {
+        title: "Download a report",
+        steps: [
+          "Press the report you want under Daily, Summary or Periodic reports.",
+          "Choose the period: a day, a week, a month or custom dates (up to 93 days); the YTD report also takes this financial year to date, up to a year.",
+          "Narrow it by Company, Project, Department or Location if you need to, and press Download.",
+        ],
+      },
+      {
+        title: "Cross-check against the old HRMS",
+        steps: [
+          "In Out Activities, Monthly Summary Attendance and YTD Attendance come as Excel in the same columns and codes as the old reports (P, HD, WO, HO, AB, MSP, P/WO, leave type).",
+          "Days not worked out yet — today and the days ahead — are never counted as absent: the Monthly Summary shows them under NA and the YTD under Days Not Computed.",
+          "Leave days have their own LV column in the Monthly Summary, and one column per leave type in the YTD report.",
+        ],
+      },
+    ],
+    tips: [
+      "HR downloads everyone; a manager downloads their reporting line and themselves.",
+      "Addresses come from Google Maps and are kept once found; a large first download may leave a few blank, and downloading again fills them.",
+    ],
+    related: [{ label: "Attendance review", href: "/time/attendance-review" }],
+  },
+
   "/time/overtime": {
     summary:
       "Overtime from attendance, decided by the line manager or HR, priced by the location's policy and paid in the next payroll run.",

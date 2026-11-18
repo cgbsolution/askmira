@@ -33,9 +33,10 @@
     "**/*.tsx",
     ".next-letterqa/types/**/*.ts",
     ".next-switch-build/types/**/*.ts",
+    ".next-video/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
-    ".next-video/types/**/*.ts"
+    ".next-attrpt/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
