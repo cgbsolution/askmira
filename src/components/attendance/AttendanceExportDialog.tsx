@@ -509,7 +509,7 @@ function OrgFilterFields({
   const org = useOrgReference();
   if (
     !org.entities.length &&
-    !org.projects.length &&
+    !org.staffedProjects.length &&
     !org.departments.length &&
     !org.locations.length
   ) {
@@ -534,7 +534,7 @@ function OrgFilterFields({
           </Select>
         </FormField>
       )}
-      {org.projects.length > 0 && (
+      {org.staffedProjects.length > 0 && (
         <FormField htmlFor="export-project" label="Project">
           <Select value={project} onValueChange={setProject}>
             <SelectTrigger id="export-project" className="h-11 w-full">
@@ -542,7 +542,7 @@ function OrgFilterFields({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NONE}>All projects</SelectItem>
-              {org.projects.map((row) => (
+              {org.staffedProjects.map((row) => (
                 <SelectItem key={row.id} value={row.id}>
                   {row.name}
                 </SelectItem>

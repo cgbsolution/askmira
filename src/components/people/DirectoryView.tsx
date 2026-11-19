@@ -321,14 +321,14 @@ export function DirectoryView() {
                   </SelectContent>
                 </Select>
               )}
-              {org.projects.length > 0 && (
+              {org.staffedProjects.length > 0 && (
                 <Select value={project} onValueChange={(v) => update({ project: v })}>
                   <SelectTrigger aria-label="Project" className="h-9 w-48">
                     <SelectValue placeholder="Project" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value={NONE}>All projects</SelectItem>
-                    {org.projects.map((p) => (
+                    {org.staffedProjects.map((p) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name}
                       </SelectItem>

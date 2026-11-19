@@ -279,14 +279,14 @@ export function TeamToday() {
                 </SelectContent>
               </Select>
             )}
-            {org.projects.length > 0 && (
+            {org.staffedProjects.length > 0 && (
               <Select value={project} onValueChange={setProject}>
                 <SelectTrigger aria-label="Project" className="h-9 w-44">
                   <SelectValue placeholder="Project" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>All projects</SelectItem>
-                  {org.projects.map((row) => (
+                  {org.staffedProjects.map((row) => (
                     <SelectItem key={row.id} value={row.id}>
                       {row.name}
                     </SelectItem>

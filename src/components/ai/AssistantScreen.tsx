@@ -185,7 +185,7 @@ function AskTab() {
             value={question}
             maxLength={1000}
             rows={3}
-            placeholder="How many casual leaves do we get in a year?"
+            placeholder="How many leaves do we get in a year?"
             onChange={(event) => setQuestion(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) void ask();
