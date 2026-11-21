@@ -64,7 +64,8 @@ const FILE_READ_MS = 120_000;
 export type ChatTransport = {
   send: (body: Record<string, unknown>) => Promise<Turn>;
   sendFiles: (form: FormData) => Promise<Turn>;
-  decide: (actionId: string, confirm: boolean) => Promise<OfferDecision>;
+  /** `choice` answers a question on the offer's card: an option's id, or "new". */
+  decide: (actionId: string, confirm: boolean, choice?: string) => Promise<OfferDecision>;
   /** Handles a failure itself (the showcase closing); true means no toast. */
   onError?: (caught: unknown) => boolean;
 };
@@ -75,10 +76,10 @@ const PORTAL: ChatTransport = {
   // Reading a picture comes first, then the turn itself.
   sendFiles: (form) =>
     post<Turn>("/companion/messages/files", form, { timeout: TURN_TIMEOUT_MS + FILE_READ_MS }),
-  decide: (actionId, confirm) =>
+  decide: (actionId, confirm, choice) =>
     post<OfferDecision>(
       `/companion/actions/${actionId}/${confirm ? "confirm" : "cancel"}`,
-      undefined,
+      choice ? { choice } : undefined,
       // An order win opens several positions and writes the P&L: give it time.
       { timeout: TURN_TIMEOUT_MS },
     ),
@@ -388,14 +389,15 @@ export function Thread({
   const canAttach = status.mode === "ai";
 
   // Confirm or Cancel on an offer: the module's own service runs (or not), as the person.
-  const decide = async (card: CompanionProposal, confirm: boolean) => {
+  const decide = async (card: CompanionProposal, confirm: boolean, choice?: string) => {
     if (deciding || pending) return;
     setDeciding(card.action_id);
     try {
-      const decision = await transport.decide(card.action_id, confirm);
+      const decision = await transport.decide(card.action_id, confirm, choice);
       onDecided(decision);
       if (decision.action.status === "done") toast.success(decision.message.text || "Done.");
       else if (decision.action.status === "failed") toast.error(decision.message.text);
+      else if (decision.action.choice) toast.info(decision.action.choice.message);
     } catch (caught) {
       fail(caught, "That could not be done.");
     } finally {
@@ -513,7 +515,7 @@ export function Thread({
                   photo={myPhoto}
                   onPick={(picked) => void send(picked)}
                   picking={waiting}
-                  onDecide={(card, confirm) => void decide(card, confirm)}
+                  onDecide={(card, confirm, choice) => void decide(card, confirm, choice)}
                   deciding={deciding}
                   conversationId={conversationId}
                 />
@@ -693,7 +695,7 @@ function Bubble({
   photo?: string | null;
   onPick?: (pick: CompanionPick) => void;
   picking?: boolean;
-  onDecide?: (card: CompanionProposal, confirm: boolean) => void;
+  onDecide?: (card: CompanionProposal, confirm: boolean, choice?: string) => void;
   deciding?: string | null;
   conversationId?: string | null;
   /** Files on a message still being sent (not read yet). */

@@ -1,6 +1,17 @@
 "use client";
 
-import { Check, CheckCircle2, ChevronRight, Clock, Hourglass, Loader2, X, XCircle } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  CircleHelp,
+  Clock,
+  Hourglass,
+  Loader2,
+  Plus,
+  X,
+  XCircle,
+} from "lucide-react";
 import Link from "next/link";
 import React, { useMemo } from "react";
 import {
@@ -291,10 +302,12 @@ export function CompanionProposalCard({
   busy,
 }: {
   card: CompanionProposal;
-  onDecide?: (card: CompanionProposal, confirm: boolean) => void;
+  /** `choice` answers the card's question: an option's id, or "new". */
+  onDecide?: (card: CompanionProposal, confirm: boolean, choice?: string) => void;
   busy?: boolean;
 }) {
   const held = card.status === "proposed" && Boolean(card.waiting);
+  const asked = card.status === "proposed" ? card.choice : undefined;
   const state = held ? HELD : (STATUS[card.status] ?? STATUS.proposed);
   const Icon = state.icon;
   const open = card.status === "proposed";
@@ -354,10 +367,40 @@ export function CompanionProposalCard({
           <AlertDescription>{card.waiting}</AlertDescription>
         </Alert>
       ) : null}
+      {asked ? (
+        <Alert>
+          <CircleHelp />
+          <AlertDescription>{asked.message}</AlertDescription>
+        </Alert>
+      ) : null}
       {card.result?.text && !open ? (
         <p className={cn("text-sm", card.result.error && "text-destructive")}>{card.result.text}</p>
       ) : null}
-      {open && onDecide ? (
+      {asked && onDecide ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {asked.options.map((option) => (
+            <Button
+              key={option.id}
+              size="sm"
+              variant="outline"
+              disabled={busy}
+              title={option.detail ?? undefined}
+              className="h-auto min-h-8 whitespace-normal text-left"
+              onClick={() => onDecide(card, true, option.id)}
+            >
+              {busy ? <Loader2 className="animate-spin" /> : <Check />} Use {option.label}
+            </Button>
+          ))}
+          {asked.can_create_new ? (
+            <Button size="sm" disabled={busy} onClick={() => onDecide(card, true, "new")}>
+              {busy ? <Loader2 className="animate-spin" /> : <Plus />} Create a new {asked.field}
+            </Button>
+          ) : null}
+          <Button size="sm" variant="ghost" disabled={busy} onClick={() => onDecide(card, false)}>
+            <X /> Cancel
+          </Button>
+        </div>
+      ) : open && onDecide ? (
         <div className="flex flex-wrap items-center gap-2">
           {held ? null : (
             <Button size="sm" disabled={busy} onClick={() => onDecide(card, true)}>
