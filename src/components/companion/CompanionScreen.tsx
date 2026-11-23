@@ -38,6 +38,7 @@ import {
   PRODUCT_BRANDS,
   useDraftFiles,
 } from "./CompanionAttachments";
+import { AiConsentDialog } from "./AiConsentDialog";
 import { CompanionCardView } from "./CompanionCards";
 import { ChatText } from "./CompanionExtras";
 import type {
@@ -124,14 +125,15 @@ export function CompanionScreen() {
 function Gate({ status, onChange }: { status: CompanionStatus; onChange: () => void }) {
   return (
     <div className="grid gap-4">
-      {status.mode === "direct" ? <DirectModeNote status={status} /> : null}
+      {status.mode === "direct" ? <DirectModeNote status={status} onAgreed={onChange} /> : null}
       <Chat status={status} onSent={onChange} />
     </div>
   );
 }
 
 /** Without AI the chat still answers, by matching words to a lookup. Says why, and how to get AI. */
-function DirectModeNote({ status }: { status: CompanionStatus }) {
+function DirectModeNote({ status, onAgreed }: { status: CompanionStatus; onAgreed: () => void }) {
+  const [asking, setAsking] = useState(false);
   const why =
     status.reason === "not_configured"
       ? "This server has no AI provider configured"
@@ -152,11 +154,12 @@ function DirectModeNote({ status }: { status: CompanionStatus }) {
             <Link href="/settings?tab=ai">Turn on AI under Settings → Company → AI</Link>
           </Button>
         ) : status.reason === "no_consent" ? (
-          <Button asChild variant="link" className="h-auto p-0">
-            <Link href="/compliance/privacy">Agree to it under My privacy for free-form questions</Link>
+          <Button variant="link" className="h-auto p-0" onClick={() => setAsking(true)}>
+            Turn on the AI assistant for free-form questions, pictures and PDFs
           </Button>
         ) : null}
       </AlertDescription>
+      <AiConsentDialog open={asking} onOpenChange={setAsking} onAgreed={onAgreed} />
     </Alert>
   );
 }
@@ -281,6 +284,7 @@ function Chat({ status, onSent }: { status: CompanionStatus; onSent: () => void 
         loading={opening}
         autoSend={carryOn}
         onAutoSent={() => setCarryOn(null)}
+        onConsented={onSent}
         onDecided={(decision) =>
           setMessages((current) => [
             ...current.map((message) => ({
@@ -350,6 +354,7 @@ export function Thread({
   onDecided,
   autoSend = null,
   onAutoSent,
+  onConsented,
   transport = PORTAL,
   me,
   welcome,
@@ -364,6 +369,8 @@ export function Thread({
   /** Words to send as the person once the conversation is open (back from Connect). */
   autoSend?: string | null;
   onAutoSent?: () => void;
+  /** The person agreed to the AI assistant here: reload the status. */
+  onConsented?: () => void;
   transport?: ChatTransport;
   /** Who is typing, when not the signed-in person (a showcase visitor). */
   me?: { name: string; photo?: string | null };
@@ -386,7 +393,13 @@ export function Thread({
   const [sendingFiles, setSendingFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  const canAttach = status.mode === "ai";
+  const aiOn = status.mode === "ai";
+  // Not agreed to the AI assistant yet (it is opt-in): attach, paste and drop are still
+  // offered, and ask for that yes first. Only in the portal; a showcase has no person.
+  const needsConsent = !aiOn && status.reason === "no_consent" && transport === PORTAL;
+  const canAttach = aiOn || needsConsent;
+  // What was attached while the yes was being asked for: added once it is given.
+  const [consentFor, setConsentFor] = useState<{ files: File[]; choose: boolean } | null>(null);
 
   // Confirm or Cancel on an offer: the module's own service runs (or not), as the person.
   const decide = async (card: CompanionProposal, confirm: boolean, choice?: string) => {
@@ -471,8 +484,20 @@ export function Thread({
   }, [autoSend, loading, pending, onAutoSent]);
 
   const attach = (incoming: File[]) => {
-    if (!canAttach || pending !== null) return;
+    if (!canAttach || pending !== null || incoming.length === 0) return;
+    if (!aiOn) {
+      setConsentFor({ files: incoming, choose: false });
+      return;
+    }
     void drafts.add(incoming);
+  };
+
+  const agreed = () => {
+    const held = consentFor;
+    setConsentFor(null);
+    onConsented?.();
+    if (held?.files.length) void drafts.add(held.files);
+    else if (held?.choose) fileInput.current?.click();
   };
 
   const left = Math.max(0, status.daily_limit - status.sent_today);
@@ -596,7 +621,9 @@ export function Thread({
                     aria-label="Attach a picture or PDF"
                     title={`Attach a picture or PDF (up to ${MAX_FILES}, ${drafts.limitLabel} each)`}
                     disabled={waiting || drafts.preparing || drafts.files.length >= MAX_FILES}
-                    onClick={() => fileInput.current?.click()}
+                    onClick={() =>
+                      aiOn ? fileInput.current?.click() : setConsentFor({ files: [], choose: true })
+                    }
                   >
                     {drafts.preparing ? <Loader2 className="animate-spin" /> : <Paperclip />}
                   </Button>
@@ -630,6 +657,22 @@ export function Thread({
           </div>
         </div>
       </CardContent>
+      <AiConsentDialog
+        open={consentFor !== null}
+        onOpenChange={(next) => !next && setConsentFor(null)}
+        onAgreed={agreed}
+        why={
+          consentFor?.files.length
+            ? `To read ${
+                consentFor.files.length > 1
+                  ? "these files"
+                  : consentFor.files[0].name === "image.png" || !consentFor.files[0].name
+                    ? "this screenshot"
+                    : `“${consentFor.files[0].name}”`
+              }, ${status.name} needs the AI assistant.`
+            : `To read a picture or PDF, ${status.name} needs the AI assistant.`
+        }
+      />
     </Card>
   );
 }
@@ -656,7 +699,7 @@ function Welcome({ status }: { status: CompanionStatus }) {
           </p>
         </div>
       </div>
-      {status.mode === "ai" ? (
+      {status.mode === "ai" || status.reason === "no_consent" ? (
         <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground">
           <Paperclip className="mt-0.5 size-4 shrink-0" />
           You can attach, paste or drop a picture or PDF too: a LinkedIn profile or a visiting card to add
