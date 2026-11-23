@@ -3,7 +3,7 @@
 import { Loader2, Search, UserRound, X } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 
-import { EMPLOYMENT_STATUS, personName } from "@/components/people/labels";
+import { EMPLOYMENT_STATUS, personName, statusMeta } from "@/components/people/labels";
 import { apiMessage } from "@/components/payroll/labels";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export function StatusAvatar({
   employee,
   className,
 }: {
-  employee: Pick<EmployeeSummary, "first_name" | "last_name" | "display_name" | "photo_url" | "status">;
+  employee: Pick<EmployeeSummary, "first_name" | "last_name" | "display_name" | "photo_url" | "status" | "exit_type">;
   className?: string;
 }) {
   const name = personName(employee);
@@ -47,7 +47,7 @@ export function StatusAvatar({
         <AvatarFallback className="text-xs">{initials(name)}</AvatarFallback>
       </Avatar>
       <span
-        aria-label={EMPLOYMENT_STATUS[employee.status]?.label}
+        aria-label={statusMeta(employee.status, employee.exit_type).label}
         className={cn(
           "absolute right-0 bottom-0 size-3 rounded-full ring-2 ring-background",
           STATUS_DOT[employee.status] ?? "bg-muted-foreground",

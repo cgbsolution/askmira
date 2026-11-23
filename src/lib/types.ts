@@ -116,6 +116,8 @@ export interface EmployeeSummary {
   dotted_line_manager_id?: string | null;
   photo_url: string | null;
   status: EmploymentStatus;
+  /** With status exited: how they left ("absconding" shows as Absconding). */
+  exit_type?: string | null;
 }
 
 /**

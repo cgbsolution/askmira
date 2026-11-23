@@ -18,6 +18,21 @@ export const EMPLOYMENT_STATUS: Record<EmploymentStatus, { label: string; varian
   pre_joining: { label: "Pre-joining", variant: "outline" },
 };
 
+/** Somebody recorded as having left without notice: status exited, shown as Absconding. */
+export const ABSCONDING: { label: string; variant: BadgeVariant } = {
+  label: "Absconding",
+  variant: "destructive",
+};
+
+/** The status as HR reads it: "Absconding" for a leaver who absconded, else the status. */
+export function statusMeta(
+  status: EmploymentStatus,
+  exitType?: string | null,
+): { label: string; variant: BadgeVariant } {
+  if (status === "exited" && exitType === "absconding") return ABSCONDING;
+  return EMPLOYMENT_STATUS[status] ?? { label: status, variant: "outline" };
+}
+
 export const EMPLOYMENT_TYPE: Record<EmploymentType, string> = {
   full_time: "Full time",
   part_time: "Part time",

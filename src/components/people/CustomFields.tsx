@@ -2,6 +2,7 @@
 
 import React from "react";
 
+import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
 import { DetailItem } from "@/components/people/StatusBadges";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -141,11 +142,23 @@ export function CustomFieldInputs({
             </FieldSet>
           );
         }
+        if (field.field_type === "date") {
+          return (
+            <FormField key={field.id} {...common}>
+              <DatePicker
+                id={id}
+                value={typeof value === "string" ? value : ""}
+                invalid={Boolean(errors?.[field.key])}
+                onChange={(picked) => onChange(field.key, picked === "" ? null : picked)}
+              />
+            </FormField>
+          );
+        }
         return (
           <FormField key={field.id} {...common}>
             <Input
               id={id}
-              type={field.field_type === "number" ? "number" : field.field_type === "date" ? "date" : "text"}
+              type={field.field_type === "number" ? "number" : "text"}
               maxLength={field.field_type === "text" ? 2000 : undefined}
               value={value === null || value === undefined ? "" : String(value)}
               onChange={(e) => {

@@ -32,6 +32,21 @@ import { get, patch, post } from "@/lib/api";
 import type { EmploymentStatus } from "@/lib/types";
 import type { EmployeeInput, EmployeeRecord, EmploymentType, Gender } from "@/lib/types/people";
 import { DatePicker } from "@/components/common/DatePicker";
+import { formatDay, todayISO } from "@/lib/utils";
+
+/** What the Status list offers: the statuses, plus Absconding — exited, recorded as absconding. */
+type StatusChoice = EmploymentStatus | "absconding";
+
+const STATUS_CHOICES: { value: StatusChoice; label: string; leaving?: boolean }[] = [
+  { value: "active", label: EMPLOYMENT_STATUS.active.label },
+  { value: "on_notice", label: EMPLOYMENT_STATUS.on_notice.label },
+  { value: "on_leave", label: EMPLOYMENT_STATUS.on_leave.label },
+  { value: "pre_joining", label: EMPLOYMENT_STATUS.pre_joining.label },
+  { value: "exited", label: EMPLOYMENT_STATUS.exited.label, leaving: true },
+  { value: "absconding", label: "Absconding", leaving: true },
+];
+
+const isLeaving = (choice: StatusChoice) => choice === "exited" || choice === "absconding";
 
 type Values = {
   employee_code: string;
@@ -50,7 +65,7 @@ type Values = {
   designation: string;
   grade: string;
   employment_type: EmploymentType;
-  status: EmploymentStatus;
+  status: StatusChoice;
   date_of_joining: string;
   probation_end_date: string;
   date_of_exit: string;
@@ -77,7 +92,10 @@ function toValues(record?: EmployeeRecord): Values {
     designation: record?.designation ?? "",
     grade: record?.grade ?? "",
     employment_type: record?.employment_type ?? "full_time",
-    status: record?.status ?? "active",
+    status:
+      record?.status === "exited" && record.exit_type === "absconding"
+        ? "absconding"
+        : (record?.status ?? "active"),
     date_of_joining: record?.date_of_joining ?? "",
     probation_end_date: record?.probation_end_date ?? "",
     date_of_exit: record?.date_of_exit ?? "",
@@ -88,8 +106,17 @@ function toValues(record?: EmployeeRecord): Values {
   };
 }
 
-function toPayload(values: Values, managerId: string | null, dottedId: string | null): EmployeeInput {
+function toPayload(
+  values: Values,
+  managerId: string | null,
+  dottedId: string | null,
+  record?: EmployeeRecord,
+): EmployeeInput {
   const text = (value: string) => (value.trim() === "" ? null : value.trim());
+  // Exited keeps how an exit under Exits recorded it (resignation…); Absconding says so.
+  const keptExitType = record?.exit_type && record.exit_type !== "absconding" ? record.exit_type : null;
+  const exitType =
+    values.status === "absconding" ? "absconding" : values.status === "exited" ? keptExitType : null;
   return {
     employee_code: values.employee_code.trim(),
     first_name: values.first_name.trim(),
@@ -109,7 +136,8 @@ function toPayload(values: Values, managerId: string | null, dottedId: string | 
     designation: text(values.designation),
     grade: text(values.grade),
     employment_type: values.employment_type,
-    status: values.status,
+    status: values.status === "absconding" ? "exited" : values.status,
+    exit_type: exitType,
     date_of_joining: text(values.date_of_joining),
     probation_end_date: text(values.probation_end_date),
     date_of_exit: text(values.date_of_exit),
@@ -117,8 +145,15 @@ function toPayload(values: Values, managerId: string | null, dottedId: string | 
   };
 }
 
-function validate(values: Values, isCreate: boolean): Record<string, string> {
+function validate(values: Values, isCreate: boolean, record?: EmployeeRecord): Record<string, string> {
   const errors: Record<string, string> = {};
+  if (isLeaving(values.status) && record?.status !== "exited") {
+    if (!values.date_of_exit) {
+      errors.date_of_exit = "Give the last working day.";
+    } else if (values.date_of_exit > todayISO()) {
+      errors.date_of_exit = "This day is still ahead: set the status to On notice now, and to Exited on or after it.";
+    }
+  }
   if (isCreate && !/^[A-Za-z0-9_\-/]+$/.test(values.employee_code.trim())) {
     errors.employee_code = "Letters, digits, - _ and / only.";
   }
@@ -192,12 +227,20 @@ export function EmployeeForm({
       .catch(() => setDotted({ id: record.dotted_line_manager_id as string, label: "Current dotted-line manager" }));
   }, [record?.dotted_line_manager_id]);
 
-  const set = <K extends keyof Values>(key: K, value: Values[K]) =>
+  const set = <K extends keyof Values>(key: K, value: Values[K]) => {
     setValues((current) => ({ ...current, [key]: value }));
+    // A field's message goes once it is changed; the rest wait for the next save.
+    setErrors((current) => {
+      if (!(key in current)) return current;
+      const next = { ...current };
+      delete next[key as string];
+      return next;
+    });
+  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const found = validate(values, isCreate);
+    const found = validate(values, isCreate, record);
     for (const field of definitions) {
       const value = custom[field.key];
       if (field.is_required && (value === null || value === undefined || value === "" || (Array.isArray(value) && value.length === 0))) {
@@ -213,10 +256,10 @@ export function EmployeeForm({
         ([, value]) => value !== null && value !== undefined && value !== "" && !(Array.isArray(value) && value.length === 0),
       ),
     );
-    const payload = toPayload(values, manager?.id ?? null, dotted?.id ?? null);
+    const payload = toPayload(values, manager?.id ?? null, dotted?.id ?? null, record);
     let body: EmployeeInput = payload;
     if (record) {
-      const before = toPayload(toValues(record), record.manager_id, record.dotted_line_manager_id ?? null);
+      const before = toPayload(toValues(record), record.manager_id, record.dotted_line_manager_id ?? null, record);
       body = Object.fromEntries(
         Object.entries(payload).filter(
           ([key, value]) => key !== "employee_code" && before[key as keyof EmployeeInput] !== value,
@@ -230,6 +273,7 @@ export function EmployeeForm({
       if (effectiveFrom) (body as EmployeeInput & { changes_effective_from?: string }).changes_effective_from = effectiveFrom;
     } else {
       delete body.date_of_exit;
+      delete body.exit_type;
       body.custom_fields = filled;
     }
 
@@ -258,16 +302,28 @@ export function EmployeeForm({
       hint={options.hint}
       error={errors[key]}
     >
-      <Input
-        id={`emp-${key}`}
-        type={options.type ?? "text"}
-        value={values[key]}
-        disabled={options.disabled}
-        aria-invalid={Boolean(errors[key])}
-        onChange={(event) => set(key, event.target.value as never)}
-      />
+      {options.type === "date" ? (
+        <DatePicker
+          id={`emp-${key}`}
+          value={values[key] as string}
+          disabled={options.disabled}
+          invalid={Boolean(errors[key])}
+          onChange={(value) => set(key, value as never)}
+        />
+      ) : (
+        <Input
+          id={`emp-${key}`}
+          type={options.type ?? "text"}
+          value={values[key]}
+          disabled={options.disabled}
+          aria-invalid={Boolean(errors[key])}
+          onChange={(event) => set(key, event.target.value as never)}
+        />
+      )}
     </FormField>
   );
+  // Leaving now: the record was not already exited and Exited or Absconding is picked.
+  const leavingNow = !isCreate && record?.status !== "exited" && isLeaving(values.status);
 
   return (
     <form onSubmit={submit} className="grid gap-6" noValidate>
@@ -484,36 +540,49 @@ export function EmployeeForm({
             htmlFor="emp-status"
             label="Status"
             hint={
-              record?.status === "exited"
+              isCreate
                 ? undefined
-                : "Leaving is recorded under Employees → Exits, which runs clearance and the settlement."
+                : "Exited or Absconding records that they have left. Clearance and a final settlement, if needed, are under Employees → Exits."
             }
           >
-            <Select value={values.status} onValueChange={(v) => set("status", v as EmploymentStatus)}>
+            <Select value={values.status} onValueChange={(v) => set("status", v as StatusChoice)}>
               <SelectTrigger id="emp-status" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {(Object.keys(EMPLOYMENT_STATUS) as EmploymentStatus[])
-                  // "Exited" is set by the exit workflow, never typed here —
-                  // unless the record already is exited and is only being shown.
-                  .filter((key) => key !== "exited" || record?.status === "exited")
-                  .map((key) => (
-                  <SelectItem key={key} value={key}>
-                    {EMPLOYMENT_STATUS[key].label}
-                  </SelectItem>
-                ))}
+                {STATUS_CHOICES
+                  // A new record is somebody joining: nobody is created as having left.
+                  .filter((choice) => !isCreate || !choice.leaving)
+                  .map((choice) => (
+                    <SelectItem key={choice.value} value={choice.value}>
+                      {choice.label}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </FormField>
           {textField("date_of_joining", "Date of joining", { type: "date", optional: true })}
           {textField("probation_end_date", "Probation ends", { type: "date", optional: true })}
-          {!isCreate && textField("date_of_exit", "Date of exit", { type: "date", optional: true })}
+          {!isCreate &&
+            textField("date_of_exit", leavingNow ? "Last working day" : "Date of exit", {
+              type: "date",
+              optional: !isLeaving(values.status),
+            })}
           {textField("notice_period_days", "Notice period (days)", {
             type: "number",
             optional: true,
           })}
         </div>
+        {leavingNow && (
+          <Alert variant="warning">
+            <AlertDescription>
+              Saving marks {personName(record)} as {values.status === "absconding" ? "absconding" : "exited"}
+              {values.date_of_exit ? ` with the last working day ${formatDay(values.date_of_exit, true)}` : ""}.
+              Their login is switched off, and payroll includes them up to the month of that day, not after.
+              If clearance or a final settlement is needed, run it under Employees → Exits.
+            </AlertDescription>
+          </Alert>
+        )}
       </section>
 
       {definitions.length > 0 && (

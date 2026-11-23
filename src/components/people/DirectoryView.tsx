@@ -11,7 +11,7 @@ import { PageShell } from "@/components/common/PageShell";
 import { PersonCell } from "@/components/common/PersonCell";
 import { RequireRole } from "@/components/common/RequireRole";
 import { ExportEmployeesDialog } from "@/components/people/ExportEmployeesDialog";
-import { EMPLOYMENT_STATUS, NONE, fromSelect, personName } from "@/components/people/labels";
+import { EMPLOYMENT_STATUS, NONE, fromSelect, personName, statusMeta } from "@/components/people/labels";
 import { MoveToCompanyDialog } from "@/components/people/MoveToCompanyDialog";
 import { MoveToProjectDialog } from "@/components/people/MoveToProjectDialog";
 import { EmploymentStatusBadge } from "@/components/people/StatusBadges";
@@ -237,8 +237,10 @@ export function DirectoryView() {
     {
       accessorKey: "status",
       header: "Status",
-      meta: { text: (row) => EMPLOYMENT_STATUS[row.status].label },
-      cell: ({ row }) => <EmploymentStatusBadge status={row.original.status} />,
+      meta: { text: (row) => statusMeta(row.status, row.exit_type).label },
+      cell: ({ row }) => (
+        <EmploymentStatusBadge status={row.original.status} exitType={row.original.exit_type} />
+      ),
     },
   ];
   // Outside HR everyone listed is still working here, so a status says nothing.

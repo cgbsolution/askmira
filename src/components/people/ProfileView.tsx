@@ -250,7 +250,10 @@ export function ProfileView({
               <Pencil /> Edit contact details
             </Button>
           )}
-          {isHr && !isSelf && <LoginAccessButton employee={employee} />}
+          {isHr && !isSelf && (
+            // Re-read when they are marked as left (or back): saving switches the login off.
+            <LoginAccessButton key={`${employee.status}-${employee.is_active}`} employee={employee} />
+          )}
           {isHr && !isSelf && (
             <>
               <Button variant="outline" asChild>
@@ -280,7 +283,7 @@ export function ProfileView({
             subtitle={`${employee.employee_code} · ${employee.work_email}`}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <EmploymentStatusBadge status={employee.status} />
+            <EmploymentStatusBadge status={employee.status} exitType={employee.exit_type} />
             {!employee.is_active && <Badge variant="destructive">Deactivated</Badge>}
             {isSelf && <Badge variant="secondary">This is you</Badge>}
             {details && details.pending_requests.length > 0 && (
@@ -435,7 +438,7 @@ export function ProfileView({
               <DetailItem label="Employee code">{employee.employee_code}</DetailItem>
               <DetailItem label="Employment type">{EMPLOYMENT_TYPE[employee.employment_type]}</DetailItem>
               <DetailItem label="Status">
-                <EmploymentStatusBadge status={employee.status} />
+                <EmploymentStatusBadge status={employee.status} exitType={employee.exit_type} />
               </DetailItem>
               <DetailItem label="Legal entity">{org.entityName(employee.legal_entity_id)}</DetailItem>
               <DetailItem label="Project">{org.projectName(employee.project_id)}</DetailItem>
