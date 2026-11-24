@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 
 /**
- * A rule's limit, condition and rounding: "PF on wages up to ₹15,000", "ESI only
+ * A rule's limit, condition and rounding: "PF on wages up to ₹25,000", "ESI only
  * while ESI wages are up to ₹21,000", "a tax only above an amount".
  */
 export function LimitsPopover({
@@ -61,7 +61,7 @@ export function LimitsPopover({
               placeholder="No limit"
               onValueChange={(ceiling) => onChange({ ceiling })}
             />
-            <p className="text-xs text-muted-foreground">PF, for example: 12% of PF wages up to ₹15,000.</p>
+            <p className="text-xs text-muted-foreground">PF, for example: 12% of PF wages up to ₹25,000.</p>
           </div>
         )}
 

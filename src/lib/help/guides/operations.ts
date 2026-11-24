@@ -275,7 +275,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       {
         title: "Keep employer PF and ESIC inside the CTC",
         steps: [
-          "Under 6 Company contribution, set EMPLOYER PF CONTRIBUTION, e.g. 13% of PF wages with the base up to ₹15,000 (Limits).",
+          "Under 6 Company contribution, set EMPLOYER PF CONTRIBUTION, e.g. 13% of PF wages with the base up to ₹25,000 (Limits).",
           "Set EMPLOYER ESIC CONTRIBUTION, e.g. 3.25% of ESI wages, applied only while ESI wages are up to ₹21,000, rounded up.",
           "Pick Not in CTC to have payroll add them on top instead. Payroll still works out what is contributed each month.",
         ],
