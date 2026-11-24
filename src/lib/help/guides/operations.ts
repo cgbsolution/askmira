@@ -191,6 +191,15 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         ],
       },
       {
+        title: "Add a sales incentive (variable pay)",
+        steps: [
+          "Type CTC TOTAL as the whole CTC, fixed salary plus incentive (for example 16,00,000 a year).",
+          "Under Variable earning, type SALES INCENTIVE with Pay Basis Yearly (for example 4,00,000). Then press Calculate: the structure splits only the fixed part, CTC TOTAL less the incentive.",
+          "The incentive counts in CTC TOTAL only. It is not in monthly gross, take home or the payslip; the card shows the fixed CTC a month and the incentive a year.",
+          "When the incentive is earned, pay it through Payroll → Adjustments (category Incentive).",
+        ],
+      },
+      {
         title: "Correct or delete a revision",
         steps: [
           "Press the pencil on a card to edit it, or the bin to delete it.",

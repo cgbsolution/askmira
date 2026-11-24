@@ -820,6 +820,10 @@ export interface SalaryRevision {
   structure_name: string | null;
   ctc_annual: string;
   ctc_monthly: string;
+  /** The sales incentive inside the CTC, a year (paid when earned, not monthly). */
+  variable_annual?: string | null;
+  /** The CTC a month without the sales incentive; null when there is none. */
+  fixed_ctc_monthly?: string | null;
   /** The CTC as typed: monthly when the year is exactly twelve months of it. */
   ctc_basis?: PayBasis;
   ctc_amount?: string | null;

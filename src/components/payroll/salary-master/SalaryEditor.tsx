@@ -11,6 +11,7 @@ import { StatusAvatar, employeeLabel } from "@/components/payroll/salary-master/
 import { SalaryGrid } from "@/components/payroll/salary-master/SalaryGrid";
 import { StandardSetupCallout } from "@/components/payroll/salary-master/StandardSetupCallout";
 import {
+  SALES_INCENTIVE,
   type WageLine,
   type WageRow,
   isTypedAmount,
@@ -271,7 +272,13 @@ export function SalaryEditor({
     }
   }, [mode, structureId, active]);
 
-  const calcKey = JSON.stringify([structureId, ctc.trim(), ctcBasis]);
+  // A typed SALES INCENTIVE is inside CTC TOTAL: Calculate splits only the fixed rest.
+  const incentive = rows[SALES_INCENTIVE];
+  const incentiveTyped =
+    incentive && isTypedAmount(incentive.amount) && !/^0+(\.0+)?$/.test(incentive.amount.trim())
+      ? { variable_amount: incentive.amount.trim(), variable_basis: incentive.basis }
+      : null;
+  const calcKey = JSON.stringify([structureId, ctc.trim(), ctcBasis, incentiveTyped]);
   const shownCalc = calcInfo && calcInfo.key === calcKey ? calcInfo.calc : null;
 
   /** Calculate: split CTC TOTAL by the structure and fill the boxes, for HR to review. */
@@ -285,6 +292,7 @@ export function SalaryEditor({
       const result = await post<TemplateCalc>(`/salary-templates/${structureId}/calculate`, {
         ctc_amount: ctc.trim(),
         ctc_basis: ctcBasis,
+        ...(incentiveTyped ?? {}),
       });
       const byCode = new Map(result.lines.map((line) => [line.component_code, line]));
       const next: Record<string, WageRow> = { ...rows };
@@ -305,7 +313,9 @@ export function SalaryEditor({
           };
           if (!zero || STATUTORY_CODES.has(component.code)) filled += 1;
         } else if (existing?.amount.trim()) {
-          if (component.part_of_ctc && !STATUTORY_CODES.has(component.code)) {
+          if (component.code === SALES_INCENTIVE) {
+            kept.push(component.name);
+          } else if (component.part_of_ctc && !STATUTORY_CODES.has(component.code)) {
             next[component.code] = { ...existing, amount: "" };
             cleared.push(component.name);
           } else {
@@ -319,7 +329,12 @@ export function SalaryEditor({
       // Month-wise, CTC TOTAL too, when the year is exactly twelve of its months
       // (12,00,000 a year is 1,00,000 a month; 6,20,000 is not a whole paisa a month).
       let key = calcKey;
-      if (ctcBasis !== "monthly" && paise(result.ctc_monthly) * BigInt(12) === paise(result.ctc_annual)) {
+      // Not with an incentive: the result's CTC is the fixed part, CTC TOTAL stays the whole.
+      if (
+        !incentiveTyped &&
+        ctcBasis !== "monthly" &&
+        paise(result.ctc_monthly) * BigInt(12) === paise(result.ctc_annual)
+      ) {
         const monthly = result.ctc_monthly.replace(/\.00$/, "");
         setCtc(monthly);
         setCtcBasis("monthly");
@@ -618,8 +633,9 @@ export function SalaryEditor({
               <AlertDescription>
                 <span className="block">
                   Filled from <span className="font-medium text-foreground">{shownCalc.structure_name}</span> for CTC{" "}
-                  {formatMoney(shownCalc.ctc_monthly)} a month ({formatMoney(shownCalc.ctc_annual)} a year). Change any
-                  amount before saving.
+                  {formatMoney(shownCalc.ctc_monthly)} a month ({formatMoney(shownCalc.ctc_annual)} a year)
+                  {incentiveTyped && ", the fixed salary: CTC TOTAL less the sales incentive"}. Change any amount
+                  before saving.
                 </span>
                 {shownCalc.employer
                   .filter((row) => row.applied && !/^0+(\.0+)?$/.test(row.monthly))
@@ -738,7 +754,7 @@ export function SalaryEditor({
         open={confirmCalc}
         onOpenChange={setConfirmCalc}
         title="Replace the amounts?"
-        description={`Calculate fills every wage type of ${structureName ?? "the structure"} from CTC TOTAL, replacing what is typed there, and clears wage types inside the CTC that the structure does not use. Deductions and reimbursements outside the CTC are kept.`}
+        description={`Calculate fills every wage type of ${structureName ?? "the structure"} from CTC TOTAL, replacing what is typed there, and clears wage types inside the CTC that the structure does not use. Deductions and reimbursements outside the CTC are kept, and so is SALES INCENTIVE: the structure splits CTC TOTAL less the incentive.`}
         confirmLabel="Calculate"
         cancelLabel="Keep my amounts"
         onConfirm={async () => {
