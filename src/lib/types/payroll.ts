@@ -1033,3 +1033,63 @@ export interface LocationOption {
   state_code: string;
   is_active: boolean;
 }
+
+// ── Challan files (PF ECR / ESIC MC template) from a locked run ─────────────
+
+export type ChallanKind = "esic_mc" | "pf_ecr_csv" | "pf_ecr_txt";
+export type ChallanMovement = "all" | "joined" | "left" | "continuing";
+
+export interface ChallanFilters {
+  department_ids: string[];
+  location_ids: string[];
+  project_ids: string[];
+  designations: string[];
+  grades: string[];
+  employment_types: string[];
+  statuses: string[];
+  movement: ChallanMovement;
+  employee_ids: string[];
+  exclude_employee_ids: string[];
+}
+
+export interface ChallanFilterChoice {
+  value: string;
+  label: string;
+  count: number;
+}
+
+export interface ChallanOptions {
+  period_label: string;
+  legal_entity_name: string | null;
+  runs_included: number;
+  people: number;
+  departments: ChallanFilterChoice[];
+  locations: ChallanFilterChoice[];
+  projects: ChallanFilterChoice[];
+  designations: ChallanFilterChoice[];
+  grades: ChallanFilterChoice[];
+  employment_types: ChallanFilterChoice[];
+  statuses: ChallanFilterChoice[];
+  joined: number;
+  left: number;
+  employees: { id: string; employee_code: string; name: string }[];
+}
+
+export interface ChallanIssue {
+  employee_code: string;
+  name: string;
+  message: string;
+}
+
+export interface ChallanPreview {
+  kind: ChallanKind;
+  file_name: string;
+  period_label: string;
+  matched: number;
+  rows: number;
+  totals: { label: string; amount: string }[];
+  not_covered: number;
+  wage_mismatches: number;
+  left_out: ChallanIssue[];
+  warnings: ChallanIssue[];
+}
