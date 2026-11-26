@@ -83,6 +83,8 @@ export interface AttendanceSettings {
   late_marks_rule_from?: string | null;
   /** Corrections a person may ask for per month. Null: no limit. */
   monthly_correction_limit?: number | null;
+  /** Email each person their unregularised absent / missed-punch days. On by default. */
+  absent_report_emails?: boolean;
 }
 
 /** A work location as the punch map draws it. */

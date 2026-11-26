@@ -56,6 +56,11 @@ export interface EmployeeRecord {
   status: EmploymentStatus;
   date_of_joining: string | null;
   date_of_exit: string | null;
+  /**
+   * Set on a single-record read: the open exit's approved last working day, else
+   * the one asked for, else the date of exit.
+   */
+  last_working_day?: string | null;
   /** With status exited: how they left ("absconding", "resignation"…). */
   exit_type?: string | null;
   probation_end_date: string | null;

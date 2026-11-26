@@ -138,10 +138,14 @@ function problemOf(failure: GeolocationPositionError): LocationProblem {
   return "unavailable";
 }
 
+const BLOCKED_TEXT =
+  "Location access is blocked for this site. Allow it from the icon at the left of the address bar; the page picks it up on its own.";
+
+/** How often a blocked page checks whether location has been allowed since. */
+const BLOCKED_RECHECK_MS = 3_000;
+
 function failureText(failure: GeolocationPositionError, watching: boolean): string {
-  if (failure.code === failure.PERMISSION_DENIED) {
-    return "Location access is blocked for this site. Allow it from the lock icon in the address bar, then press the locate button.";
-  }
+  if (failure.code === failure.PERMISSION_DENIED) return BLOCKED_TEXT;
   if (failure.code === failure.TIMEOUT) {
     return watching ? "Still finding your location…" : "Your location took too long to find. Try again.";
   }
@@ -153,6 +157,12 @@ function failureText(failure: GeolocationPositionError, watching: boolean): stri
  * Asks for permission the first time; stops watching when disabled or unmounted.
  * `locate()` asks for a fresh high-accuracy fix at once, like the "my
  * location" button on Google Maps.
+ *
+ * Live both ways, with no reload: blocking location clears the fix (so a
+ * required punch switches off at once), and allowing it again is noticed
+ * within seconds, when the tab regains focus, or when the browser reports the
+ * change. A fix that arrived is proof location is allowed, so a slower,
+ * out-of-date "denied" from the Permissions API never overrides it.
  */
 export function useLivePosition(enabled: boolean): LivePositionState {
   const [position, setPosition] = useState<LiveFix | null>(null);
@@ -175,8 +185,11 @@ export function useLivePosition(enabled: boolean): LivePositionState {
       return;
     }
     let alive = true;
+    // A fix in this run: location is allowed, whatever a stale check says.
+    let fixed = false;
     const accept = (found: GeolocationPosition) => {
       if (!alive) return;
+      fixed = true;
       setPosition({
         latitude: found.coords.latitude,
         longitude: found.coords.longitude,
@@ -186,27 +199,41 @@ export function useLivePosition(enabled: boolean): LivePositionState {
       setError(null);
       setProblem(null);
     };
+    const block = () => {
+      if (!alive) return;
+      fixed = false;
+      // The old fix no longer stands: nothing can be recorded until it is allowed.
+      setPosition(null);
+      setError(BLOCKED_TEXT);
+      setProblem("blocked");
+    };
     // One fix straight away: a watch can take a while to report its first.
-    navigator.geolocation.getCurrentPosition(accept, () => {}, {
-      enableHighAccuracy: true,
-      maximumAge: 10_000,
-      timeout: 20_000,
-    });
+    navigator.geolocation.getCurrentPosition(
+      accept,
+      (failure) => {
+        if (failure.code === failure.PERMISSION_DENIED) block();
+      },
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
+    );
     const id = navigator.geolocation.watchPosition(
       accept,
       (failure) => {
         if (!alive) return;
+        if (failure.code === failure.PERMISSION_DENIED) {
+          block();
+          return;
+        }
         setError(failureText(failure, true));
         setProblem(problemOf(failure));
       },
       { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
     );
-    // When the person changes the site's location permission (the lock icon
-    // in the address bar), start again at once: no reload needed.
+    // When the person changes the site's location permission (the icon in
+    // the address bar), start again at once: no reload needed.
     let status: PermissionStatus | null = null;
     const onChange = () => {
       if (!alive || !status) return;
-      if (status.state === "denied") setProblem("blocked");
+      if (status.state === "denied") block();
       else setAttempt((n) => n + 1);
     };
     navigator.permissions
@@ -214,12 +241,7 @@ export function useLivePosition(enabled: boolean): LivePositionState {
       .then((found) => {
         if (!alive) return;
         status = found;
-        if (found.state === "denied") {
-          setProblem("blocked");
-          setError(
-            "Location access is blocked for this site. Allow it from the lock icon in the address bar, then press Try again.",
-          );
-        }
+        if (found.state === "denied" && !fixed) block();
         found.addEventListener("change", onChange);
       })
       .catch(() => {});
@@ -229,6 +251,37 @@ export function useLivePosition(enabled: boolean): LivePositionState {
       status?.removeEventListener("change", onChange);
     };
   }, [enabled, attempt]);
+
+  // While blocked, keep checking: not every browser reports the change (Chrome
+  // shows "Reload this page" instead), so ask quietly every few seconds and
+  // whenever the person comes back to the tab. A blocked site is never shown
+  // a prompt by this, so it costs nothing until location is allowed.
+  useEffect(() => {
+    if (!enabled || problem !== "blocked") return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    let alive = true;
+    const check = () => {
+      navigator.geolocation.getCurrentPosition(
+        () => {
+          if (alive) setAttempt((n) => n + 1);
+        },
+        () => {},
+        { enableHighAccuracy: false, maximumAge: 60_000, timeout: 10_000 },
+      );
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    const timer = window.setInterval(check, BLOCKED_RECHECK_MS);
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [enabled, problem]);
 
   const locate = useCallback((): Promise<LiveFix | null> => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -252,6 +305,7 @@ export function useLivePosition(enabled: boolean): LivePositionState {
           resolve(fix);
         },
         (failure) => {
+          if (failure.code === failure.PERMISSION_DENIED) setPosition(null);
           setError(failureText(failure, false));
           setProblem(problemOf(failure));
           setLocating(false);
@@ -265,10 +319,48 @@ export function useLivePosition(enabled: boolean): LivePositionState {
   return { position, error, problem, locating, locate };
 }
 
+type Device = "android" | "ios" | "desktop";
+
+function deviceOf(): Device {
+  if (typeof navigator === "undefined") return "desktop";
+  const agent = navigator.userAgent;
+  if (/android/i.test(agent)) return "android";
+  // iPadOS reports itself as a Mac with a touch screen.
+  if (/iphone|ipad|ipod/i.test(agent) || (/macintosh/i.test(agent) && navigator.maxTouchPoints > 1)) {
+    return "ios";
+  }
+  return "desktop";
+}
+
+/** Where to allow location for this site, on this kind of device. */
+function allowSteps(device: Device): string[] {
+  if (device === "android") {
+    return [
+      "Tap the icon at the left of the address bar (a lock or two sliders), then Permissions.",
+      "Turn Location on (choose Allow). If Location is missing there, tap Site settings → Location → Allow.",
+      "Also check the phone's own Location is on (pull down the quick settings).",
+    ];
+  }
+  if (device === "ios") {
+    return [
+      "Safari: tap “aA” at the left of the address bar → Website Settings → Location → Allow.",
+      "If it still does not work: iPhone Settings → Privacy & Security → Location Services → on, and Safari Websites → While Using.",
+      "Chrome on iPhone: iPhone Settings → Chrome → Location → While Using.",
+    ];
+  }
+  return [
+    "Click the icon at the left of the address bar (a lock or two sliders).",
+    "Turn Location on, or open Site settings and set Location to Allow.",
+    "Come back here: there is no need to reload, the page notices within a few seconds.",
+  ];
+}
+
 /**
- * What to do when there is no location, with a Try again button. A website
- * cannot open the browser's or the computer's settings, nor ask again once
- * the person pressed Block, so this says exactly where to click.
+ * What to do when there is no location, with a button to check again. A
+ * website cannot open the browser's or the computer's settings, and once the
+ * person pressed Block the browser never shows its question to the site again,
+ * so this says exactly where to click on this device, and says so plainly when
+ * a check finds it still blocked.
  */
 export function LocationHelp({
   live,
@@ -278,6 +370,14 @@ export function LocationHelp({
   /** What stays off until the location is found, e.g. "Punch in and Punch out". */
   what: string;
 }) {
+  // Set when "Check again" found the site still blocked.
+  const [stillBlocked, setStillBlocked] = useState(false);
+  const [device, setDevice] = useState<Device>("desktop");
+  useEffect(() => setDevice(deviceOf()), []);
+  useEffect(() => {
+    if (live.problem !== "blocked") setStillBlocked(false);
+  }, [live.problem]);
+
   // A fix on screen: a later hiccup in the watch is not worth a panel.
   if (!live.problem || (live.position && live.problem !== "blocked")) return null;
   const retry = (
@@ -293,18 +393,41 @@ export function LocationHelp({
     </Button>
   );
   if (live.problem === "blocked") {
+    const check = async () => {
+      setStillBlocked(false);
+      const fix = await live.locate();
+      setStillBlocked(fix === null);
+    };
     return (
       <Alert variant="destructive">
         <MapPinOff />
         <AlertTitle>Location is blocked for this site</AlertTitle>
         <AlertDescription>
-          <p>{what} stay off until you allow your location:</p>
+          <p>
+            {what} stay off until you allow your location. Your browser will not ask again by itself
+            after Block was chosen, so allow it here:
+          </p>
           <ol className="mt-1 list-decimal space-y-0.5 pl-4">
-            <li>Click the icon at the left of the address bar (a lock or two sliders).</li>
-            <li>Find Location (under Site settings or Permissions) and choose Allow.</li>
-            <li>Come back here. The page notices on its own, or press Try again.</li>
+            {allowSteps(device).map((step) => (
+              <li key={step}>{step}</li>
+            ))}
           </ol>
-          {retry}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="mt-2 w-fit"
+            onClick={() => void check()}
+            disabled={live.locating}
+          >
+            {live.locating ? <Loader2 className="animate-spin" /> : <LocateFixed />} I have allowed it — check again
+          </Button>
+          {stillBlocked && (
+            <p className="mt-1 font-medium" role="status">
+              Still blocked: the browser has not been told to allow this site yet. Follow the steps
+              above, then come back.
+            </p>
+          )}
         </AlertDescription>
       </Alert>
     );
