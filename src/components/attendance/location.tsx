@@ -1,9 +1,10 @@
 "use client";
 
-import { Copy, ExternalLink, Loader2, LocateFixed, MapPin, MapPinOff } from "lucide-react";
+import { ExternalLink, Loader2, LocateFixed, MapPin, MapPinOff } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AllowLocationButton } from "@/components/ui/allow-location-button";
 import { Button } from "@/components/ui/button";
 import type { Punch, WorkLocationPin } from "@/lib/types/attendance";
 import { cn } from "@/lib/utils";
@@ -141,8 +142,7 @@ function problemOf(failure: GeolocationPositionError): LocationProblem {
   return "unavailable";
 }
 
-const BLOCKED_TEXT =
-  "Location access is blocked for this site. Allow it from the icon at the left of the address bar; the page picks it up on its own.";
+const BLOCKED_TEXT = "Location is off for this site.";
 
 /** How often a blocked page checks whether location has been allowed since. */
 const BLOCKED_RECHECK_MS = 3_000;
@@ -322,129 +322,26 @@ export function useLivePosition(enabled: boolean): LivePositionState {
   return { position, error, problem, locating, locate };
 }
 
-type Device = "android" | "ios" | "desktop";
-
-function deviceOf(): Device {
-  if (typeof navigator === "undefined") return "desktop";
-  const agent = navigator.userAgent;
-  if (/android/i.test(agent)) return "android";
-  // iPadOS reports itself as a Mac with a touch screen.
-  if (/iphone|ipad|ipod/i.test(agent) || (/macintosh/i.test(agent) && navigator.maxTouchPoints > 1)) {
-    return "ios";
-  }
-  return "desktop";
-}
-
-/** Where to allow location for this site, on this kind of device. */
-function allowSteps(device: Device): string[] {
-  if (device === "android") {
-    return [
-      "Tap the icon at the left of the address bar (a lock or two sliders), then Permissions.",
-      "Turn Location on (choose Allow). If Location is missing there, tap Site settings → Location → Allow.",
-      "Also check the phone's own Location is on (pull down the quick settings).",
-    ];
-  }
-  if (device === "ios") {
-    return [
-      "Safari: tap “aA” at the left of the address bar → Website Settings → Location → Allow.",
-      "If it still does not work: iPhone Settings → Privacy & Security → Location Services → on, and Safari Websites → While Using.",
-      "Chrome on iPhone: iPhone Settings → Chrome → Location → While Using.",
-    ];
-  }
-  return [
-    "Click the icon at the left of the address bar (a lock or two sliders).",
-    "Turn Location on, or open Site settings and set Location to Allow.",
-    "Come back here: there is no need to reload, the page notices within a few seconds.",
-  ];
-}
-
-/** The computer's own location switch, which a page may open (the browser asks first). */
-function systemSettingsLink(): { href: string; label: string } | null {
+/** The computer's own location switch, where a page may open it (the browser asks first). */
+function systemSettingsLink(): string | null {
   if (typeof navigator === "undefined") return null;
   const agent = navigator.userAgent;
-  if (/windows/i.test(agent)) {
-    return { href: "ms-settings:privacy-location", label: "Open Windows location settings" };
-  }
+  if (/windows/i.test(agent)) return "ms-settings:privacy-location";
   if (/macintosh|mac os x/i.test(agent) && navigator.maxTouchPoints <= 1) {
-    return {
-      href: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices",
-      label: "Open Mac location settings",
-    };
+    return "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices";
   }
   return null;
 }
 
 /**
- * The browser's own settings page for this site, where Location is one switch.
- * A page may not open it, but the person can paste it into the address bar.
- * Desktop Chrome, Edge and the browsers built on Chrome only.
- */
-function siteSettingsLink(): string | null {
-  if (typeof navigator === "undefined" || typeof window === "undefined") return null;
-  const agent = navigator.userAgent;
-  if (/android|iphone|ipad|ipod/i.test(agent)) return null;
-  const site = encodeURIComponent(window.location.origin);
-  if (/edg\//i.test(agent)) return `edge://settings/content/siteDetails?site=${site}`;
-  if (/chrome\//i.test(agent) && !/opr\//i.test(agent)) {
-    return `chrome://settings/content/siteDetails?site=${site}`;
-  }
-  return null;
-}
-
-/** "Open Windows location settings": the computer's switch, where a page may open it. */
-function SystemSettingsButton() {
-  const [link, setLink] = useState<ReturnType<typeof systemSettingsLink>>(null);
-  useEffect(() => setLink(systemSettingsLink()), []);
-  if (!link) return null;
-  return (
-    <Button asChild type="button" size="sm" variant="outline" className="mt-2 w-fit">
-      <a href={link.href}>
-        <ExternalLink /> {link.label}
-      </a>
-    </Button>
-  );
-}
-
-/** Copies the browser's settings page for this site, to paste in a new tab. */
-function SiteSettingsShortcut() {
-  const [link, setLink] = useState<string | null>(null);
-  const [copied, setCopied] = useState<"yes" | "no" | null>(null);
-  useEffect(() => setLink(siteSettingsLink()), []);
-  if (!link) return null;
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopied("yes");
-    } catch {
-      setCopied("no");
-    }
-  };
-  return (
-    <div className="mt-2 flex flex-col gap-1">
-      <Button type="button" size="sm" variant="outline" className="w-fit" onClick={() => void copy()}>
-        <Copy /> Copy the link to this site&apos;s location switch
-      </Button>
-      {copied === "yes" && (
-        <p role="status" className="font-medium">
-          Copied. Open a new tab, paste it in the address bar, press Enter and set Location to
-          Allow. Then come back to this tab.
-        </p>
-      )}
-      {copied === "no" && (
-        <p role="status" className="break-all">
-          Copy this into a new tab&apos;s address bar: <span className="font-mono">{link}</span>
-        </p>
-      )}
-    </div>
-  );
-}
-
-/**
- * What to do when there is no location, with a button to check again. A
- * website cannot open the browser's or the computer's settings, and once the
- * person pressed Block the browser never shows its question to the site again,
- * so this says exactly where to click on this device, and says so plainly when
- * a check finds it still blocked.
+ * When there is no location: one line and one button.
+ *
+ * Blocked for the site: "Allow location", which in Chrome and Edge is the
+ * browser's own location button and shows its permission prompt even after an
+ * earlier Block. Where the browser still refuses (other browsers, after
+ * Block), one line says where the switch is.
+ * The device's location off: "Turn on location", which opens the computer's
+ * location settings on Windows and Mac, otherwise tries again.
  */
 export function LocationHelp({
   live,
@@ -454,100 +351,71 @@ export function LocationHelp({
   /** What stays off until the location is found, e.g. "Punch in and Punch out". */
   what: string;
 }) {
-  // Set when "Check again" found the site still blocked.
-  const [stillBlocked, setStillBlocked] = useState(false);
-  const [device, setDevice] = useState<Device>("desktop");
-  useEffect(() => setDevice(deviceOf()), []);
+  // The plain button was pressed and the browser still said no.
+  const [refused, setRefused] = useState(false);
+  const [settings, setSettings] = useState<string | null>(null);
+  useEffect(() => setSettings(systemSettingsLink()), []);
   useEffect(() => {
-    if (live.problem !== "blocked") setStillBlocked(false);
+    if (live.problem !== "blocked") setRefused(false);
   }, [live.problem]);
 
   // A fix on screen: a later hiccup in the watch is not worth a panel.
   if (!live.problem || (live.position && live.problem !== "blocked")) return null;
-  const retry = (
-    <Button
-      type="button"
-      size="sm"
-      variant="outline"
-      className="mt-2 w-fit"
-      onClick={() => void live.locate()}
-      disabled={live.locating}
-    >
-      {live.locating ? <Loader2 className="animate-spin" /> : <LocateFixed />} Try again
-    </Button>
-  );
+
   if (live.problem === "blocked") {
-    const check = async () => {
-      setStillBlocked(false);
+    const ask = async () => {
       const fix = await live.locate();
-      setStillBlocked(fix === null);
+      setRefused(fix === null);
     };
     return (
       <Alert variant="destructive">
         <MapPinOff />
-        <AlertTitle>Location is blocked for this site</AlertTitle>
+        <AlertTitle>Location is off</AlertTitle>
         <AlertDescription>
-          <p>
-            {what} stay off until you allow your location. Your browser will not ask again by itself
-            after Block was chosen, so allow it here:
-          </p>
-          <ol className="mt-1 list-decimal space-y-0.5 pl-4">
-            {allowSteps(device).map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-          <SiteSettingsShortcut />
+          <p>{what} stay off until you allow your location.</p>
+          <AllowLocationButton
+            className="mt-2"
+            busy={live.locating}
+            onRequest={() => void ask()}
+            onLocation={() => void live.locate()}
+          />
+          {refused && (
+            <p className="mt-1" role="status">
+              Your browser has blocked it for this site: click the icon at the left of the address
+              bar and set Location to Allow.
+            </p>
+          )}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
+  const turnOn = settings && live.problem === "unavailable";
+  return (
+    <Alert variant={live.problem === "unavailable" ? "destructive" : "warning"}>
+      <MapPinOff />
+      <AlertTitle>
+        {live.problem === "unavailable" ? "Location is off on this device" : "Still finding your location"}
+      </AlertTitle>
+      <AlertDescription>
+        <p>{what} stay off until your location is found.</p>
+        {turnOn ? (
+          <Button asChild size="sm" className="mt-2 w-fit">
+            <a href={settings}>
+              <LocateFixed /> Turn on location
+            </a>
+          </Button>
+        ) : (
           <Button
             type="button"
             size="sm"
-            variant="outline"
             className="mt-2 w-fit"
-            onClick={() => void check()}
+            onClick={() => void live.locate()}
             disabled={live.locating}
           >
-            {live.locating ? <Loader2 className="animate-spin" /> : <LocateFixed />} I have allowed it — check again
+            {live.locating ? <Loader2 className="animate-spin" /> : <LocateFixed />} Try again
           </Button>
-          {stillBlocked && (
-            <p className="mt-1 font-medium" role="status">
-              Still blocked: the browser has not been told to allow this site yet. Follow the steps
-              above, then come back.
-            </p>
-          )}
-          {device === "desktop" && (
-            <p className="mt-2">
-              Location already says Allow for this site? Then the computer itself has location off:
-            </p>
-          )}
-          {device === "desktop" && <SystemSettingsButton />}
-        </AlertDescription>
-      </Alert>
-    );
-  }
-  if (live.problem === "unavailable") {
-    return (
-      <Alert variant="destructive">
-        <MapPinOff />
-        <AlertTitle>Your location could not be found</AlertTitle>
-        <AlertDescription>
-          <p>{what} stay off until it is found. Turn on location for this device:</p>
-          <ul className="mt-1 list-disc space-y-0.5 pl-4">
-            <li>Windows: Settings → Privacy &amp; security → Location → turn on Location services and &quot;Let desktop apps access your location&quot;.</li>
-            <li>Mac: System Settings → Privacy &amp; Security → Location Services → on, and on for your browser.</li>
-            <li>Phone browser: turn on Location (precise) in the quick settings.</li>
-          </ul>
-          <SystemSettingsButton />
-          {retry}
-        </AlertDescription>
-      </Alert>
-    );
-  }
-  return (
-    <Alert variant="warning">
-      <LocateFixed />
-      <AlertTitle>Still finding your location</AlertTitle>
-      <AlertDescription>
-        <p>{what} unlock as soon as it is found. Near a window or with Wi-Fi on it is quicker.</p>
-        {retry}
+        )}
       </AlertDescription>
     </Alert>
   );
