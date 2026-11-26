@@ -59,12 +59,13 @@ import {
 } from "./shared";
 import { SwapQueue } from "./ShiftSwaps";
 import { TeamToday } from "./TeamToday";
+import { TeamVisits } from "./TeamVisits";
 import { DatePicker } from "@/components/common/DatePicker";
 
 /**
  * Attendance review for managers and HR (their reporting line, or everyone for HR).
  */
-const TABS = ["today", "regularisations", "swaps", "coverage", "exceptions"];
+const TABS = ["today", "regularisations", "visits", "swaps", "coverage", "exceptions"];
 
 export function AttendanceReview({ initialTab }: { initialTab?: string }) {
   const [pendingCount, setPendingCount] = useState<number | null>(null);
@@ -89,6 +90,7 @@ export function AttendanceReview({ initialTab }: { initialTab?: string }) {
             </span>
           )}
         </TabsTrigger>
+        <TabsTrigger value="visits">Visits</TabsTrigger>
         <TabsTrigger value="swaps">Shift swaps</TabsTrigger>
         <TabsTrigger value="coverage">Coverage</TabsTrigger>
         <TabsTrigger value="exceptions">Exceptions</TabsTrigger>
@@ -98,6 +100,9 @@ export function AttendanceReview({ initialTab }: { initialTab?: string }) {
       </TabsContent>
       <TabsContent value="regularisations" className="mt-4">
         <RegularisationQueue onCount={setPendingCount} />
+      </TabsContent>
+      <TabsContent value="visits" className="mt-4">
+        <TeamVisits />
       </TabsContent>
       <TabsContent value="swaps" className="mt-4">
         <SwapQueue />

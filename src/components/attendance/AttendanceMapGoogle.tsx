@@ -101,12 +101,14 @@ export default function AttendanceMapGoogle({
   live,
   className,
   onFail,
+  focusKey = 0,
 }: {
   places: WorkLocationPin[];
   points: MapPoint[];
   live: LivePosition | null;
   className?: string;
   onFail: () => void;
+  focusKey?: number;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -251,6 +253,16 @@ export default function AttendanceMapGoogle({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, frameKey]);
+
+  // After the locate button: centre on the person at street level.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || focusKey === 0 || !live) return;
+    map.setCenter({ lat: live.latitude, lng: live.longitude });
+    map.setZoom(17);
+    // Only when the button was pressed, not when the fix drifts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, focusKey]);
 
   return (
     <div className={cn("relative", className)}>

@@ -8,6 +8,7 @@ import {
   Fingerprint,
   Loader2,
   LogIn,
+  LocateFixed,
   LogOut,
   MapPin,
   MapPinOff,
@@ -41,7 +42,16 @@ import type {
 import { cn, parseISODate, toISODate } from "@/lib/utils";
 
 import { AttendanceMap, type MapPoint } from "./AttendanceMap";
-import { formatDistance, nearestPlace, PunchLocation, useLivePosition } from "./location";
+import {
+  DEFAULT_ACCURACY_METRES,
+  fixReadiness,
+  formatDistance,
+  FRESH_FIX_MS,
+  LocationHelp,
+  nearestPlace,
+  PunchLocation,
+  useLivePosition,
+} from "./location";
 import { PunchPhoto } from "./PunchPhoto";
 import { shrinkPhoto } from "./shrinkPhoto";
 import {
@@ -58,39 +68,6 @@ import { HiddenFileInput } from "@/components/ui/file-input";
 // progress: the next punch is an IN again, and the day goes to regularisation.
 const OPEN_SHIFT_HOURS = 20;
 const SHARE_PREFERENCE_KEY = "askmira.punch.shareLocation";
-
-type PositionResult =
-  | { ok: true; latitude: number; longitude: number }
-  | { ok: false; reason: string };
-
-/** Asked only when the person punches. */
-function requestPosition(): Promise<PositionResult> {
-  return new Promise((resolve) => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      resolve({ ok: false, reason: "This browser cannot share a location." });
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (position) =>
-        resolve({
-          ok: true,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        }),
-      (error) =>
-        resolve({
-          ok: false,
-          reason:
-            error.code === error.PERMISSION_DENIED
-              ? "Location access is blocked for this site. Allow it from the lock icon in the address bar."
-              : error.code === error.TIMEOUT
-                ? "Your location took too long to find."
-                : "Your location was not available.",
-        }),
-      { enableHighAccuracy: true, timeout: 12_000, maximumAge: 0 },
-    );
-  });
-}
 
 function readSharePreference(): boolean {
   try {
@@ -208,6 +185,7 @@ export function PunchCard({
   useEffect(() => setSharePreference(readSharePreference()), []);
 
   const mode = settingsQuery.data?.location_mode ?? "required";
+  const needed = settingsQuery.data?.location_accuracy_metres ?? DEFAULT_ACCURACY_METRES;
   const photoMode = settingsQuery.data?.photo_mode ?? "off";
   const shareLocation = mode === "required" || (mode === "optional" && sharePreference);
   const places = settingsQuery.data?.work_locations ?? [];
@@ -215,6 +193,11 @@ export function PunchCard({
   const livePlace = live.position
     ? nearestPlace(live.position.latitude, live.position.longitude, places)
     : null;
+  const readiness = fixReadiness(live, needed);
+  // Required: the buttons stay off until the settings are known and a fix
+  // within the workspace's accuracy has arrived.
+  const waitingForLocation =
+    mode === "required" && (settingsQuery.data === null || !readiness.ready);
 
   const punches = useMemo(
     () =>
@@ -284,23 +267,27 @@ export function PunchCard({
     const body: PunchInput = { direction, source: "web" };
     if (photo && photoMode !== "off") body.photo = photo;
     if (shareLocation) {
-      const fresh = live.position && Date.now() - live.position.at < 60_000 ? live.position : null;
-      const position: PositionResult = fresh
-        ? { ok: true, latitude: fresh.latitude, longitude: fresh.longitude }
-        : await requestPosition();
-      if (position.ok) {
-        body.latitude = position.latitude;
-        body.longitude = position.longitude;
-      } else if (mode === "required") {
-        setLocationProblem(position.reason);
-        toast.error("Your company needs your location to record a punch.", {
-          description: position.reason,
-        });
+      // The fix on screen when it is recent; otherwise ask again now.
+      const fresh =
+        live.position && Date.now() - live.position.at < FRESH_FIX_MS ? live.position : null;
+      const fix = fresh ?? (await live.locate());
+      const reason = !fix
+        ? "Your location could not be found. Allow location for this site and try again."
+        : fix.accuracy > needed
+          ? `Your location is only accurate to ±${formatDistance(fix.accuracy)}; your company needs it within ${formatDistance(needed)}. Press the locate button and try again.`
+          : null;
+      if (fix && (!reason || mode !== "required")) {
+        body.latitude = fix.latitude;
+        body.longitude = fix.longitude;
+        body.accuracy_metres = Math.round(fix.accuracy);
+      }
+      if (reason && mode === "required") {
+        setLocationProblem(reason);
+        toast.error("Punch not recorded", { description: reason });
         setIsPunching(null);
         return;
-      } else {
-        setLocationProblem(position.reason);
       }
+      if (!fix && reason) setLocationProblem(reason);
     }
     try {
       const created = await post<Punch>("/attendance/punch", body);
@@ -440,7 +427,7 @@ export function PunchCard({
               <Button
                 key={direction}
                 onClick={() => press(direction)}
-                disabled={isPunching !== null || isLoading || error !== null}
+                disabled={isPunching !== null || isLoading || error !== null || waitingForLocation}
                 variant={direction === nextDirection ? "default" : "outline"}
                 size="lg"
                 className="min-w-32"
@@ -495,18 +482,49 @@ export function PunchCard({
             </div>
           )}
           {shareLocation && (
-            <p className="text-xs text-muted-foreground @md/punch:text-right">
-              {live.position
-                ? livePlace
+            <div className="flex items-start gap-1.5 @md/punch:justify-end">
+              <p
+                className={cn(
+                  "text-xs @md/punch:text-right",
+                  readiness.ready
+                    ? "text-muted-foreground"
+                    : mode === "required"
+                      ? "text-destructive"
+                      : "text-muted-foreground",
+                )}
+                role={!readiness.ready && mode === "required" ? "status" : undefined}
+              >
+                {readiness.ready && livePlace
                   ? livePlace.beyond <= 0
-                    ? `Inside ${livePlace.place.name}`
-                    : `${formatDistance(livePlace.beyond)} from ${livePlace.place.name}`
-                  : `Location found (±${Math.round(live.position.accuracy)} m)`
-                : (live.error ?? "Finding your location…")}
-            </p>
+                    ? `Inside ${livePlace.place.name} (±${formatDistance(live.position!.accuracy)})`
+                    : `${formatDistance(livePlace.beyond)} from ${livePlace.place.name} (±${formatDistance(live.position!.accuracy)})`
+                  : readiness.text}
+                {waitingForLocation && " Punch in and out unlock once it is found."}
+              </p>
+              {compact && (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-7 shrink-0"
+                  onClick={() => void live.locate()}
+                  disabled={live.locating}
+                  aria-label="Find my location"
+                  title="Find my location"
+                >
+                  {live.locating ? <Loader2 className="animate-spin" /> : <LocateFixed className="text-primary" />}
+                </Button>
+              )}
+            </div>
           )}
         </div>
       </CardContent>
+
+      {shareLocation && mode === "required" && live.problem && (!live.position || live.problem === "blocked") && (
+        <CardContent className="px-5 pb-5 @4xl/punch:px-6">
+          <LocationHelp live={live} what="Punch in and Punch out" />
+        </CardContent>
+      )}
 
       {(holiday || leave || weekOff || period?.has_no_shift || locationProblem) && (
         <CardContent className="grid gap-3 px-5 pb-5 @4xl/punch:px-6">
@@ -562,6 +580,8 @@ export function PunchCard({
                 places={places}
                 points={mapPoints}
                 live={live.position}
+                onLocate={shareLocation ? live.locate : undefined}
+                locating={live.locating}
               />
             )}
             <div className="min-w-0">

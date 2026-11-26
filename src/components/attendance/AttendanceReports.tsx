@@ -45,6 +45,11 @@ const SECTIONS: { title: string; description: string; reports: ReportEntry[] }[]
         title: "Daily Detail Attendance Report",
         subtitle: "Status, shift, first in, last out, hours, late, early and overtime per day",
       },
+      {
+        kind: "visits",
+        title: "Field Visits Report",
+        subtitle: "Every client visit: who or where, visit in and out with address and Google Maps link, time there",
+      },
     ],
   },
   {

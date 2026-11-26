@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Loader2, MapPin } from "lucide-react";
+import { Camera, Crosshair, Loader2, MapPin } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -67,6 +67,14 @@ const PHOTO_MODES: { value: LocationMode; label: string; detail: string }[] = [
   },
 ];
 
+/** How close a fix must be before Punch and Visit unlock. Metres. */
+const ACCURACY_CHOICES = [20, 50, 100, 200, 500, 1000, 2000, 5000];
+
+function accuracyLabel(metres: number): string {
+  const words = metres >= 1000 ? `${metres / 1000} km` : `${metres} m`;
+  return metres === 100 ? `Within ${words} (recommended)` : `Within ${words}`;
+}
+
 /**
  * The workspace's rule for recording where people punch.
  *
@@ -81,22 +89,34 @@ export function LocationPolicyCard() {
   const { data, error, isLoading, reload } = useApiQuery<AttendanceSettings>("/attendance/settings");
   const [mode, setMode] = useState<LocationMode>("required");
   const [photoMode, setPhotoMode] = useState<LocationMode>("off");
+  const [accuracy, setAccuracy] = useState(100);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (data) {
       setMode(data.location_mode);
       setPhotoMode(data.photo_mode);
+      setAccuracy(data.location_accuracy_metres ?? 100);
     }
   }, [data]);
 
-  const unchanged = !data || (data.location_mode === mode && data.photo_mode === photoMode);
+  const unchanged =
+    !data ||
+    (data.location_mode === mode &&
+      data.photo_mode === photoMode &&
+      (data.location_accuracy_metres ?? 100) === accuracy);
 
   const save = async () => {
     setIsSaving(true);
     try {
-      await put<AttendanceSettings>("/attendance/settings", { location_mode: mode, photo_mode: photoMode });
-      toast.success(`Punch location is now ${mode}, punch photo ${photoMode}`);
+      await put<AttendanceSettings>("/attendance/settings", {
+        location_mode: mode,
+        photo_mode: photoMode,
+        location_accuracy_metres: accuracy,
+      });
+      toast.success(`Punch location is now ${mode}, punch photo ${photoMode}`, {
+        description: `Punches and visits need a location within ${accuracy >= 1000 ? `${accuracy / 1000} km` : `${accuracy} m`}.`,
+      });
       reload();
     } catch (caught) {
       toast.error(errorDetail(caught, "Could not save the location rule."));
@@ -130,7 +150,7 @@ export function LocationPolicyCard() {
         ) : error ? (
           <LoadError error={error} onRetry={reload} />
         ) : (
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid gap-5 md:grid-cols-3">
             <FormField htmlFor="punch-location-rule" label="Location" hint={chosen?.detail}>
               <Select value={mode} onValueChange={(value) => setMode(value as LocationMode)}>
                 <SelectTrigger id="punch-location-rule" className="h-11 w-full">
@@ -162,6 +182,28 @@ export function LocationPolicyCard() {
                   {PHOTO_MODES.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+            <FormField
+              htmlFor="punch-location-accuracy"
+              hint="Punch in / out (when location is required) and Visit in / out stay switched off until the phone or browser finds the person this precisely. Office desktops without GPS may need 500 m or more."
+              label={
+                <span className="flex items-center gap-1.5">
+                  <Crosshair className="size-3.5" /> Accuracy needed
+                </span>
+              }
+            >
+              <Select value={String(accuracy)} onValueChange={(value) => setAccuracy(Number(value))}>
+                <SelectTrigger id="punch-location-accuracy" className="h-11 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ACCURACY_CHOICES.map((metres) => (
+                    <SelectItem key={metres} value={String(metres)}>
+                      {accuracyLabel(metres)}
                     </SelectItem>
                   ))}
                 </SelectContent>

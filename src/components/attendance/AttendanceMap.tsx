@@ -1,9 +1,11 @@
 "use client";
 
+import { Loader2, LocateFixed } from "lucide-react";
 import dynamic from "next/dynamic";
 import React, { useCallback, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { googleMapsFailureReason, googleMapsMayWork } from "@/lib/maps";
@@ -30,10 +32,29 @@ const GoogleCanvas = dynamic(() => import("./AttendanceMapGoogle"), {
 
 export function AttendanceMap({
   className,
+  onLocate,
+  locating = false,
   ...props
-}: React.ComponentProps<typeof LeafletCanvas> & { className?: string }) {
+}: Omit<React.ComponentProps<typeof LeafletCanvas>, "focusKey"> & {
+  className?: string;
+  /**
+   * Show the "find my location" button (as on Google Maps): it calls this,
+   * and the map centres on the fix that comes back.
+   */
+  onLocate?: () => Promise<unknown> | void;
+  locating?: boolean;
+}) {
   const [useGoogle, setUseGoogle] = useState(googleMapsMayWork);
   const fallBack = useCallback(() => setUseGoogle(false), []);
+  // Bumped after each locate, so the map centres on the person even when the
+  // fix has not moved.
+  const [focusKey, setFocusKey] = useState(0);
+
+  const locate = async () => {
+    if (!onLocate) return;
+    await onLocate();
+    setFocusKey((key) => key + 1);
+  };
 
   return (
     <div
@@ -43,12 +64,32 @@ export function AttendanceMap({
       )}
     >
       {useGoogle ? (
-        <GoogleCanvas {...props} onFail={fallBack} className="size-full" />
+        <GoogleCanvas {...props} focusKey={focusKey} onFail={fallBack} className="size-full" />
       ) : (
         <>
-          <LeafletCanvas {...props} className="size-full" />
+          <LeafletCanvas {...props} focusKey={focusKey} className="size-full" />
           <FallbackNote />
         </>
+      )}
+      {onLocate && (
+        <div className="absolute right-2 bottom-6 z-[1000]">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className="size-10 rounded-full bg-card shadow-md"
+                onClick={() => void locate()}
+                disabled={locating}
+                aria-label="Find my location"
+              >
+                {locating ? <Loader2 className="animate-spin" /> : <LocateFixed className="text-primary" />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Find my location</TooltipContent>
+          </Tooltip>
+        </div>
       )}
     </div>
   );

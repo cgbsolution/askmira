@@ -1,8 +1,9 @@
 "use client";
 
-import { ExternalLink, MapPin, MapPinOff } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import { ExternalLink, Loader2, LocateFixed, MapPin, MapPinOff } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import type { Punch, WorkLocationPin } from "@/lib/types/attendance";
 import { cn } from "@/lib/utils";
@@ -101,50 +102,262 @@ export function nearestPlace(
   return best;
 }
 
+/** The accuracy a workspace asks for when it has not set one (metres). */
+export const DEFAULT_ACCURACY_METRES = 100;
+/** A fix older than this is asked for again before it is recorded. */
+export const FRESH_FIX_MS = 60_000;
+
+export interface LiveFix {
+  latitude: number;
+  longitude: number;
+  /** Metres, as the browser reports it. */
+  accuracy: number;
+  /** When the fix arrived (ms since epoch). */
+  at: number;
+}
+
+/**
+ * Why there is no location: the person blocked it for this site, the device's
+ * location is off (or no fix came), or it is taking long.
+ */
+export type LocationProblem = "blocked" | "unavailable" | "slow" | null;
+
 export interface LivePositionState {
-  position: { latitude: number; longitude: number; accuracy: number; at: number } | null;
+  position: LiveFix | null;
   error: string | null;
+  problem: LocationProblem;
+  /** True while a "find me now" request (the map's locate button) is running. */
+  locating: boolean;
+  /** Ask the browser for a fresh, high-accuracy fix now; resolves to it, or null. */
+  locate: () => Promise<LiveFix | null>;
+}
+
+function problemOf(failure: GeolocationPositionError): LocationProblem {
+  if (failure.code === failure.PERMISSION_DENIED) return "blocked";
+  if (failure.code === failure.TIMEOUT) return "slow";
+  return "unavailable";
+}
+
+function failureText(failure: GeolocationPositionError, watching: boolean): string {
+  if (failure.code === failure.PERMISSION_DENIED) {
+    return "Location access is blocked for this site. Allow it from the lock icon in the address bar, then press the locate button.";
+  }
+  if (failure.code === failure.TIMEOUT) {
+    return watching ? "Still finding your location…" : "Your location took too long to find. Try again.";
+  }
+  return "Your location is not available right now. Turn on location for this device and try again.";
 }
 
 /**
  * Where the browser says this person is, kept current while `enabled`.
  * Asks for permission the first time; stops watching when disabled or unmounted.
+ * `locate()` asks for a fresh high-accuracy fix at once, like the "my
+ * location" button on Google Maps.
  */
 export function useLivePosition(enabled: boolean): LivePositionState {
-  const [state, setState] = useState<LivePositionState>({ position: null, error: null });
+  const [position, setPosition] = useState<LiveFix | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [problem, setProblem] = useState<LocationProblem>(null);
+  const [locating, setLocating] = useState(false);
+  // Bumped when the person allows location in the browser, to start again.
+  const [attempt, setAttempt] = useState(0);
+
   useEffect(() => {
     if (!enabled) {
-      setState({ position: null, error: null });
+      setPosition(null);
+      setError(null);
+      setProblem(null);
       return;
     }
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setState({ position: null, error: "This browser cannot share a location." });
+      setError("This browser cannot share a location.");
+      setProblem("unavailable");
       return;
     }
+    let alive = true;
+    const accept = (found: GeolocationPosition) => {
+      if (!alive) return;
+      setPosition({
+        latitude: found.coords.latitude,
+        longitude: found.coords.longitude,
+        accuracy: found.coords.accuracy,
+        at: Date.now(),
+      });
+      setError(null);
+      setProblem(null);
+    };
+    // One fix straight away: a watch can take a while to report its first.
+    navigator.geolocation.getCurrentPosition(accept, () => {}, {
+      enableHighAccuracy: true,
+      maximumAge: 10_000,
+      timeout: 20_000,
+    });
     const id = navigator.geolocation.watchPosition(
-      (found) =>
-        setState({
-          position: {
+      accept,
+      (failure) => {
+        if (!alive) return;
+        setError(failureText(failure, true));
+        setProblem(problemOf(failure));
+      },
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
+    );
+    // When the person changes the site's location permission (the lock icon
+    // in the address bar), start again at once: no reload needed.
+    let status: PermissionStatus | null = null;
+    const onChange = () => {
+      if (!alive || !status) return;
+      if (status.state === "denied") setProblem("blocked");
+      else setAttempt((n) => n + 1);
+    };
+    navigator.permissions
+      ?.query({ name: "geolocation" as PermissionName })
+      .then((found) => {
+        if (!alive) return;
+        status = found;
+        if (found.state === "denied") {
+          setProblem("blocked");
+          setError(
+            "Location access is blocked for this site. Allow it from the lock icon in the address bar, then press Try again.",
+          );
+        }
+        found.addEventListener("change", onChange);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+      navigator.geolocation.clearWatch(id);
+      status?.removeEventListener("change", onChange);
+    };
+  }, [enabled, attempt]);
+
+  const locate = useCallback((): Promise<LiveFix | null> => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setError("This browser cannot share a location.");
+      return Promise.resolve(null);
+    }
+    setLocating(true);
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (found) => {
+          const fix = {
             latitude: found.coords.latitude,
             longitude: found.coords.longitude,
             accuracy: found.coords.accuracy,
             at: Date.now(),
-          },
-          error: null,
-        }),
-      (failure) =>
-        setState((current) => ({
-          position: current.position,
-          error:
-            failure.code === failure.PERMISSION_DENIED
-              ? "Location access is blocked for this site. Allow it from the lock icon in the address bar."
-              : failure.code === failure.TIMEOUT
-                ? "Still finding your location…"
-                : "Your location is not available right now.",
-        })),
-      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 20_000 },
+          };
+          setPosition(fix);
+          setError(null);
+          setProblem(null);
+          setLocating(false);
+          resolve(fix);
+        },
+        (failure) => {
+          setError(failureText(failure, false));
+          setProblem(problemOf(failure));
+          setLocating(false);
+          resolve(null);
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 15_000 },
+      );
+    });
+  }, []);
+
+  return { position, error, problem, locating, locate };
+}
+
+/**
+ * What to do when there is no location, with a Try again button. A website
+ * cannot open the browser's or the computer's settings, nor ask again once
+ * the person pressed Block, so this says exactly where to click.
+ */
+export function LocationHelp({
+  live,
+  what,
+}: {
+  live: Pick<LivePositionState, "position" | "problem" | "locating" | "locate">;
+  /** What stays off until the location is found, e.g. "Punch in and Punch out". */
+  what: string;
+}) {
+  // A fix on screen: a later hiccup in the watch is not worth a panel.
+  if (!live.problem || (live.position && live.problem !== "blocked")) return null;
+  const retry = (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="mt-2 w-fit"
+      onClick={() => void live.locate()}
+      disabled={live.locating}
+    >
+      {live.locating ? <Loader2 className="animate-spin" /> : <LocateFixed />} Try again
+    </Button>
+  );
+  if (live.problem === "blocked") {
+    return (
+      <Alert variant="destructive">
+        <MapPinOff />
+        <AlertTitle>Location is blocked for this site</AlertTitle>
+        <AlertDescription>
+          <p>{what} stay off until you allow your location:</p>
+          <ol className="mt-1 list-decimal space-y-0.5 pl-4">
+            <li>Click the icon at the left of the address bar (a lock or two sliders).</li>
+            <li>Find Location (under Site settings or Permissions) and choose Allow.</li>
+            <li>Come back here. The page notices on its own, or press Try again.</li>
+          </ol>
+          {retry}
+        </AlertDescription>
+      </Alert>
     );
-    return () => navigator.geolocation.clearWatch(id);
-  }, [enabled]);
-  return state;
+  }
+  if (live.problem === "unavailable") {
+    return (
+      <Alert variant="destructive">
+        <MapPinOff />
+        <AlertTitle>Your location could not be found</AlertTitle>
+        <AlertDescription>
+          <p>{what} stay off until it is found. Turn on location for this device:</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            <li>Windows: Settings → Privacy &amp; security → Location → turn on Location services and &quot;Let desktop apps access your location&quot;.</li>
+            <li>Mac: System Settings → Privacy &amp; Security → Location Services → on, and on for your browser.</li>
+            <li>Phone browser: turn on Location (precise) in the quick settings.</li>
+          </ul>
+          {retry}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  return (
+    <Alert variant="warning">
+      <LocateFixed />
+      <AlertTitle>Still finding your location</AlertTitle>
+      <AlertDescription>
+        <p>{what} unlock as soon as it is found. Near a window or with Wi-Fi on it is quicker.</p>
+        {retry}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/**
+ * Whether a fix is good enough to record: there is one, and the browser says
+ * it is within `needed` metres. The words say what to do when it is not.
+ */
+export function fixReadiness(
+  live: Pick<LivePositionState, "position" | "error" | "locating">,
+  needed: number,
+): { ready: boolean; text: string } {
+  if (!live.position) {
+    return {
+      ready: false,
+      text: live.error ?? "Finding your location…",
+    };
+  }
+  const accuracy = Math.round(live.position.accuracy);
+  if (accuracy > needed) {
+    return {
+      ready: false,
+      text: `Location found to ±${formatDistance(accuracy)}; your company needs it within ${formatDistance(needed)}. Turn on precise location or step near a window, then press the locate button.`,
+    };
+  }
+  return { ready: true, text: `Location found (±${formatDistance(accuracy)})` };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Briefcase,
   CalendarDays,
   CalendarRange,
   Download,
@@ -45,6 +46,7 @@ export type AttendanceExportKind =
   | "punches"
   | "daily"
   | "summary"
+  | "visits"
   | "in_out_activities"
   | "monthly_summary"
   | "ytd";
@@ -91,6 +93,13 @@ export const ATTENDANCE_EXPORTS: {
     detail:
       "One row per person for the whole period: present, half days, absent, leave, holidays, week offs, late, hours, payable and loss-of-pay days.",
     icon: Sigma,
+  },
+  {
+    value: "visits",
+    label: "Field visits",
+    detail:
+      "One row per client visit: who or where, visit in and out times, the street address and a Google Maps link for each, how long they stayed, the location accuracy and whether a selfie was taken.",
+    icon: Briefcase,
   },
   {
     value: "in_out_activities",
@@ -459,6 +468,7 @@ export function AttendanceExportDialog({
 
         {(kind === "in_out" ||
           kind === "punches" ||
+          kind === "visits" ||
           kind === "in_out_activities") && (
           <p className="text-xs text-muted-foreground">
             Addresses come from Google Maps and are kept once found. A large

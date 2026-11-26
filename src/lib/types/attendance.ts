@@ -35,6 +35,8 @@ export interface PunchInput {
   direction: PunchDirection;
   latitude?: number | null;
   longitude?: number | null;
+  /** How accurate the browser says the location is, in metres. */
+  accuracy_metres?: number | null;
   /** HR only. */
   employee_id?: string | null;
   punched_at?: string | null;
@@ -70,6 +72,11 @@ export interface AttendanceSettings {
   location_mode: LocationMode;
   /** Off: no photo; optional: asked for; required: a self-service punch needs one. */
   photo_mode: LocationMode;
+  /**
+   * How accurate (metres) the location must be before Punch in / out and
+   * Visit in / out are allowed. The buttons stay off until such a fix arrives.
+   */
+  location_accuracy_metres: number;
   /** Every Nth late mark in a month is a half day (the Nth, 2Nth…). Null: off. */
   late_marks_per_half_day?: number | null;
   /** The first month the late-mark rule applies to (set by the server). */
@@ -607,4 +614,36 @@ export interface Coverage {
   }[];
   days: { date: string; shifts: CoverageCell[] }[];
   note: string;
+}
+
+// ── Field visits ────────────────────────────────────────────────────────────
+
+/** One client visit: visit in with a selfie, visit out, both with a location. */
+export interface FieldVisit {
+  id: string;
+  employee_id: string;
+  employee_code: string | null;
+  employee_name: string | null;
+  client_name: string;
+  started_at: string;
+  start_latitude: number;
+  start_longitude: number;
+  start_accuracy_metres: number | null;
+  start_source: "web" | "mobile";
+  start_address: string | null;
+  has_photo: boolean;
+  ended_at: string | null;
+  end_latitude: number | null;
+  end_longitude: number | null;
+  end_accuracy_metres: number | null;
+  end_source: "web" | "mobile" | null;
+  end_address: string | null;
+  /** Minutes from visit in to visit out; null while the visit is open. */
+  duration_minutes: number | null;
+}
+
+export interface FieldVisitList {
+  visits: FieldVisit[];
+  total: number;
+  people: number;
 }
