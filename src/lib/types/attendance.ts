@@ -76,7 +76,7 @@ export interface AttendanceSettings {
    * How accurate (metres) the location must be before Punch in / out and
    * Visit in / out are allowed. The buttons stay off until such a fix arrives.
    */
-  location_accuracy_metres: number;
+  location_accuracy_metres: number | null;
   /** Every Nth late mark in a month is a half day (the Nth, 2Nth…). Null: off. */
   late_marks_per_half_day?: number | null;
   /** The first month the late-mark rule applies to (set by the server). */

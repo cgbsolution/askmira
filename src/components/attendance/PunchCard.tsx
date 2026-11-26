@@ -273,7 +273,7 @@ export function PunchCard({
       const fix = fresh ?? (await live.locate());
       const reason = !fix
         ? "Your location could not be found. Allow location for this site and try again."
-        : fix.accuracy > needed
+        : needed !== null && fix.accuracy > needed
           ? `Your location is only accurate to ±${formatDistance(fix.accuracy)}; your company needs it within ${formatDistance(needed)}. Press the locate button and try again.`
           : null;
       if (fix && (!reason || mode !== "required")) {

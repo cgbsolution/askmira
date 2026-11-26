@@ -98,7 +98,7 @@ export const ATTENDANCE_EXPORTS: {
     value: "visits",
     label: "Field visits",
     detail:
-      "One row per client visit: who or where, visit in and out times, the street address and a Google Maps link for each, how long they stayed, the location accuracy and whether a selfie was taken.",
+      "One row per client visit: who or where, visit in and out times, the street address and a Google Maps link for each, how long they stayed and the location accuracy.",
     icon: Briefcase,
   },
   {

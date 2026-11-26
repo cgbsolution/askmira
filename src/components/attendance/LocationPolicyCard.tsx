@@ -67,12 +67,12 @@ const PHOTO_MODES: { value: LocationMode; label: string; detail: string }[] = [
   },
 ];
 
-/** How close a fix must be before Punch and Visit unlock. Metres. */
+/** How close a fix must be before Punch and Visit unlock. Metres; null is off. */
 const ACCURACY_CHOICES = [20, 50, 100, 200, 500, 1000, 2000, 5000];
+const OFF = "off";
 
-function accuracyLabel(metres: number): string {
-  const words = metres >= 1000 ? `${metres / 1000} km` : `${metres} m`;
-  return metres === 100 ? `Within ${words} (recommended)` : `Within ${words}`;
+function metresText(metres: number): string {
+  return metres >= 1000 ? `${metres / 1000} km` : `${metres} m`;
 }
 
 /**
@@ -89,14 +89,15 @@ export function LocationPolicyCard() {
   const { data, error, isLoading, reload } = useApiQuery<AttendanceSettings>("/attendance/settings");
   const [mode, setMode] = useState<LocationMode>("required");
   const [photoMode, setPhotoMode] = useState<LocationMode>("off");
-  const [accuracy, setAccuracy] = useState(100);
+  // null: off, any location is taken however rough.
+  const [accuracy, setAccuracy] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (data) {
       setMode(data.location_mode);
       setPhotoMode(data.photo_mode);
-      setAccuracy(data.location_accuracy_metres ?? 100);
+      setAccuracy(data.location_accuracy_metres ?? null);
     }
   }, [data]);
 
@@ -104,7 +105,7 @@ export function LocationPolicyCard() {
     !data ||
     (data.location_mode === mode &&
       data.photo_mode === photoMode &&
-      (data.location_accuracy_metres ?? 100) === accuracy);
+      (data.location_accuracy_metres ?? null) === accuracy);
 
   const save = async () => {
     setIsSaving(true);
@@ -115,7 +116,10 @@ export function LocationPolicyCard() {
         location_accuracy_metres: accuracy,
       });
       toast.success(`Punch location is now ${mode}, punch photo ${photoMode}`, {
-        description: `Punches and visits need a location within ${accuracy >= 1000 ? `${accuracy / 1000} km` : `${accuracy} m`}.`,
+        description:
+          accuracy === null
+            ? "Accuracy check off: any location is accepted, however rough."
+            : `Punches and visits need a location within ${metresText(accuracy)}.`,
       });
       reload();
     } catch (caught) {
@@ -189,21 +193,29 @@ export function LocationPolicyCard() {
             </FormField>
             <FormField
               htmlFor="punch-location-accuracy"
-              hint="Punch in / out (when location is required) and Visit in / out stay switched off until the phone or browser finds the person this precisely. Office desktops without GPS may need 500 m or more."
+              hint={
+                accuracy === null
+                  ? "Off: any location is accepted, however rough. Office computers have no GPS and usually find the person only to 100 m – a few km."
+                  : "Punch in / out (when location is required) and Visit in / out stay switched off until the phone or browser finds the person this precisely. Office computers have no GPS: they may need 500 m or more, or Off."
+              }
               label={
                 <span className="flex items-center gap-1.5">
                   <Crosshair className="size-3.5" /> Accuracy needed
                 </span>
               }
             >
-              <Select value={String(accuracy)} onValueChange={(value) => setAccuracy(Number(value))}>
+              <Select
+                value={accuracy === null ? OFF : String(accuracy)}
+                onValueChange={(value) => setAccuracy(value === OFF ? null : Number(value))}
+              >
                 <SelectTrigger id="punch-location-accuracy" className="h-11 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={OFF}>Off (any location)</SelectItem>
                   {ACCURACY_CHOICES.map((metres) => (
                     <SelectItem key={metres} value={String(metres)}>
-                      {accuracyLabel(metres)}
+                      Within {metresText(metres)}
                     </SelectItem>
                   ))}
                 </SelectContent>

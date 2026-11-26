@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Loader2, LocateFixed, MapPin, MapPinOff } from "lucide-react";
+import { Copy, ExternalLink, Loader2, LocateFixed, MapPin, MapPinOff } from "lucide-react";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -102,8 +102,11 @@ export function nearestPlace(
   return best;
 }
 
-/** The accuracy a workspace asks for when it has not set one (metres). */
-export const DEFAULT_ACCURACY_METRES = 100;
+/**
+ * The accuracy a workspace asks for when it has not set one: none (off), any
+ * location is taken. Office desktops have no GPS and report 100 m to a few km.
+ */
+export const DEFAULT_ACCURACY_METRES: number | null = null;
 /** A fix older than this is asked for again before it is recorded. */
 export const FRESH_FIX_MS = 60_000;
 
@@ -355,6 +358,87 @@ function allowSteps(device: Device): string[] {
   ];
 }
 
+/** The computer's own location switch, which a page may open (the browser asks first). */
+function systemSettingsLink(): { href: string; label: string } | null {
+  if (typeof navigator === "undefined") return null;
+  const agent = navigator.userAgent;
+  if (/windows/i.test(agent)) {
+    return { href: "ms-settings:privacy-location", label: "Open Windows location settings" };
+  }
+  if (/macintosh|mac os x/i.test(agent) && navigator.maxTouchPoints <= 1) {
+    return {
+      href: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices",
+      label: "Open Mac location settings",
+    };
+  }
+  return null;
+}
+
+/**
+ * The browser's own settings page for this site, where Location is one switch.
+ * A page may not open it, but the person can paste it into the address bar.
+ * Desktop Chrome, Edge and the browsers built on Chrome only.
+ */
+function siteSettingsLink(): string | null {
+  if (typeof navigator === "undefined" || typeof window === "undefined") return null;
+  const agent = navigator.userAgent;
+  if (/android|iphone|ipad|ipod/i.test(agent)) return null;
+  const site = encodeURIComponent(window.location.origin);
+  if (/edg\//i.test(agent)) return `edge://settings/content/siteDetails?site=${site}`;
+  if (/chrome\//i.test(agent) && !/opr\//i.test(agent)) {
+    return `chrome://settings/content/siteDetails?site=${site}`;
+  }
+  return null;
+}
+
+/** "Open Windows location settings": the computer's switch, where a page may open it. */
+function SystemSettingsButton() {
+  const [link, setLink] = useState<ReturnType<typeof systemSettingsLink>>(null);
+  useEffect(() => setLink(systemSettingsLink()), []);
+  if (!link) return null;
+  return (
+    <Button asChild type="button" size="sm" variant="outline" className="mt-2 w-fit">
+      <a href={link.href}>
+        <ExternalLink /> {link.label}
+      </a>
+    </Button>
+  );
+}
+
+/** Copies the browser's settings page for this site, to paste in a new tab. */
+function SiteSettingsShortcut() {
+  const [link, setLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"yes" | "no" | null>(null);
+  useEffect(() => setLink(siteSettingsLink()), []);
+  if (!link) return null;
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied("yes");
+    } catch {
+      setCopied("no");
+    }
+  };
+  return (
+    <div className="mt-2 flex flex-col gap-1">
+      <Button type="button" size="sm" variant="outline" className="w-fit" onClick={() => void copy()}>
+        <Copy /> Copy the link to this site&apos;s location switch
+      </Button>
+      {copied === "yes" && (
+        <p role="status" className="font-medium">
+          Copied. Open a new tab, paste it in the address bar, press Enter and set Location to
+          Allow. Then come back to this tab.
+        </p>
+      )}
+      {copied === "no" && (
+        <p role="status" className="break-all">
+          Copy this into a new tab&apos;s address bar: <span className="font-mono">{link}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
 /**
  * What to do when there is no location, with a button to check again. A
  * website cannot open the browser's or the computer's settings, and once the
@@ -412,6 +496,7 @@ export function LocationHelp({
               <li key={step}>{step}</li>
             ))}
           </ol>
+          <SiteSettingsShortcut />
           <Button
             type="button"
             size="sm"
@@ -428,6 +513,12 @@ export function LocationHelp({
               above, then come back.
             </p>
           )}
+          {device === "desktop" && (
+            <p className="mt-2">
+              Location already says Allow for this site? Then the computer itself has location off:
+            </p>
+          )}
+          {device === "desktop" && <SystemSettingsButton />}
         </AlertDescription>
       </Alert>
     );
@@ -444,6 +535,7 @@ export function LocationHelp({
             <li>Mac: System Settings → Privacy &amp; Security → Location Services → on, and on for your browser.</li>
             <li>Phone browser: turn on Location (precise) in the quick settings.</li>
           </ul>
+          <SystemSettingsButton />
           {retry}
         </AlertDescription>
       </Alert>
@@ -463,11 +555,12 @@ export function LocationHelp({
 
 /**
  * Whether a fix is good enough to record: there is one, and the browser says
- * it is within `needed` metres. The words say what to do when it is not.
+ * it is within `needed` metres (null: any fix will do). The words say what to
+ * do when it is not.
  */
 export function fixReadiness(
   live: Pick<LivePositionState, "position" | "error" | "locating">,
-  needed: number,
+  needed: number | null,
 ): { ready: boolean; text: string } {
   if (!live.position) {
     return {
@@ -476,10 +569,10 @@ export function fixReadiness(
     };
   }
   const accuracy = Math.round(live.position.accuracy);
-  if (accuracy > needed) {
+  if (needed !== null && accuracy > needed) {
     return {
       ready: false,
-      text: `Location found to ±${formatDistance(accuracy)}; your company needs it within ${formatDistance(needed)}. Turn on precise location or step near a window, then press the locate button.`,
+      text: `Location found to ±${formatDistance(accuracy)}; your company needs it within ${formatDistance(needed)}. On a phone, turn on precise location or step near a window. A computer has no GPS: ask HR to allow a wider area. Then press the locate button.`,
     };
   }
   return { ready: true, text: `Location found (±${formatDistance(accuracy)})` };

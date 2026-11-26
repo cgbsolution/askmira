@@ -17,7 +17,6 @@ import { formatDay, parseISODate, toISODate } from "@/lib/utils";
 import { AttendanceExportDialog } from "./AttendanceExportDialog";
 import { AttendanceMap, type MapPoint } from "./AttendanceMap";
 import { formatDistance, MapLink } from "./location";
-import { PhotoButton } from "./PunchPhoto";
 import { formatClock, formatMinutes } from "./shared";
 
 /** The API's limit on one period. */
@@ -66,7 +65,7 @@ function End({
 
 /**
  * Attendance review → Visits: every client visit in a period — who went
- * where, when they arrived and left, for how long, with the selfie — a count
+ * where, when they arrived and left, and for how long — a count
  * per person, and the visits on a map. HR sees everyone; a manager their
  * reporting line.
  */
@@ -188,24 +187,6 @@ export function TeamVisits() {
       },
       cell: ({ row: { original: visit } }) =>
         visit.duration_minutes !== null ? formatMinutes(visit.duration_minutes) : "—",
-    },
-    {
-      id: "selfie",
-      header: "Selfie",
-      enableSorting: false,
-      meta: { text: (visit) => (visit.has_photo ? "Yes" : "No") },
-      cell: ({ row: { original: visit } }) =>
-        visit.has_photo ? (
-          <PhotoButton
-            path={`/attendance/visits/${visit.id}/photo`}
-            title={`${visit.employee_name ?? ""} at ${visit.client_name}`}
-            description={`Taken at visit in, ${when(visit.started_at)}. Nothing checks the face; look at it yourself.`}
-            alt={`Selfie of ${visit.employee_name ?? "the person"} at ${visit.client_name}`}
-            label="View"
-          />
-        ) : (
-          "—"
-        ),
     },
   ];
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Briefcase, Camera, Loader2, LogIn, LogOut, MapPin, X } from "lucide-react";
+import { Briefcase, Loader2, LogIn, LogOut, MapPin } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -16,7 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { HiddenFileInput } from "@/components/ui/file-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,7 +40,6 @@ import {
 } from "./location";
 import { PhotoButton } from "./PunchPhoto";
 import { errorDetail, formatClock, formatMinutes, LoadError } from "./shared";
-import { shrinkPhoto } from "./shrinkPhoto";
 
 const NAME_LIMIT = 160;
 
@@ -59,8 +57,8 @@ function useNow(ms: number): number {
  *
  * Location is always on here, whatever the punch rule: both buttons stay off
  * until the browser finds you within the workspace's accuracy, and the map's
- * locate button asks again. Visit in also needs who or where it is and a
- * selfie. A visit never changes the day's attendance.
+ * locate button asks again. Visit in also needs who or where it is (no
+ * selfie: dropped 2026-11-26). A visit never changes the day's attendance.
  */
 export function FieldVisitCard() {
   const now = useNow(30_000);
@@ -77,8 +75,6 @@ export function FieldVisitCard() {
 
   const [clientName, setClientName] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
-  const [photo, setPhoto] = useState<string | null>(null);
-  const [photoKey, setPhotoKey] = useState(0);
   const [busy, setBusy] = useState<"in" | "out" | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
@@ -86,21 +82,6 @@ export function FieldVisitCard() {
   const open = visits.find((visit) => visit.ended_at === null) ?? null;
   const todays = visits.filter((visit) => toISODate(new Date(visit.started_at)) === today);
   const shown = open && !todays.includes(open) ? [open, ...todays] : todays;
-
-  const clearPhoto = () => {
-    setPhoto(null);
-    setPhotoKey((key) => key + 1);
-  };
-
-  const takePhoto = async (file: File | undefined) => {
-    if (!file) return;
-    try {
-      setPhoto(await shrinkPhoto(file));
-    } catch (caught) {
-      clearPhoto();
-      toast.error(caught instanceof Error ? caught.message : "The photo could not be used.");
-    }
-  };
 
   /** A fix good enough to record, asking again when the one on screen is old. */
   const freshFix = async () => {
@@ -110,7 +91,7 @@ export function FieldVisitCard() {
     if (!fix) {
       return { fix: null, reason: "Your location could not be found. Allow location for this site and try again." };
     }
-    if (fix.accuracy > needed) {
+    if (needed !== null && fix.accuracy > needed) {
       return {
         fix: null,
         reason: `Your location is only accurate to ±${formatDistance(fix.accuracy)}; your company needs it within ${formatDistance(needed)}. Press the locate button on the map and try again.`,
@@ -129,10 +110,6 @@ export function FieldVisitCard() {
       setNameError(`Keep it to ${NAME_LIMIT} characters.`);
       return;
     }
-    if (!photo) {
-      toast.error("Take a selfie at the client's place first.");
-      return;
-    }
     setBusy("in");
     setProblem(null);
     try {
@@ -146,7 +123,6 @@ export function FieldVisitCard() {
         latitude: fix.latitude,
         longitude: fix.longitude,
         accuracy_metres: Math.round(fix.accuracy),
-        photo,
         source: "web",
       });
       toast.success(`Visit in at ${created.client_name}`, {
@@ -154,7 +130,6 @@ export function FieldVisitCard() {
       });
       setClientName("");
       setNameError(null);
-      clearPhoto();
       visitsQuery.reload();
     } catch (caught) {
       setProblem(errorDetail(caught, "The visit could not be recorded."));
@@ -307,41 +282,6 @@ export function FieldVisitCard() {
                 />
                 {nameError && <p className="text-xs text-destructive">{nameError}</p>}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {photo ? (
-                  <>
-                    <Badge variant="success">
-                      <Camera /> Selfie ready
-                    </Badge>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="size-7"
-                      onClick={clearPhoto}
-                      aria-label="Remove the selfie"
-                    >
-                      <X />
-                    </Button>
-                  </>
-                ) : (
-                  <Button type="button" variant="outline" size="sm" asChild>
-                    <Label htmlFor="visit-selfie" className="cursor-pointer">
-                      <Camera /> Take a selfie
-                    </Label>
-                  </Button>
-                )}
-                <HiddenFileInput
-                  key={photoKey}
-                  id="visit-selfie"
-                  accept="image/*"
-                  capture="user"
-                  shrink={false}
-                  maxBytes={false}
-                  disabled={busy !== null}
-                  onChange={(event) => void takePhoto(event.target.files?.[0])}
-                />
-              </div>
               <Button type="submit" size="lg" disabled={busy !== null || locationWait}>
                 {busy === "in" ? <Loader2 className="animate-spin" /> : <LogIn />}
                 {busy === "in" ? "Locating…" : "Visit in"}
@@ -380,7 +320,7 @@ export function FieldVisitCard() {
   );
 }
 
-/** One visit: who, when in and out, how long, where, and the selfie. */
+/** One visit: who, when in and out, how long and where (and a photo, where an older app sent one). */
 export function VisitRow({ visit, showPerson = false }: { visit: FieldVisit; showPerson?: boolean }) {
   return (
     <li className="flex flex-col gap-1.5 rounded-lg border border-border px-3 py-2.5 text-sm">
@@ -419,9 +359,9 @@ export function VisitRow({ visit, showPerson = false }: { visit: FieldVisit; sho
         <PhotoButton
           path={`/attendance/visits/${visit.id}/photo`}
           title={`${visit.client_name} · ${formatClock(visit.started_at)}`}
-          description="The selfie taken at visit in. Nothing checks the face; look at it yourself."
-          alt={`Selfie at ${visit.client_name}`}
-          label="Selfie"
+          description="The photo taken at visit in. Nothing checks the face; look at it yourself."
+          alt={`Photo at ${visit.client_name}`}
+          label="Photo"
         />
       )}
     </li>
