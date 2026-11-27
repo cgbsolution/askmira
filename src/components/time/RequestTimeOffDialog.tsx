@@ -126,16 +126,37 @@ export function RequestTimeOffDialog({
       ),
     [balances],
   );
-  const hasDays = (typeId: string) => Number(left.get(typeId) ?? "0") > 0;
+  // Holiday and Week off are not leave: they need no balance.
+  const dayOffIds = useMemo(
+    () => new Set(leaveTypes.filter((type) => type.marks_day_as).map((type) => type.id)),
+    [leaveTypes],
+  );
+  const hasDays = (typeId: string) =>
+    dayOffIds.has(typeId) || Number(left.get(typeId) ?? "0") > 0;
+  // Holiday, then leave (those with days first), then Week off, then Comp off.
+  const rank = (type: LeaveType) =>
+    type.marks_day_as === "holiday"
+      ? 0
+      : type.marks_day_as === "week_off"
+        ? 2
+        : type.is_comp_off
+          ? 3
+          : 1;
   const choices = useMemo(
     () =>
-      balances === null
-        ? leaveTypes
-        : [...leaveTypes].sort((a, b) => Number(hasDays(b.id)) - Number(hasDays(a.id))),
+      [...leaveTypes].sort(
+        (a, b) =>
+          rank(a) - rank(b) ||
+          (balances === null ? 0 : Number(hasDays(b.id)) - Number(hasDays(a.id))),
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [leaveTypes, balances],
   );
-  const nothingLeft = balances !== null && !leaveTypes.some((type) => hasDays(type.id));
+  // No leave left at all — Holiday and Week off can still be asked for.
+  const nothingLeft =
+    balances !== null &&
+    !leaveTypes.some((type) => !type.marks_day_as && hasDays(type.id));
+  const nothingAtAll = nothingLeft && dayOffIds.size === 0;
 
   // A type picked before the balances arrived, or for another person or year,
   // that has nothing left now is cleared rather than left to be refused.
@@ -319,6 +340,7 @@ export function RequestTimeOffDialog({
                 {forSomeoneElse && person
                   ? `${employeeDisplayName(person)} has no leave balance for ${balanceYear}, so leave cannot be applied.`
                   : `You have no leave balance for ${balanceYear}, so you cannot apply for leave.`}{" "}
+                {dayOffIds.size > 0 && "Holiday and Week off need no balance and can still be requested. "}
                 Ask HR if this looks wrong.
               </span>
             </div>
@@ -327,12 +349,16 @@ export function RequestTimeOffDialog({
           <FormField
             htmlFor="leave-type"
             label="Leave type"
-            hint="Only a type with days available can be applied for."
+            hint={
+              dayOffIds.size > 0
+                ? "Leave and Comp off need days available. Holiday and Week off need none: once approved, the days are marked so and paid."
+                : "Only a type with days available can be applied for."
+            }
           >
             <Select
               value={leaveTypeId}
               onValueChange={setLeaveTypeId}
-              disabled={balances === null || nothingLeft}
+              disabled={balances === null || nothingAtAll}
             >
               <SelectTrigger id="leave-type" className="w-full">
                 <SelectValue
@@ -343,7 +369,7 @@ export function RequestTimeOffDialog({
                         ? "Balances could not be loaded"
                         : balances === null
                           ? "Checking balances…"
-                          : nothingLeft
+                          : nothingAtAll
                             ? "No leave balance"
                             : "Choose a leave type"
                   }
@@ -353,14 +379,17 @@ export function RequestTimeOffDialog({
                 {choices.map((type) => (
                   <SelectItem key={type.id} value={type.id} disabled={!hasDays(type.id)}>
                     {type.name}
+                    {type.marks_day_as === "week_off" && ` (${type.code})`}
                     {!type.is_paid && " (unpaid)"}
                     <span className="text-muted-foreground tabular-nums">
                       {" · "}
-                      {hasDays(type.id)
-                        ? `${formatDays(left.get(type.id))} available`
-                        : tiedUp.has(type.id)
-                          ? "all taken by pending requests"
-                          : "no balance"}
+                      {type.marks_day_as
+                        ? "paid day off, no balance"
+                        : hasDays(type.id)
+                          ? `${formatDays(left.get(type.id))} available`
+                          : tiedUp.has(type.id)
+                            ? "all taken by pending requests"
+                            : "no balance"}
                     </span>
                   </SelectItem>
                 ))}
@@ -489,6 +518,7 @@ export function RequestTimeOffDialog({
             isLoading={isPreviewing}
             hasInput={Boolean(input)}
             forName={forSomeoneElse && person ? employeeDisplayName(person) : null}
+            dayOff={leaveType?.marks_day_as ? leaveType.name : null}
           />
         </div>
 
@@ -515,12 +545,15 @@ function PreviewPanel({
   isLoading,
   hasInput,
   forName,
+  dayOff,
 }: {
   preview: LeavePreview | null;
   error: string | null;
   isLoading: boolean;
   hasInput: boolean;
   forName: string | null;
+  /** "Holiday" or "Week off": a paid day off, nothing taken from a balance. */
+  dayOff: string | null;
 }) {
   if (!hasInput) return null;
 
@@ -552,12 +585,21 @@ function PreviewPanel({
     <div className="space-y-2.5">
       <div className="rounded-md border border-border bg-muted/50 px-3 py-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <p className="text-sm text-foreground">
-            This costs{" "}
-            <span className="font-semibold tabular-nums">{pluralDays(preview.total_days)}</span>
-            {forName && <span className="text-muted-foreground"> of {forName}&apos;s balance</span>}
-            {isLoading && <Loader2 className="ml-2 inline size-3.5 animate-spin" />}
-          </p>
+          {dayOff ? (
+            <p className="text-sm text-foreground">
+              <span className="font-semibold tabular-nums">{pluralDays(preview.total_days)}</span>{" "}
+              marked {dayOff}
+              {forName && <span className="text-muted-foreground"> for {forName}</span>}
+              {isLoading && <Loader2 className="ml-2 inline size-3.5 animate-spin" />}
+            </p>
+          ) : (
+            <p className="text-sm text-foreground">
+              This costs{" "}
+              <span className="font-semibold tabular-nums">{pluralDays(preview.total_days)}</span>
+              {forName && <span className="text-muted-foreground"> of {forName}&apos;s balance</span>}
+              {isLoading && <Loader2 className="ml-2 inline size-3.5 animate-spin" />}
+            </p>
+          )}
           {preview.available_before !== null && preview.available_after !== null && (
             <p className="text-xs text-muted-foreground tabular-nums">
               {formatDays(preview.available_before)} available

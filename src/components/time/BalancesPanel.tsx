@@ -342,7 +342,7 @@ function AdjustDialog({
                 <SelectValue placeholder="Choose a leave type" />
               </SelectTrigger>
               <SelectContent>
-                {(types.data ?? []).map((type) => (
+                {(types.data ?? []).filter((type) => !type.marks_day_as).map((type) => (
                   <SelectItem key={type.id} value={type.id}>
                     {type.name}
                   </SelectItem>

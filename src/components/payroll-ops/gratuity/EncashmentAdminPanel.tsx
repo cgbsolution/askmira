@@ -352,7 +352,10 @@ function PolicyDialog({
     }
   };
 
-  const availableTypes = (leaveTypes ?? []).filter((type) => !existingCodes.includes(type.code));
+  // Holiday and Week off have no balance to encash.
+  const availableTypes = (leaveTypes ?? []).filter(
+    (type) => !type.marks_day_as && !existingCodes.includes(type.code),
+  );
 
   return (
     <Dialog open={editing !== null} onOpenChange={(open) => !open && close()}>

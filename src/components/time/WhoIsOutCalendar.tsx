@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { halfDayLabel } from "@/components/time/LeaveStatusBadge";
-import { holidayScopeLabel } from "@/components/time/HolidayList";
+import { holidayAppliesTo, PROJECT_FILTER } from "@/components/time/HolidayList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, get } from "@/lib/api";
-import type { Holiday, WhoIsOut } from "@/lib/types";
+import type { Holiday, HolidayCalendar, WhoIsOut } from "@/lib/types";
 import { cn, formatDateRange, initials, parseISODate, toISODate } from "@/lib/utils";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -56,8 +56,8 @@ function monthGrid(month: Date): Date[] {
  * Colleagues outside your reporting line appear without a leave type — the
  * server leaves it out, so there is nothing here to hide. Pending leave is
  * drawn dashed, and only ever arrives for people you are allowed to see it for.
- * The holidays shown are your own (your state's and office's) unless HR asks
- * for a state or for every location.
+ * The holidays shown are your own (your state's, office's and project's)
+ * unless HR asks for a state, a project's calendar or every location.
  */
 export function WhoIsOutCalendar({ version, isHr }: { version: number; isHr: boolean }) {
   const [month, setMonth] = useState(() => {
@@ -74,6 +74,10 @@ export function WhoIsOutCalendar({ version, isHr }: { version: number; isHr: boo
   const allHolidays = useApiQuery<Holiday[]>(
     isHr ? `/leave/holidays?year=${month.getFullYear()}&scope=all` : null,
   );
+  const calendars = useApiQuery<HolidayCalendar[]>(
+    isHr ? `/leave/holiday-calendars?year=${month.getFullYear()}` : null,
+  );
+  const projectCalendars = (calendars.data ?? []).filter((calendar) => calendar.project_id);
   const states = useMemo(
     () =>
       Array.from(
@@ -98,7 +102,9 @@ export function WhoIsOutCalendar({ version, isHr }: { version: number; isHr: boo
         ? ""
         : holidayFilter === EVERYONE
           ? "&scope=all"
-          : `&state_code=${holidayFilter}`;
+          : holidayFilter.startsWith(PROJECT_FILTER)
+            ? `&project_id=${holidayFilter.slice(PROJECT_FILTER.length)}`
+            : `&state_code=${holidayFilter}`;
     Promise.all([
       get<WhoIsOut[]>(`/leave/who-is-out?${outParams}`),
       ...years.map((year) => get<Holiday[]>(`/leave/holidays?year=${year}${holidayScope}`)),
@@ -182,6 +188,14 @@ export function WhoIsOutCalendar({ version, isHr }: { version: number; isHr: boo
                 <SelectContent>
                   <SelectItem value={MY_HOLIDAYS}>My holidays</SelectItem>
                   <SelectItem value={EVERYONE}>Every location&apos;s</SelectItem>
+                  {projectCalendars.map((calendar) => (
+                    <SelectItem
+                      key={calendar.project_id}
+                      value={`${PROJECT_FILTER}${calendar.project_id}`}
+                    >
+                      {calendar.name} holidays
+                    </SelectItem>
+                  ))}
                   {states.map((state) => (
                     <SelectItem key={state} value={state}>
                       {state} holidays
@@ -252,10 +266,11 @@ export function WhoIsOutCalendar({ version, isHr }: { version: number; isHr: boo
                           ? "border border-dashed border-marigold-300 text-marigold-900 dark:text-marigold-100"
                           : "bg-marigold-100 text-marigold-900 dark:bg-marigold-900/30 dark:text-marigold-100",
                       )}
-                      title={`${holiday.name} · ${holidayScopeLabel(holiday)}${holiday.is_optional ? " · optional" : ""}`}
+                      title={`${holiday.name} · ${holidayAppliesTo(holiday)}${holiday.is_optional ? " · optional" : ""}`}
                     >
                       {holiday.name}
-                      {holiday.scope !== "national" && ` · ${holidayScopeLabel(holiday)}`}
+                      {(holiday.scope !== "national" || holiday.project_id) &&
+                        ` · ${holidayAppliesTo(holiday)}`}
                     </p>
                   ))}
                   {isLoading ? (

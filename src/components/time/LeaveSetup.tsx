@@ -3,6 +3,7 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import {
   CalendarPlus,
+  Copy,
   Loader2,
   MoreHorizontal,
   Pencil,
@@ -19,6 +20,12 @@ import { DataTable } from "@/components/common/data-table/DataTable";
 import { DatePicker } from "@/components/common/DatePicker";
 import { FormField } from "@/components/common/FormField";
 import { holidayScopeLabel } from "@/components/time/HolidayList";
+import {
+  ALL_CALENDARS,
+  COMPANY_CALENDAR,
+  CopyHolidaysDialog,
+  ProjectCalendarCard,
+} from "@/components/time/ProjectHolidayCalendar";
 import { useAuth } from "@/context/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,6 +76,7 @@ import type {
   AccrualFrequency,
   AccrualRun,
   Holiday,
+  HolidayCalendar,
   HolidayScope,
   LeavePolicy,
   LeaveSettings,
@@ -127,6 +135,10 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
   const [entities, setEntities] = useState<EntityOption[]>([]);
   const [settings, setSettings] = useState<LeaveSettings | null>(null);
   const [holidayYear, setHolidayYear] = useState(thisYear);
+  const [calendars, setCalendars] = useState<HolidayCalendar[]>([]);
+  /** Every calendar, the company's, or a project id. */
+  const [calendarFilter, setCalendarFilter] = useState(ALL_CALENDARS);
+  const [copyingTo, setCopyingTo] = useState<HolidayCalendar | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [editingType, setEditingType] = useState<LeaveType | "new" | null>(null);
   const [editingPolicy, setEditingPolicy] = useState<LeavePolicy | "new" | null>(null);
@@ -138,15 +150,22 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
 
   const load = useCallback(async () => {
     setIsLoading(true);
+    const which =
+      calendarFilter === ALL_CALENDARS
+        ? "scope=all"
+        : calendarFilter === COMPANY_CALENDAR
+          ? "scope=company"
+          : `project_id=${calendarFilter}`;
     try {
-      const [typeRows, policyRows, locationRows, holidayRows, settingsRow, entityRows] =
+      const [typeRows, policyRows, locationRows, holidayRows, settingsRow, entityRows, calendarRows] =
         await Promise.all([
           get<LeaveType[]>("/leave/types?include_inactive=true"),
           get<LeavePolicy[]>("/leave/policies"),
           get<LocationOption[]>("/org/locations"),
-          get<Holiday[]>(`/leave/holidays?year=${holidayYear}&scope=all`),
+          get<Holiday[]>(`/leave/holidays?year=${holidayYear}&${which}`),
           get<LeaveSettings>("/leave/settings"),
           get<EntityOption[]>("/org/legal-entities"),
+          get<HolidayCalendar[]>(`/leave/holiday-calendars?year=${holidayYear}`),
         ]);
       setTypes(typeRows);
       setPolicies(policyRows);
@@ -154,24 +173,45 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
       setEntities(entityRows);
       setHolidays(holidayRows);
       setSettings(settingsRow);
+      setCalendars(calendarRows);
     } catch (error) {
       toast.error(errorText(error, "Could not load leave setup."));
     } finally {
       setIsLoading(false);
     }
-  }, [holidayYear]);
+  }, [holidayYear, calendarFilter]);
 
   useEffect(() => {
     void load();
   }, [load, version]);
 
+  // Holiday and Week off need no balance, so no policy covers them.
   const activeTypes = useMemo(
-    () => types.filter((type) => type.is_active),
+    () => types.filter((type) => type.is_active && !type.marks_day_as),
     [types],
   );
   const typeName = (id: string) => types.find((type) => type.id === id)?.name ?? "—";
   const locationName = (id: string | null) =>
     id ? (locations.find((location) => location.id === id)?.name ?? "—") : "Everywhere";
+
+  const projectCalendars = useMemo(
+    () => calendars.filter((calendar) => calendar.project_id),
+    [calendars],
+  );
+  const viewedProject =
+    projectCalendars.find((calendar) => calendar.project_id === calendarFilter) ?? null;
+
+  // A project not listed for the year picked (closed, nobody on it): back to every calendar.
+  useEffect(() => {
+    if (
+      !isLoading &&
+      calendarFilter !== ALL_CALENDARS &&
+      calendarFilter !== COMPANY_CALENDAR &&
+      !viewedProject
+    ) {
+      setCalendarFilter(ALL_CALENDARS);
+    }
+  }, [isLoading, calendarFilter, viewedProject]);
 
   const holidayColumns: ColumnDef<Holiday>[] = [
     {
@@ -198,6 +238,22 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
         </>
       ),
     },
+    ...(projectCalendars.length > 0 && calendarFilter !== COMPANY_CALENDAR
+      ? [
+          {
+            id: "calendar",
+            header: "Calendar",
+            accessorFn: (holiday: Holiday) => holiday.project_name ?? "Company",
+            meta: { filter: calendarFilter === ALL_CALENDARS },
+            cell: ({ row }) =>
+              row.original.project_id ? (
+                <Badge variant="secondary">{row.original.project_name}</Badge>
+              ) : (
+                <span className="text-muted-foreground">Company</span>
+              ),
+          } satisfies ColumnDef<Holiday>,
+        ]
+      : []),
     {
       id: "applies_to",
       header: "Applies to",
@@ -206,7 +262,9 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
           ? `${holidayScopeLabel(holiday)} (office)`
           : holiday.scope === "state"
             ? `${holidayScopeLabel(holiday)} (state)`
-            : "National",
+            : holiday.project_id
+              ? "Everyone on it"
+              : "National",
       meta: { cellClassName: "text-muted-foreground" },
     },
     ...(entities.length > 1
@@ -237,7 +295,10 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
       meta: { className: "w-12 text-right", text: false },
       cell: ({ row }) =>
         // Past holidays are not edited: attendance and payroll may already reflect them.
-        row.original.holiday_date >= toISODate(new Date()) && (
+        // On a project's calendar only its own are changed here; a company
+        // holiday is changed on the company calendar, for everyone it covers.
+        row.original.holiday_date >= toISODate(new Date()) &&
+        (!viewedProject || row.original.project_id === viewedProject.project_id) && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -341,6 +402,12 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
                       <Badge variant={type.is_paid ? "success" : "muted"}>
                         {type.is_paid ? "Paid" : "Unpaid (loss of pay)"}
                       </Badge>
+                      {type.marks_day_as && (
+                        <Badge variant="accent">
+                          {type.marks_day_as === "holiday" ? "Marks the day Holiday" : "Marks the day Week off"}{" "}
+                          · no balance
+                        </Badge>
+                      )}
                       {type.allows_half_day && <Badge variant="outline">Half days</Badge>}
                       {type.requires_document && <Badge variant="outline">Document needed</Badge>}
                       {type.is_statutory && <Badge variant="secondary">Statutory</Badge>}
@@ -476,39 +543,86 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
         </CardContent>
       </Card>
 
+      {viewedProject && (
+        <ProjectCalendarCard calendar={viewedProject} year={holidayYear} onChanged={changed} />
+      )}
+
       <DataTable
         tier="tier1"
-        title="Holidays"
-        description="National, state, single-office or one-company holidays, paid or unpaid. Past ones stay as they are: attendance and payroll may already reflect them."
+        title={viewedProject ? `Holidays · ${viewedProject.name}` : "Holidays"}
+        description={
+          viewedProject
+            ? `What the people on ${viewedProject.name} get${
+                viewedProject.own_holidays_from
+                  ? `: its own holidays, and the company's before ${formatDay(viewedProject.own_holidays_from, true)}.`
+                  : ": the company's holidays and its own."
+              } Company holidays are changed on the company calendar.`
+            : calendarFilter === COMPANY_CALENDAR
+              ? "The company calendar: everyone gets these, except people on a project that keeps its own calendar. Past ones stay as they are: attendance and payroll may already reflect them."
+              : projectCalendars.length > 0
+                ? "The company calendar and each project's. National, state, single-office, one-company or one-project holidays, paid or unpaid. Past ones stay as they are: attendance and payroll may already reflect them."
+                : "National, state, single-office or one-company holidays, paid or unpaid. Past ones stay as they are: attendance and payroll may already reflect them."
+        }
         columns={holidayColumns}
         data={holidays}
         noun="holidays"
-        exportName={`holiday-calendar-${holidayYear}`}
+        exportName={`holiday-calendar-${holidayYear}${viewedProject ? `-${viewedProject.code ?? "project"}` : ""}`}
         searchPlaceholder="Search holidays"
         isLoading={isLoading}
         filters={
-          <Select value={String(holidayYear)} onValueChange={(value) => setHolidayYear(Number(value))}>
-            <SelectTrigger className="h-9 w-28" aria-label="Year">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[thisYear - 1, thisYear, thisYear + 1].map((option) => (
-                <SelectItem key={option} value={String(option)}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <>
+            <Select value={String(holidayYear)} onValueChange={(value) => setHolidayYear(Number(value))}>
+              <SelectTrigger className="h-9 w-28" aria-label="Year">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[thisYear - 1, thisYear, thisYear + 1].map((option) => (
+                  <SelectItem key={option} value={String(option)}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {projectCalendars.length > 0 && (
+              <Select value={calendarFilter} onValueChange={setCalendarFilter}>
+                <SelectTrigger className="h-9 w-56" aria-label="Calendar">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_CALENDARS}>Every calendar</SelectItem>
+                  <SelectItem value={COMPANY_CALENDAR}>Company calendar</SelectItem>
+                  {projectCalendars.map((calendar) => (
+                    <SelectItem key={calendar.project_id} value={calendar.project_id!}>
+                      {calendar.name}
+                      {calendar.own_holidays_from ? " · own calendar" : ""}
+                      {!calendar.active ? " (closed)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </>
         }
         actions={
-          <Button size="sm" onClick={() => setEditingHoliday("new")}>
-            <CalendarPlus /> Add holiday
-          </Button>
+          <>
+            {viewedProject && (
+              <Button variant="outline" size="sm" onClick={() => setCopyingTo(viewedProject)}>
+                <Copy /> Copy holidays
+              </Button>
+            )}
+            <Button size="sm" onClick={() => setEditingHoliday("new")}>
+              <CalendarPlus /> Add holiday
+            </Button>
+          </>
         }
         empty={{
           icon: CalendarPlus,
-          title: `No holidays for ${holidayYear} yet`,
-          description: "Add them from the state gazette notification.",
+          title: viewedProject
+            ? `No holidays on ${viewedProject.name}'s calendar for ${holidayYear}`
+            : `No holidays for ${holidayYear} yet`,
+          description: viewedProject
+            ? "Add the client's holidays, or copy them from another calendar."
+            : "Add them from the state gazette notification.",
         }}
       />
 
@@ -528,8 +642,20 @@ export function LeaveSetup({ onChanged, version }: { onChanged: () => void; vers
         editing={editingHoliday}
         locations={locations}
         entities={entities}
+        calendars={projectCalendars}
+        defaultProjectId={viewedProject?.project_id ?? null}
         onClose={() => setEditingHoliday(null)}
         onSaved={changed}
+      />
+      <CopyHolidaysDialog
+        target={copyingTo}
+        calendars={projectCalendars}
+        year={holidayYear}
+        onClose={() => setCopyingTo(null)}
+        onCopied={() => {
+          setCopyingTo(null);
+          changed();
+        }}
       />
       <ConfirmDialog
         open={removingHoliday !== null}
@@ -826,11 +952,13 @@ function LeaveTypeDialog({
     }
   };
 
+  // Holiday and Week off stay a paid, full day off that takes no comp-off credits.
+  const dayOff = Boolean(existing?.marks_day_as);
   const toggles: [string, string, string, boolean, (value: boolean) => void, boolean][] = [
-    ["type-paid", "Paid leave", "Unpaid leave counts as loss of pay and has no balance.", isPaid, setIsPaid, false],
-    ["type-half", "Allow half days", "First or second half of a single date.", halfDay, setHalfDay, false],
+    ["type-paid", "Paid leave", "Unpaid leave counts as loss of pay and has no balance.", isPaid, setIsPaid, dayOff],
+    ["type-half", "Allow half days", "First or second half of a single date.", halfDay, setHalfDay, dayOff],
     ["type-doc", "Needs a document", "A medical certificate or similar must be attached.", document, setDocument, false],
-    ["type-comp", "Comp-off type", "Approved comp-off claims are credited here. Only one type can be.", compOff, setCompOff, false],
+    ["type-comp", "Comp-off type", "Approved comp-off claims are credited here. Only one type can be.", compOff, setCompOff, dayOff],
     ["type-statutory", "Statutory entitlement", "Maternity leave and similar. Cannot be withdrawn later.", statutory, setStatutory, !isNew],
   ];
 
@@ -842,7 +970,9 @@ function LeaveTypeDialog({
           <DialogDescription>
             {isNew
               ? "People can request it once a policy gives them a quota (comp-off and unpaid types need none)."
-              : "The code stays fixed: balances and encashment policies are keyed on it."}
+              : dayOff
+                ? `Not leave: a request needs no balance, and once approved its days are marked ${existing?.marks_day_as === "holiday" ? "Holiday" : "Week off"} in attendance and paid. Its name and document rule can be changed.`
+                : "The code stays fixed: balances and encashment policies are keyed on it."}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
@@ -1125,12 +1255,18 @@ function HolidayDialog({
   editing,
   locations,
   entities,
+  calendars,
+  defaultProjectId,
   onClose,
   onSaved,
 }: {
   editing: Holiday | "new" | null;
   locations: LocationOption[];
   entities: EntityOption[];
+  /** Projects' calendars; the company calendar is always offered. */
+  calendars: HolidayCalendar[];
+  /** The project calendar being looked at, for a new holiday. */
+  defaultProjectId: string | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -1142,16 +1278,25 @@ function HolidayDialog({
   const [locationId, setLocationId] = useState("");
   const [optional, setOptional] = useState(false);
   const [entityId, setEntityId] = useState(ALL_ENTITIES);
+  const [projectId, setProjectId] = useState(COMPANY_CALENDAR);
   const [paid, setPaid] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  const project =
+    projectId === COMPANY_CALENDAR
+      ? null
+      : (calendars.find((calendar) => calendar.project_id === projectId) ?? null);
+  // A project's holiday is for its people, whichever company they are with;
+  // its offices are the project's company's.
+  const officeEntity = project ? (project.legal_entity_id ?? ALL_ENTITIES) : entityId;
 
   // Offices of the chosen company only: an office holiday cannot belong to another one.
   const offices = useMemo(
     () =>
-      entityId === ALL_ENTITIES
+      officeEntity === ALL_ENTITIES
         ? locations
-        : locations.filter((location) => location.legal_entity_id === entityId),
-    [locations, entityId],
+        : locations.filter((location) => location.legal_entity_id === officeEntity),
+    [locations, officeEntity],
   );
 
   const states = useMemo(
@@ -1169,8 +1314,11 @@ function HolidayDialog({
     setLocationId(source?.location_id ?? "");
     setOptional(source?.is_optional ?? false);
     setEntityId(source?.legal_entity_id ?? ALL_ENTITIES);
+    setProjectId(
+      source ? (source.project_id ?? COMPANY_CALENDAR) : (defaultProjectId ?? COMPANY_CALENDAR),
+    );
     setPaid(source?.is_paid ?? true);
-  }, [editing]);
+  }, [editing, defaultProjectId]);
 
   // Changing the company drops an office that is not one of its own.
   useEffect(() => {
@@ -1185,6 +1333,11 @@ function HolidayDialog({
 
   const save = async () => {
     setIsSaving(true);
+    const calendar = {
+      project_id: project?.project_id ?? null,
+      legal_entity_id: project || entityId === ALL_ENTITIES ? null : entityId,
+    };
+    const where = project ? ` to ${project.name}'s calendar` : "";
     try {
       if (existing) {
         await patch(`/leave/holidays/${existing.id}`, {
@@ -1193,7 +1346,7 @@ function HolidayDialog({
           scope,
           state_code: scope === "state" ? stateCode : null,
           location_id: scope === "location" ? locationId : null,
-          legal_entity_id: entityId === ALL_ENTITIES ? null : entityId,
+          ...calendar,
           is_optional: optional,
           is_paid: paid,
         });
@@ -1204,11 +1357,11 @@ function HolidayDialog({
           holiday_date: date,
           state_code: scope === "state" ? stateCode : null,
           location_id: scope === "location" ? locationId : null,
-          legal_entity_id: entityId === ALL_ENTITIES ? null : entityId,
+          ...calendar,
           is_optional: optional,
           is_paid: paid,
         });
-        toast.success(`${name.trim()} added`);
+        toast.success(`${name.trim()} added${where}`);
       }
       onSaved();
     } catch (error) {
@@ -1224,11 +1377,35 @@ function HolidayDialog({
         <DialogHeader>
           <DialogTitle>{existing ? `Edit ${existing.name}` : "Add a holiday"}</DialogTitle>
           <DialogDescription>
-            Take dates from the state gazette notification. A state holiday applies to every
-            office in that state; an office holiday to that office only.
+            {project
+              ? `Only the people on ${project.name} get it. A state or office holiday narrows it to those of them in that state or office.`
+              : "Take dates from the state gazette notification. A state holiday applies to every office in that state; an office holiday to that office only."}
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
+          {calendars.length > 0 && (
+            <FormField
+              htmlFor="holiday-calendar"
+              label="Calendar"
+              hint="The company calendar, or one project's — a client's holiday for the people deployed there."
+            >
+              <Select value={projectId} onValueChange={setProjectId}>
+                <SelectTrigger id="holiday-calendar" className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={COMPANY_CALENDAR}>Company calendar</SelectItem>
+                  {calendars
+                    .filter((calendar) => calendar.active || calendar.project_id === projectId)
+                    .map((calendar) => (
+                      <SelectItem key={calendar.project_id} value={calendar.project_id!}>
+                        {calendar.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+          )}
           <FormField htmlFor="holiday-name" label="Name">
             <Input id="holiday-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ugadi" />
           </FormField>
@@ -1242,14 +1419,16 @@ function HolidayDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="national">Everyone (national)</SelectItem>
+                  <SelectItem value="national">
+                    {project ? "Everyone on the project" : "Everyone (national)"}
+                  </SelectItem>
                   <SelectItem value="state">One state</SelectItem>
                   <SelectItem value="location">One office</SelectItem>
                 </SelectContent>
               </Select>
             </FormField>
           </div>
-          {entities.length > 1 && (
+          {entities.length > 1 && !project && (
             <FormField
               htmlFor="holiday-entity"
               label="Company"

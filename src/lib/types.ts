@@ -190,6 +190,11 @@ export interface LeaveType {
   requires_document: boolean;
   is_statutory: boolean;
   is_comp_off: boolean;
+  /**
+   * "holiday" or "week_off": not leave but a paid day off of that kind, asked
+   * for the same way. Needs no balance; approval marks the days in attendance.
+   */
+  marks_day_as?: "holiday" | "week_off" | null;
   is_active: boolean;
 }
 
@@ -223,6 +228,9 @@ export interface Holiday {
   /** One company of the group only; null for every legal entity. */
   legal_entity_id?: string | null;
   legal_entity_name?: string | null;
+  /** On one project's calendar only; null for the company calendar. */
+  project_id?: string | null;
+  project_name?: string | null;
   is_optional: boolean;
   /** Unpaid: a day off that is loss of pay unless worked. */
   is_paid?: boolean;
@@ -230,6 +238,37 @@ export interface Holiday {
   applies_to_me: boolean;
   /** An optional holiday the viewer opted in to. */
   selected: boolean;
+}
+
+/** What copying holidays onto a project's calendar did. */
+export interface HolidayCopyResult {
+  copied: number;
+  /** The calendar already had a holiday on that date for that place. */
+  already_there: number;
+  /** Already passed: attendance and payroll may reflect them. */
+  past: number;
+  /** For another company of the group than the project's. */
+  other_company: number;
+}
+
+/** A holiday calendar: the company's (project_id null) or a project's. */
+export interface HolidayCalendar {
+  project_id: string | null;
+  code: string | null;
+  name: string;
+  client: string | null;
+  active: boolean;
+  /** The company of the group that staffs the project. */
+  legal_entity_id: string | null;
+  /** People on the project who have not left; null for the company calendar. */
+  headcount: number | null;
+  /** Keeps its own calendar from this ISO date; null follows the company's. */
+  own_holidays_from: string | null;
+  /** Holidays on this calendar in the year, the company's included where they apply. */
+  holiday_count: number;
+  /** Of those, the ones added for this project only. */
+  own_count: number;
+  copied?: HolidayCopyResult | null;
 }
 
 export interface OptionalHolidays {

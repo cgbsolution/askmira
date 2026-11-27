@@ -198,7 +198,8 @@ export const ME_GUIDES: Record<string, PageGuide> = {
         title: "Apply for leave",
         steps: [
           "Press Request time off.",
-          "Choose the leave type: each shows the days you have. Leave is applied only against a balance, so a type with none cannot be picked, and with no balance at all you cannot apply.",
+          "Choose the leave type: each shows the days you have. Leave and Comp off are applied only against a balance, so a type with none cannot be picked.",
+          "Holiday and Week off (WO) need no balance: once your approver agrees, those days are marked Holiday or Week off in attendance and paid.",
           "Choose the From and To dates; switch on Half day for half a day.",
           "Add a note for the approver, and a supporting document if the leave type needs one.",
           "Check the line that says what it costs and who it goes to, then press Submit request.",
@@ -237,6 +238,16 @@ export const ME_GUIDES: Record<string, PageGuide> = {
           "Under Leave settings, set how many days a comp-off lasts. An admin also chooses what happens to unused comp-off at year end: carry it forward to the next year (it still lapses on its own expiry date), or lapse it on 31 December.",
           "An admin can also set Probation before leave (months): new joiners earn no leave until that many months after their joining date. All balances then shows an On probation tab, and each person's row says the day their leave starts. Statutory leave is never held back.",
           "A policy that starts mid-year earns only from its start month: a version from 1 November credits November and December, not the months before it.",
+        ],
+      },
+      {
+        title: "Give a project its own holiday calendar",
+        roles: [...HR],
+        steps: [
+          "Open the Setup tab and, above the Holidays table, pick the project in the Calendar list.",
+          "Add holiday adds one for that project's people only — a client's holiday for the people deployed there.",
+          "When the client keeps a different list altogether, turn on Own calendar and choose the date it starts. Start with the company's holidays copies the company's from that date; then remove the ones the client does not give and add the ones it does.",
+          "From that date the company's holidays no longer apply to the project's people; days before it keep them. Copy holidays brings a year's list over from the company calendar or another project.",
         ],
       },
       {

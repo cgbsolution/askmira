@@ -17,10 +17,10 @@ import {
 } from "@/components/ui/select";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { ApiError, del, get, post } from "@/lib/api";
-import type { Holiday, OptionalHolidays } from "@/lib/types";
-import { cn, parseISODate, toISODate } from "@/lib/utils";
+import type { Holiday, HolidayCalendar, OptionalHolidays } from "@/lib/types";
+import { cn, formatDay, parseISODate, toISODate } from "@/lib/utils";
 
-/** "mine", "all", or a state code. */
+/** "mine", "all", "company", "project:<id>", or a state code. */
 type Filter = string;
 
 /** Who a holiday is for, in words: National, the state, or the office. */
@@ -44,11 +44,22 @@ function weekday(holiday: Holiday): string {
   return new Intl.DateTimeFormat("en-IN", { weekday: "long" }).format(parseISODate(holiday.holiday_date));
 }
 
-/** The Applies to column as text: "National", "KA", or "Bengaluru office · KA", plus the company. */
-function appliesTo(holiday: Holiday): string {
+/**
+ * The Applies to column as text: "National", "KA", or "Bengaluru office · KA",
+ * plus the company — and the project first for a project's own holiday
+ * ("DXC INET", "DXC INET · KA").
+ */
+export function holidayAppliesTo(holiday: Holiday): string {
   const place = `${holidayScopeLabel(holiday)}${holiday.scope === "location" && holiday.state_code ? ` · ${holiday.state_code}` : ""}`;
-  return holiday.legal_entity_name ? `${place} · ${holiday.legal_entity_name}` : place;
+  const parts = holiday.project_id
+    ? [holiday.project_name ?? "One project", ...(holiday.scope === "national" ? [] : [place])]
+    : [place];
+  if (holiday.legal_entity_name) parts.push(holiday.legal_entity_name);
+  return parts.join(" · ");
 }
+
+/** The holiday filters' value for a project's calendar. */
+export const PROJECT_FILTER = "project:";
 
 /**
  * The holiday calendar.
@@ -80,12 +91,21 @@ export function HolidayList({
     hasEmployee ? `/leave/optional-holidays?year=${year}` : null,
   );
   const { reload: reloadOptional } = optional;
+  const calendars = useApiQuery<HolidayCalendar[]>(
+    isHr ? `/leave/holiday-calendars?year=${year}` : null,
+  );
+  const projectCalendars = (calendars.data ?? []).filter((calendar) => calendar.project_id);
+  const viewedProject = filter.startsWith(PROJECT_FILTER)
+    ? projectCalendars.find((calendar) => `${PROJECT_FILTER}${calendar.project_id}` === filter)
+    : undefined;
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     const params = new URLSearchParams({ year: String(year) });
     if (filter === "all") params.set("scope", "all");
+    else if (filter === "company") params.set("scope", "company");
+    else if (filter.startsWith(PROJECT_FILTER)) params.set("project_id", filter.slice(PROJECT_FILTER.length));
     else if (filter !== "mine") params.set("state_code", filter);
     Promise.all([
       get<Holiday[]>(`/leave/holidays?${params}`),
@@ -193,12 +213,12 @@ export function HolidayList({
     {
       id: "applies_to",
       header: "Applies to",
-      accessorFn: appliesTo,
+      accessorFn: holidayAppliesTo,
       cell: ({ row }) =>
-        row.original.scope === "national" ? (
+        row.original.scope === "national" && !row.original.project_id && !row.original.legal_entity_name ? (
           <span className="text-sm">National</span>
         ) : (
-          <Badge variant="secondary">{appliesTo(row.original)}</Badge>
+          <Badge variant="secondary">{holidayAppliesTo(row.original)}</Badge>
         ),
     },
     ...(hasEmployee ? [actionColumn] : []),
@@ -208,8 +228,14 @@ export function HolidayList({
     <DataTable
       description={
         filter === "mine"
-          ? "National holidays, your state's and your office's."
-          : "National holidays apply everywhere; state and office holidays only there."
+          ? "Your holidays: national ones, your state's and office's, and your project's."
+          : viewedProject
+            ? viewedProject.own_holidays_from
+              ? `What people on ${viewedProject.name} get: its own calendar from ${formatDay(viewedProject.own_holidays_from, true)}.`
+              : `What people on ${viewedProject.name} get: the company's holidays and any of its own.`
+            : filter === "company"
+              ? "The company calendar, without any project's own holidays."
+              : "National holidays apply everywhere; state, office and project holidays only there."
       }
       columns={columns}
       data={rows}
@@ -239,6 +265,12 @@ export function HolidayList({
               <SelectContent>
                 {hasEmployee && <SelectItem value="mine">My holidays</SelectItem>}
                 <SelectItem value="all">Every location</SelectItem>
+                {projectCalendars.length > 0 && <SelectItem value="company">Company calendar</SelectItem>}
+                {projectCalendars.map((calendar) => (
+                  <SelectItem key={calendar.project_id} value={`${PROJECT_FILTER}${calendar.project_id}`}>
+                    {calendar.name} calendar
+                  </SelectItem>
+                ))}
                 {states.map((state) => (
                   <SelectItem key={state} value={state}>
                     {state} and national
