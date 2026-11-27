@@ -85,17 +85,27 @@ function writeSharePreference(value: boolean) {
   }
 }
 
-/** Minutes worked from paired punches, counting an open IN up to `now`. */
+/**
+ * Minutes worked from paired punches, counting an open IN up to `now`. Read the
+ * way the server reads them: a second IN while already in is a mistaken tap
+ * (the stretch keeps the first IN), and a second OUT extends the stretch it
+ * follows. Nothing is taken off for the shift's break.
+ */
 function workedSoFar(punches: Punch[], now: number): number {
   let total = 0;
   let openIn: number | null = null;
+  let lastOut: number | null = null;
   for (const punch of punches) {
     const at = new Date(punch.punched_at).getTime();
     if (punch.direction === "in") {
-      openIn = at;
+      if (openIn === null) openIn = at;
     } else if (openIn !== null) {
       total += at - openIn;
       openIn = null;
+      lastOut = at;
+    } else if (lastOut !== null) {
+      total += at - lastOut;
+      lastOut = at;
     }
   }
   if (openIn !== null) total += now - openIn;
@@ -107,11 +117,11 @@ function minutesOf(hhmm: string): number {
   return hours * 60 + minutes;
 }
 
-/** The shift's scheduled working minutes: start to end, less the break. */
+/** The shift's scheduled working minutes: start to end. The break is working time. */
 function scheduledMinutes(shift: ShiftBrief): number {
   let span = minutesOf(shift.end_time) - minutesOf(shift.start_time);
   if (span <= 0) span += 24 * 60;
-  return Math.max(0, span - shift.break_minutes);
+  return span;
 }
 
 /** Minutes late against the shift start and its grace, from the first IN today. */
