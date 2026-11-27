@@ -1,16 +1,23 @@
 import React from "react";
 
 import {
-  EMPLOYMENT_STATUS,
   EVENT_STATUS,
   POSITION_STATUS,
+  statusMeta,
 } from "@/components/people/labels";
 import { Badge } from "@/components/ui/badge";
 import type { EmploymentStatus } from "@/lib/types";
 import type { LifecycleStatus, PositionStatus } from "@/lib/types/people";
 
-export function EmploymentStatusBadge({ status }: { status: EmploymentStatus }) {
-  const meta = EMPLOYMENT_STATUS[status];
+export function EmploymentStatusBadge({
+  status,
+  exitType,
+}: {
+  status: EmploymentStatus;
+  /** How a leaver left: "absconding" shows as Absconding. */
+  exitType?: string | null;
+}) {
+  const meta = statusMeta(status, exitType);
   return <Badge variant={meta.variant}>{meta.label}</Badge>;
 }
 

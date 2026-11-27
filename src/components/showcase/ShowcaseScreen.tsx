@@ -194,10 +194,10 @@ export function ShowcaseScreen({ code }: { code: string }) {
         form.delete("conversation_id");
         return post<Turn>(`${base}/messages/files`, form, options(CHAT_TIMEOUTS.files));
       },
-      decide: (actionId, confirm) =>
+      decide: (actionId, confirm, choice) =>
         post<OfferDecision>(
           `${base}/actions/${actionId}/${confirm ? "confirm" : "cancel"}`,
-          undefined,
+          choice ? { choice } : undefined,
           options(CHAT_TIMEOUTS.turn),
         ),
       onError: (caught) => {

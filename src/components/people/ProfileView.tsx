@@ -250,7 +250,10 @@ export function ProfileView({
               <Pencil /> Edit contact details
             </Button>
           )}
-          {isHr && !isSelf && <LoginAccessButton employee={employee} />}
+          {isHr && !isSelf && (
+            // Re-read when they are marked as left (or back): saving switches the login off.
+            <LoginAccessButton key={`${employee.status}-${employee.is_active}`} employee={employee} />
+          )}
           {isHr && !isSelf && (
             <>
               <Button variant="outline" asChild>
@@ -280,7 +283,7 @@ export function ProfileView({
             subtitle={`${employee.employee_code} · ${employee.work_email}`}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <EmploymentStatusBadge status={employee.status} />
+            <EmploymentStatusBadge status={employee.status} exitType={employee.exit_type} />
             {!employee.is_active && <Badge variant="destructive">Deactivated</Badge>}
             {isSelf && <Badge variant="secondary">This is you</Badge>}
             {details && details.pending_requests.length > 0 && (
@@ -325,40 +328,23 @@ export function ProfileView({
 
         <TabsContent value="overview" className="mt-4 grid gap-6">
           {details && <MissingAlert missing={details.missing} />}
+          {/* The same six fields for every workspace. Colleagues outside HR and
+              the person's line get "Not shown" where the API withholds a value. */}
           <Card tier="tier1">
             <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <DetailItem label="Designation">{employee.designation}</DetailItem>
-              <DetailItem label="Project">{org.projectName(employee.project_id)}</DetailItem>
-              <DetailItem label="Department">{org.departmentName(employee.department_id)}</DetailItem>
-              <DetailItem label="Location">{org.locationName(employee.location_id)}</DetailItem>
-              <DetailItem label="Manager">
-                {employee.manager_id ? (
-                  manager.data ? (
-                    <Link className="text-primary hover:underline" href={`/people/${manager.data.id}`}>
-                      {personName(manager.data)}
-                    </Link>
-                  ) : manager.isLoading ? (
-                    "…"
-                  ) : (
-                    "Not visible"
-                  )
-                ) : null}
+              <DetailItem label="Name">{name}</DetailItem>
+              <DetailItem label="Work location">{org.locationName(employee.location_id)}</DetailItem>
+              <DetailItem label="Personal email ID">
+                {employee.personal_email ?? (seesPrivate ? null : "Not shown")}
               </DetailItem>
-              {employee.dotted_line_manager_id && (
-                <DetailItem label="Dotted-line manager">
-                  {dottedManager.data ? (
-                    <Link className="text-primary hover:underline" href={`/people/${dottedManager.data.id}`}>
-                      {personName(dottedManager.data)}
-                    </Link>
-                  ) : dottedManager.isLoading ? (
-                    "…"
-                  ) : (
-                    "Not visible"
-                  )}
-                </DetailItem>
-              )}
-              <DetailItem label="Work email">{employee.work_email}</DetailItem>
-              <DetailItem label="Joined">{day(employee.date_of_joining)}</DetailItem>
+              <DetailItem label="Official email ID">{employee.work_email}</DetailItem>
+              <DetailItem label="Contact no.">
+                {employee.phone ?? (seesPrivate ? null : "Not shown")}
+              </DetailItem>
+              <DetailItem label="Last working day">
+                {day(employee.last_working_day ?? null) ??
+                  (seesPrivate || employee.in_your_line ? null : "Not shown")}
+              </DetailItem>
             </CardContent>
           </Card>
         </TabsContent>
@@ -433,9 +419,37 @@ export function ProfileView({
           <Card tier="tier1">
             <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <DetailItem label="Employee code">{employee.employee_code}</DetailItem>
+              <DetailItem label="Designation">{employee.designation}</DetailItem>
+              <DetailItem label="Department">{org.departmentName(employee.department_id)}</DetailItem>
+              <DetailItem label="Manager">
+                {employee.manager_id ? (
+                  manager.data ? (
+                    <Link className="text-primary hover:underline" href={`/people/${manager.data.id}`}>
+                      {personName(manager.data)}
+                    </Link>
+                  ) : manager.isLoading ? (
+                    "…"
+                  ) : (
+                    "Not visible"
+                  )
+                ) : null}
+              </DetailItem>
+              {employee.dotted_line_manager_id && (
+                <DetailItem label="Dotted-line manager">
+                  {dottedManager.data ? (
+                    <Link className="text-primary hover:underline" href={`/people/${dottedManager.data.id}`}>
+                      {personName(dottedManager.data)}
+                    </Link>
+                  ) : dottedManager.isLoading ? (
+                    "…"
+                  ) : (
+                    "Not visible"
+                  )}
+                </DetailItem>
+              )}
               <DetailItem label="Employment type">{EMPLOYMENT_TYPE[employee.employment_type]}</DetailItem>
               <DetailItem label="Status">
-                <EmploymentStatusBadge status={employee.status} />
+                <EmploymentStatusBadge status={employee.status} exitType={employee.exit_type} />
               </DetailItem>
               <DetailItem label="Legal entity">{org.entityName(employee.legal_entity_id)}</DetailItem>
               <DetailItem label="Project">{org.projectName(employee.project_id)}</DetailItem>

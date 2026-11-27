@@ -72,6 +72,17 @@ function FitToContent({
   return null;
 }
 
+/** After the locate button: centre on the person at street level. */
+function FocusOnLive({ live, focusKey }: { live: LivePosition | null; focusKey: number }) {
+  const map = useMap();
+  useEffect(() => {
+    if (focusKey > 0 && live) map.setView([live.latitude, live.longitude], 17);
+    // Only when the button was pressed, not when the fix drifts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, focusKey]);
+  return null;
+}
+
 /**
  * The map itself. Loaded only in the browser (see `AttendanceMap`): Leaflet
  * touches `window` on import.
@@ -81,11 +92,13 @@ export default function AttendanceMapCanvas({
   points,
   live,
   className,
+  focusKey = 0,
 }: {
   places: WorkLocationPin[];
   points: MapPoint[];
   live: LivePosition | null;
   className?: string;
+  focusKey?: number;
 }) {
   return (
     <MapContainer
@@ -152,6 +165,7 @@ export default function AttendanceMapCanvas({
         </CircleMarker>
       ))}
       <FitToContent places={places} points={points} live={live} />
+      <FocusOnLive live={live} focusKey={focusKey} />
     </MapContainer>
   );
 }

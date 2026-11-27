@@ -73,7 +73,7 @@ export function CompanionCardView({
   onPick?: (pick: CompanionPick) => void;
   picking?: boolean;
   /** Confirms or declines an offer; absent where offers cannot be decided. */
-  onDecide?: (card: CompanionProposal, confirm: boolean) => void;
+  onDecide?: (card: CompanionProposal, confirm: boolean, choice?: string) => void;
   deciding?: boolean;
   /** The open conversation: where Connect brings the admin back to. */
   conversationId?: string | null;

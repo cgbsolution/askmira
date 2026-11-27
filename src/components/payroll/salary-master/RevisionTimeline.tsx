@@ -104,10 +104,26 @@ export function RevisionTimeline({
                   </div>
                 </div>
 
-                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-                  <Fact label="CTC a month">
-                    <Money value={revision.ctc_monthly} />
-                  </Fact>
+                <dl
+                  className={cn(
+                    "grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4",
+                    revision.variable_annual ? "xl:grid-cols-8" : "xl:grid-cols-7",
+                  )}
+                >
+                  {revision.variable_annual ? (
+                    <>
+                      <Fact label="Fixed CTC a month">
+                        <Money value={revision.fixed_ctc_monthly} />
+                      </Fact>
+                      <Fact label="Sales incentive a year">
+                        <Money value={revision.variable_annual} />
+                      </Fact>
+                    </>
+                  ) : (
+                    <Fact label="CTC a month">
+                      <Money value={revision.ctc_monthly} />
+                    </Fact>
+                  )}
                   <Fact label="Monthly gross">
                     <Money value={revision.gross_monthly} />
                   </Fact>
@@ -161,6 +177,12 @@ export function RevisionTimeline({
 
                 <p className="text-xs text-muted-foreground">
                   <Money value={revision.ctc_annual} /> a year
+                  {revision.variable_annual && (
+                    <>
+                      {" "}
+                      (incl. sales incentive <Money value={revision.variable_annual} />, paid when earned)
+                    </>
+                  )}
                   {revision.structure_name && ` · ${revision.structure_name}`}
                   {revision.effective_to && ` · until ${revisionDate(revision.effective_to)}`}
                   {revision.revision_reason && ` · ${revision.revision_reason}`}

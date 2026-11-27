@@ -27,7 +27,7 @@ export function ShiftsAdmin() {
           <TabsTrigger value="rules">Late marks &amp; corrections</TabsTrigger>
           <TabsTrigger value="periods">Periods &amp; payroll lock</TabsTrigger>
           <TabsTrigger value="import">Import punches</TabsTrigger>
-          <TabsTrigger value="locations">Work locations</TabsTrigger>
+          <TabsTrigger value="locations">Punch location &amp; work locations</TabsTrigger>
         </TabsList>
       </div>
       <TabsContent value="shifts" className="mt-4">

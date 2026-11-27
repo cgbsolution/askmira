@@ -25,6 +25,7 @@ import { formatDate, formatDay, toISODate } from "@/lib/utils";
 
 import { AttendanceCalendar } from "./AttendanceCalendar";
 import { AttendanceRequestDialog, KIND_LABELS } from "./AttendanceRequestDialog";
+import { FieldVisitCard } from "./FieldVisitCard";
 import { PunchCard } from "./PunchCard";
 import { KioskPinCard } from "./KioskPinCard";
 import { MyShiftSwaps } from "./ShiftSwaps";
@@ -86,6 +87,7 @@ export function MyAttendance() {
   return (
     <div className="flex flex-col gap-6">
       <PunchCard onPunched={refresh} />
+      <FieldVisitCard />
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"

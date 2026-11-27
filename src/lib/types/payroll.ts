@@ -820,6 +820,10 @@ export interface SalaryRevision {
   structure_name: string | null;
   ctc_annual: string;
   ctc_monthly: string;
+  /** The sales incentive inside the CTC, a year (paid when earned, not monthly). */
+  variable_annual?: string | null;
+  /** The CTC a month without the sales incentive; null when there is none. */
+  fixed_ctc_monthly?: string | null;
   /** The CTC as typed: monthly when the year is exactly twelve months of it. */
   ctc_basis?: PayBasis;
   ctc_amount?: string | null;
@@ -1032,4 +1036,64 @@ export interface LocationOption {
   city: string | null;
   state_code: string;
   is_active: boolean;
+}
+
+// ── Challan files (PF ECR / ESIC MC template) from a locked run ─────────────
+
+export type ChallanKind = "esic_mc" | "pf_ecr_csv" | "pf_ecr_txt";
+export type ChallanMovement = "all" | "joined" | "left" | "continuing";
+
+export interface ChallanFilters {
+  department_ids: string[];
+  location_ids: string[];
+  project_ids: string[];
+  designations: string[];
+  grades: string[];
+  employment_types: string[];
+  statuses: string[];
+  movement: ChallanMovement;
+  employee_ids: string[];
+  exclude_employee_ids: string[];
+}
+
+export interface ChallanFilterChoice {
+  value: string;
+  label: string;
+  count: number;
+}
+
+export interface ChallanOptions {
+  period_label: string;
+  legal_entity_name: string | null;
+  runs_included: number;
+  people: number;
+  departments: ChallanFilterChoice[];
+  locations: ChallanFilterChoice[];
+  projects: ChallanFilterChoice[];
+  designations: ChallanFilterChoice[];
+  grades: ChallanFilterChoice[];
+  employment_types: ChallanFilterChoice[];
+  statuses: ChallanFilterChoice[];
+  joined: number;
+  left: number;
+  employees: { id: string; employee_code: string; name: string }[];
+}
+
+export interface ChallanIssue {
+  employee_code: string;
+  name: string;
+  message: string;
+}
+
+export interface ChallanPreview {
+  kind: ChallanKind;
+  file_name: string;
+  period_label: string;
+  matched: number;
+  rows: number;
+  totals: { label: string; amount: string }[];
+  not_covered: number;
+  wage_mismatches: number;
+  left_out: ChallanIssue[];
+  warnings: ChallanIssue[];
 }

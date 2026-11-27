@@ -24,6 +24,8 @@ export interface DirectoryEmployee {
   dotted_line_manager_id?: string | null;
   photo_url: string | null;
   status: EmploymentStatus;
+  /** With status exited: how they left ("absconding", "resignation"…). */
+  exit_type?: string | null;
 }
 
 export interface EmployeeRecord {
@@ -54,6 +56,13 @@ export interface EmployeeRecord {
   status: EmploymentStatus;
   date_of_joining: string | null;
   date_of_exit: string | null;
+  /**
+   * Set on a single-record read: the open exit's approved last working day, else
+   * the one asked for, else the date of exit.
+   */
+  last_working_day?: string | null;
+  /** With status exited: how they left ("absconding", "resignation"…). */
+  exit_type?: string | null;
   probation_end_date: string | null;
   notice_period_days: number | null;
   /** Consultant billing: GST paid on top of the fee, TDS instead of salary tax. */
@@ -92,6 +101,7 @@ export type EmployeeInput = Partial<
     | "status"
     | "date_of_joining"
     | "date_of_exit"
+    | "exit_type"
     | "probation_end_date"
     | "notice_period_days"
     | "gst_applicable"

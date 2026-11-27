@@ -25,6 +25,31 @@ import { errorDetail, formatClock } from "./shared";
  * The API serves it to the person, their reporting line and HR only.
  */
 export function PunchPhoto({ punch }: { punch: Punch }) {
+  if (!punch.has_photo) return null;
+  return (
+    <PhotoButton
+      path={`/attendance/punches/${punch.id}/photo`}
+      title={`Punch ${punch.direction} at ${formatClock(punch.punched_at)}`}
+      description="Taken on the punch screen. Nothing checks the face; look at it yourself."
+      alt={`Photo taken with the ${punch.direction} punch`}
+    />
+  );
+}
+
+/** A "Photo" link that opens a private photo from the API in a dialog. */
+export function PhotoButton({
+  path,
+  title,
+  description,
+  alt,
+  label = "Photo",
+}: {
+  path: string;
+  title: string;
+  description: string;
+  alt: string;
+  label?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
@@ -34,7 +59,7 @@ export function PunchPhoto({ punch }: { punch: Punch }) {
     let objectUrl: string | null = null;
     let cancelled = false;
     setProblem(null);
-    fetchFile(`/attendance/punches/${punch.id}/photo`)
+    fetchFile(path)
       .then(({ blob }) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
@@ -48,24 +73,19 @@ export function PunchPhoto({ punch }: { punch: Punch }) {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       setUrl(null);
     };
-  }, [open, punch.id]);
+  }, [open, path]);
 
-  if (!punch.has_photo) return null;
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="link" className="h-auto p-0 text-xs">
-          <Camera className="size-3" /> Photo
+          <Camera className="size-3" /> {label}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            Punch {punch.direction} at {formatClock(punch.punched_at)}
-          </DialogTitle>
-          <DialogDescription>
-            Taken on the punch screen. Nothing checks the face; look at it yourself.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {problem ? (
           <Alert variant="destructive">
@@ -74,7 +94,7 @@ export function PunchPhoto({ punch }: { punch: Punch }) {
         ) : url ? (
           <Image
             src={url}
-            alt={`Photo taken with the ${punch.direction} punch`}
+            alt={alt}
             width={640}
             height={640}
             unoptimized

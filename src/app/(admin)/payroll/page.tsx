@@ -1,7 +1,14 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { CircleDollarSign, Download, ExternalLink, MoreHorizontal, Trash2 } from "lucide-react";
+import {
+  CircleDollarSign,
+  Download,
+  ExternalLink,
+  Landmark,
+  MoreHorizontal,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import React, { useMemo, useState } from "react";
@@ -9,6 +16,7 @@ import React, { useMemo, useState } from "react";
 import { DataTable } from "@/components/common/data-table/DataTable";
 import { Money } from "@/components/common/Money";
 import { PageShell } from "@/components/common/PageShell";
+import { ChallanDownloadDialog } from "@/components/payroll/ChallanDownloadDialog";
 import { CreateRunDialog } from "@/components/payroll/CreateRunDialog";
 import { DeleteRunDialog } from "@/components/payroll/DeleteRunDialog";
 import { PayslipProtectionSwitch } from "@/components/payroll/PayslipProtection";
@@ -56,7 +64,9 @@ const STATUS_FILTERS: { value: RunStatus | "all"; label: string }[] = [
 /** Open, download the month's data, or delete a run that is not locked. */
 function RunRowMenu({ run, onDelete }: { run: PayrollRun; onDelete: (run: PayrollRun) => void }) {
   const period = periodLabel(run.period_year, run.period_month);
+  const [challanOpen, setChallanOpen] = useState(false);
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" aria-label={`Actions for the ${period} run`}>
@@ -77,6 +87,11 @@ function RunRowMenu({ run, onDelete }: { run: PayrollRun; onDelete: (run: Payrol
             <DropdownMenuItem onSelect={() => void downloadRegister(run.id, "csv")}>
               <Download /> Register summary (CSV)
             </DropdownMenuItem>
+            {isRunLocked(run.status) && (
+              <DropdownMenuItem onSelect={() => setChallanOpen(true)}>
+                <Landmark /> PF &amp; ESI challan files…
+              </DropdownMenuItem>
+            )}
           </>
         )}
         {isRunDeletable(run.status) && (
@@ -99,6 +114,10 @@ function RunRowMenu({ run, onDelete }: { run: PayrollRun; onDelete: (run: Payrol
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+    {challanOpen && (
+      <ChallanDownloadDialog runId={run.id} open={challanOpen} onOpenChange={setChallanOpen} />
+    )}
+    </>
   );
 }
 

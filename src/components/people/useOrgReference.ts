@@ -31,6 +31,8 @@ export function useOrgReference(version = 0) {
       locations: locations.data ?? [],
       entities: entities.data ?? [],
       projects: projects.data ?? [],
+      // What a "Project" filter offers: only projects someone working is on.
+      staffedProjects: (projects.data ?? []).filter((p) => p.staffed),
       isLoading:
         departments.isLoading || locations.isLoading || entities.isLoading || projects.isLoading,
       error: departments.error ?? locations.error ?? entities.error,

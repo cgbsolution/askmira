@@ -1,6 +1,6 @@
 "use client";
 
-import { AlarmClock, Loader2, PencilLine } from "lucide-react";
+import { AlarmClock, Loader2, Mail, PencilLine } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -26,6 +26,7 @@ import { errorDetail, LoadError } from "./shared";
 
 /** "Off" in a Select: Radix needs a non-empty value for every item. */
 const OFF = "off";
+const ON = "on";
 const LATE_CHOICES = [2, 3, 4, 5, 6, 7, 8, 9, 10];
 const LIMIT_CHOICES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15];
 
@@ -52,18 +53,21 @@ export function AttendanceRulesCard() {
   const isAdmin = hasRole("admin");
   const [late, setLate] = useState(OFF);
   const [limit, setLimit] = useState(OFF);
+  const [absentReport, setAbsentReport] = useState(ON);
   const [isSaving, setIsSaving] = useState(false);
 
   const savedLate = data?.late_marks_per_half_day ? String(data.late_marks_per_half_day) : OFF;
   const savedLimit = data?.monthly_correction_limit ? String(data.monthly_correction_limit) : OFF;
+  const savedAbsentReport = data?.absent_report_emails === false ? OFF : ON;
 
   useEffect(() => {
     if (!data) return;
     setLate(savedLate);
     setLimit(savedLimit);
-  }, [data, savedLate, savedLimit]);
+    setAbsentReport(savedAbsentReport);
+  }, [data, savedLate, savedLimit, savedAbsentReport]);
 
-  const unchanged = late === savedLate && limit === savedLimit;
+  const unchanged = late === savedLate && limit === savedLimit && absentReport === savedAbsentReport;
   const every = late === OFF ? null : Number(late);
 
   const save = async () => {
@@ -72,6 +76,7 @@ export function AttendanceRulesCard() {
       const saved = await put<AttendanceSettings>("/attendance/settings", {
         late_marks_per_half_day: every,
         monthly_correction_limit: limit === OFF ? null : Number(limit),
+        absent_report_emails: absentReport === ON,
       });
       toast.success(
         saved.late_marks_per_half_day
@@ -90,11 +95,11 @@ export function AttendanceRulesCard() {
     <Card tier="tier1">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <AlarmClock className="size-4 text-primary" /> Late marks and corrections
+          <AlarmClock className="size-4 text-primary" /> Late marks, corrections and reminders
         </CardTitle>
         <CardDescription>
-          Rules that decide half days and how often people may ask to correct their attendance.
-          Only an admin changes them.
+          Rules that decide half days, how often people may ask to correct their attendance, and
+          whether they are emailed about days still to regularise. Only an admin changes them.
         </CardDescription>
         {isAdmin && (
           <CardAction>
@@ -159,6 +164,29 @@ export function AttendanceRulesCard() {
                         {n} per month
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField
+                htmlFor="absent-report"
+                label={
+                  <span className="flex items-center gap-1.5">
+                    <Mail className="size-3.5" /> Absent report email
+                  </span>
+                }
+                hint={
+                  absentReport === ON
+                    ? "Each morning, anyone with absent or missed-punch days not yet regularised (and no leave applied) gets one email listing them — when a new day appears, otherwise once a week. Covers this month and last month until it is locked."
+                    : "Nobody is emailed about their absent or missed-punch days."
+                }
+              >
+                <Select value={absentReport} onValueChange={setAbsentReport} disabled={!isAdmin}>
+                  <SelectTrigger id="absent-report" className="h-11 w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ON}>On — email each person</SelectItem>
+                    <SelectItem value={OFF}>Off</SelectItem>
                   </SelectContent>
                 </Select>
               </FormField>

@@ -157,6 +157,17 @@ export interface CompanionProposal {
    * checks in the background and says when it is ready.
    */
   waiting?: string;
+  /**
+   * A question the product asked instead of acting (Saleinx: "a company like
+   * this is already there: use it, or create a new one?"). The offer stays open;
+   * the person answers with an option's id, or "new" when `can_create_new`.
+   */
+  choice?: {
+    field: "company" | "contact";
+    message: string;
+    options: { id: string; label: string; detail: string | null }[];
+    can_create_new: boolean;
+  };
   result: { text?: string; open?: string; error?: boolean } | null;
 }
 

@@ -450,7 +450,8 @@ function ShiftDialog({
           <DialogTitle>{isCreate ? "New shift" : `Edit shift ${form.code}`}</DialogTitle>
           <DialogDescription>
             Thresholds are minutes worked: below the half-day threshold the day is absent, from it a
-            half day, from the full-day threshold a full day.
+            half day, from the full-day threshold a full day. The break counts as working time: it
+            is not taken off the hours worked.
           </DialogDescription>
         </DialogHeader>
 

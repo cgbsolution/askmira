@@ -38,6 +38,8 @@ export interface ProjectRow {
   tasks: ProjectTask[];
   /** People on it who have not left; HR's list only, otherwise null. */
   headcount?: number | null;
+  /** Someone working (active, on notice or on leave) is on it; the Project filters list only these. */
+  staffed?: boolean;
 }
 
 interface Entry {

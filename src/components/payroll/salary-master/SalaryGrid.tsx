@@ -8,6 +8,7 @@ import { Money } from "@/components/common/Money";
 import {
   BASES,
   BASIS_LABEL,
+  SALES_INCENTIVE,
   SECTIONS,
   type WageLine,
   type WageRow,
@@ -154,7 +155,15 @@ export function SalaryGrid({
     const set = (patch: Partial<WageRow>) => onChange?.(line.code, { ...row, ...patch });
     return (
       <TableRow key={line.code}>
-        <TableCell className="min-w-64">{name(line.name)}</TableCell>
+        <TableCell className="min-w-64">
+          {name(line.name)}
+          {line.code === SALES_INCENTIVE && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              In CTC TOTAL, not in gross or take home. Not paid monthly: pay it through Payroll → Adjustments when
+              it is earned.
+            </p>
+          )}
+        </TableCell>
         <TableCell className="w-32">{basisSelect(row.basis, (basis) => set({ basis }), line.name)}</TableCell>
         <TableCell className="w-40 text-right">
           {amountBox(row.amount, (amount) => set({ amount }), line.name)}

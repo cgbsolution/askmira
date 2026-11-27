@@ -23,7 +23,7 @@ import type { EmployeeSummary } from "@/lib/types";
 import type { ChartNode, OrgChart } from "@/lib/types/people";
 import { cn, initials } from "@/lib/utils";
 
-import { EMPLOYMENT_STATUS, NONE, POSITION_STATUS, apiMessage, personName } from "../labels";
+import { NONE, POSITION_STATUS, apiMessage, personName, statusMeta } from "../labels";
 import { useOrgReference } from "../useOrgReference";
 import { OrgCanvas, type CanvasDrag } from "./OrgCanvas";
 import { OrgTree, ancestorsOf, type TreeNode } from "./OrgTree";
@@ -185,7 +185,7 @@ function PersonCard({
   dotted: EmployeeSummary | undefined;
 }) {
   const name = personName(person);
-  const status = person.status !== "active" ? EMPLOYMENT_STATUS[person.status] : null;
+  const status = person.status !== "active" ? statusMeta(person.status, person.exit_type) : null;
   return (
     <>
       <div className={CARD_BODY}>

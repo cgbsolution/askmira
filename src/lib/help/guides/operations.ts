@@ -191,6 +191,15 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
         ],
       },
       {
+        title: "Add a sales incentive (variable pay)",
+        steps: [
+          "Type CTC TOTAL as the whole CTC, fixed salary plus incentive (for example 16,00,000 a year).",
+          "Under Variable earning, type SALES INCENTIVE with Pay Basis Yearly (for example 4,00,000). Then press Calculate: the structure splits only the fixed part, CTC TOTAL less the incentive.",
+          "The incentive counts in CTC TOTAL only. It is not in monthly gross, take home or the payslip; the card shows the fixed CTC a month and the incentive a year.",
+          "When the incentive is earned, pay it through Payroll → Adjustments (category Incentive).",
+        ],
+      },
+      {
         title: "Correct or delete a revision",
         steps: [
           "Press the pencil on a card to edit it, or the bin to delete it.",
@@ -275,7 +284,7 @@ export const OPERATIONS_GUIDES: Record<string, PageGuide> = {
       {
         title: "Keep employer PF and ESIC inside the CTC",
         steps: [
-          "Under 6 Company contribution, set EMPLOYER PF CONTRIBUTION, e.g. 13% of PF wages with the base up to ₹15,000 (Limits).",
+          "Under 6 Company contribution, set EMPLOYER PF CONTRIBUTION, e.g. 13% of PF wages with the base up to ₹25,000 (Limits).",
           "Set EMPLOYER ESIC CONTRIBUTION, e.g. 3.25% of ESI wages, applied only while ESI wages are up to ₹21,000, rounded up.",
           "Pick Not in CTC to have payroll add them on top instead. Payroll still works out what is contributed each month.",
         ],

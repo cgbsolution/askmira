@@ -123,14 +123,14 @@ export function EmployeeFilters({
           </SelectContent>
         </Select>
       )}
-      {org.projects.length > 0 && (
+      {org.staffedProjects.length > 0 && (
         <Select value={values.project} onValueChange={change("project")}>
           <SelectTrigger aria-label="Project" className="h-9 w-48">
             <SelectValue placeholder="Project" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={NONE}>All projects</SelectItem>
-            {org.projects.map((project) => (
+            {org.staffedProjects.map((project) => (
               <SelectItem key={project.id} value={project.id}>
                 {project.name}
               </SelectItem>

@@ -12,6 +12,9 @@ export const SECTIONS: { key: WageGroup; title: string }[] = [
   { key: "provision", title: "Provision" },
 ];
 
+/** Part of CTC TOTAL, never paid by the monthly payroll: paid when earned, through Adjustments. */
+export const SALES_INCENTIVE = "SALES_INCENTIVE";
+
 /** The Pay Basis choices, in the order the old screen lists them. */
 export const BASES: PayBasis[] = ["annual", "monthly", "weekly", "daily", "hourly"];
 
