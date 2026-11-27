@@ -3,6 +3,7 @@
 import {
   BadgeCheck,
   Download,
+  Eye,
   EyeOff,
   FileText,
   Pencil,
@@ -25,6 +26,7 @@ import {
   UploadDocumentDialog,
   VerifyDocumentDialog,
 } from "@/components/docs/DocumentDialogs";
+import { DocumentViewerDialog } from "@/components/docs/DocumentViewerDialog";
 import type { PickedEmployee } from "@/components/people/EmployeePicker";
 import { apiMessage } from "@/components/people/labels";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +39,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { useApiQuery } from "@/hooks/useApiQuery";
 import { del, downloadFile } from "@/lib/api";
@@ -70,6 +73,40 @@ const COPY: Record<Mode, { title: string; add: string; emptyTitle: string; empty
   },
 };
 
+/** An icon-only row action with a hover tooltip saying what it does. */
+function IconAction({
+  tip,
+  label,
+  destructive = false,
+  onClick,
+  children,
+}: {
+  tip: string;
+  label: string;
+  destructive?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Tooltip delayDuration={200}>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className={destructive ? "text-destructive hover:text-destructive" : undefined}
+          aria-label={label}
+          onClick={onClick}
+        >
+          {children}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={4}>
+        {tip}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 /** One of the vault's two halves: the employee's own documents, or their dependants'. */
 function VaultSection({
   mode,
@@ -95,6 +132,7 @@ function VaultSection({
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<VaultDocument | null>(null);
   const [deleting, setDeleting] = useState<VaultDocument | null>(null);
+  const [viewing, setViewing] = useState<VaultDocument | null>(null);
   const [verifying, setVerifying] = useState<{ document: VaultDocument; decision: "verified" | "rejected" } | null>(
     null,
   );
@@ -256,49 +294,44 @@ function VaultSection({
                   </TableCell>
                   <TableCell className="pr-6">
                     <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Download ${doc.title}`}
-                        onClick={() => void download(doc)}
-                      >
+                      <IconAction tip="View document" label={`View ${doc.title}`} onClick={() => setViewing(doc)}>
+                        <Eye />
+                      </IconAction>
+                      <IconAction tip="Download" label={`Download ${doc.title}`} onClick={() => void download(doc)}>
                         <Download />
-                      </Button>
+                      </IconAction>
                       {isHr && !own && doc.verification_status === "pending" && (
                         <>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Verify ${doc.title}`}
+                          <IconAction
+                            tip="Verify — mark as checked against the original"
+                            label={`Verify ${doc.title}`}
                             onClick={() => setVerifying({ document: doc, decision: "verified" })}
                           >
                             <BadgeCheck />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="text-destructive hover:text-destructive"
-                            aria-label={`Reject ${doc.title}`}
+                          </IconAction>
+                          <IconAction
+                            tip="Reject — send back to the employee with a reason"
+                            label={`Reject ${doc.title}`}
+                            destructive
                             onClick={() => setVerifying({ document: doc, decision: "rejected" })}
                           >
                             <ShieldX />
-                          </Button>
+                          </IconAction>
                         </>
                       )}
                       {isHr && !own && (
                         <>
-                          <Button variant="ghost" size="icon-sm" aria-label={`Edit ${doc.title}`} onClick={() => setEditing(doc)}>
+                          <IconAction tip="Edit details" label={`Edit ${doc.title}`} onClick={() => setEditing(doc)}>
                             <Pencil />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="text-destructive hover:text-destructive"
-                            aria-label={`Delete ${doc.title}`}
+                          </IconAction>
+                          <IconAction
+                            tip="Delete document"
+                            label={`Delete ${doc.title}`}
+                            destructive
                             onClick={() => setDeleting(doc)}
                           >
                             <Trash2 />
-                          </Button>
+                          </IconAction>
                         </>
                       )}
                     </div>
@@ -320,6 +353,11 @@ function VaultSection({
           onUploaded={reload}
         />
       )}
+      <DocumentViewerDialog
+        document={viewing}
+        onOpenChange={(open) => !open && setViewing(null)}
+        onDownload={() => viewing && void download(viewing)}
+      />
       <VerifyDocumentDialog
         document={verifying?.document ?? null}
         decision={verifying?.decision ?? "verified"}
